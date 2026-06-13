@@ -1,0 +1,91 @@
+---
+import { Image } from 'astro:assets';
+import logo from '../../assets/brand/sem-fundo-preto.png';
+---
+
+<header class="herovsl">
+  <nav class="herovsl__nav container">
+    <Image src={logo} alt="Atacado Exponencial" height={28} class="herovsl__logo" />
+  </nav>
+
+  <div class="herovsl__body container">
+    <span class="herovsl__badge">Para atacadistas com faturamento acima de R$ 20 mil/mês</span>
+    <h1 class="herovsl__title">
+      O Plano de Ação que seu Atacado precisa para faturar <strong>R$ 400 mil</strong> ou mais por mês
+    </h1>
+
+    <div class="herovsl__video">
+      <iframe
+        src="https://www.youtube-nocookie.com/embed/KjN1ztLO6yc?rel=0&modestbranding=1&playsinline=1"
+        title="Atacado Exponencial"
+        loading="lazy"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+      ></iframe>
+    </div>
+
+    <p class="herovsl__sub">
+      Em uma sessão individual e gratuita, analisamos seu atacado de ponta a ponta
+      e entregamos um plano personalizado para destravar seu crescimento.
+    </p>
+    <button type="button" class="herovsl__cta" data-open-chat>
+      Quero meu diagnóstico gratuito <span class="herovsl__arrow" aria-hidden="true">→</span>
+    </button>
+  </div>
+</header>
+
+<style>
+  .herovsl { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); }
+  .herovsl__nav { padding-block: 1.5rem; }
+  .herovsl__logo { height: 1.6rem; width: auto; }
+  .herovsl__body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.5rem;
+    max-width: 48rem;
+    padding-bottom: 4rem;
+  }
+  .herovsl__badge {
+    display: inline-block;
+    border: 1px solid rgba(30, 30, 30, 0.15);
+    border-radius: 9999px;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(30, 30, 30, 0.7);
+  }
+  .herovsl__title { font-size: clamp(1.75rem, 4vw, 2.75rem); line-height: 1.1; }
+  .herovsl__video {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: #000;
+  }
+  .herovsl__video iframe { width: 100%; height: 100%; border: 0; }
+  .herovsl__sub { color: rgba(30, 30, 30, 0.8); font-size: 1.05rem; max-width: 40rem; }
+  .herovsl__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #1e1e1e;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 1.25rem 2.5rem;
+    border: none;
+    border-radius: 9999px;
+  }
+  .herovsl__arrow {
+    width: 2.25rem; height: 2.25rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+</style>

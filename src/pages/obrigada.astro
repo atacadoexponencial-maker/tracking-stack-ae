@@ -1,0 +1,91 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/sem-fundo-preto.png';
+import AboutFelipe from '../components/sections/AboutFelipe.astro';
+
+const metodologia = [
+  { number: '01', title: 'Inteligência de Mercado', description: 'Comunicação precisa para o seu ICP real: lojistas, revendedores, empreendedores. Não consumidor final.' },
+  { number: '02', title: 'Atacado Digital', description: 'Estratégias de marketing e vendas que atraem público comprador qualificado para a sua marca.' },
+  { number: '03', title: 'Geração de Demanda', description: 'Criar, capturar, converter e fidelizar demanda com múltiplos funis ativos e previsibilidade de receita.' },
+];
+---
+
+<BaseLayout
+  title="Inscrição confirmada — Atacado Exponencial"
+  description="Sua inscrição foi confirmada. Veja o resultado de quem aplicou o método."
+  showHeader={false}
+>
+  <!-- Confirmação -->
+  <section class="confirm">
+    <div class="container confirm__inner">
+      <Image src={logo} alt="Atacado Exponencial" height={26} class="confirm__logo" />
+      <span class="confirm__badge">Inscrição confirmada</span>
+      <h1 class="confirm__title">Sua inscrição foi confirmada.</h1>
+      <p class="confirm__sub">Veja o resultado de quem aplicou o método</p>
+    </div>
+  </section>
+
+  <!-- Vídeo de depoimento -->
+  <section class="tvideo">
+    <div class="container tvideo__inner">
+      <div class="tvideo__frame">
+        <iframe
+          src="https://www.youtube.com/embed/RP33V4WBKMg"
+          title="Depoimento — Atacado Exponencial"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- Metodologia -->
+  <section class="section section--light method">
+    <div class="container">
+      <div class="method__head">
+        <span class="eyebrow">Metodologia</span>
+        <h2 class="section-title">A Metodologia Atacado Exponencial</h2>
+        <p class="section-sub">O único método dedicado ao mercado atacadista. Venda deixa de ser milagre e vira matemática.</p>
+      </div>
+      <div class="method__list">
+        {metodologia.map((m) => (
+          <div class="method__item">
+            <span class="method__num">{m.number}</span>
+            <div>
+              <h3 class="method__title">{m.title}</h3>
+              <p class="method__desc">{m.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <AboutFelipe />
+</BaseLayout>
+
+<style>
+  .confirm { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); padding-block: 3.5rem; }
+  .confirm__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.25rem; }
+  .confirm__logo { height: 1.6rem; width: auto; }
+  .confirm__badge {
+    display: inline-block; border: 1px solid rgba(30, 30, 30, 0.15); border-radius: 9999px;
+    padding: 0.5rem 1.25rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: rgba(30, 30, 30, 0.7);
+  }
+  .confirm__title { font-size: clamp(1.75rem, 5vw, 3rem); line-height: 1.08; max-width: 36rem; }
+  .confirm__sub { color: rgba(30, 30, 30, 0.7); }
+  .tvideo { background: #fff; padding-block: 3rem; }
+  .tvideo__inner { max-width: 48rem; }
+  .tvideo__frame { aspect-ratio: 16 / 9; border-radius: 1rem; overflow: hidden; background: #000; }
+  .tvideo__frame iframe { width: 100%; height: 100%; border: 0; }
+  .method__head { display: flex; flex-direction: column; gap: 1rem; align-items: flex-start; text-align: left; max-width: 36rem; margin-bottom: 2rem; }
+  .method__head .section-sub { text-align: left; }
+  .method__list { display: flex; flex-direction: column; }
+  .method__item { display: flex; gap: 1.5rem; padding-block: 1.75rem; border-bottom: 1px solid rgba(30, 30, 30, 0.08); }
+  .method__num { font-weight: 700; color: rgba(30, 30, 30, 0.18); font-size: 2.5rem; line-height: 1; flex-shrink: 0; width: 3rem; }
+  .method__title { font-size: 1.1rem; margin-bottom: 0.4rem; }
+  .method__desc { color: rgba(30, 30, 30, 0.7); font-size: 0.9rem; }
+</style>

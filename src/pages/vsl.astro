@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import HeroVSL from '../components/sections/HeroVSL.astro';
+import Pain from '../components/sections/Pain.astro';
+import Pillars from '../components/sections/Pillars.astro';
+import HowItWorks from '../components/sections/HowItWorks.astro';
+import Testimonials from '../components/sections/Testimonials.astro';
+import AboutFelipe from '../components/sections/AboutFelipe.astro';
+import Faq from '../components/sections/Faq.astro';
+import FinalCta from '../components/sections/FinalCta.astro';
+import LeadChat from '../components/LeadChat.astro';
+---
+
+<BaseLayout
+  title="Atacado Exponencial — Assista e agende seu diagnóstico"
+  description="Veja como destravar o crescimento do seu atacado e agende uma sessão individual e gratuita de diagnóstico."
+  showHeader={false}
+>
+  <HeroVSL />
+  <main>
+    <Pain />
+    <Pillars />
+    <HowItWorks />
+    <Testimonials />
+    <AboutFelipe />
+    <Faq />
+    <FinalCta />
+  </main>
+  <LeadChat />
+</BaseLayout>

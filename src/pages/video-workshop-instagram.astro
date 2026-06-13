@@ -1,0 +1,145 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/sem-fundo-preto.png';
+
+const WHATSAPP_LINK = 'https://chat.whatsapp.com/LgTdlh5fUOw69bQ96pv5SG';
+const YOUTUBE_VIDEO_ID = 'SGJFD_6OD_Q';
+const vipBenefits = [
+  'Workshop quinzenal exclusivo (100% gratuito)',
+  'Grupo fechado no WhatsApp (sem spam, só conteúdo)',
+  'Materiais que eu não solto nas redes sociais',
+  'Avisos prioritários de eventos e treinamentos ao vivo',
+];
+const finalBadges = ['100% gratuito', 'Grupo fechado', 'Conteúdo exclusivo'];
+
+const proofModules = import.meta.glob('../assets/proof/*.{jpg,png}', { eager: true });
+const proofImages = Object.entries(proofModules)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([, m]) => (m as { default: ImageMetadata }).default);
+---
+
+<BaseLayout
+  title="Workshop: Por que seu Instagram atacado não vende?"
+  description="1 hora de conteúdo gratuito sobre vendas no atacado. Entre para o Grupo VIP Atacado Exponencial."
+  showHeader={false}
+>
+  <!-- Hero com vídeo -->
+  <section class="vw-hero">
+    <div class="container vw-hero__inner">
+      <Image src={logo} alt="Atacado Exponencial" height={26} class="vw-hero__logo" />
+      <h1 class="vw-hero__title">Workshop: Por que seu Instagram atacado não vende?</h1>
+      <div class="vw-hero__video">
+        <iframe
+          src={`https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}`}
+          title="Workshop Atacado Exponencial — Instagram Atacado"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pós-vídeo -->
+  <section class="vw-post">
+    <div class="container">
+      <h2 class="vw-post__title">
+        Você acabou de assistir a <span class="vw-post__dim">1 hora de conteúdo gratuito</span> que vale mais do que 90% das consultorias pagas por aí.
+      </h2>
+      <div class="vw-post__subs">
+        <p>Agora imagine receber isso a <strong>cada 15 dias</strong>, direto no WhatsApp.</p>
+        <p class="vw-post__strong">É o que acontece no Grupo VIP Atacado Exponencial.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Benefícios -->
+  <section class="section section--light vw-benefits">
+    <div class="container">
+      <div class="vw-benefits__head">
+        <span class="eyebrow">Membro VIP</span>
+        <h2 class="section-title">O que você recebe como membro VIP</h2>
+      </div>
+      <div class="vw-benefits__list">
+        {vipBenefits.map((b, i) => (
+          <div class="vw-benefits__item">
+            <span class="vw-benefits__num">{String(i + 1).padStart(2, '0')}</span>
+            <h3 class="vw-benefits__title">{b}</h3>
+          </div>
+        ))}
+      </div>
+      <div class="vw-cta-wrap">
+        <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" class="btn-cta">Garantir minha vaga no grupo VIP</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Prova social -->
+  <section class="vw-proof">
+    <div class="container">
+      <div class="vw-proof__head">
+        <span class="eyebrow">Prova social</span>
+        <h2 class="section-title">Outros atacadistas já estão recebendo</h2>
+      </div>
+      <div class="vw-proof__grid">
+        {proofImages.map((img, i) => (
+          <Image src={img} alt={`Depoimento de membro VIP ${i + 1}`} class="vw-proof__img" loading="lazy" />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA final -->
+  <section class="vw-final">
+    <div class="container vw-final__inner">
+      <p class="vw-final__warn">⚠️ A qualquer momento fecharemos o grupo, aproveite enquanto é gratuito.</p>
+      <p class="vw-final__lead">Se você quer garantir seu lugar, entre agora:</p>
+      <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" class="btn-cta">Garantir minha vaga no grupo VIP</a>
+      <div class="vw-final__badges">
+        {finalBadges.map((b) => <span class="vw-final__badge">{b}</span>)}
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .vw-hero { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); padding-block: 2.5rem 4rem; }
+  .vw-hero__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.75rem; max-width: 48rem; }
+  .vw-hero__logo { height: 1.6rem; width: auto; }
+  .vw-hero__title { font-size: clamp(1.6rem, 4vw, 2.5rem); line-height: 1.15; }
+  .vw-hero__video { width: 100%; aspect-ratio: 16 / 9; border-radius: 1rem; overflow: hidden; background: #000; }
+  .vw-hero__video iframe { width: 100%; height: 100%; border: 0; }
+
+  .vw-post { background: #fff; color: #1e1e1e; padding-block: 4rem; }
+  .vw-post__title { font-size: clamp(1.6rem, 4vw, 3rem); line-height: 1.2; max-width: 56rem; }
+  .vw-post__dim { color: rgba(30, 30, 30, 0.5); }
+  .vw-post__subs { display: flex; flex-direction: column; gap: 1rem; margin-top: 2rem; max-width: 40rem; }
+  .vw-post__subs p { color: rgba(30, 30, 30, 0.7); }
+  .vw-post__subs strong { color: #1e1e1e; }
+  .vw-post__strong { font-weight: 700; font-size: 1.15rem; color: #1e1e1e !important; }
+
+  .vw-benefits__head { display: flex; flex-direction: column; gap: 1rem; align-items: flex-start; text-align: left; margin-bottom: 2rem; }
+  .vw-benefits__list { display: flex; flex-direction: column; }
+  .vw-benefits__item { display: flex; gap: 1.5rem; align-items: center; padding-block: 1.5rem; border-bottom: 1px solid rgba(30, 30, 30, 0.08); }
+  .vw-benefits__num { font-weight: 700; color: rgba(30, 30, 30, 0.18); font-size: 2.5rem; line-height: 1; flex-shrink: 0; width: 3rem; }
+  .vw-benefits__title { font-size: 1.1rem; }
+  .vw-cta-wrap { display: flex; justify-content: center; margin-top: 3rem; }
+
+  .vw-proof { background: #fff; color: #1e1e1e; padding-block: 4rem; }
+  .vw-proof__head { display: flex; flex-direction: column; gap: 1rem; align-items: flex-start; margin-bottom: 2rem; }
+  .vw-proof__grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .vw-proof__img { width: 100%; height: auto; border-radius: 1rem; object-fit: cover; }
+
+  .vw-final { background: #1e1e1e; color: #fff; padding-block: 4rem; }
+  .vw-final__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.5rem; max-width: 36rem; margin-inline: auto; }
+  .vw-final__warn { font-weight: 700; font-size: 1.15rem; color: rgba(255, 255, 255, 0.9); }
+  .vw-final__lead { color: rgba(255, 255, 255, 0.6); }
+  .vw-final__badges { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
+  .vw-final__badge { display: flex; align-items: center; gap: 0.5rem; color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; }
+  .vw-final__badge::before { content: ''; width: 0.25rem; height: 0.25rem; border-radius: 9999px; background: rgba(255, 255, 255, 0.3); }
+
+  @media (min-width: 768px) {
+    .vw-proof__grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>

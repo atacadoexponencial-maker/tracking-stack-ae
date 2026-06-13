@@ -1,0 +1,102 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Política de Privacidade — Atacado Exponencial" description="Política de Privacidade do Atacado Exponencial.">
+  <main class="container privacy">
+    <h1>Política de Privacidade</h1>
+    <p class="privacy__date">Última atualização: 29 de março de 2026</p>
+
+    <section>
+      <h2>1. Introdução</h2>
+      <p>A <strong>Atacado Exponencial</strong> ("nós", "nosso") opera uma aplicação integrada à plataforma Meta (Facebook/Instagram) para análise de campanhas publicitárias e ativação de campanhas em nome dos nossos usuários. Esta Política de Privacidade descreve como coletamos, usamos, armazenamos e protegemos as informações obtidas por meio do nosso aplicativo.</p>
+    </section>
+
+    <section>
+      <h2>2. Dados que coletamos</h2>
+      <p>Ao utilizar nosso aplicativo, podemos coletar os seguintes tipos de dados:</p>
+      <ul>
+        <li><strong>Dados da conta Meta:</strong> nome, e-mail, ID de usuário e token de acesso fornecidos ao autorizar o aplicativo via Login do Facebook.</li>
+        <li><strong>Dados de campanhas publicitárias:</strong> informações de contas de anúncios, campanhas, conjuntos de anúncios, anúncios, métricas de desempenho (impressões, cliques, conversões, gastos) e públicos-alvo, acessados por meio da API de Marketing do Meta.</li>
+        <li><strong>Dados de páginas e contas do Instagram:</strong> informações de páginas do Facebook e contas profissionais do Instagram conectadas, incluindo insights e métricas.</li>
+        <li><strong>Dados de uso:</strong> registros de acesso, endereço IP, tipo de navegador e interações com o aplicativo.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. Como usamos os dados</h2>
+      <ul>
+        <li>Exibir relatórios e análises de desempenho das suas campanhas publicitárias.</li>
+        <li>Criar, editar e ativar campanhas publicitárias em seu nome nas plataformas Meta.</li>
+        <li>Fornecer recomendações e insights para otimização de campanhas.</li>
+        <li>Autenticar e autorizar o acesso ao aplicativo.</li>
+        <li>Melhorar nossos serviços e experiência do usuário.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>4. Compartilhamento de dados</h2>
+      <p>Não vendemos, alugamos ou compartilhamos seus dados pessoais ou dados de campanhas com terceiros para fins de marketing. Podemos compartilhar dados apenas nas seguintes situações:</p>
+      <ul>
+        <li>Com provedores de serviço que nos auxiliam na operação do aplicativo (hospedagem, análise), sob acordos de confidencialidade.</li>
+        <li>Quando exigido por lei, ordem judicial ou processo legal.</li>
+        <li>Para proteger nossos direitos, propriedade ou segurança.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5. Armazenamento e segurança</h2>
+      <p>Os dados são armazenados em servidores seguros com criptografia em trânsito (TLS/SSL) e em repouso. Implementamos medidas técnicas e organizacionais adequadas para proteger seus dados contra acesso não autorizado, alteração, divulgação ou destruição. Os tokens de acesso são armazenados de forma criptografada e com escopo limitado às permissões concedidas.</p>
+    </section>
+
+    <section>
+      <h2>6. Retenção de dados</h2>
+      <p>Mantemos seus dados apenas pelo tempo necessário para fornecer os serviços ou conforme exigido por lei. Ao revogar o acesso do aplicativo ou solicitar a exclusão, removeremos seus dados de nossos sistemas em até 30 dias.</p>
+    </section>
+
+    <section>
+      <h2>7. Seus direitos</h2>
+      <p>De acordo com a LGPD (Lei Geral de Proteção de Dados), você tem direito a:</p>
+      <ul>
+        <li>Acessar os dados pessoais que mantemos sobre você.</li>
+        <li>Corrigir dados incompletos, inexatos ou desatualizados.</li>
+        <li>Solicitar a exclusão dos seus dados pessoais.</li>
+        <li>Revogar o consentimento a qualquer momento.</li>
+        <li>Solicitar a portabilidade dos seus dados.</li>
+        <li>Obter informações sobre com quem seus dados foram compartilhados.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>8. Exclusão de dados</h2>
+      <p>Você pode solicitar a exclusão dos seus dados a qualquer momento entrando em contato conosco pelo e-mail abaixo. Além disso, você pode revogar as permissões do aplicativo diretamente nas configurações do Facebook. Ao revogar o acesso, todos os dados associados serão excluídos em até 30 dias.</p>
+    </section>
+
+    <section>
+      <h2>9. Uso da API do Meta</h2>
+      <p>Nosso aplicativo utiliza a API de Marketing e a Graph API do Meta em conformidade com a Política da Plataforma Meta e os Termos de Serviço do Facebook. Os dados obtidos via API do Meta são utilizados exclusivamente para os fins descritos nesta política e nunca são vendidos a terceiros.</p>
+    </section>
+
+    <section>
+      <h2>10. Alterações nesta política</h2>
+      <p>Podemos atualizar esta Política de Privacidade periodicamente. Quaisquer alterações serão publicadas nesta página com a data de atualização revisada. Recomendamos que você revise esta política regularmente.</p>
+    </section>
+
+    <section>
+      <h2>11. Contato</h2>
+      <p>Para exercer seus direitos, esclarecer dúvidas ou solicitar a exclusão de dados, entre em contato:</p>
+      <p><strong>Atacado Exponencial</strong><br />E-mail: contato@atacadoexponencial.com</p>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .privacy { max-width: 48rem; padding-block: 3rem; }
+  .privacy h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+  .privacy__date { color: hsl(var(--muted-foreground)); font-size: 0.85rem; margin-bottom: 2.5rem; }
+  .privacy section { margin-bottom: 2rem; }
+  .privacy h2 { font-size: 1.15rem; margin-bottom: 0.75rem; }
+  .privacy p { color: hsl(var(--muted-foreground)); line-height: 1.7; margin-bottom: 0.75rem; }
+  .privacy ul { color: hsl(var(--muted-foreground)); line-height: 1.7; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .privacy strong { color: hsl(var(--foreground)); }
+</style>
