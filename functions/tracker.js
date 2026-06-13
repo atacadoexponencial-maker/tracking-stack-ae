@@ -158,6 +158,14 @@ export async function onRequestPost(context) {
       ga4ResponseBody = `Fetch error: ${results[1].reason?.message || 'unknown'}`;
     }
 
+    // --- Encaminhar lead ao CRM (fan-out desacoplado; destino trocável) ---
+    // O site fala apenas com /tracker. O destino do CRM (n8n hoje, que leva
+    // ao ClickUp) vem de env.LEAD_WEBHOOK_URL e pode ser trocado ou removido
+    // sem alterar o front. Só dispara para eventos de Lead, em background.
+    if ((body.event_name || '').toLowerCase() === 'lead' && env.LEAD_WEBHOOK_URL) {
+      context.waitUntil(sendToCRM({ leadData: body.lead_data || {}, sessionData, env }));
+    }
+
     const rawEmail = userData.em || '';
 
     // --- Log to D1 (background) ---
@@ -201,7 +209,20 @@ export async function onRequestPost(context) {
       })()
     );
 
-    return new Response(JSON.stringify({ ok: true }), {
+    // --- Roteamento pós-captação (regra de negócio, no backend) ---
+    // Leads de baixo faturamento ("Menos de 20 Mil") seguem para o WhatsApp
+    // dos especialistas; os demais para o agendamento (Calendly). Os destinos
+    // são configuráveis por env. O front apenas executa o redirect retornado.
+    let leadRedirect = null;
+    if ((body.event_name || '').toLowerCase() === 'lead') {
+      const faturamento = (body.lead_data?.faturamento || '').toLowerCase();
+      const baixoTicket = faturamento.includes('menos de 20');
+      leadRedirect = baixoTicket
+        ? (env.LEAD_REDIRECT_WHATSAPP || '')
+        : (env.LEAD_REDIRECT_CALENDLY || '');
+    }
+
+    return new Response(JSON.stringify({ ok: true, redirect: leadRedirect }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -300,6 +321,36 @@ async function sendToGA4({ body, gaClientId, gaSessionId, hashedEm, env }) {
     body: payloadJson,
   });
   return { payload: payloadJson, response };
+}
+
+// -------------------------------------------------------
+// CRM FORWARD — encaminha o lead para um webhook configurável
+// (hoje n8n → ClickUp). Dados crus do formulário + atribuição da sessão.
+// -------------------------------------------------------
+async function sendToCRM({ leadData, sessionData, env }) {
+  try {
+    const payload = {
+      ...leadData,
+      attribution: {
+        utm_source: sessionData.utm_source || '',
+        utm_medium: sessionData.utm_medium || '',
+        utm_campaign: sessionData.utm_campaign || '',
+        utm_content: sessionData.utm_content || '',
+        utm_term: sessionData.utm_term || '',
+        fbclid: sessionData.fbclid || '',
+        gclid: sessionData.gclid || '',
+        landing_url: sessionData.landing_url || '',
+        referrer: sessionData.referrer || '',
+      },
+    };
+    await fetch(env.LEAD_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.error('CRM forward error:', e.message);
+  }
 }
 
 // -------------------------------------------------------
