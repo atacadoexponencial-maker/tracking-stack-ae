@@ -1,0 +1,307 @@
+---
+/**
+ * Chat conversacional nativo de captação de lead (issue 14, island leve).
+ * Recria o fluxo do Typebot de diagnóstico dentro do próprio domínio, para
+ * preservar o tracking first-party. Ao concluir, envia o lead ao backend
+ * (/tracker, event "Lead") que registra a atribuição, dispara o Meta CAPI,
+ * encaminha ao CRM e devolve o destino (WhatsApp/Calendly) conforme o
+ * faturamento — o chat apenas redireciona para o destino retornado.
+ *
+ * Abre ao clicar em qualquer elemento com [data-open-chat].
+ */
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/sem-fundo-branco.png';
+---
+
+<div id="lead-chat" class="lead-chat" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="Inscrição na consultoria">
+  <div class="lead-chat__panel">
+    <header class="lead-chat__header">
+      <Image src={logo} alt="Atacado Exponencial" height={22} />
+      <button type="button" class="lead-chat__close" data-close-chat aria-label="Fechar">&times;</button>
+    </header>
+    <div class="lead-chat__messages" id="lead-chat-messages"></div>
+    <div class="lead-chat__input" id="lead-chat-input"></div>
+  </div>
+</div>
+
+<style>
+  .lead-chat {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.75);
+    padding: 1rem;
+  }
+  .lead-chat[hidden] { display: none; }
+  .lead-chat__panel {
+    width: 100%;
+    max-width: 30rem;
+    height: min(90vh, 40rem);
+    background: #1e1e1e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .lead-chat__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .lead-chat__close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+  .lead-chat__close:hover { color: #fff; }
+  .lead-chat__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .lead-chat__bubble {
+    background: #2a2a2a;
+    color: #fff;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    border-top-left-radius: 0.125rem;
+    max-width: 90%;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    align-self: flex-start;
+    animation: lc-in 0.25s ease;
+  }
+  .lead-chat__bubble--user {
+    background: #fff;
+    color: #1e1e1e;
+    align-self: flex-end;
+    border-top-left-radius: 0.75rem;
+    border-top-right-radius: 0.125rem;
+    font-weight: 700;
+  }
+  @keyframes lc-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .lead-chat__input {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .lead-chat__input input {
+    width: 100%;
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 0.85rem 1rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+  }
+  .lead-chat__input input::placeholder { color: rgba(255, 255, 255, 0.25); }
+  .lead-chat__input input:focus { outline: none; border-color: rgba(255, 255, 255, 0.6); }
+  .lead-chat__btn {
+    background: #fff;
+    color: #1e1e1e;
+    border: none;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.8rem;
+    padding: 0.9rem 1rem;
+  }
+  .lead-chat__btn:disabled { opacity: 0.5; }
+  .lead-chat__choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    max-height: 13rem;
+    overflow-y: auto;
+  }
+  .lead-chat__choice {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.85);
+    padding: 0.7rem 0.5rem;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+  .lead-chat__choice:hover { border-color: rgba(255, 255, 255, 0.6); background: rgba(255, 255, 255, 0.05); }
+  .lead-chat__error { color: #f87171; font-size: 0.75rem; }
+</style>
+
+<script>
+  type Step =
+    | { kind: 'messages'; texts: string[] }
+    | { kind: 'start'; button: string }
+    | { kind: 'input'; key: string; inputType: 'text' | 'tel' | 'email'; before?: string[]; question: string; placeholder: string; validate: (v: string) => boolean; errorMsg: string }
+    | { kind: 'choice'; key: string; before?: string[]; question: string; options: string[] };
+
+  const FAT_OPTIONS = [
+    'Menos de 20 Mil', 'De 20 a 30 Mil', 'De 30 a 40 Mil', 'De 40 a 75 Mil',
+    'De 75 a 100 Mil', 'De 100 a 150 Mil', 'De 150 a 200 Mil', 'De 200 a 300 Mil',
+    'De 300 a 500 Mil', 'Mais de 500 Mil',
+  ];
+
+  const STEPS: Step[] = [
+    { kind: 'messages', texts: [
+      'Bem-vindo à inscrição da consultoria individual e gratuita do Atacado Exponencial.',
+      'Estamos muito felizes pelo seu interesse, mas lembre-se: o preenchimento não garante vaga 🚨 Esse é um trabalho bem cuidadoso e personalizado, então não é possível de ser feito com todos os interessados.',
+      'Preencha com bastante atenção algumas perguntas bem rápidas 👇🏼',
+    ] },
+    { kind: 'start', button: 'Toque para começar' },
+    { kind: 'input', key: 'nome', inputType: 'text', question: 'Qual o seu nome?', placeholder: 'Digite seu nome', validate: (v) => v.trim().length >= 2, errorMsg: 'Digite seu nome.' },
+    { kind: 'input', key: 'telefone', inputType: 'tel', before: ['Importante: para que eu consiga entrar em contato pra te avisar sobre sua aprovação.'], question: 'Qual o seu Whatsapp?', placeholder: 'Digite seu Whatsapp', validate: (v) => v.replace(/\D/g, '').length >= 10, errorMsg: 'Digite um Whatsapp válido com DDD.' },
+    { kind: 'input', key: 'email', inputType: 'email', before: ['(Só lembrando que vou mandar o link da sessão por lá)'], question: 'Qual o seu melhor email?', placeholder: 'Digite seu email', validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), errorMsg: 'Digite um email válido.' },
+    { kind: 'input', key: 'instagram', inputType: 'text', question: 'Excelente! Por fim, qual o @instagram da sua marca?', placeholder: 'Digite o @ do Instagram', validate: (v) => v.trim().length >= 1, errorMsg: 'Digite o @ da sua marca.' },
+    { kind: 'choice', key: 'faturamento', before: ['Show!'], question: 'qual o faturamento MENSAL do seu negócio?', options: FAT_OPTIONS },
+  ];
+
+  const overlay = document.getElementById('lead-chat') as HTMLElement | null;
+  const messagesEl = document.getElementById('lead-chat-messages') as HTMLElement | null;
+  const inputEl = document.getElementById('lead-chat-input') as HTMLElement | null;
+  if (overlay && messagesEl && inputEl) {
+    const answers: Record<string, string> = {};
+    let stepIndex = 0;
+    let started = false;
+
+    function addBubble(text: string, user = false) {
+      const b = document.createElement('div');
+      b.className = 'lead-chat__bubble' + (user ? ' lead-chat__bubble--user' : '');
+      b.textContent = text;
+      messagesEl!.appendChild(b);
+      messagesEl!.scrollTop = messagesEl!.scrollHeight;
+    }
+
+    function clearInput() { inputEl!.innerHTML = ''; }
+
+    function open() {
+      overlay!.hidden = false;
+      overlay!.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      if (!started) { started = true; stepIndex = 0; renderStep(); }
+    }
+    function close() {
+      overlay!.hidden = true;
+      overlay!.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    function renderStep() {
+      clearInput();
+      if (stepIndex >= STEPS.length) { submit(); return; }
+      const step = STEPS[stepIndex];
+
+      if (step.kind === 'messages') {
+        step.texts.forEach((t) => addBubble(t));
+        stepIndex++;
+        renderStep();
+        return;
+      }
+      if (step.kind === 'start') {
+        const btn = document.createElement('button');
+        btn.className = 'lead-chat__btn';
+        btn.textContent = step.button;
+        btn.onclick = () => { addBubble(step.button, true); stepIndex++; renderStep(); };
+        inputEl!.appendChild(btn);
+        return;
+      }
+      if (step.kind === 'input') {
+        (step.before || []).forEach((t) => addBubble(t));
+        addBubble(step.question);
+        const input = document.createElement('input');
+        input.type = step.inputType;
+        input.placeholder = step.placeholder;
+        const err = document.createElement('p');
+        err.className = 'lead-chat__error';
+        err.hidden = true;
+        const btn = document.createElement('button');
+        btn.className = 'lead-chat__btn';
+        btn.textContent = 'Enviar';
+        const advance = () => {
+          const v = input.value.trim();
+          if (!step.validate(v)) { err.textContent = step.errorMsg; err.hidden = false; return; }
+          answers[step.key] = v;
+          addBubble(v, true);
+          stepIndex++;
+          renderStep();
+        };
+        btn.onclick = advance;
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); advance(); } });
+        inputEl!.appendChild(input);
+        inputEl!.appendChild(err);
+        inputEl!.appendChild(btn);
+        input.focus();
+        return;
+      }
+      if (step.kind === 'choice') {
+        (step.before || []).forEach((t) => addBubble(t));
+        const nome = answers['nome'] ? answers['nome'].split(' ')[0] + ', ' : '';
+        addBubble(nome + step.question);
+        const grid = document.createElement('div');
+        grid.className = 'lead-chat__choices';
+        step.options.forEach((opt) => {
+          const c = document.createElement('button');
+          c.className = 'lead-chat__choice';
+          c.textContent = opt;
+          c.onclick = () => { answers[step.key] = opt; addBubble(opt, true); stepIndex++; renderStep(); };
+          grid.appendChild(c);
+        });
+        inputEl!.appendChild(grid);
+        return;
+      }
+    }
+
+    async function submit() {
+      addBubble('Parabéns! Você foi selecionado(a) para falar com nossos especialistas do Atacado Exponencial. Estamos muito felizes pelo seu interesse! 🎉');
+      addBubble('Estamos te direcionando agora...');
+      let redirect = '';
+      try {
+        const res = await fetch('/tracker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: 'Lead',
+            event_id: 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+            event_time: Math.floor(Date.now() / 1000),
+            event_source_url: window.location.href,
+            user_data: { em: answers['email'], ph: answers['telefone'], fn: answers['nome'] },
+            lead_data: {
+              nome: answers['nome'], telefone: answers['telefone'], email: answers['email'],
+              instagram: answers['instagram'], faturamento: answers['faturamento'],
+            },
+          }),
+        });
+        const data = await res.json();
+        redirect = data && data.redirect ? data.redirect : '';
+      } catch (e) {
+        /* mesmo sem resposta, segue para o destino padrão abaixo */
+      }
+      if (redirect) {
+        window.location.href = redirect;
+      } else {
+        addBubble('Clique no botão abaixo para falar com nossos especialistas 👇🏼');
+      }
+    }
+
+    document.querySelectorAll('[data-open-chat]').forEach((el) => {
+      el.addEventListener('click', (e) => { e.preventDefault(); open(); });
+    });
+    overlay.querySelectorAll('[data-close-chat]').forEach((el) => {
+      el.addEventListener('click', close);
+    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  }
+</script>

@@ -1,10 +1,15 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import LeadChat from '../components/LeadChat.astro';
 ---
 
 <BaseLayout title="Atacado Exponencial">
   <main class="container section">
     <h1>Atacado Exponencial</h1>
     <p>Fundação no ar. A Home será construída sobre esta base.</p>
+    <p style="margin-top:2rem">
+      <button class="btn-cta" data-open-chat>Quero meu diagnóstico</button>
+    </p>
   </main>
+  <LeadChat />
 </BaseLayout>
