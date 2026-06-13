@@ -1,0 +1,45 @@
+---
+import { Image } from 'astro:assets';
+import icone from '../assets/brand/icone-sem-fundo-branco.png';
+
+const ano = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <Image src={icone} alt="Atacado Exponencial" height={32} class="site-footer__icon" />
+    <nav class="site-footer__nav" aria-label="Rodapé">
+      <a href="/privacy-policy">Política de Privacidade</a>
+    </nav>
+    <p class="site-footer__copy">© {ano} Atacado Exponencial. Todos os direitos reservados.</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    padding-block: 3rem;
+    border-top: 1px solid hsl(var(--border));
+  }
+  .site-footer__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    text-align: center;
+  }
+  .site-footer__icon {
+    height: 2rem;
+    width: auto;
+  }
+  .site-footer__nav a {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+  }
+  .site-footer__nav a:hover {
+    color: hsl(var(--foreground));
+  }
+  .site-footer__copy {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.8rem;
+  }
+</style>

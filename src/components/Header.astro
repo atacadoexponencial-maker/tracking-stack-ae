@@ -1,0 +1,27 @@
+---
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/sem-fundo-branco.png';
+---
+
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a href="/" aria-label="Atacado Exponencial — início">
+      <Image src={logo} alt="Atacado Exponencial" height={28} class="site-header__logo" />
+    </a>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    padding-block: 1.25rem;
+  }
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .site-header__logo {
+    height: 1.75rem;
+    width: auto;
+  }
+</style>
