@@ -38,8 +38,8 @@ Trazer logos, ícones, foto do especialista e imagens de prova social, otimizado
 
 ## Checklist
 
-- [ ] Copiar `brand/` para `src/assets/brand/`.
-- [ ] Copiar `proof/` para `src/assets/proof/`.
-- [ ] Confirmar que o `astro:assets` está apto a processar PNG/JPG/WebP (sharp instalado).
-- [ ] Validar no build que `proof-2` sai significativamente mais leve (PNG 360KB → WebP).
-- [ ] Confirmar que logos com transparência mantêm o fundo transparente.
+- [x] Copiar `brand/` para `src/assets/brand/`.
+- [x] Copiar `proof/` para `src/assets/proof/`.
+- [x] Confirmar que o `astro:assets` está apto a processar PNG/JPG/WebP (sharp instalado).
+- [x] Validar no build que `proof-2` sai significativamente mais leve (PNG 360KB → WebP).
+- [x] Confirmar que logos com transparência mantêm o fundo transparente.

@@ -43,9 +43,9 @@ Estabelecer a base visual compartilhada: tokens de cor, escala tipográfica, esp
 
 ## Checklist
 
-- [ ] Criar `src/styles/global.css` com os tokens de cor (HSL), tipografia e reset.
-- [ ] Definir a escala tipográfica (títulos Bold, corpo Regular) baseada na Satoshi.
-- [ ] Criar `BaseLayout.astro` com `<head>` (SEO, preload da fonte) e slot.
-- [ ] Criar `Header.astro` com o logo.
-- [ ] Criar `Footer.astro` com links institucionais e link para a política de privacidade.
-- [ ] Validar que uma página de teste herda o tema (fundo, cores, fonte) corretamente.
+- [x] Criar `src/styles/global.css` com os tokens de cor (HSL), tipografia e reset.
+- [x] Definir a escala tipográfica (títulos Bold, corpo Regular) baseada na Satoshi.
+- [x] Criar `BaseLayout.astro` com `<head>` (SEO, preload da fonte) e slot.
+- [x] Criar `Header.astro` com o logo.
+- [x] Criar `Footer.astro` com links institucionais e link para a política de privacidade.
+- [x] Validar que uma página de teste herda o tema (fundo, cores, fonte) corretamente.

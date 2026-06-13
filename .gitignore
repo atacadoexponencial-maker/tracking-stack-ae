@@ -25,3 +25,7 @@ yarn-error.log*
 # Astro build artifacts
 dist/
 .astro/
+
+# Playwright MCP artifacts
+.playwright-mcp/
+*.jpeg

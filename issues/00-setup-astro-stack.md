@@ -49,13 +49,13 @@ Integrar o Astro ao repositório `tracking-stack-ae` para que o site (buildado e
 
 ## Checklist
 
-- [ ] Criar `package.json` com `astro` e scripts.
-- [ ] Criar `astro.config.mjs` (output estático, trailingSlash consistente).
-- [ ] Criar `tsconfig.json`.
-- [ ] Criar `src/pages/index.astro` placeholder.
-- [ ] Adicionar `dist/` ao `.gitignore`.
-- [ ] Mover `dash/index.html` para `public/dash/index.html` e remover `dash/`.
-- [ ] Remover `examples/`.
-- [ ] Atualizar o build_config do projeto Pages via API (`npm run build` / `dist`).
-- [ ] Validar local com `npm run build` (gera `dist/` sem erro).
-- [ ] Validar no deploy de teste: home carrega, `/dash` abre, `/api/leads` responde 401 sem chave, cookies first-party são setados.
+- [x] Criar `package.json` com `astro` e scripts.
+- [x] Criar `astro.config.mjs` (output estático, trailingSlash consistente).
+- [x] Criar `tsconfig.json`.
+- [x] Criar `src/pages/index.astro` placeholder.
+- [x] Adicionar `dist/` ao `.gitignore`.
+- [x] Mover `dash/index.html` para `public/dash/index.html` e remover `dash/`.
+- [x] Remover `examples/`.
+- [x] Atualizar o build_config do projeto Pages via API (`npm run build` / `dist`).
+- [x] Validar local com `npm run build` (gera `dist/` sem erro).
+- [x] Validar no deploy de teste: home carrega, `/dash` abre, `/api/leads` responde 401 sem chave, cookies first-party são setados.

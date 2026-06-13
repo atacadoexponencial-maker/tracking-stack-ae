@@ -37,8 +37,8 @@ Disponibilizar a fonte Satoshi (Regular e Bold) e os tokens de cor/tipografia pa
 
 ## Checklist
 
-- [ ] Copiar os dois `.woff2` para `public/fonts/`.
-- [ ] Adicionar os dois `@font-face` em `global.css` com `font-display: swap`.
-- [ ] Definir a variável de família tipográfica com fallback `system-ui`.
-- [ ] Pré-carregar a fonte da primeira dobra no `BaseLayout.astro`.
-- [ ] Validar que os textos renderizam em Satoshi e que não há "flash" de fonte quebrando o layout.
+- [x] Copiar os dois `.woff2` para `public/fonts/`.
+- [x] Adicionar os dois `@font-face` em `global.css` com `font-display: swap`.
+- [x] Definir a variável de família tipográfica com fallback `system-ui`.
+- [x] Pré-carregar a fonte da primeira dobra no `BaseLayout.astro`.
+- [x] Validar que os textos renderizam em Satoshi e que não há "flash" de fonte quebrando o layout.
