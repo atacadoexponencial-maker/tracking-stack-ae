@@ -1,15 +1,30 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/sections/Hero.astro';
+import Pain from '../components/sections/Pain.astro';
+import Pillars from '../components/sections/Pillars.astro';
+import HowItWorks from '../components/sections/HowItWorks.astro';
+import Testimonials from '../components/sections/Testimonials.astro';
+import AboutFelipe from '../components/sections/AboutFelipe.astro';
+import Faq from '../components/sections/Faq.astro';
+import FinalCta from '../components/sections/FinalCta.astro';
 import LeadChat from '../components/LeadChat.astro';
 ---
 
-<BaseLayout title="Atacado Exponencial">
-  <main class="container section">
-    <h1>Atacado Exponencial</h1>
-    <p>Fundação no ar. A Home será construída sobre esta base.</p>
-    <p style="margin-top:2rem">
-      <button class="btn-cta" data-open-chat>Quero meu diagnóstico</button>
-    </p>
+<BaseLayout
+  title="Atacado Exponencial — Diagnóstico gratuito para sua marca atacado"
+  description="Em uma sessão individual e gratuita, analisamos seu atacado de ponta a ponta e entregamos um plano de ação personalizado para destravar seu crescimento."
+  showHeader={false}
+>
+  <Hero />
+  <main>
+    <Pain />
+    <Pillars />
+    <HowItWorks />
+    <Testimonials />
+    <AboutFelipe />
+    <Faq />
+    <FinalCta />
   </main>
   <LeadChat />
 </BaseLayout>

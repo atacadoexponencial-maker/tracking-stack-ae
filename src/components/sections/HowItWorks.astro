@@ -1,0 +1,64 @@
+---
+const steps = [
+  { number: '01', duration: '10 min', title: 'Diagnóstico completo', description: 'Mapeamos estratégia, marketing, vendas e tudo o que impacta seus resultados hoje.' },
+  { number: '02', duration: '8 min', title: 'Áreas de oportunidade', description: 'Identificamos o gargalo principal que está travando sua conversão e sua escala.' },
+  { number: '03', duration: '12 min', title: 'Plano de ação sob medida', description: 'Você sai com ações concretas para executar nas próximas semanas.' },
+  { number: '04', duration: '5 min', title: 'Próximos passos', description: 'Apresentamos nossas soluções de mentoria, só se fizer sentido para você.' },
+];
+---
+
+<section class="section how">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Como funciona</span>
+      <h2 class="section-title">O que acontece nos <span class="how__hl">35 minutos</span></h2>
+      <p class="section-sub">Uma sessão individual por videochamada, estruturada em quatro momentos.</p>
+    </div>
+    <div class="how__grid">
+      {steps.map((s) => (
+        <div class="how__card">
+          <div class="how__top">
+            <span class="how__num">{s.number}</span>
+            <span class="how__dur">{s.duration}</span>
+          </div>
+          <h3 class="how__title">{s.title}</h3>
+          <p class="how__desc">{s.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .how__hl { color: hsl(var(--muted-foreground)); }
+  .how__grid {
+    margin-top: 3rem;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+  .how__card {
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .how__top { display: flex; align-items: center; justify-content: space-between; }
+  .how__num { font-size: 1.75rem; font-weight: 700; color: rgba(255, 255, 255, 0.25); line-height: 1; }
+  .how__dur {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: hsl(var(--muted-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: 9999px;
+    padding: 0.25rem 0.75rem;
+  }
+  .how__title { font-size: 1.15rem; }
+  .how__desc { color: hsl(var(--muted-foreground)); font-size: 0.9rem; }
+  @media (min-width: 768px) {
+    .how__grid { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>

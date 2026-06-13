@@ -1,0 +1,77 @@
+---
+import { Image } from 'astro:assets';
+import felipe from '../../assets/brand/felipe.webp';
+
+const stats = [
+  { value: '+100', label: 'marcas atendidas' },
+  { value: '2013', label: 'desde quando está no digital' },
+  { value: '1º', label: 'método próprio para atacado' },
+];
+const bio = [
+  'Comecei no varejo commerce, em 2013. Mas em 2018, conheci e me apaixonei pelo universo atacado.',
+  'A convite de uma grande influenciadora de moda do país, morei no coração do atacado em São Paulo (Bom Retiro) e me associei às suas marcas. Gerenciei uma marca atacado de moda feminina com o objetivo de escalar suas vendas pela internet.',
+  'Por quase 2 anos, transformei a internet em um laboratório de estratégias focadas exclusivamente em vendas no atacado.',
+  'Desde então, entrego consultorias e assessorias especializadas para marcas atacado, com foco em escala digital, vendas previsíveis, geração de demanda e alta recompra.',
+  'Depois de ajudar mais de 100 marcas, criei o Atacado Exponencial, o primeiro e único método próprio para o mercado atacado.',
+];
+---
+
+<section class="section about">
+  <div class="container">
+    <div class="about__stats">
+      {stats.map((s) => (
+        <div class="about__stat">
+          <span class="about__stat-value">{s.value}</span>
+          <span class="about__stat-label">{s.label}</span>
+        </div>
+      ))}
+    </div>
+
+    <div class="about__head">
+      <span class="eyebrow">Quem é</span>
+      <h2 class="about__name">Felipe<br />Santos</h2>
+    </div>
+
+    <div class="about__content">
+      <Image src={felipe} alt="Felipe Santos" width={384} height={512} class="about__photo" loading="lazy" />
+      <div class="about__bio">
+        {bio.map((p) => <p>{p}</p>)}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .about__stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 3rem;
+  }
+  .about__stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    text-align: center;
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    padding: 1.25rem 0.5rem;
+  }
+  .about__stat-value { font-weight: 700; font-size: 1.5rem; }
+  .about__stat-label { font-size: 0.7rem; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: 0.05em; }
+  .about__head { text-align: center; margin-bottom: 2.5rem; display: flex; flex-direction: column; gap: 0.75rem; align-items: center; }
+  .about__name { font-size: clamp(2.5rem, 6vw, 4rem); line-height: 1; }
+  .about__content {
+    display: grid;
+    gap: 2rem;
+    align-items: start;
+    max-width: 56rem;
+    margin-inline: auto;
+  }
+  .about__photo { border-radius: 1rem; width: 100%; height: auto; object-fit: cover; }
+  .about__bio { display: flex; flex-direction: column; gap: 1rem; }
+  .about__bio p { color: hsl(var(--muted-foreground)); font-size: 0.95rem; line-height: 1.7; }
+  @media (min-width: 768px) {
+    .about__content { grid-template-columns: 24rem 1fr; gap: 3rem; }
+  }
+</style>

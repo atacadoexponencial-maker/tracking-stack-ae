@@ -1,0 +1,62 @@
+---
+const painPoints = [
+  'Seu faturamento oscila todo mês e você não sabe exatamente por quê',
+  'Você depende de indicações para trazer novos revendedores e crescimento sob demanda não existe',
+  'Revendedores fazem o primeiro pedido e somem. Recompra baixa, esforço alto',
+  'Você aplica estratégias de varejo e e-commerce que simplesmente não funcionam para atacado',
+];
+---
+
+<section class="section pain">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">O Problema</span>
+      <h2 class="section-title">
+        Seu atacado cresceu até aqui no braço. Mas escala de verdade <span class="pain__hl">exige um sistema.</span>
+      </h2>
+      <p class="section-sub">
+        A maioria das marcas atacado trava no mesmo ponto, e o problema quase nunca está no produto.
+      </p>
+    </div>
+    <div class="pain__list">
+      {painPoints.map((point) => (
+        <div class="pain__item">
+          <span class="pain__x" aria-hidden="true">✕</span>
+          <p>{point}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .pain__hl { color: hsl(var(--muted-foreground)); }
+  .pain__list {
+    margin-top: 3rem;
+    display: grid;
+    gap: 1rem;
+    max-width: 48rem;
+    margin-inline: auto;
+  }
+  .pain__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.5rem;
+  }
+  .pain__x {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+  }
+  .pain__item p { color: rgba(255, 255, 255, 0.85); font-size: 0.95rem; }
+</style>

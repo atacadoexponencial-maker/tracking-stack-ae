@@ -1,0 +1,57 @@
+---
+const faqs = [
+  { q: 'O diagnóstico é realmente gratuito?', a: 'Sim, 100% gratuito. Você não paga nada pela sessão e não precisa fornecer cartão de crédito. O diagnóstico é a nossa forma de mostrar o valor do nosso método antes de qualquer decisão de investimento.' },
+  { q: 'Quem pode participar?', a: 'O diagnóstico é exclusivo para donos de marcas que já vendem no atacado para revendedores, ou que querem estruturar esse modelo. Se você vende só no varejo, essa sessão não é para o seu momento atual.' },
+  { q: 'Quanto tempo dura a sessão?', a: '35 minutos por videochamada. Esse tempo é suficiente para mapear sua situação atual, identificar o gargalo principal e montar um plano de ação inicial.' },
+  { q: 'Vou receber uma proposta de venda?', a: 'Só nos últimos 5 minutos, e apenas se fizer sentido para o seu momento. Nos 30 minutos anteriores o foco é 100% no seu diagnóstico e no seu plano de ação. Você pode sair da sessão sem comprar nada e ainda assim ter muito valor.' },
+  { q: 'Preciso me preparar para a sessão?', a: 'Não precisa de preparação especial. Chegue com disposição para ser honesto sobre onde seu atacado está hoje. Quanto mais contexto você trouxer sobre sua marca, mais preciso será o diagnóstico.' },
+];
+---
+
+<section class="section section--light faq">
+  <div class="container faq__grid">
+    <div class="faq__intro">
+      <span class="eyebrow">FAQ</span>
+      <h2 class="section-title">Perguntas frequentes</h2>
+      <p class="section-sub">Tem outra dúvida? Agende o diagnóstico e tire suas dúvidas com nosso time de especialistas.</p>
+    </div>
+    <div class="faq__list">
+      {faqs.map((faq) => (
+        <details class="faq__item">
+          <summary class="faq__q">{faq.q}</summary>
+          <p class="faq__a">{faq.a}</p>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq__grid { display: grid; gap: 2.5rem; }
+  .faq__intro { display: flex; flex-direction: column; gap: 1rem; text-align: left; align-items: flex-start; }
+  .faq__intro .section-sub { text-align: left; }
+  .faq__list { display: flex; flex-direction: column; gap: 0.75rem; }
+  .faq__item {
+    border: 1px solid rgba(30, 30, 30, 0.12);
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: rgba(255, 255, 255, 0.4);
+  }
+  .faq__q {
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+  }
+  .faq__q::-webkit-details-marker { display: none; }
+  .faq__q::after { content: '+'; font-size: 1.25rem; color: rgba(30, 30, 30, 0.4); }
+  .faq__item[open] .faq__q::after { content: '−'; }
+  .faq__a { margin-top: 0.75rem; color: rgba(30, 30, 30, 0.7); font-size: 0.9rem; line-height: 1.6; }
+  @media (min-width: 880px) {
+    .faq__grid { grid-template-columns: 22rem 1fr; gap: 3rem; align-items: start; }
+  }
+</style>

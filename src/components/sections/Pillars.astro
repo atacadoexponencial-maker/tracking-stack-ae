@@ -1,0 +1,63 @@
+---
+const pillars = [
+  {
+    number: '01',
+    title: 'Fluxo previsível de novos revendedores',
+    description: 'Funis de venda criados para marcas atacado, não adaptados do varejo.',
+  },
+  {
+    number: '02',
+    title: 'Alta recompra de revendedores ativos',
+    description: 'Estratégias que vão além do produto e mantêm seus revendedores comprando.',
+  },
+];
+---
+
+<section class="section section--light pillars">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Metodologia</span>
+      <h2 class="section-title">Os 2 pilares do Atacado Exponencial</h2>
+      <p class="section-sub">Cada sessão de diagnóstico avalia sua marca nos dois eixos abaixo.</p>
+    </div>
+    <div class="pillars__grid">
+      {pillars.map((p) => (
+        <div class="pillars__card">
+          <span class="pillars__num">{p.number}</span>
+          <h3 class="pillars__title">{p.title}</h3>
+          <p class="pillars__desc">{p.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .pillars__grid {
+    margin-top: 3rem;
+    display: grid;
+    gap: 1.5rem;
+    max-width: 52rem;
+    margin-inline: auto;
+  }
+  .pillars__card {
+    border: 1px solid rgba(30, 30, 30, 0.12);
+    border-radius: 1rem;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background: rgba(255, 255, 255, 0.4);
+  }
+  .pillars__num {
+    font-size: 2rem;
+    font-weight: 700;
+    color: rgba(30, 30, 30, 0.25);
+    line-height: 1;
+  }
+  .pillars__title { font-size: 1.25rem; }
+  .pillars__desc { color: rgba(30, 30, 30, 0.7); font-size: 0.95rem; }
+  @media (min-width: 768px) {
+    .pillars__grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>

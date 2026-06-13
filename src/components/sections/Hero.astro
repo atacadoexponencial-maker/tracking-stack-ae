@@ -1,0 +1,184 @@
+---
+import { Image } from 'astro:assets';
+import logo from '../../assets/brand/sem-fundo-preto.png';
+
+const trust = ['100% gratuito', 'Sem cartão', '35 min'];
+const stats = [
+  { value: '+100', label: 'marcas atacado atendidas' },
+  { value: '35 min', label: 'sessão individual' },
+  { value: 'R$ 0', label: 'custo para você' },
+  { value: '1º', label: 'método próprio para atacado' },
+];
+---
+
+<header class="hero">
+  <nav class="hero__nav container">
+    <Image src={logo} alt="Atacado Exponencial" height={28} class="hero__logo" />
+    <button type="button" class="hero__nav-cta" data-open-chat>
+      Agendar diagnóstico <span aria-hidden="true">→</span>
+    </button>
+  </nav>
+
+  <div class="hero__body">
+    <span class="hero__badge">Para atacadistas com faturamento acima de R$ 20 mil/mês</span>
+    <h1 class="hero__title">
+      O Plano de Ação que seu Atacado precisa para faturar <strong>R$ 400 mil</strong> ou mais por mês
+    </h1>
+    <p class="hero__sub">
+      Em uma sessão individual e gratuita, analisamos seu atacado de ponta a ponta
+      e entregamos um plano personalizado para destravar seu crescimento.
+    </p>
+    <button type="button" class="hero__cta" data-open-chat>
+      Quero meu diagnóstico gratuito
+      <span class="hero__cta-arrow" aria-hidden="true">→</span>
+    </button>
+    <div class="hero__trust">
+      {trust.map((t) => <span class="hero__trust-item">{t}</span>)}
+    </div>
+  </div>
+
+  <div class="hero__stats container">
+    {stats.map((s) => (
+      <div class="hero__stat">
+        <span class="hero__stat-value">{s.value}</span>
+        <span class="hero__stat-label">{s.label}</span>
+      </div>
+    ))}
+  </div>
+</header>
+
+<style>
+  .hero {
+    background: hsl(var(--light-bg));
+    color: hsl(var(--light-fg));
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .hero__nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: 1.5rem;
+  }
+  .hero__logo { height: 1.6rem; width: auto; }
+  .hero__nav-cta {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    color: #1e1e1e;
+    background: rgba(30, 30, 30, 0.05);
+    border: 1px solid rgba(30, 30, 30, 0.1);
+    border-radius: 9999px;
+    padding: 0.65rem 1.25rem;
+  }
+  .hero__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 1.25rem;
+    max-width: 56rem;
+    margin-inline: auto;
+    padding: 4rem 1.5rem;
+  }
+  .hero__badge {
+    display: inline-block;
+    border: 1px solid rgba(30, 30, 30, 0.15);
+    border-radius: 9999px;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(30, 30, 30, 0.7);
+  }
+  .hero__title {
+    font-size: clamp(2.25rem, 5vw, 3.75rem);
+    line-height: 1.08;
+  }
+  .hero__sub {
+    color: rgba(30, 30, 30, 0.8);
+    font-size: 1.05rem;
+    max-width: 42rem;
+  }
+  .hero__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #1e1e1e;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 1.25rem 2.5rem;
+    border: none;
+    border-radius: 9999px;
+    transition: transform 0.2s ease;
+  }
+  .hero__cta:hover { transform: scale(1.02); }
+  .hero__cta-arrow {
+    width: 2.25rem;
+    height: 2.25rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hero__trust {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .hero__trust-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(30, 30, 30, 0.75);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  .hero__trust-item::before {
+    content: '';
+    width: 0.25rem;
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: rgba(30, 30, 30, 0.3);
+  }
+  .hero__stats {
+    padding-bottom: 3rem;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  .hero__stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    border: 1px solid rgba(30, 30, 30, 0.1);
+    border-radius: 1rem;
+    padding: 1.25rem;
+  }
+  .hero__stat-value { font-weight: 700; font-size: 1.5rem; line-height: 1; }
+  .hero__stat-label {
+    font-weight: 500;
+    color: rgba(30, 30, 30, 0.75);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  @media (min-width: 768px) {
+    .hero__nav-cta { display: inline-flex; }
+    .hero__stats { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
