@@ -1,0 +1,169 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/sem-fundo-preto.png';
+import AboutFelipe from '../components/sections/AboutFelipe.astro';
+import LeadFormModal from '../components/LeadFormModal.astro';
+
+const heroBadges = ['1H', '100% gratuito', 'Acesso imediato'];
+const comparacoes = [
+  ['Varejo vende emoção.', 'Atacado vende oportunidade.'],
+  ['Varejo foca no produto.', 'Atacado foca na revenda.'],
+  ['Varejo tem ciclo curto.', 'Atacado tem venda complexa.'],
+  ['Varejo comunica desejo.', 'Atacado comunica resultado.'],
+  ['Varejo conversa com pessoa.', 'Atacado conversa com negócio.'],
+];
+const aprender = [
+  'As 5 diferenças críticas entre Instagram de varejo e atacado',
+  'Como estruturar sua bio para atrair revendedores (não consumidores finais)',
+  'O que postar no feed para gerar entrada de novos clientes',
+  'Stories humanizados: a arma secreta do atacado no Instagram',
+  'Por que marketing gera novos clientes e comercial cuida da recompra',
+  'Análise de perfis reais: o que funciona (e o que não funciona)',
+  'Como comunicar políticas comerciais sem parecer amador',
+];
+const paraQuemSim = [
+  'Você tem marca atacado e quer usar o Instagram para gerar novos clientes',
+  'Você está investindo em Instagram mas os resultados não vêm',
+  'Você acha que Instagram não funciona para atacado',
+  'Você já testou várias estratégias de varejo sem sucesso',
+  'Você quer parar de atrair consumidor final e começar a atrair revendedores',
+  'Você está desacreditado com a internet para atacado',
+];
+const paraQuemNao = [
+  'Você quer continuar copiando estratégias de varejo',
+  'Você não está disposto a mudar sua comunicação',
+];
+const finalBullets = ['Masterclass completa (1h)', 'Análise de perfis reais', 'Assista quantas vezes quiser'];
+---
+
+<BaseLayout
+  title="Workshop gratuito: Por que seu Instagram atacado não vende?"
+  description="Masterclass 100% gratuita com as estratégias de Instagram que fazem atacados gerarem novos revendedores todos os dias."
+  showHeader={false}
+>
+  <!-- Hero -->
+  <header class="wk-hero">
+    <nav class="wk-hero__nav container"><Image src={logo} alt="Atacado Exponencial" height={28} /></nav>
+    <div class="wk-hero__body container">
+      <span class="wk-hero__badge">Masterclass 100% gratuita</span>
+      <h1 class="wk-hero__title">Por que seu Instagram atacado não vende?</h1>
+      <p class="wk-hero__sub">Você está usando estratégias de varejo. Descubra as estratégias específicas de Instagram que fazem atacados gerarem novos revendedores todos os dias — e por que copiar o varejo está matando suas vendas.</p>
+      <button type="button" class="wk-hero__cta" data-open-form>Quero assistir agora — é gratuito</button>
+      <div class="wk-hero__trust">{heroBadges.map((b) => <span class="wk-hero__trust-item">{b}</span>)}</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- A verdade: varejo x atacado -->
+    <section class="section averdade">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">A verdade</span>
+          <h2 class="section-title">Varejo e atacado não são o mesmo jogo</h2>
+        </div>
+        <div class="averdade__list">
+          {comparacoes.map(([varejo, atacado]) => (
+            <div class="averdade__row">
+              <span class="averdade__varejo">{varejo}</span>
+              <span class="averdade__atacado">{atacado}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- O que vai aprender -->
+    <section class="section section--light aprender">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Nesta masterclass</span>
+          <h2 class="section-title">O que você vai aprender</h2>
+        </div>
+        <ul class="aprender__list">
+          {aprender.map((item) => <li class="aprender__item">{item}</li>)}
+        </ul>
+      </div>
+    </section>
+
+    <!-- Para quem é -->
+    <section class="section paraquem">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Você se identifica?</span>
+          <h2 class="section-title">Para quem é essa masterclass</h2>
+        </div>
+        <div class="paraquem__cols">
+          <div class="paraquem__col">
+            <h3 class="paraquem__h paraquem__h--yes">É para você se…</h3>
+            <ul>{paraQuemSim.map((i) => <li>{i}</li>)}</ul>
+          </div>
+          <div class="paraquem__col">
+            <h3 class="paraquem__h paraquem__h--no">Não é para você se…</h3>
+            <ul>{paraQuemNao.map((i) => <li>{i}</li>)}</ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Por que é gratuita -->
+    <section class="section section--light porque">
+      <div class="container porque__inner">
+        <span class="eyebrow">Por que é gratuita?</span>
+        <h2 class="section-title">Porque eu cansei de ver marcas atacado frustradas com a internet.</h2>
+      </div>
+    </section>
+
+    <AboutFelipe />
+
+    <!-- CTA final -->
+    <section class="section wk-final">
+      <div class="container wk-final__inner">
+        <h2 class="section-title">Enquanto seus concorrentes continuam se frustrando…</h2>
+        <ul class="wk-final__bullets">{finalBullets.map((b) => <li>{b}</li>)}</ul>
+        <button type="button" class="btn-cta" data-open-form>Quero assistir agora — é gratuito</button>
+      </div>
+    </section>
+  </main>
+
+  <LeadFormModal />
+</BaseLayout>
+
+<style>
+  .wk-hero { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); min-height: 80vh; display: flex; flex-direction: column; }
+  .wk-hero__nav { display: flex; justify-content: center; padding-block: 1.5rem; }
+  .wk-hero__body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.25rem; max-width: 44rem; padding-block: 3rem; }
+  .wk-hero__badge { display: inline-block; border: 1px solid rgba(30,30,30,0.15); border-radius: 9999px; padding: 0.5rem 1.25rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(30,30,30,0.7); }
+  .wk-hero__title { font-size: clamp(1.75rem, 4.5vw, 3.25rem); line-height: 1.1; }
+  .wk-hero__sub { color: rgba(30,30,30,0.7); max-width: 36rem; }
+  .wk-hero__cta { background: #1e1e1e; color: #fff; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.12em; padding: 1.25rem 2.5rem; border: none; border-radius: 9999px; }
+  .wk-hero__trust { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
+  .wk-hero__trust-item { display: flex; align-items: center; gap: 0.5rem; color: rgba(30,30,30,0.75); font-size: 0.85rem; font-weight: 500; }
+  .wk-hero__trust-item::before { content: ''; width: 0.25rem; height: 0.25rem; border-radius: 9999px; background: rgba(30,30,30,0.3); }
+
+  .averdade__list { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 0.75rem; max-width: 48rem; margin-inline: auto; }
+  .averdade__row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; border: 1px solid hsl(var(--border)); border-radius: 0.75rem; overflow: hidden; }
+  .averdade__varejo { padding: 1rem 1.25rem; color: hsl(var(--muted-foreground)); font-size: 0.9rem; }
+  .averdade__atacado { padding: 1rem 1.25rem; background: rgba(255,255,255,0.05); font-weight: 700; font-size: 0.9rem; }
+
+  .aprender__list { margin-top: 2.5rem; max-width: 44rem; margin-inline: auto; display: flex; flex-direction: column; gap: 0.75rem; list-style: none; }
+  .aprender__item { padding: 1rem 1.25rem; border: 1px solid rgba(30,30,30,0.12); border-radius: 0.75rem; background: rgba(255,255,255,0.4); font-size: 0.95rem; }
+
+  .paraquem__cols { margin-top: 2.5rem; display: grid; gap: 1.5rem; }
+  .paraquem__col ul { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+  .paraquem__col li { color: hsl(var(--muted-foreground)); font-size: 0.9rem; padding-left: 1.5rem; position: relative; }
+  .paraquem__h { margin-bottom: 1rem; font-size: 1.05rem; }
+  .paraquem__h--yes::before { content: '✓ '; color: #4ade80; }
+  .paraquem__h--no::before { content: '✕ '; color: #f87171; }
+  .paraquem__col li::before { content: '•'; position: absolute; left: 0.25rem; color: hsl(var(--muted-foreground)); }
+
+  .porque__inner { display: flex; flex-direction: column; gap: 1rem; align-items: center; text-align: center; max-width: 40rem; margin-inline: auto; }
+
+  .wk-final__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.5rem; max-width: 40rem; margin-inline: auto; }
+  .wk-final__bullets { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; color: hsl(var(--muted-foreground)); }
+  .wk-final__bullets li::before { content: '✓ '; color: #4ade80; }
+
+  @media (min-width: 768px) {
+    .paraquem__cols { grid-template-columns: 1fr 1fr; }
+  }
+</style>

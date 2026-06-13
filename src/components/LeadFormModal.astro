@@ -1,0 +1,142 @@
+---
+/**
+ * Formulário modal de captação (issue 14, variante do funil Workshop).
+ * Capta nome, telefone, email, instagram e faturamento e envia ao backend
+ * (/tracker, event Lead, funnel "workshop"), que registra a atribuição,
+ * dispara Meta CAPI, encaminha ao CRM do workshop e devolve o destino
+ * (página do vídeo). Abre ao clicar em [data-open-form].
+ */
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/sem-fundo-branco.png';
+---
+
+<div id="lead-form" class="lform" hidden role="dialog" aria-modal="true" aria-label="Inscrição no workshop">
+  <div class="lform__panel">
+    <header class="lform__header">
+      <Image src={logo} alt="Atacado Exponencial" height={20} class="lform__logo" />
+      <button type="button" class="lform__close" data-close-form aria-label="Fechar">&times;</button>
+    </header>
+    <form class="lform__form" id="lead-form-el">
+      <label class="lform__field">
+        <span>Nome</span>
+        <input name="nome" type="text" placeholder="Nome" required minlength="2" />
+      </label>
+      <label class="lform__field">
+        <span>Telefone</span>
+        <input name="telefone" type="tel" placeholder="Telefone" required />
+      </label>
+      <label class="lform__field">
+        <span>Email</span>
+        <input name="email" type="email" placeholder="Email" required />
+      </label>
+      <label class="lform__field">
+        <span>Instagram da marca</span>
+        <input name="instagram" type="text" placeholder="@ do Instagram" required />
+      </label>
+      <label class="lform__field">
+        <span>Faturamento mensal</span>
+        <select name="faturamento" required>
+          <option value="" disabled selected>Selecione…</option>
+          <option>Menos de 20 Mil</option>
+          <option>De 20 a 30 Mil</option>
+          <option>De 30 a 40 Mil</option>
+          <option>De 40 a 75 Mil</option>
+          <option>De 75 a 100 Mil</option>
+          <option>De 100 a 150 Mil</option>
+          <option>De 150 a 200 Mil</option>
+          <option>De 200 a 300 Mil</option>
+          <option>De 300 a 500 Mil</option>
+          <option>Mais de 500 Mil</option>
+        </select>
+      </label>
+      <p class="lform__error" id="lead-form-error" hidden></p>
+      <button type="submit" class="lform__submit" id="lead-form-submit">Quero assistir agora</button>
+    </form>
+  </div>
+</div>
+
+<style>
+  .lform {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.75); padding: 1rem;
+  }
+  .lform[hidden] { display: none; }
+  .lform__panel {
+    width: 100%; max-width: 30rem; max-height: 90vh; overflow-y: auto;
+    background: #1e1e1e; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1rem;
+  }
+  .lform__header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem; }
+  .lform__logo { height: 1.25rem; width: auto; }
+  .lform__close { background: none; border: none; color: rgba(255, 255, 255, 0.6); font-size: 1.5rem; line-height: 1; }
+  .lform__form { display: flex; flex-direction: column; gap: 1rem; padding: 0 1.25rem 1.5rem; }
+  .lform__field { display: flex; flex-direction: column; gap: 0.4rem; }
+  .lform__field > span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.5); }
+  .lform__field input, .lform__field select {
+    background: #000; border: 1px solid rgba(255, 255, 255, 0.2); color: #fff;
+    padding: 0.8rem 1rem; font-family: inherit; font-size: 0.9rem;
+  }
+  .lform__field input::placeholder { color: rgba(255, 255, 255, 0.25); }
+  .lform__field input:focus, .lform__field select:focus { outline: none; border-color: rgba(255, 255, 255, 0.6); }
+  .lform__error { color: #f87171; font-size: 0.8rem; }
+  .lform__submit {
+    background: #fff; color: #1e1e1e; border: none; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8rem; padding: 1rem; margin-top: 0.5rem;
+  }
+  .lform__submit:disabled { opacity: 0.5; }
+</style>
+
+<script>
+  const overlay = document.getElementById('lead-form') as HTMLElement | null;
+  const form = document.getElementById('lead-form-el') as HTMLFormElement | null;
+  const errEl = document.getElementById('lead-form-error') as HTMLElement | null;
+  const submitBtn = document.getElementById('lead-form-submit') as HTMLButtonElement | null;
+
+  if (overlay && form && errEl && submitBtn) {
+    const open = () => { overlay.hidden = false; document.body.style.overflow = 'hidden'; };
+    const close = () => { overlay.hidden = true; document.body.style.overflow = ''; };
+
+    document.querySelectorAll('[data-open-form]').forEach((el) => {
+      el.addEventListener('click', (e) => { e.preventDefault(); open(); });
+    });
+    overlay.querySelectorAll('[data-close-form]').forEach((el) => el.addEventListener('click', close));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errEl.hidden = true;
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+      const data = new FormData(form);
+      const lead = {
+        nome: String(data.get('nome') || ''),
+        telefone: String(data.get('telefone') || ''),
+        email: String(data.get('email') || ''),
+        instagram: String(data.get('instagram') || ''),
+        faturamento: String(data.get('faturamento') || ''),
+        funnel: 'workshop',
+      };
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando…';
+      let redirect = '/video-workshop-instagram';
+      try {
+        const res = await fetch('/tracker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: 'Lead',
+            event_id: 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+            event_time: Math.floor(Date.now() / 1000),
+            event_source_url: window.location.href,
+            user_data: { em: lead.email, ph: lead.telefone, fn: lead.nome },
+            lead_data: lead,
+          }),
+        });
+        const json = await res.json();
+        if (json && json.redirect) redirect = json.redirect;
+      } catch (e) {
+        /* segue para o destino padrão abaixo */
+      }
+      window.location.href = redirect;
+    });
+  }
+</script>

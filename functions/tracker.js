@@ -160,10 +160,17 @@ export async function onRequestPost(context) {
 
     // --- Encaminhar lead ao CRM (fan-out desacoplado; destino trocável) ---
     // O site fala apenas com /tracker. O destino do CRM (n8n hoje, que leva
-    // ao ClickUp) vem de env.LEAD_WEBHOOK_URL e pode ser trocado ou removido
-    // sem alterar o front. Só dispara para eventos de Lead, em background.
-    if ((body.event_name || '').toLowerCase() === 'lead' && env.LEAD_WEBHOOK_URL) {
-      context.waitUntil(sendToCRM({ leadData: body.lead_data || {}, sessionData, env }));
+    // ao ClickUp) vem de env e pode ser trocado/removido sem alterar o front.
+    // Cada funil tem seu próprio webhook: 'workshop' usa um, o diagnóstico o
+    // padrão. Só dispara para eventos de Lead, em background.
+    const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
+    if ((body.event_name || '').toLowerCase() === 'lead') {
+      const crmUrl = leadFunnel === 'workshop'
+        ? env.LEAD_WEBHOOK_URL_WORKSHOP
+        : env.LEAD_WEBHOOK_URL;
+      if (crmUrl) {
+        context.waitUntil(sendToCRM({ leadData: body.lead_data || {}, sessionData, env, url: crmUrl }));
+      }
     }
 
     const rawEmail = userData.em || '';
@@ -210,16 +217,21 @@ export async function onRequestPost(context) {
     );
 
     // --- Roteamento pós-captação (regra de negócio, no backend) ---
-    // Leads de baixo faturamento ("Menos de 20 Mil") seguem para o WhatsApp
-    // dos especialistas; os demais para o agendamento (Calendly). Os destinos
-    // são configuráveis por env. O front apenas executa o redirect retornado.
+    // Funil 'workshop' segue para a página do vídeo do workshop. No diagnóstico,
+    // leads de baixo faturamento ("Menos de 20 Mil") vão ao WhatsApp dos
+    // especialistas; os demais ao agendamento (Calendly). Destinos por env.
+    // O front apenas executa o redirect retornado.
     let leadRedirect = null;
     if ((body.event_name || '').toLowerCase() === 'lead') {
-      const faturamento = (body.lead_data?.faturamento || '').toLowerCase();
-      const baixoTicket = faturamento.includes('menos de 20');
-      leadRedirect = baixoTicket
-        ? (env.LEAD_REDIRECT_WHATSAPP || '')
-        : (env.LEAD_REDIRECT_CALENDLY || '');
+      if (leadFunnel === 'workshop') {
+        leadRedirect = env.LEAD_REDIRECT_WORKSHOP || '/video-workshop-instagram';
+      } else {
+        const faturamento = (body.lead_data?.faturamento || '').toLowerCase();
+        const baixoTicket = faturamento.includes('menos de 20');
+        leadRedirect = baixoTicket
+          ? (env.LEAD_REDIRECT_WHATSAPP || '')
+          : (env.LEAD_REDIRECT_CALENDLY || '');
+      }
     }
 
     return new Response(JSON.stringify({ ok: true, redirect: leadRedirect }), {
@@ -327,7 +339,7 @@ async function sendToGA4({ body, gaClientId, gaSessionId, hashedEm, env }) {
 // CRM FORWARD — encaminha o lead para um webhook configurável
 // (hoje n8n → ClickUp). Dados crus do formulário + atribuição da sessão.
 // -------------------------------------------------------
-async function sendToCRM({ leadData, sessionData, env }) {
+async function sendToCRM({ leadData, sessionData, url }) {
   try {
     const payload = {
       ...leadData,
@@ -343,7 +355,7 @@ async function sendToCRM({ leadData, sessionData, env }) {
         referrer: sessionData.referrer || '',
       },
     };
-    await fetch(env.LEAD_WEBHOOK_URL, {
+    await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
