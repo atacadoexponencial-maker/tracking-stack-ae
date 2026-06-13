@@ -1,0 +1,129 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../../assets/brand/sem-fundo-preto.png';
+---
+
+<BaseLayout title="Seu diagnóstico — Calculadora do Atacado" showHeader={false}>
+  <div class="calc">
+    <nav class="calc__nav container"><Image src={logo} alt="Atacado Exponencial" height={26} /></nav>
+    <main class="calc__main container" id="result-root">
+      <h1 class="calc__title">Seu diagnóstico, <span id="r-nome">—</span></h1>
+      <div class="result__cards">
+        <div class="result__card" id="card-qual"><span class="result__label">Taxa de qualificação</span><span class="result__value" id="v-qual">—</span></div>
+        <div class="result__card" id="card-conv"><span class="result__label">Taxa de conversão</span><span class="result__value" id="v-conv">—</span></div>
+        <div class="result__card" id="card-recompra"><span class="result__label">Taxa de recompra</span><span class="result__value" id="v-recompra">—</span></div>
+      </div>
+      <div class="result__gap" id="gap-block" hidden>
+        <span class="result__gap-label">Potencial não realizado</span>
+        <p class="result__gap-value">Você está deixando <strong id="v-gap">—</strong> na mesa por mês</p>
+      </div>
+      <div class="result__diag" id="diag-blocks"></div>
+      <div class="result__cta">
+        <h2>Quer transformar esses números?</h2>
+        <p>Nosso time analisa seu modelo de negócio e te mostra o caminho. Individual e gratuito.</p>
+        <!-- Destino a definir pela operação (não inventar). -->
+        <a href="#" class="btn-cta" id="result-cta">Quero minha consultoria gratuita</a>
+      </div>
+    </main>
+  </div>
+</BaseLayout>
+
+<style>
+  .calc { min-height: 100vh; background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); }
+  .calc__nav { display: flex; justify-content: center; padding-block: 1.5rem; }
+  .calc__main { max-width: 40rem; padding-block: 2rem 4rem; }
+  .calc__title { font-size: clamp(1.75rem, 5vw, 2.5rem); text-align: center; margin-bottom: 2rem; }
+  .result__cards { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+  .result__card { border-radius: 1rem; padding: 1.5rem; border: 1px solid rgba(30,30,30,0.06); display: flex; flex-direction: column; gap: 0.5rem; }
+  .result__card[data-status="green"] { background: #ecfdf5; } .result__card[data-status="green"] .result__value { color: #047857; }
+  .result__card[data-status="yellow"] { background: #fffbeb; } .result__card[data-status="yellow"] .result__value { color: #b45309; }
+  .result__card[data-status="red"] { background: #fef2f2; } .result__card[data-status="red"] .result__value { color: #b91c1c; }
+  .result__label { font-size: 0.85rem; color: rgba(30,30,30,0.7); font-weight: 500; }
+  .result__value { font-size: 2rem; font-weight: 700; }
+  .result__gap { margin-top: 1.5rem; background: #1e1e1e; color: #fff; border-radius: 1rem; padding: 1.75rem; text-align: center; }
+  .result__gap-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,0.6); }
+  .result__gap-value { font-size: 1.25rem; margin-top: 0.5rem; }
+  .result__gap-value strong { color: #fff; }
+  .result__diag { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+  .result__diag-item { border: 1px solid rgba(30,30,30,0.1); border-radius: 0.75rem; padding: 1.25rem; }
+  .result__diag-item h3 { font-size: 1rem; margin-bottom: 0.4rem; }
+  .result__diag-item p { color: rgba(30,30,30,0.7); font-size: 0.9rem; }
+  .result__cta { margin-top: 2.5rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+  .result__cta h2 { font-size: 1.5rem; }
+  .result__cta p { color: rgba(30,30,30,0.7); max-width: 28rem; }
+  .result__cta .btn-cta { margin-top: 0.5rem; background: #1e1e1e; color: #fff; }
+  @media (min-width: 640px) { .result__cards { grid-template-columns: repeat(3, 1fr); } }
+</style>
+
+<script>
+  function brl(v: number) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }); }
+
+  if (!localStorage.getItem('calc_data')) {
+    window.location.replace('/calculadora-atacado');
+  } else {
+    const lead = JSON.parse(localStorage.getItem('lead_data') || '{}');
+    const c = JSON.parse(localStorage.getItem('calc_data') || '{}');
+    const leads = Number(c.leads) || 0;
+    const pctQual = Number(c.pct_qualificados) || 0;
+    const novosRev = Number(c.novos_revendedores) || 0;
+    const pctRecompra = Number(c.pct_recompra) || 0;
+    const ticket = Number(c.ticket_medio) || 0;
+
+    const mqls = leads * (pctQual / 100);
+    const taxaConv = mqls > 0 ? (novosRev / mqls) * 100 : null;
+    const receitaAquisicao = novosRev * ticket;
+    const receitaPotencial = mqls * 0.12 * ticket;
+    const gap = Math.max(0, receitaPotencial - receitaAquisicao);
+
+    const qualStatus = pctQual >= 60 ? 'green' : pctQual >= 25 ? 'yellow' : 'red';
+    const convStatus = taxaConv === null ? 'red'
+      : (taxaConv >= 4 && taxaConv <= 12) ? 'green'
+      : (taxaConv > 12 || (taxaConv >= 2 && taxaConv < 4)) ? 'yellow' : 'red';
+    const recompraStatus = pctRecompra >= 50 ? 'green' : pctRecompra >= 25 ? 'yellow' : 'red';
+
+    const set = (id: string, txt: string) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    const status = (id: string, s: string) => { const el = document.getElementById(id); if (el) el.dataset.status = s; };
+
+    set('r-nome', (lead.nome || '').split(' ')[0] || '');
+    set('v-qual', pctQual + '%'); status('card-qual', qualStatus);
+    set('v-conv', taxaConv !== null ? taxaConv.toFixed(1) + '%' : '—'); status('card-conv', convStatus);
+    set('v-recompra', pctRecompra + '%'); status('card-recompra', recompraStatus);
+
+    if (gap > 0) {
+      const gb = document.getElementById('gap-block'); if (gb) gb.hidden = false;
+      set('v-gap', brl(gap));
+    }
+
+    const qualText = pctQual < 25
+      ? 'Seus criativos e segmentação estão atraindo o público errado. A maioria dos leads que chegam não têm perfil de revendedor.'
+      : pctQual < 50 ? 'Metade dos seus leads não são qualificados. Há ruído na comunicação — o mercado está sendo confundido com varejo.'
+      : pctQual < 75 ? 'Sua qualificação está próxima do ideal. Pequenos ajustes nos criativos podem fechar a diferença.'
+      : 'Sua qualificação está acima da média do mercado. O problema não está na atração.';
+    const convText = taxaConv === null
+      ? 'Não foi possível calcular a taxa de conversão. Revise a qualificação dos seus leads.'
+      : taxaConv < 4 ? 'Sua conversão está abaixo do ideal: há leads qualificados que não viram revendedores. O gargalo está no comercial.'
+      : taxaConv <= 12 ? 'Sua conversão está saudável. O foco agora é aumentar o volume de leads qualificados que entram.'
+      : 'Conversão muito alta — você converte bem. O próximo passo é escalar a entrada de leads para multiplicar o resultado.';
+    const recompraText = pctRecompra < 25
+      ? 'Sua recompra está baixa: você investe para adquirir revendedores que compram uma vez e somem — o maior vazamento de receita do atacado.'
+      : pctRecompra < 50 ? 'Sua recompra tem espaço para crescer. Estratégias de reativação podem multiplicar a receita sem aumentar o custo de aquisição.'
+      : 'Sua recompra está forte: seus revendedores voltam. Agora é hora de trazer mais gente para esse fluxo.';
+
+    const blocks = [
+      { t: 'Qualificação dos seus leads', x: qualText },
+      { t: 'Conversão em revendedores', x: convText },
+      { t: 'Recompra dos revendedores', x: recompraText },
+    ];
+    const root = document.getElementById('diag-blocks');
+    if (root) {
+      for (const b of blocks) {
+        const el = document.createElement('div');
+        el.className = 'result__diag-item';
+        const h = document.createElement('h3'); h.textContent = b.t;
+        const p = document.createElement('p'); p.textContent = b.x;
+        el.appendChild(h); el.appendChild(p); root.appendChild(el);
+      }
+    }
+  }
+</script>

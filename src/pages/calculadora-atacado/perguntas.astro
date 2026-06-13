@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../../assets/brand/sem-fundo-preto.png';
+
+const pctOptions = [
+  { label: '0% (todos desqualificados)', value: '0' },
+  { label: '25%', value: '25' }, { label: '50%', value: '50' },
+  { label: '75%', value: '75' }, { label: '100% (todos qualificados)', value: '100' },
+];
+const pctRecompra = [
+  { label: '0% (ninguém volta)', value: '0' },
+  { label: '25%', value: '25' }, { label: '50%', value: '50' },
+  { label: '75%', value: '75' }, { label: '100% (todos voltam)', value: '100' },
+];
+---
+
+<BaseLayout title="Seus números — Calculadora do Atacado" showHeader={false}>
+  <div class="calc">
+    <nav class="calc__nav container"><Image src={logo} alt="Atacado Exponencial" height={26} /></nav>
+    <main class="calc__main container">
+      <h1 class="calc__title">Seus números</h1>
+      <p class="calc__sub">Responda com base nos últimos 3 meses do seu negócio.</p>
+
+      <form class="calc__form" id="calc-perguntas">
+        <label class="calc__field"><span>Quantos novos revendedores interessados (leads) você conquista em média por mês?</span><input name="leads" type="number" min="1" placeholder="Ex: 50" required /></label>
+        <label class="calc__field"><span>Quantos % em média desses leads são qualificados? (interesse real em atacado)</span>
+          <select name="pct_qualificados" required><option value="" disabled selected>Selecione…</option>{pctOptions.map((o) => <option value={o.value}>{o.label}</option>)}</select>
+        </label>
+        <label class="calc__field"><span>Quantos novos revendedores você conquista por mês?</span><input name="novos_revendedores" type="number" min="0" placeholder="Ex: 5" required /></label>
+        <label class="calc__field"><span>Quantos % dos seus novos revendedores voltam para fazer uma recompra (reposição)?</span>
+          <select name="pct_recompra" required><option value="" disabled selected>Selecione…</option>{pctRecompra.map((o) => <option value={o.value}>{o.label}</option>)}</select>
+        </label>
+        <label class="calc__field"><span>Qual o ticket médio de primeira compra do seu novo revendedor?</span><input name="ticket_medio" type="number" min="1" placeholder="Ex: 800" required /></label>
+        <button type="submit" class="calc__submit">Ver meu diagnóstico</button>
+      </form>
+    </main>
+  </div>
+</BaseLayout>
+
+<style>
+  .calc { min-height: 100vh; background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); }
+  .calc__nav { display: flex; justify-content: center; padding-block: 1.5rem; }
+  .calc__main { max-width: 32rem; padding-block: 2rem 4rem; }
+  .calc__title { font-size: clamp(1.75rem, 5vw, 2.5rem); text-align: center; }
+  .calc__sub { text-align: center; color: rgba(30,30,30,0.6); margin-top: 0.5rem; margin-bottom: 1rem; }
+  .calc__form { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1.5rem; }
+  .calc__field { display: flex; flex-direction: column; gap: 0.4rem; }
+  .calc__field > span { font-size: 0.85rem; font-weight: 500; color: #1e1e1e; }
+  .calc__field input, .calc__field select { height: 3rem; border: 1px solid rgba(30,30,30,0.12); border-radius: 0.75rem; background: #fff; padding: 0 1rem; font-family: inherit; font-size: 0.95rem; color: #1e1e1e; }
+  .calc__field input:focus, .calc__field select:focus { outline: none; border-color: rgba(30,30,30,0.4); }
+  .calc__submit { height: 3.5rem; background: #1e1e1e; color: #fff; border: none; border-radius: 9999px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8rem; margin-top: 1rem; }
+</style>
+
+<script>
+  // Guard: exige a etapa de captura concluída.
+  if (!localStorage.getItem('lead_data')) {
+    window.location.replace('/calculadora-atacado');
+  }
+  const form = document.getElementById('calc-perguntas') as HTMLFormElement | null;
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+      const d = new FormData(form);
+      localStorage.setItem('calc_data', JSON.stringify({
+        leads: Number(d.get('leads')),
+        pct_qualificados: Number(d.get('pct_qualificados')),
+        novos_revendedores: Number(d.get('novos_revendedores')),
+        pct_recompra: Number(d.get('pct_recompra')),
+        ticket_medio: Number(d.get('ticket_medio')),
+      }));
+      window.location.href = '/calculadora-atacado/resultado';
+    });
+  }
+</script>

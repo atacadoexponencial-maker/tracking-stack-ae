@@ -1,0 +1,95 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../../assets/brand/sem-fundo-preto.png';
+
+const faturamentoOptions = [
+  'Menos de R$ 20 mil', 'De R$ 20 mil a R$ 30 mil', 'De R$ 30 mil a R$ 40 mil',
+  'De R$ 40 mil a R$ 75 mil', 'De R$ 75 mil a R$ 100 mil', 'De R$ 100 mil a R$ 150 mil',
+  'De R$ 150 mil a R$ 200 mil', 'De R$ 200 mil a R$ 300 mil', 'De R$ 300 mil a R$ 500 mil',
+  'Mais de R$ 500 mil',
+];
+const microBenefits = [
+  'Taxa de qualificação dos seus leads',
+  'Taxa de conversão em revendedores',
+  'Potencial de receita não realizado',
+];
+---
+
+<BaseLayout title="Calculadora do Atacado — Diagnóstico em 2 minutos" description="Descubra o potencial de receita não realizado do seu atacado." showHeader={false}>
+  <div class="calc">
+    <nav class="calc__nav container"><Image src={logo} alt="Atacado Exponencial" height={26} /></nav>
+    <main class="calc__main container">
+      <h1 class="calc__title">Calculadora do Atacado</h1>
+      <p class="calc__sub">Descubra em 2 minutos o quanto o seu atacado está deixando de faturar. Você vai ver:</p>
+      <ul class="calc__benefits">
+        {microBenefits.map((b) => <li>{b}</li>)}
+      </ul>
+
+      <form class="calc__form" id="calc-capture">
+        <label class="calc__field"><span>Nome</span><input name="nome" type="text" placeholder="Seu nome" required minlength="1" /></label>
+        <label class="calc__field"><span>Telefone</span><input name="telefone" type="tel" placeholder="Seu telefone" required /></label>
+        <label class="calc__field"><span>Email</span><input name="email" type="email" placeholder="Seu email" required /></label>
+        <label class="calc__field"><span>Instagram da marca</span><input name="instagram" type="text" placeholder="@ do Instagram" required /></label>
+        <label class="calc__field"><span>Faturamento mensal</span>
+          <select name="faturamento" required>
+            <option value="" disabled selected>Selecione…</option>
+            {faturamentoOptions.map((o) => <option>{o}</option>)}
+          </select>
+        </label>
+        <button type="submit" class="calc__submit" id="calc-capture-submit">Começar diagnóstico</button>
+      </form>
+    </main>
+  </div>
+</BaseLayout>
+
+<style>
+  .calc { min-height: 100vh; background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); }
+  .calc__nav { display: flex; justify-content: center; padding-block: 1.5rem; }
+  .calc__main { max-width: 32rem; padding-block: 2rem 4rem; }
+  .calc__title { font-size: clamp(1.75rem, 5vw, 2.5rem); text-align: center; }
+  .calc__sub { text-align: center; color: rgba(30,30,30,0.7); margin-top: 0.75rem; }
+  .calc__benefits { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; margin: 1.5rem auto; max-width: 24rem; }
+  .calc__benefits li { padding-left: 1.5rem; position: relative; color: rgba(30,30,30,0.8); font-size: 0.9rem; }
+  .calc__benefits li::before { content: '✓'; position: absolute; left: 0; color: #16a34a; font-weight: 700; }
+  .calc__form { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; }
+  .calc__field { display: flex; flex-direction: column; gap: 0.4rem; }
+  .calc__field > span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(30,30,30,0.6); }
+  .calc__field input, .calc__field select { height: 3rem; border: 1px solid rgba(30,30,30,0.12); border-radius: 0.75rem; background: #fff; padding: 0 1rem; font-family: inherit; font-size: 0.95rem; color: #1e1e1e; }
+  .calc__field input:focus, .calc__field select:focus { outline: none; border-color: rgba(30,30,30,0.4); }
+  .calc__submit { height: 3.5rem; background: #1e1e1e; color: #fff; border: none; border-radius: 9999px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8rem; margin-top: 0.75rem; }
+  .calc__submit:disabled { opacity: 0.5; }
+</style>
+
+<script>
+  const form = document.getElementById('calc-capture') as HTMLFormElement | null;
+  const btn = document.getElementById('calc-capture-submit') as HTMLButtonElement | null;
+  if (form && btn) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+      const d = new FormData(form);
+      const lead = {
+        nome: String(d.get('nome') || ''), telefone: String(d.get('telefone') || ''),
+        email: String(d.get('email') || ''), instagram: String(d.get('instagram') || ''),
+        faturamento: String(d.get('faturamento') || ''), funnel: 'calculadora',
+      };
+      localStorage.setItem('lead_data', JSON.stringify(lead));
+      btn.disabled = true;
+      btn.textContent = 'Carregando…';
+      // Registra o lead + atribuição + Meta (o redirect do backend é ignorado:
+      // a navegação para as perguntas é controlada aqui).
+      try {
+        await fetch('/tracker', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: 'Lead', event_id: 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+            event_time: Math.floor(Date.now() / 1000), event_source_url: window.location.href,
+            user_data: { em: lead.email, ph: lead.telefone, fn: lead.nome }, lead_data: lead,
+          }),
+        });
+      } catch (e) { /* segue mesmo sem confirmação */ }
+      window.location.href = '/calculadora-atacado/perguntas';
+    });
+  }
+</script>
