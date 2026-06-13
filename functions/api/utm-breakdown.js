@@ -30,7 +30,7 @@ export async function onRequestGet(context) {
   }
 
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
-  const since = Math.floor(Date.now() / 1000) - days * 86400;
+  const { since, until } = resolvePeriod(url, days);
 
   // Build cascading filters from any other utm_* query params.
   const filterClauses = [];
@@ -48,6 +48,7 @@ export async function onRequestGet(context) {
 
   const whereClause = [
     'created_at >= ?',
+    'created_at <= ?',
     ...filterClauses,
   ].join(' AND ');
 
@@ -64,7 +65,7 @@ export async function onRequestGet(context) {
   `;
 
   try {
-    const rows = await env.DB.prepare(query).bind(since, ...filterBindings).all();
+    const rows = await env.DB.prepare(query).bind(since, until, ...filterBindings).all();
     return json({
       dimension,
       days,
@@ -90,4 +91,15 @@ function clampInt(raw, fallback, min, max) {
   const n = parseInt(raw || '', 10);
   if (Number.isNaN(n)) return fallback;
   return Math.max(min, Math.min(max, n));
+}
+
+// Resolve o período da consulta: intervalo explícito from/to (unix) tem
+// prioridade; na ausência, cai para os últimos `days`. `until` default = agora.
+function resolvePeriod(url, days) {
+  const now = Math.floor(Date.now() / 1000);
+  const fromTs = parseInt(url.searchParams.get('from') || '', 10);
+  const toTs = parseInt(url.searchParams.get('to') || '', 10);
+  const since = Number.isFinite(fromTs) && fromTs > 0 ? fromTs : now - days * 86400;
+  const until = Number.isFinite(toTs) && toTs > 0 ? toTs : now;
+  return { since, until };
 }

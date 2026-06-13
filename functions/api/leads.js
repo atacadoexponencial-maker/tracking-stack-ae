@@ -19,7 +19,7 @@ export async function onRequestGet(context) {
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
   const limit = clampInt(url.searchParams.get('limit'), 100, 1, 500);
   const includeBots = url.searchParams.get('include_bots') === '1';
-  const since = Math.floor(Date.now() / 1000) - days * 86400;
+  const { since, until } = resolvePeriod(url, days);
 
   const botClause = includeBots ? '' : 'AND e.is_bot = 0';
 
@@ -58,11 +58,11 @@ export async function onRequestGet(context) {
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
       WHERE e.event_name = 'Lead'
-        AND e.timestamp >= ?
+        AND e.timestamp >= ? AND e.timestamp <= ?
         ${botClause}
       ORDER BY e.timestamp DESC
       LIMIT ?
-    `).bind(since, limit).all();
+    `).bind(since, until, limit).all();
 
     // Summary counts grouped by utm_source for the summary card above the table.
     const summary = await env.DB.prepare(`
@@ -72,11 +72,11 @@ export async function onRequestGet(context) {
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
       WHERE e.event_name = 'Lead'
-        AND e.timestamp >= ?
+        AND e.timestamp >= ? AND e.timestamp <= ?
         AND e.is_bot = 0
       GROUP BY utm_source
       ORDER BY count DESC
-    `).bind(since).all();
+    `).bind(since, until).all();
 
     return json({
       days,
@@ -102,4 +102,15 @@ function clampInt(raw, fallback, min, max) {
   const n = parseInt(raw || '', 10);
   if (Number.isNaN(n)) return fallback;
   return Math.max(min, Math.min(max, n));
+}
+
+// Resolve o período da consulta: intervalo explícito from/to (unix) tem
+// prioridade; na ausência, cai para os últimos `days`. `until` default = agora.
+function resolvePeriod(url, days) {
+  const now = Math.floor(Date.now() / 1000);
+  const fromTs = parseInt(url.searchParams.get('from') || '', 10);
+  const toTs = parseInt(url.searchParams.get('to') || '', 10);
+  const since = Number.isFinite(fromTs) && fromTs > 0 ? fromTs : now - days * 86400;
+  const until = Number.isFinite(toTs) && toTs > 0 ? toTs : now;
+  return { since, until };
 }

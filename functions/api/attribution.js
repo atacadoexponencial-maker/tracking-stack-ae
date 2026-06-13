@@ -27,7 +27,7 @@ export async function onRequestGet(context) {
   }
 
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
-  const since = Math.floor(Date.now() / 1000) - days * 86400;
+  const { since, until } = resolvePeriod(url, days);
 
   try {
     const rows = await env.DB.prepare(`
@@ -42,9 +42,9 @@ export async function onRequestGet(context) {
         COUNT(*) as sales,
         COALESCE(SUM(value), 0) as revenue
       FROM purchase_log
-      WHERE created_at >= ?
+      WHERE created_at >= ? AND created_at <= ?
       GROUP BY source_type
-    `).bind(since).all();
+    `).bind(since, until).all();
 
     const groups = { meta: empty(), google: empty(), organic: empty() };
     for (const row of rows.results || []) {
@@ -58,11 +58,12 @@ export async function onRequestGet(context) {
 
     // Meta spend from ad_spend table over the same window.
     const sinceDate = ymd(new Date(since * 1000));
+    const untilDate = ymd(new Date(until * 1000));
     const spendRow = await env.DB.prepare(`
       SELECT COALESCE(SUM(spend_cents), 0) as spend_cents
       FROM ad_spend
-      WHERE platform = 'meta' AND date >= ?
-    `).bind(sinceDate).first();
+      WHERE platform = 'meta' AND date >= ? AND date <= ?
+    `).bind(sinceDate, untilDate).first();
 
     const metaSpend = Number(spendRow?.spend_cents || 0) / 100;
 
@@ -107,4 +108,15 @@ function clampInt(raw, fallback, min, max) {
   const n = parseInt(raw || '', 10);
   if (Number.isNaN(n)) return fallback;
   return Math.max(min, Math.min(max, n));
+}
+
+// Resolve o período da consulta: intervalo explícito from/to (unix) tem
+// prioridade; na ausência, cai para os últimos `days`. `until` default = agora.
+function resolvePeriod(url, days) {
+  const now = Math.floor(Date.now() / 1000);
+  const fromTs = parseInt(url.searchParams.get('from') || '', 10);
+  const toTs = parseInt(url.searchParams.get('to') || '', 10);
+  const since = Number.isFinite(fromTs) && fromTs > 0 ? fromTs : now - days * 86400;
+  const until = Number.isFinite(toTs) && toTs > 0 ? toTs : now;
+  return { since, until };
 }
