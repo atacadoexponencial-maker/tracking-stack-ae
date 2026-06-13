@@ -7,16 +7,28 @@
  * encaminha ao CRM e devolve o destino (WhatsApp/Calendly) conforme o
  * faturamento — o chat apenas redireciona para o destino retornado.
  *
+ * UX inspirada no Typebot: mensagens chegam uma a uma com indicador de
+ * "digitando…", avatar do host e transições suaves.
+ *
  * Abre ao clicar em qualquer elemento com [data-open-chat].
  */
-import { Image } from 'astro:assets';
+import { getImage } from 'astro:assets';
 import logo from '../assets/brand/sem-fundo-branco.png';
+import felipeImg from '../assets/brand/felipe.webp';
+
+const avatar = await getImage({ src: felipeImg, width: 96, height: 96 });
 ---
 
-<div id="lead-chat" class="lead-chat" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="Inscrição na consultoria">
+<div id="lead-chat" class="lead-chat" hidden aria-hidden="true" data-avatar={avatar.src} role="dialog" aria-modal="true" aria-label="Inscrição na consultoria">
   <div class="lead-chat__panel">
     <header class="lead-chat__header">
-      <Image src={logo} alt="Atacado Exponencial" height={22} />
+      <span class="lead-chat__id">
+        <img src={avatar.src} alt="" class="lead-chat__id-avatar" width="32" height="32" />
+        <span class="lead-chat__id-text">
+          <strong>Atacado Exponencial</strong>
+          <span class="lead-chat__id-status">online agora</span>
+        </span>
+      </span>
       <button type="button" class="lead-chat__close" data-close-chat aria-label="Fechar">&times;</button>
     </header>
     <div class="lead-chat__messages" id="lead-chat-messages"></div>
@@ -32,113 +44,128 @@ import logo from '../assets/brand/sem-fundo-branco.png';
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.78);
     padding: 1rem;
+    backdrop-filter: blur(2px);
   }
   .lead-chat[hidden] { display: none; }
   .lead-chat__panel {
     width: 100%;
     max-width: 30rem;
-    height: min(90vh, 40rem);
-    background: #1e1e1e;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 1rem;
+    height: min(92vh, 42rem);
+    background: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    animation: lc-pop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
   }
+  @keyframes lc-pop { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
   .lead-chat__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: #1a1a1a;
   }
-  .lead-chat__close {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 1.5rem;
-    line-height: 1;
-  }
+  .lead-chat__id { display: flex; align-items: center; gap: 0.6rem; }
+  .lead-chat__id-avatar { width: 2rem; height: 2rem; border-radius: 9999px; object-fit: cover; }
+  .lead-chat__id-text { display: flex; flex-direction: column; line-height: 1.2; }
+  .lead-chat__id-text strong { font-size: 0.85rem; color: #fff; }
+  .lead-chat__id-status { font-size: 0.7rem; color: #4ade80; display: flex; align-items: center; gap: 0.3rem; }
+  .lead-chat__id-status::before { content: ''; width: 0.4rem; height: 0.4rem; border-radius: 9999px; background: #4ade80; }
+  .lead-chat__close { background: none; border: none; color: rgba(255, 255, 255, 0.5); font-size: 1.5rem; line-height: 1; }
   .lead-chat__close:hover { color: #fff; }
+
   .lead-chat__messages {
     flex: 1;
     overflow-y: auto;
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .lead-chat__bubble {
-    background: #2a2a2a;
-    color: #fff;
-    padding: 0.75rem 1rem;
-    border-radius: 0.75rem;
-    border-top-left-radius: 0.125rem;
-    max-width: 90%;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    align-self: flex-start;
-    animation: lc-in 0.25s ease;
-  }
-  .lead-chat__bubble--user {
-    background: #fff;
-    color: #1e1e1e;
-    align-self: flex-end;
-    border-top-left-radius: 0.75rem;
-    border-top-right-radius: 0.125rem;
-    font-weight: 700;
-  }
-  @keyframes lc-in {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .lead-chat__input {
-    padding: 1rem 1.25rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 1.25rem 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
   }
+  .lead-chat__row { display: flex; align-items: flex-end; gap: 0.5rem; max-width: 100%; }
+  .lead-chat__row--user { justify-content: flex-end; }
+  .lead-chat__avatar { width: 1.6rem; height: 1.6rem; border-radius: 9999px; object-fit: cover; flex-shrink: 0; }
+  .lead-chat__avatar--spacer { visibility: hidden; }
+  .lead-chat__bubble {
+    background: #262626;
+    color: #f3f3f3;
+    padding: 0.7rem 0.95rem;
+    border-radius: 1.1rem;
+    border-bottom-left-radius: 0.3rem;
+    max-width: 78%;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    animation: lc-in 0.28s ease;
+  }
+  .lead-chat__row--user .lead-chat__bubble {
+    background: #fff;
+    color: #1e1e1e;
+    border-bottom-left-radius: 1.1rem;
+    border-bottom-right-radius: 0.3rem;
+    font-weight: 600;
+  }
+  @keyframes lc-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .lead-chat__typing { display: inline-flex; gap: 0.22rem; padding: 0.9rem 1rem; }
+  .lead-chat__typing span {
+    width: 0.42rem; height: 0.42rem; border-radius: 9999px; background: rgba(255, 255, 255, 0.5);
+    animation: lc-bounce 1.1s infinite ease-in-out;
+  }
+  .lead-chat__typing span:nth-child(2) { animation-delay: 0.18s; }
+  .lead-chat__typing span:nth-child(3) { animation-delay: 0.36s; }
+  @keyframes lc-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-0.3rem); opacity: 1; } }
+
+  .lead-chat__input {
+    padding: 0.9rem 1rem 1.1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+  }
   .lead-chat__input input {
     width: 100%;
-    background: #000;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.8rem;
     color: #fff;
     padding: 0.85rem 1rem;
     font-family: inherit;
-    font-size: 0.9rem;
+    font-size: 0.92rem;
   }
-  .lead-chat__input input::placeholder { color: rgba(255, 255, 255, 0.25); }
-  .lead-chat__input input:focus { outline: none; border-color: rgba(255, 255, 255, 0.6); }
+  .lead-chat__input input::placeholder { color: rgba(255, 255, 255, 0.3); }
+  .lead-chat__input input:focus { outline: none; border-color: rgba(255, 255, 255, 0.55); }
   .lead-chat__btn {
     background: #fff;
     color: #1e1e1e;
     border: none;
+    border-radius: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    font-size: 0.78rem;
     padding: 0.9rem 1rem;
+    transition: opacity 0.15s ease;
   }
+  .lead-chat__btn:hover { opacity: 0.9; }
   .lead-chat__btn:disabled { opacity: 0.5; }
-  .lead-chat__choices {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-    max-height: 13rem;
-    overflow-y: auto;
-  }
+  .lead-chat__choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; max-height: 14rem; overflow-y: auto; }
   .lead-chat__choice {
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.7rem;
+    color: rgba(255, 255, 255, 0.88);
     padding: 0.7rem 0.5rem;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     text-align: center;
+    transition: all 0.15s ease;
   }
-  .lead-chat__choice:hover { border-color: rgba(255, 255, 255, 0.6); background: rgba(255, 255, 255, 0.05); }
+  .lead-chat__choice:hover { border-color: #fff; background: rgba(255, 255, 255, 0.08); }
   .lead-chat__error { color: #f87171; font-size: 0.75rem; }
 </style>
 
@@ -157,7 +184,7 @@ import logo from '../assets/brand/sem-fundo-branco.png';
 
   const STEPS: Step[] = [
     { kind: 'messages', texts: [
-      'Bem-vindo à inscrição da consultoria individual e gratuita do Atacado Exponencial.',
+      'Bem-vindo à inscrição da consultoria individual e gratuita do Atacado Exponencial. 👋',
       'Estamos muito felizes pelo seu interesse, mas lembre-se: o preenchimento não garante vaga 🚨 Esse é um trabalho bem cuidadoso e personalizado, então não é possível de ser feito com todos os interessados.',
       'Preencha com bastante atenção algumas perguntas bem rápidas 👇🏼',
     ] },
@@ -172,17 +199,64 @@ import logo from '../assets/brand/sem-fundo-branco.png';
   const overlay = document.getElementById('lead-chat') as HTMLElement | null;
   const messagesEl = document.getElementById('lead-chat-messages') as HTMLElement | null;
   const inputEl = document.getElementById('lead-chat-input') as HTMLElement | null;
+
   if (overlay && messagesEl && inputEl) {
+    const avatarUrl = overlay.dataset.avatar || '';
     const answers: Record<string, string> = {};
     let stepIndex = 0;
     let started = false;
+    let lastSender: 'bot' | 'user' | null = null;
 
-    function addBubble(text: string, user = false) {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const scrollDown = () => { messagesEl.scrollTop = messagesEl.scrollHeight; };
+
+    function addUserBubble(text: string) {
+      const row = document.createElement('div');
+      row.className = 'lead-chat__row lead-chat__row--user';
       const b = document.createElement('div');
-      b.className = 'lead-chat__bubble' + (user ? ' lead-chat__bubble--user' : '');
+      b.className = 'lead-chat__bubble';
       b.textContent = text;
-      messagesEl!.appendChild(b);
-      messagesEl!.scrollTop = messagesEl!.scrollHeight;
+      row.appendChild(b);
+      messagesEl!.appendChild(row);
+      lastSender = 'user';
+      scrollDown();
+    }
+
+    function addBotBubble(text: string) {
+      const row = document.createElement('div');
+      row.className = 'lead-chat__row';
+      const av = document.createElement('img');
+      av.className = 'lead-chat__avatar' + (lastSender === 'bot' ? ' lead-chat__avatar--spacer' : '');
+      av.src = avatarUrl;
+      av.alt = '';
+      const b = document.createElement('div');
+      b.className = 'lead-chat__bubble';
+      b.textContent = text;
+      row.appendChild(av);
+      row.appendChild(b);
+      messagesEl!.appendChild(row);
+      lastSender = 'bot';
+      scrollDown();
+    }
+
+    async function botSay(text: string) {
+      // indicador "digitando…"
+      const typingRow = document.createElement('div');
+      typingRow.className = 'lead-chat__row';
+      const av = document.createElement('img');
+      av.className = 'lead-chat__avatar' + (lastSender === 'bot' ? ' lead-chat__avatar--spacer' : '');
+      av.src = avatarUrl;
+      av.alt = '';
+      const typing = document.createElement('div');
+      typing.className = 'lead-chat__bubble lead-chat__typing';
+      typing.innerHTML = '<span></span><span></span><span></span>';
+      typingRow.appendChild(av);
+      typingRow.appendChild(typing);
+      messagesEl!.appendChild(typingRow);
+      scrollDown();
+      await sleep(Math.min(1400, 500 + text.length * 16));
+      typingRow.remove();
+      addBotBubble(text);
     }
 
     function clearInput() { inputEl!.innerHTML = ''; }
@@ -199,13 +273,13 @@ import logo from '../assets/brand/sem-fundo-branco.png';
       document.body.style.overflow = '';
     }
 
-    function renderStep() {
+    async function renderStep() {
       clearInput();
       if (stepIndex >= STEPS.length) { submit(); return; }
       const step = STEPS[stepIndex];
 
       if (step.kind === 'messages') {
-        step.texts.forEach((t) => addBubble(t));
+        for (const t of step.texts) { await botSay(t); }
         stepIndex++;
         renderStep();
         return;
@@ -214,13 +288,13 @@ import logo from '../assets/brand/sem-fundo-branco.png';
         const btn = document.createElement('button');
         btn.className = 'lead-chat__btn';
         btn.textContent = step.button;
-        btn.onclick = () => { addBubble(step.button, true); stepIndex++; renderStep(); };
+        btn.onclick = () => { addUserBubble(step.button); stepIndex++; renderStep(); };
         inputEl!.appendChild(btn);
         return;
       }
       if (step.kind === 'input') {
-        (step.before || []).forEach((t) => addBubble(t));
-        addBubble(step.question);
+        for (const t of (step.before || [])) { await botSay(t); }
+        await botSay(step.question);
         const input = document.createElement('input');
         input.type = step.inputType;
         input.placeholder = step.placeholder;
@@ -234,7 +308,7 @@ import logo from '../assets/brand/sem-fundo-branco.png';
           const v = input.value.trim();
           if (!step.validate(v)) { err.textContent = step.errorMsg; err.hidden = false; return; }
           answers[step.key] = v;
-          addBubble(v, true);
+          addUserBubble(v);
           stepIndex++;
           renderStep();
         };
@@ -247,16 +321,16 @@ import logo from '../assets/brand/sem-fundo-branco.png';
         return;
       }
       if (step.kind === 'choice') {
-        (step.before || []).forEach((t) => addBubble(t));
+        for (const t of (step.before || [])) { await botSay(t); }
         const nome = answers['nome'] ? answers['nome'].split(' ')[0] + ', ' : '';
-        addBubble(nome + step.question);
+        await botSay(nome + step.question);
         const grid = document.createElement('div');
         grid.className = 'lead-chat__choices';
         step.options.forEach((opt) => {
           const c = document.createElement('button');
           c.className = 'lead-chat__choice';
           c.textContent = opt;
-          c.onclick = () => { answers[step.key] = opt; addBubble(opt, true); stepIndex++; renderStep(); };
+          c.onclick = () => { answers[step.key] = opt; addUserBubble(opt); stepIndex++; renderStep(); };
           grid.appendChild(c);
         });
         inputEl!.appendChild(grid);
@@ -265,8 +339,8 @@ import logo from '../assets/brand/sem-fundo-branco.png';
     }
 
     async function submit() {
-      addBubble('Parabéns! Você foi selecionado(a) para falar com nossos especialistas do Atacado Exponencial. Estamos muito felizes pelo seu interesse! 🎉');
-      addBubble('Estamos te direcionando agora...');
+      await botSay('Parabéns! Você foi selecionado(a) para falar com nossos especialistas do Atacado Exponencial. Estamos muito felizes pelo seu interesse! 🎉');
+      await botSay('Estamos te direcionando agora…');
       let redirect = '';
       try {
         const res = await fetch('/tracker', {
@@ -280,7 +354,7 @@ import logo from '../assets/brand/sem-fundo-branco.png';
             user_data: { em: answers['email'], ph: answers['telefone'], fn: answers['nome'] },
             lead_data: {
               nome: answers['nome'], telefone: answers['telefone'], email: answers['email'],
-              instagram: answers['instagram'], faturamento: answers['faturamento'],
+              instagram: answers['instagram'], faturamento: answers['faturamento'], funnel: 'diagnostico',
             },
           }),
         });
@@ -292,7 +366,7 @@ import logo from '../assets/brand/sem-fundo-branco.png';
       if (redirect) {
         window.location.href = redirect;
       } else {
-        addBubble('Clique no botão abaixo para falar com nossos especialistas 👇🏼');
+        await botSay('Clique no botão abaixo para falar com nossos especialistas 👇🏼');
       }
     }
 
