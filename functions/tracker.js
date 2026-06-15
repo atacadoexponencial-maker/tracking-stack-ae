@@ -165,11 +165,25 @@ export async function onRequestPost(context) {
     // padrão. Só dispara para eventos de Lead, em background.
     const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
     if ((body.event_name || '').toLowerCase() === 'lead') {
-      const crmUrl = leadFunnel === 'workshop'
+      // Destino principal por funil (n8n → ClickUp hoje).
+      const primaryUrl = leadFunnel === 'workshop'
         ? env.LEAD_WEBHOOK_URL_WORKSHOP
         : env.LEAD_WEBHOOK_URL;
-      if (crmUrl) {
-        context.waitUntil(sendToCRM({ leadData: body.lead_data || {}, sessionData, env, url: crmUrl }));
+
+      // Fan-out: cada destino dispara de forma independente — se um falhar, os
+      // outros seguem. Permite rodar o CRM novo (Supabase) em paralelo ao
+      // ClickUp durante a migração; depois é só remover a env var do ClickUp.
+      const crmDestinations = [
+        { url: primaryUrl },
+        { url: env.LEAD_WEBHOOK_URL_CRM, token: env.LEAD_WEBHOOK_TOKEN_CRM },
+      ];
+      for (const dest of crmDestinations) {
+        if (!dest.url) continue;
+        context.waitUntil(sendToCRM({
+          leadData: body.lead_data || {},
+          sessionData, fbc, externalId,
+          url: dest.url, token: dest.token,
+        }));
       }
     }
 
@@ -339,7 +353,7 @@ async function sendToGA4({ body, gaClientId, gaSessionId, hashedEm, env }) {
 // CRM FORWARD — encaminha o lead para um webhook configurável
 // (hoje n8n → ClickUp). Dados crus do formulário + atribuição da sessão.
 // -------------------------------------------------------
-async function sendToCRM({ leadData, sessionData, url }) {
+async function sendToCRM({ leadData, sessionData, fbc, externalId, url, token }) {
   try {
     const payload = {
       ...leadData,
@@ -351,13 +365,17 @@ async function sendToCRM({ leadData, sessionData, url }) {
         utm_term: sessionData.utm_term || '',
         fbclid: sessionData.fbclid || '',
         gclid: sessionData.gclid || '',
+        fbc: fbc || '',
+        external_id: externalId || '',
         landing_url: sessionData.landing_url || '',
         referrer: sessionData.referrer || '',
       },
     };
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['x-webhook-token'] = token;
     await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
   } catch (e) {
