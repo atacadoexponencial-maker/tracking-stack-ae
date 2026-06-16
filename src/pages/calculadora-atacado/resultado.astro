@@ -1,12 +1,12 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
-import logo from '../../assets/brand/sem-fundo-preto.png';
+import logo from '../../assets/brand/logo.png';
 ---
 
 <BaseLayout title="Seu diagnóstico — Calculadora do Atacado" showHeader={false}>
   <div class="calc">
-    <nav class="calc__nav container"><Image src={logo} alt="Atacado Exponencial" height={26} /></nav>
+    <nav class="calc__nav container"><Image src={logo} alt="Atacado Exponencial" height={72} style="height:2.25rem;width:auto;filter:brightness(0)" /></nav>
     <main class="calc__main container" id="result-root">
       <h1 class="calc__title">Seu diagnóstico, <span id="r-nome">—</span></h1>
       <div class="result__cards">

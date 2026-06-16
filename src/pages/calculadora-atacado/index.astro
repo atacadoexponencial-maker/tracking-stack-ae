@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
-import logo from '../../assets/brand/sem-fundo-preto.png';
+import logo from '../../assets/brand/logo.png';
 
 const faturamentoOptions = [
   'Menos de R$ 20 mil', 'De R$ 20 mil a R$ 30 mil', 'De R$ 30 mil a R$ 40 mil',
@@ -18,7 +18,7 @@ const microBenefits = [
 
 <BaseLayout title="Calculadora do Atacado — Diagnóstico em 2 minutos" description="Descubra o potencial de receita não realizado do seu atacado." showHeader={false}>
   <div class="calc">
-    <nav class="calc__nav container"><Image src={logo} alt="Atacado Exponencial" height={26} /></nav>
+    <nav class="calc__nav container"><Image src={logo} alt="Atacado Exponencial" height={72} style="height:2.25rem;width:auto;filter:brightness(0)" /></nav>
     <main class="calc__main container">
       <h1 class="calc__title">Calculadora do Atacado</h1>
       <p class="calc__sub">Descubra em 2 minutos o quanto o seu atacado está deixando de faturar. Você vai ver:</p>

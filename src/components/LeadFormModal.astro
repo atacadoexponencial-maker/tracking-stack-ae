@@ -7,13 +7,13 @@
  * (página do vídeo). Abre ao clicar em [data-open-form].
  */
 import { Image } from 'astro:assets';
-import logo from '../assets/brand/sem-fundo-branco.png';
+import logo from '../assets/brand/logo.png';
 ---
 
 <div id="lead-form" class="lform" hidden role="dialog" aria-modal="true" aria-label="Inscrição no workshop">
   <div class="lform__panel">
     <header class="lform__header">
-      <Image src={logo} alt="Atacado Exponencial" height={20} class="lform__logo" />
+      <Image src={logo} alt="Atacado Exponencial" height={56} class="lform__logo" />
       <button type="button" class="lform__close" data-close-form aria-label="Fechar">&times;</button>
     </header>
     <form class="lform__form" id="lead-form-el">
@@ -67,7 +67,7 @@ import logo from '../assets/brand/sem-fundo-branco.png';
     background: #1e1e1e; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1rem;
   }
   .lform__header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem; }
-  .lform__logo { height: 1.25rem; width: auto; }
+  .lform__logo { height: 1.75rem; width: auto; }
   .lform__close { background: none; border: none; color: rgba(255, 255, 255, 0.6); font-size: 1.5rem; line-height: 1; }
   .lform__form { display: flex; flex-direction: column; gap: 1rem; padding: 0 1.25rem 1.5rem; }
   .lform__field { display: flex; flex-direction: column; gap: 0.4rem; }

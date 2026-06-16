@@ -1,11 +1,11 @@
 ---
 import { Image } from 'astro:assets';
-import logo from '../../assets/brand/sem-fundo-preto.png';
+import logo from '../../assets/brand/logo.png';
 ---
 
 <header class="herovsl">
   <nav class="herovsl__nav container">
-    <Image src={logo} alt="Atacado Exponencial" height={28} class="herovsl__logo" />
+    <Image src={logo} alt="Atacado Exponencial" height={72} class="herovsl__logo" />
   </nav>
 
   <div class="herovsl__body container">
@@ -37,7 +37,7 @@ import logo from '../../assets/brand/sem-fundo-preto.png';
 <style>
   .herovsl { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); }
   .herovsl__nav { padding-block: 1.5rem; }
-  .herovsl__logo { height: 1.6rem; width: auto; }
+  .herovsl__logo { height: 2.25rem; width: auto; filter: brightness(0); }
   .herovsl__body {
     display: flex;
     flex-direction: column;

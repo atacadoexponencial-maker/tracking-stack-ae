@@ -1,6 +1,6 @@
 ---
 import { Image } from 'astro:assets';
-import logo from '../../assets/brand/sem-fundo-preto.png';
+import logo from '../../assets/brand/logo.png';
 
 const trust = ['100% gratuito', 'Sem cartão', '35 min'];
 const stats = [
@@ -13,7 +13,7 @@ const stats = [
 
 <header class="hero">
   <nav class="hero__nav container">
-    <Image src={logo} alt="Atacado Exponencial" height={28} class="hero__logo" />
+    <Image src={logo} alt="Atacado Exponencial" height={72} class="hero__logo" />
     <button type="button" class="hero__nav-cta" data-open-chat>
       Agendar diagnóstico <span aria-hidden="true">→</span>
     </button>
@@ -61,7 +61,7 @@ const stats = [
     justify-content: space-between;
     padding-block: 1.5rem;
   }
-  .hero__logo { height: 1.6rem; width: auto; }
+  .hero__logo { height: 2.25rem; width: auto; filter: brightness(0); }
   .hero__nav-cta {
     display: none;
     align-items: center;

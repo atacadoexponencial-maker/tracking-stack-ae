@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
-import logo from '../../assets/brand/sem-fundo-preto.png';
+import logo from '../../assets/brand/logo.png';
 
 const pctOptions = [
   { label: '0% (todos desqualificados)', value: '0' },
@@ -17,7 +17,7 @@ const pctRecompra = [
 
 <BaseLayout title="Seus números — Calculadora do Atacado" showHeader={false}>
   <div class="calc">
-    <nav class="calc__nav container"><Image src={logo} alt="Atacado Exponencial" height={26} /></nav>
+    <nav class="calc__nav container"><Image src={logo} alt="Atacado Exponencial" height={72} style="height:2.25rem;width:auto;filter:brightness(0)" /></nav>
     <main class="calc__main container">
       <h1 class="calc__title">Seus números</h1>
       <p class="calc__sub">Responda com base nos últimos 3 meses do seu negócio.</p>
