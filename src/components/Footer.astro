@@ -1,13 +1,13 @@
 ---
 import { Image } from 'astro:assets';
-import icone from '../assets/brand/icone-sem-fundo-branco.png';
+import logo from '../assets/brand/logo.png';
 
 const ano = new Date().getFullYear();
 ---
 
 <footer class="site-footer">
   <div class="container site-footer__inner">
-    <Image src={icone} alt="Atacado Exponencial" height={32} class="site-footer__icon" />
+    <Image src={logo} alt="Atacado Exponencial" height={72} class="site-footer__logo" />
     <nav class="site-footer__nav" aria-label="Rodapé">
       <a href="/privacy-policy">Política de Privacidade</a>
     </nav>
@@ -27,8 +27,8 @@ const ano = new Date().getFullYear();
     gap: 1rem;
     text-align: center;
   }
-  .site-footer__icon {
-    height: 2rem;
+  .site-footer__logo {
+    height: 2.25rem;
     width: auto;
   }
   .site-footer__nav a {
