@@ -23,6 +23,23 @@ export async function onRequestGet(context) {
 
   const botClause = includeBots ? '' : 'AND e.is_bot = 0';
 
+  // Filtro opcional de funil. O front só envia o nome do funil; a tradução
+  // para o critério (landing_url) é regra de negócio e vive aqui no backend
+  // (Opção A — sem coluna `funnel` no event_log). Funil ausente = todos os
+  // funis (comportamento original). Funil desconhecido = conjunto vazio.
+  const funnel = (url.searchParams.get('funnel') || '').trim();
+  let funnelClause = '';
+  const funnelBinds = [];
+  if (funnel) {
+    const pattern = FUNNEL_PATTERNS[funnel];
+    if (pattern) {
+      funnelClause = 'AND s.landing_url LIKE ?';
+      funnelBinds.push(pattern);
+    } else {
+      funnelClause = 'AND 1 = 0';
+    }
+  }
+
   try {
     const rows = await env.DB.prepare(`
       SELECT
@@ -60,9 +77,10 @@ export async function onRequestGet(context) {
       WHERE e.event_name = 'Lead'
         AND e.timestamp >= ? AND e.timestamp <= ?
         ${botClause}
+        ${funnelClause}
       ORDER BY e.timestamp DESC
       LIMIT ?
-    `).bind(since, until, limit).all();
+    `).bind(since, until, ...funnelBinds, limit).all();
 
     // Summary counts grouped by utm_source for the summary card above the table.
     const summary = await env.DB.prepare(`
@@ -74,12 +92,14 @@ export async function onRequestGet(context) {
       WHERE e.event_name = 'Lead'
         AND e.timestamp >= ? AND e.timestamp <= ?
         AND e.is_bot = 0
+        ${funnelClause}
       GROUP BY utm_source
       ORDER BY count DESC
-    `).bind(since, until).all();
+    `).bind(since, until, ...funnelBinds).all();
 
     return json({
       days,
+      funnel: funnel || null,
       leads: rows.results || [],
       summary: summary.results || [],
     });
@@ -87,6 +107,13 @@ export async function onRequestGet(context) {
     return json({ error: err.message }, 500);
   }
 }
+
+// Mapa funil → critério em sessions.landing_url (Opção A). Adicionar uma
+// entrada aqui para cada funil que o dashboard precise segmentar. A chave é o
+// mesmo identificador enviado em lead_data.funnel pelas páginas de captura.
+const FUNNEL_PATTERNS = {
+  'lives-semanais-v1': '%/lives-semanais-v1%',
+};
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {

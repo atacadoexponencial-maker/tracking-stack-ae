@@ -70,6 +70,10 @@
           <input type="date" id="date-to" class="range-input" aria-label="Data final">
           <button id="apply-range" class="range-btn">Aplicar</button>
         </div>
+        <select id="funnel-picker" class="range-input" aria-label="Filtrar leads por funil">
+          <option value="">Todos os funis</option>
+          <option value="lives-semanais-v1">Live semanal</option>
+        </select>
       </div>
     </div>
   </header>
@@ -405,6 +409,8 @@
   // Período atual como query string: 'days=30' ou 'from=<unix>&to=<unix>'.
   let periodQuery = 'days=30';
   let periodLabel = '30 dias';
+  // Filtro de funil aplicado só aos leads: '' = todos; senão '&funnel=<id>'.
+  let funnelQuery = '';
   let utmDimension = 'utm_source';
   let utmFilters = {};
   let revenueChart = null;
@@ -514,11 +520,12 @@
   }
 
   async function loadLeads() {
-    const data = await fetchJson(`/api/leads?${periodQuery}&limit=50`);
+    const data = await fetchJson(`/api/leads?${periodQuery}${funnelQuery}&limit=50`);
     qs('#kpi-leads').textContent = fmtInt((data.leads || []).length);
     const tbody = qs('#leads-tbody');
     if (!data.leads || data.leads.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-[color:var(--muted)]">Nenhum lead no período.</td></tr>';
+      const emptyMsg = funnelQuery ? 'Nenhum lead deste funil no período.' : 'Nenhum lead no período.';
+      tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-[color:var(--muted)]">${emptyMsg}</td></tr>`;
       return;
     }
     tbody.innerHTML = data.leads.map((l, i) => `
@@ -871,6 +878,14 @@
     qsa('#range-picker .range-btn').forEach(b => b.classList.remove('active'));
     qs('#custom-range-btn').classList.add('active');
     loadAll();
+  });
+
+  // Seletor de funil: afeta só o KPI "Leads" e a tabela "Leads recentes",
+  // preservando o período atual. O mapa funil→critério vive no backend.
+  qs('#funnel-picker').addEventListener('change', (e) => {
+    const f = e.target.value;
+    funnelQuery = f ? `&funnel=${encodeURIComponent(f)}` : '';
+    loadLeads();
   });
 
   qsa('#utm-tabs .dash-tab').forEach(tab => {
