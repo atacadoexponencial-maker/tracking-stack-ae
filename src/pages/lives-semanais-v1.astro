@@ -1,0 +1,145 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+
+const aprender = [
+  'Por que postar mais, investir em tráfego e contratar agência não destravou o seu faturamento — e o que realmente está no caminho.',
+  'As 2 variáveis que decidem se o seu atacado vai escalar ou continuar travado no mesmo número.',
+  'O sistema que marcas de atacado usam para ter revendedor novo entrando toda semana, de forma previsível.',
+  'Por que chega consumidor final no seu DM em vez de lojista — e como virar essa chave.',
+];
+---
+
+<BaseLayout
+  title="Live do Atacado: novos revendedores chegando toda semana"
+  description="Live gratuita e online, toda quinta às 12h. Descubra o sistema que marcas de atacado usam para ter revendedor novo entrando toda semana, de forma previsível."
+  showHeader={false}
+>
+  <!-- Hero -->
+  <header class="lv-hero">
+    <nav class="lv-hero__nav container"><Image src={logo} alt="Atacado Exponencial" height={72} style="height:2.25rem;width:auto;filter:brightness(0)" /></nav>
+    <div class="lv-hero__body container">
+      <span class="lv-hero__badge">🔴 LIVE GRATUITA E ONLINE • QUINTA, 12H</span>
+      <h1 class="lv-hero__title">Como ter novos revendedores chegando toda semana no seu atacado</h1>
+      <p class="lv-hero__sub">Sem depender dos mesmos clientes de sempre, sem representante e sem aplicar estratégia de varejo num mercado que é completamente diferente.</p>
+      <a href="#inscricao" class="btn-cta lv-hero__cta">QUERO MINHA VAGA NA LIVE →</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- O que vai entender -->
+    <section class="section section--light aprender">
+      <div class="container">
+        <div class="section-head">
+          <h2 class="section-title">Nesta hora, você vai entender:</h2>
+        </div>
+        <ul class="aprender__list">
+          {aprender.map((item) => <li class="aprender__item">✅ {item}</li>)}
+        </ul>
+      </div>
+    </section>
+
+    <!-- Para quem é a live -->
+    <section class="section paraquem">
+      <div class="container paraquem__inner">
+        <span class="eyebrow">Para quem é a live</span>
+        <p class="paraquem__text">Essa live é pra você que tem uma marca de atacado — vende pra revendedor, lojista ou empreendedor — já tem produto validado, mas sente que o faturamento travou e que as estratégias que você usa não foram feitas pro seu mercado.</p>
+      </div>
+    </section>
+
+    <!-- Prova social -->
+    <section class="section section--light prova">
+      <div class="container prova__inner">
+        <span class="eyebrow">Prova social</span>
+        <p class="prova__text">Marcas como a Anifil e a Essência de Menina já aplicaram esse método para atrair clientes novos com tráfego — e hoje boa parte do faturamento delas vem de quem chegou depois.</p>
+      </div>
+    </section>
+
+    <!-- Formulário de inscrição -->
+    <section id="inscricao" class="section inscricao">
+      <div class="container inscricao__inner">
+        <h2 class="section-title">Garanta sua vaga gratuita</h2>
+        <p class="inscricao__reforco">Quinta-feira, 12h · ao vivo e online</p>
+        <form class="inscricao__form" id="inscricao-form-el">
+          <input class="inscricao__input" type="text" name="nome" placeholder="Nome" autocomplete="name" required minlength="2" />
+          <input class="inscricao__input" type="tel" name="telefone" placeholder="WhatsApp" autocomplete="tel" required />
+          <p id="inscricao-erro" class="inscricao__erro" hidden></p>
+          <button type="submit" class="btn-cta inscricao__submit" id="inscricao-submit">QUERO PARTICIPAR DA LIVE →</button>
+        </form>
+        <p class="inscricao__garantia">Vaga gratuita. Você recebe o link e os lembretes direto no seu WhatsApp.</p>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .lv-hero { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); min-height: 80vh; display: flex; flex-direction: column; }
+  .lv-hero__nav { display: flex; justify-content: center; padding-block: 1.5rem; }
+  .lv-hero__body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.25rem; max-width: 44rem; padding-block: 3rem; }
+  .lv-hero__badge { display: inline-block; border: 1px solid rgba(30,30,30,0.15); border-radius: 9999px; padding: 0.5rem 1.25rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(30,30,30,0.7); }
+  .lv-hero__title { font-size: clamp(1.75rem, 4.5vw, 3.25rem); line-height: 1.1; }
+  .lv-hero__sub { color: rgba(30,30,30,0.7); max-width: 36rem; }
+  .lv-hero__cta { margin-top: 0.5rem; }
+
+  .aprender__list { margin-top: 2.5rem; max-width: 44rem; margin-inline: auto; display: flex; flex-direction: column; gap: 0.75rem; list-style: none; }
+  .aprender__item { padding: 1rem 1.25rem; border: 1px solid rgba(30,30,30,0.12); border-radius: 0.75rem; background: rgba(255,255,255,0.4); font-size: 0.95rem; }
+
+  .paraquem__inner { display: flex; flex-direction: column; gap: 1rem; align-items: center; text-align: center; max-width: 40rem; margin-inline: auto; }
+  .paraquem__text { color: hsl(var(--muted-foreground)); font-size: 1.05rem; }
+
+  .prova__inner { display: flex; flex-direction: column; gap: 1rem; align-items: center; text-align: center; max-width: 40rem; margin-inline: auto; }
+  .prova__text { color: rgba(30,30,30,0.75); font-size: 1.05rem; }
+
+  .inscricao__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1rem; max-width: 32rem; margin-inline: auto; }
+  .inscricao__reforco { color: hsl(var(--muted-foreground)); font-weight: 700; }
+  .inscricao__form { margin-top: 1rem; width: 100%; display: flex; flex-direction: column; gap: 0.75rem; }
+  .inscricao__input { width: 100%; padding: 1rem 1.25rem; border: 1px solid hsl(var(--input)); border-radius: 0.75rem; background: hsl(var(--card)); color: hsl(var(--card-foreground)); font-family: inherit; font-size: 1rem; }
+  .inscricao__input::placeholder { color: hsl(var(--muted-foreground)); }
+  .inscricao__input:focus { outline: none; border-color: hsl(var(--ring)); }
+  .inscricao__erro { color: hsl(var(--destructive)); font-size: 0.9rem; text-align: left; }
+  .inscricao__submit { justify-content: center; margin-top: 0.25rem; }
+  .inscricao__garantia { margin-top: 0.5rem; color: hsl(var(--muted-foreground)); font-size: 0.9rem; max-width: 28rem; }
+</style>
+
+<script>
+  const form = document.getElementById('inscricao-form-el') as HTMLFormElement | null;
+  const errEl = document.getElementById('inscricao-erro') as HTMLElement | null;
+  const submitBtn = document.getElementById('inscricao-submit') as HTMLButtonElement | null;
+
+  if (form && errEl && submitBtn) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errEl.hidden = true;
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+      const data = new FormData(form);
+      const lead = {
+        nome: String(data.get('nome') || ''),
+        telefone: String(data.get('telefone') || ''),
+        funnel: 'lives-semanais-v1',
+      };
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando…';
+      let redirect = '/obrigada';
+      try {
+        const res = await fetch('/tracker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: 'Lead',
+            event_id: 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+            event_time: Math.floor(Date.now() / 1000),
+            event_source_url: window.location.href,
+            user_data: { ph: lead.telefone, fn: lead.nome },
+            lead_data: lead,
+          }),
+        });
+        const json = await res.json();
+        if (json && json.redirect) redirect = json.redirect;
+      } catch (e) {
+        /* segue para o destino padrão abaixo — nunca bloquear a conversão */
+      }
+      window.location.href = redirect;
+    });
+  }
+</script>
