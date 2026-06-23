@@ -72,7 +72,6 @@
         </div>
         <select id="funnel-picker" class="range-input" aria-label="Filtrar leads por funil">
           <option value="">Todos os funis</option>
-          <option value="lives-semanais-v1">Live semanal</option>
         </select>
       </div>
     </div>
@@ -409,7 +408,9 @@
   // Período atual como query string: 'days=30' ou 'from=<unix>&to=<unix>'.
   let periodQuery = 'days=30';
   let periodLabel = '30 dias';
-  // Filtro de funil aplicado só aos leads: '' = todos; senão '&funnel=<id>'.
+  // Filtro de funil aplicado só aos leads. selectedFunnel = valor cru
+  // ('' = todos); funnelQuery = fragmento pronto pra querystring.
+  let selectedFunnel = '';
   let funnelQuery = '';
   let utmDimension = 'utm_source';
   let utmFilters = {};
@@ -519,8 +520,23 @@
     });
   }
 
+  // Popula o seletor de funil com os funis presentes nos dados, preservando a
+  // seleção atual. Idempotente — chamado a cada carga de leads.
+  function populateFunnelOptions(funnels) {
+    const sel = qs('#funnel-picker');
+    if (!sel) return;
+    const list = Array.isArray(funnels) ? funnels : [];
+    const opts = ['<option value="">Todos os funis</option>']
+      .concat(list.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`));
+    sel.innerHTML = opts.join('');
+    sel.value = selectedFunnel;
+    // Se o funil selecionado não está mais na lista, volta para "todos".
+    if (sel.value !== selectedFunnel) { selectedFunnel = ''; funnelQuery = ''; }
+  }
+
   async function loadLeads() {
     const data = await fetchJson(`/api/leads?${periodQuery}${funnelQuery}&limit=50`);
+    populateFunnelOptions(data.funnels);
     qs('#kpi-leads').textContent = fmtInt((data.leads || []).length);
     const tbody = qs('#leads-tbody');
     if (!data.leads || data.leads.length === 0) {
@@ -883,8 +899,8 @@
   // Seletor de funil: afeta só o KPI "Leads" e a tabela "Leads recentes",
   // preservando o período atual. O mapa funil→critério vive no backend.
   qs('#funnel-picker').addEventListener('change', (e) => {
-    const f = e.target.value;
-    funnelQuery = f ? `&funnel=${encodeURIComponent(f)}` : '';
+    selectedFunnel = e.target.value;
+    funnelQuery = selectedFunnel ? `&funnel=${encodeURIComponent(selectedFunnel)}` : '';
     loadLeads();
   });
 

@@ -19,7 +19,24 @@ filtrar por ele. A live é só mais um nome na lista; não dá para ver a contag
 lista "Leads recentes" e o KPI "Leads" passando a respeitar esse filtro combinado com o
 filtro de datas já existente. Nada além disso.
 
-### Restrição de arquitetura — fonte do filtro de funil (decisão central)
+### ATUALIZAÇÃO (decisão final implementada) — parâmetro dedicado `&funnel=`
+
+> A decisão evoluiu durante a conversa com a usuária. A Opção A (derivar de
+> `landing_url`) **não atende** o requisito real: ela só funciona para funis com
+> página própria, mas há funis que **compartilham página** (ex.: "manychat" cai
+> na home). E os UTMs já têm dono na convenção de tráfego deles
+> (`utm_source` = origem, `utm_campaign` = nome da campanha de anúncio,
+> `utm_content` = perfil/criativo, `utm_medium` = já em uso), então nenhum campo
+> UTM está livre para o funil sem colisão.
+>
+> **Solução adotada:** um parâmetro de URL **próprio**, fora dos UTMs — `&funnel=`.
+> O middleware captura `&funnel=` e persiste em `sessions.funnel` (first-touch,
+> igual às UTMs). O `/api/leads` filtra por `s.funnel` e devolve a lista de funis
+> distintos; o dashboard popula o seletor **automaticamente** (sem editar código
+> por funil novo). Migração `0016_sessions_funnel.sql` adiciona a coluna.
+> Leads antigos (sem `&funnel=`) ficam só em "Todos os funis".
+
+### Restrição de arquitetura — fonte do filtro de funil (decisão central, histórico)
 
 O dado "funil" precisa existir de forma consultável no backend para o `/api/leads` poder
 filtrar. Hoje ele **não** está persistido. Duas opções:

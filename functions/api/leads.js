@@ -23,21 +23,16 @@ export async function onRequestGet(context) {
 
   const botClause = includeBots ? '' : 'AND e.is_bot = 0';
 
-  // Filtro opcional de funil. O front só envia o nome do funil; a tradução
-  // para o critério (landing_url) é regra de negócio e vive aqui no backend
-  // (Opção A — sem coluna `funnel` no event_log). Funil ausente = todos os
-  // funis (comportamento original). Funil desconhecido = conjunto vazio.
+  // Filtro opcional de funil. O funil é capturado do parâmetro de URL `&funnel=`
+  // pelo middleware e persistido em sessions.funnel (não é UTM). Funil ausente
+  // = todos os funis (comportamento original). A lista de funis disponíveis é
+  // devolvida em `funnels` para o dashboard popular o seletor automaticamente.
   const funnel = (url.searchParams.get('funnel') || '').trim();
   let funnelClause = '';
   const funnelBinds = [];
   if (funnel) {
-    const pattern = FUNNEL_PATTERNS[funnel];
-    if (pattern) {
-      funnelClause = 'AND s.landing_url LIKE ?';
-      funnelBinds.push(pattern);
-    } else {
-      funnelClause = 'AND 1 = 0';
-    }
+    funnelClause = 'AND s.funnel = ?';
+    funnelBinds.push(funnel);
   }
 
   try {
@@ -71,7 +66,8 @@ export async function onRequestGet(context) {
         s.fbclid,
         s.gclid,
         s.referrer,
-        s.landing_url
+        s.landing_url,
+        s.funnel
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
       WHERE e.event_name = 'Lead'
@@ -97,9 +93,23 @@ export async function onRequestGet(context) {
       ORDER BY count DESC
     `).bind(since, until, ...funnelBinds).all();
 
+    // Lista de funis disponíveis para o seletor do dashboard. Independente do
+    // período e do filtro atual, para o dropdown ficar estável (não some uma
+    // opção ao trocar a data). Apenas funis efetivamente capturados.
+    const funnels = await env.DB.prepare(`
+      SELECT DISTINCT s.funnel as funnel
+      FROM event_log e
+      LEFT JOIN sessions s ON e.session_id = s.session_id
+      WHERE e.event_name = 'Lead'
+        AND e.is_bot = 0
+        AND s.funnel IS NOT NULL AND s.funnel != ''
+      ORDER BY s.funnel
+    `).all();
+
     return json({
       days,
       funnel: funnel || null,
+      funnels: (funnels.results || []).map(r => r.funnel),
       leads: rows.results || [],
       summary: summary.results || [],
     });
@@ -107,13 +117,6 @@ export async function onRequestGet(context) {
     return json({ error: err.message }, 500);
   }
 }
-
-// Mapa funil → critério em sessions.landing_url (Opção A). Adicionar uma
-// entrada aqui para cada funil que o dashboard precise segmentar. A chave é o
-// mesmo identificador enviado em lead_data.funnel pelas páginas de captura.
-const FUNNEL_PATTERNS = {
-  'lives-semanais-v1': '%/lives-semanais-v1%',
-};
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
