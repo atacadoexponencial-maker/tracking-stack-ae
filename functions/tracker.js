@@ -188,6 +188,23 @@ export async function onRequestPost(context) {
           url: dest.url, token: dest.token,
         }));
       }
+
+      // Persiste o funil declarado pela LP em sessions.funnel — é a fonte do
+      // filtro de funil no dashboard. A sessão já existe (criada pelo middleware
+      // no pageview). Só preenche se ainda estiver vazio: preserva o first-touch
+      // de um eventual ?funnel= já capturado e não sobrescreve em re-submits.
+      const declaredFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
+      if (declaredFunnel && sessionId && env.DB) {
+        context.waitUntil((async () => {
+          try {
+            await env.DB.prepare(
+              `UPDATE sessions SET funnel = CASE WHEN funnel IS NULL OR funnel = '' THEN ? ELSE funnel END WHERE session_id = ?`
+            ).bind(declaredFunnel, sessionId).run();
+          } catch (e) {
+            console.error('Funnel persist error:', e.message);
+          }
+        })());
+      }
     }
 
     const rawEmail = userData.em || '';
