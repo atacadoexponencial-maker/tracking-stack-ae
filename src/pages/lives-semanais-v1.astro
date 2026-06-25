@@ -9,6 +9,13 @@ const aprender = [
   'O sistema que marcas de atacado usam para ter revendedor novo entrando toda semana, de forma previsível.',
   'Por que chega consumidor final no seu DM em vez de lojista — e como virar essa chave.',
 ];
+
+// Prints de depoimentos — reaproveita as imagens de src/assets/proof/
+// (mesmo padrão de src/pages/video-workshop-instagram.astro).
+const proofModules = import.meta.glob('../assets/proof/*.{jpg,png}', { eager: true });
+const proofImages = Object.entries(proofModules)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([, m]) => (m as { default: ImageMetadata }).default);
 ---
 
 <BaseLayout
@@ -56,6 +63,21 @@ const aprender = [
       </div>
     </section>
 
+    <!-- Depoimentos (prints) -->
+    <section class="section section--light lv-prints">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Depoimentos</span>
+          <h2 class="section-title">O que dizem quem já aplicou o método</h2>
+        </div>
+        <div class="lv-prints__grid">
+          {proofImages.map((img, i) => (
+            <Image src={img} alt={`Depoimento ${i + 1}`} class="lv-prints__img" loading="lazy" />
+          ))}
+        </div>
+      </div>
+    </section>
+
     <!-- Formulário de inscrição -->
     <section id="inscricao" class="section inscricao">
       <div class="container inscricao__inner">
@@ -100,6 +122,10 @@ const aprender = [
   .inscricao__erro { color: hsl(var(--destructive)); font-size: 0.9rem; text-align: left; }
   .inscricao__submit { justify-content: center; margin-top: 0.25rem; }
   .inscricao__garantia { margin-top: 0.5rem; color: hsl(var(--muted-foreground)); font-size: 0.9rem; max-width: 28rem; }
+
+  .lv-prints__grid { margin-top: 2.5rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .lv-prints__img { width: 100%; height: auto; border-radius: 1rem; object-fit: cover; }
+  @media (min-width: 768px) { .lv-prints__grid { grid-template-columns: repeat(3, 1fr); } }
 </style>
 
 <script>
