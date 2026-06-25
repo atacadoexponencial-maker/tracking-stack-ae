@@ -78,6 +78,7 @@ const proofImages = Object.entries(proofModules)
         <form class="inscricao__form" id="inscricao-form-el">
           <input class="inscricao__input" type="text" name="nome" placeholder="Nome" autocomplete="name" required minlength="2" />
           <input class="inscricao__input" type="tel" name="telefone" placeholder="WhatsApp" autocomplete="tel" required />
+          <input class="inscricao__input" type="email" name="email" placeholder="Email" autocomplete="email" required />
           <p id="inscricao-erro" class="inscricao__erro" hidden></p>
           <button type="submit" class="btn-cta inscricao__submit" id="inscricao-submit">QUERO PARTICIPAR DA LIVE →</button>
         </form>
@@ -131,6 +132,7 @@ const proofImages = Object.entries(proofModules)
       const lead = {
         nome: String(data.get('nome') || ''),
         telefone: String(data.get('telefone') || ''),
+        email: String(data.get('email') || ''),
         funnel: 'lives-semanais-v1',
       };
       submitBtn.disabled = true;
@@ -145,7 +147,7 @@ const proofImages = Object.entries(proofModules)
             event_id: 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
             event_time: Math.floor(Date.now() / 1000),
             event_source_url: window.location.href,
-            user_data: { ph: lead.telefone, fn: lead.nome },
+            user_data: { em: lead.email, ph: lead.telefone, fn: lead.nome },
             lead_data: lead,
           }),
         });
