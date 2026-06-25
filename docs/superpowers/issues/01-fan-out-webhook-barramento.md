@@ -68,4 +68,8 @@ Adicionar um terceiro destino **incondicional** ao array `crmDestinations` em `f
 - [x] Adicionar `{ url: env.LEAD_WEBHOOK_URL_WHATSAPP, token: env.LEAD_WEBHOOK_TOKEN_WHATSAPP },` ao array `crmDestinations` em `functions/tracker.js`.
 - [x] Comentário curto explicando o destino (barramento WhatsApp), no padrão dos comentários existentes.
 - [x] Confirmar que não há outras alterações no arquivo (escopo de 1 linha + comentário).
-- [ ] Anotar pendência das 2 env vars no Cloudflare (preview + prod) — configuração manual da usuária.
+- [x] Anotar pendência das 2 env vars no Cloudflare (preview + prod) — configuração manual da usuária. **Feito (prod+preview).**
+
+## Resultado
+
+✅ **NO AR e validado fim-a-fim em 2026-06-25.** Lead na LP da live → `/tracker` → barramento n8n → template WhatsApp recebido. Commit `f10f9ca` (em `main`; produção builda da `main`, não da `migracao-astro`).
