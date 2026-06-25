@@ -231,14 +231,17 @@ export async function onRequestPost(context) {
     );
 
     // --- Roteamento pós-captação (regra de negócio, no backend) ---
-    // Funil 'workshop' segue para a página do vídeo do workshop. No diagnóstico,
-    // leads de baixo faturamento ("Menos de 20 Mil") vão ao WhatsApp dos
-    // especialistas; os demais ao agendamento (Calendly). Destinos por env.
-    // O front apenas executa o redirect retornado.
+    // Funil 'workshop' segue para a página do vídeo do workshop. A live semanal
+    // ('lives-semanais-v1') manda o inscrito direto ao grupo de WhatsApp da live
+    // (env LEAD_REDIRECT_LIVE). No diagnóstico, leads de baixo faturamento
+    // ("Menos de 20 Mil") vão ao WhatsApp dos especialistas; os demais ao
+    // agendamento (Calendly). Destinos por env. O front só executa o redirect.
     let leadRedirect = null;
     if ((body.event_name || '').toLowerCase() === 'lead') {
       if (leadFunnel === 'workshop') {
         leadRedirect = env.LEAD_REDIRECT_WORKSHOP || '/video-workshop-instagram';
+      } else if (leadFunnel === 'lives-semanais-v1') {
+        leadRedirect = env.LEAD_REDIRECT_LIVE || '/obrigada';
       } else {
         const faturamento = (body.lead_data?.faturamento || '').toLowerCase();
         const baixoTicket = faturamento.includes('menos de 20');
