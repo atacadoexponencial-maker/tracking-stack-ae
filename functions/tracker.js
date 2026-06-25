@@ -176,6 +176,9 @@ export async function onRequestPost(context) {
       const crmDestinations = [
         { url: primaryUrl },
         { url: env.LEAD_WEBHOOK_URL_CRM, token: env.LEAD_WEBHOOK_TOKEN_CRM },
+        // Barramento de leads (n8n → WhatsApp): recebe TODOS os leads; a decisão
+        // de qual funil dispara WhatsApp fica 100% no n8n (Switch por funnel).
+        { url: env.LEAD_WEBHOOK_URL_WHATSAPP, token: env.LEAD_WEBHOOK_TOKEN_WHATSAPP },
       ];
       for (const dest of crmDestinations) {
         if (!dest.url) continue;
