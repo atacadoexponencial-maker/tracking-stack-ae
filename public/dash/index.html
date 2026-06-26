@@ -79,9 +79,34 @@
 
   <main class="max-w-7xl mx-auto px-6 py-6 space-y-6">
 
-    <!-- Visão geral de receita -->
-    <section class="fade-in">
+    <!-- Abas: Leads (padrão) | Vendas -->
+    <div class="flex gap-1 border-b border-[color:var(--border)]" id="dash-tabs">
+      <button class="dash-tab active" data-tab="leads">Leads</button>
+      <button class="dash-tab" data-tab="vendas">Vendas</button>
+    </div>
+
+    <!-- KPI Leads (aba Leads) -->
+    <section class="fade-in" data-tab="leads">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card p-5">
+          <div class="kpi-label">Leads</div>
+          <div class="kpi-value mono accent-green mt-1" id="kpi-leads">—</div>
+          <div class="text-xs text-[color:var(--muted)] mt-1">Sem bots, no período</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Leads por funil (aba Leads) -->
+    <section class="card p-5 fade-in" data-tab="leads">
+      <div class="font-semibold mb-3">Leads por funil</div>
+      <div id="funnel-counts" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="text-sm text-[color:var(--muted)]">Carregando…</div>
+      </div>
+    </section>
+
+    <!-- KPIs de venda (aba Vendas) -->
+    <section class="fade-in hidden" data-tab="vendas">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div class="card p-5">
           <div class="kpi-label">Receita bruta</div>
           <div class="kpi-value mono accent-amber mt-1" id="kpi-revenue">—</div>
@@ -97,16 +122,11 @@
           <div class="kpi-value mono accent-blue mt-1" id="kpi-aov">—</div>
           <div class="text-xs text-[color:var(--muted)] mt-1">Bruto / vendas</div>
         </div>
-        <div class="card p-5">
-          <div class="kpi-label">Leads</div>
-          <div class="kpi-value mono accent-green mt-1" id="kpi-leads">—</div>
-          <div class="text-xs text-[color:var(--muted)] mt-1">Sem bots, no período</div>
-        </div>
       </div>
     </section>
 
-    <!-- Receita ao longo do tempo -->
-    <section class="card p-5 fade-in">
+    <!-- Receita ao longo do tempo (aba Vendas) -->
+    <section class="card p-5 fade-in hidden" data-tab="vendas">
       <div class="flex items-center justify-between mb-3">
         <div>
           <div class="font-semibold">Receita ao longo do tempo</div>
@@ -116,8 +136,8 @@
       <div class="h-64"><canvas id="chart-revenue"></canvas></div>
     </section>
 
-    <!-- Produtos + série temporal -->
-    <section class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 fade-in">
+    <!-- Produtos + série temporal (aba Vendas) -->
+    <section class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 fade-in hidden" data-tab="vendas">
       <div class="card p-5">
         <div class="font-semibold mb-3">Produtos</div>
         <div id="product-cards" class="space-y-2">
@@ -130,8 +150,8 @@
       </div>
     </section>
 
-    <!-- Atribuição de tráfego pago -->
-    <section class="card p-5 fade-in">
+    <!-- Atribuição de tráfego pago (aba Vendas) -->
+    <section class="card p-5 fade-in hidden" data-tab="vendas">
       <div class="flex items-center justify-between mb-4">
         <div>
           <div class="font-semibold">Atribuição de tráfego pago</div>
@@ -212,8 +232,8 @@
       </div>
     </section>
 
-    <!-- Detalhamento por UTM -->
-    <section class="card p-5 fade-in">
+    <!-- Detalhamento por UTM (aba Vendas) -->
+    <section class="card p-5 fade-in hidden" data-tab="vendas">
       <div class="flex items-center justify-between mb-3">
         <div class="font-semibold">Detalhamento por UTM</div>
         <div class="text-xs text-[color:var(--muted)]">Agrupado das compras</div>
@@ -243,8 +263,8 @@
       </div>
     </section>
 
-    <!-- Leads com UTMs -->
-    <section class="card p-5 fade-in">
+    <!-- Leads recentes (aba Leads) -->
+    <section class="card p-5 fade-in" data-tab="leads">
       <div class="flex items-center justify-between mb-3">
         <div>
           <div class="font-semibold">Leads recentes</div>
@@ -272,8 +292,8 @@
       </div>
     </section>
 
-    <!-- Compras recentes -->
-    <section class="card p-5 fade-in">
+    <!-- Compras recentes (aba Vendas) -->
+    <section class="card p-5 fade-in hidden" data-tab="vendas">
       <div class="flex items-center justify-between mb-3">
         <div>
           <div class="font-semibold">Compras recentes</div>
@@ -300,8 +320,8 @@
       </div>
     </section>
 
-    <!-- Saúde do rastreamento -->
-    <section class="card p-5 fade-in">
+    <!-- Saúde do rastreamento (aba Leads) -->
+    <section class="card p-5 fade-in" data-tab="leads">
       <div class="flex items-center justify-between mb-4">
         <div>
           <div class="font-semibold">Saúde do rastreamento</div>
@@ -534,9 +554,29 @@
     if (sel.value !== selectedFunnel) { selectedFunnel = ''; funnelQuery = ''; }
   }
 
+  // Renderiza data.funnelCounts no bloco "Leads por funil" (aba Leads). Só
+  // exibição — a contagem por funil vem pronta do backend.
+  function renderFunnelCounts(counts) {
+    const box = qs('#funnel-counts');
+    if (!box) return;
+    const list = Array.isArray(counts) ? counts : [];
+    if (list.length === 0) {
+      box.innerHTML = '<div class="text-sm text-[color:var(--muted)]">Nenhum lead no período.</div>';
+      return;
+    }
+    box.innerHTML = list.map(c => {
+      const label = c.funnel ? escapeHtml(c.funnel) : '(sem funil)';
+      return `<div class="border border-[color:var(--border)] rounded-lg p-3">
+        <div class="kpi-label">${label}</div>
+        <div class="text-xl mono mt-1">${fmtInt(c.count)}</div>
+      </div>`;
+    }).join('');
+  }
+
   async function loadLeads() {
     const data = await fetchJson(`/api/leads?${periodQuery}${funnelQuery}&limit=50`);
     populateFunnelOptions(data.funnels);
+    renderFunnelCounts(data.funnelCounts);
     qs('#kpi-leads').textContent = fmtInt((data.leads || []).length);
     const tbody = qs('#leads-tbody');
     if (!data.leads || data.leads.length === 0) {
@@ -903,6 +943,21 @@
     funnelQuery = selectedFunnel ? `&funnel=${encodeURIComponent(selectedFunnel)}` : '';
     loadLeads();
   });
+
+  // Abas Leads | Vendas: alterna a visibilidade das seções (filhas diretas do
+  // <main> com data-tab). Não refaz fetch — os dados das duas abas já carregam;
+  // só mostra/esconde. Os botões ficam em #dash-tabs, fora do seletor abaixo.
+  (function setupDashTabs() {
+    const btns = qsa('#dash-tabs .dash-tab');
+    function activate(tab) {
+      btns.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === tab));
+      qsa('main > [data-tab]').forEach(el => {
+        el.classList.toggle('hidden', el.getAttribute('data-tab') !== tab);
+      });
+    }
+    btns.forEach(b => b.addEventListener('click', () => activate(b.getAttribute('data-tab'))));
+    activate('leads');
+  })();
 
   qsa('#utm-tabs .dash-tab').forEach(tab => {
     tab.addEventListener('click', () => {

@@ -106,10 +106,26 @@ export async function onRequestGet(context) {
       ORDER BY s.funnel
     `).all();
 
+    // Contagem de leads por funil no período, para o bloco "Leads por funil" do
+    // dashboard. Respeita o período (since/until) e exclui bots, mas IGNORA o
+    // filtro &funnel= de propósito: a ideia é ver a distribuição entre todos os
+    // funis. Inclui o bucket sem funil ('') para a soma fechar com o KPI total.
+    const funnelCounts = await env.DB.prepare(`
+      SELECT COALESCE(s.funnel, '') as funnel, COUNT(*) as count
+      FROM event_log e
+      LEFT JOIN sessions s ON e.session_id = s.session_id
+      WHERE e.event_name = 'Lead'
+        AND e.timestamp >= ? AND e.timestamp <= ?
+        AND e.is_bot = 0
+      GROUP BY COALESCE(s.funnel, '')
+      ORDER BY count DESC
+    `).bind(since, until).all();
+
     return json({
       days,
       funnel: funnel || null,
       funnels: (funnels.results || []).map(r => r.funnel),
+      funnelCounts: (funnelCounts.results || []).map(r => ({ funnel: r.funnel, count: r.count })),
       leads: rows.results || [],
       summary: summary.results || [],
     });
