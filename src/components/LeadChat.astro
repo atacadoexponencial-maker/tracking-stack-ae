@@ -17,9 +17,14 @@ import logo from '../assets/brand/sem-fundo-branco.png';
 import felipeImg from '../assets/brand/felipe.webp';
 
 const avatar = await getImage({ src: felipeImg, width: 96, height: 96 });
+
+// Funil declarado pela página que usa o chat. A home passa 'sessao-estrategica';
+// as demais (ex.: /vsl) herdam o padrão 'diagnostico'. Vai como first-touch no
+// /tracker quando a URL não traz um &funnel= próprio.
+const { funnel = 'diagnostico' } = Astro.props;
 ---
 
-<div id="lead-chat" class="lead-chat" hidden aria-hidden="true" data-avatar={avatar.src} role="dialog" aria-modal="true" aria-label="Inscrição na consultoria">
+<div id="lead-chat" class="lead-chat" hidden aria-hidden="true" data-avatar={avatar.src} data-funnel={funnel} role="dialog" aria-modal="true" aria-label="Inscrição na consultoria">
   <div class="lead-chat__panel">
     <header class="lead-chat__header">
       <span class="lead-chat__id">
@@ -202,6 +207,7 @@ const avatar = await getImage({ src: felipeImg, width: 96, height: 96 });
 
   if (overlay && messagesEl && inputEl) {
     const avatarUrl = overlay.dataset.avatar || '';
+    const leadFunnel = overlay.dataset.funnel || 'diagnostico';
     const answers: Record<string, string> = {};
     let stepIndex = 0;
     let started = false;
@@ -354,7 +360,7 @@ const avatar = await getImage({ src: felipeImg, width: 96, height: 96 });
             user_data: { em: answers['email'], ph: answers['telefone'], fn: answers['nome'] },
             lead_data: {
               nome: answers['nome'], telefone: answers['telefone'], email: answers['email'],
-              instagram: answers['instagram'], faturamento: answers['faturamento'], funnel: 'diagnostico',
+              instagram: answers['instagram'], faturamento: answers['faturamento'], funnel: leadFunnel,
             },
           }),
         });
