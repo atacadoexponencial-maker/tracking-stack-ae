@@ -19,7 +19,17 @@
         "list": "205126080",
         "returnAll": true,
         "filters": {
-          "includeClosed": true
+          "includeClosed": true,
+          "statuses": [
+            "leads de entrada",
+            "qualificação",
+            "cynthia",
+            "follow ra",
+            "reunião",
+            "follow rr",
+            "follow futuro",
+            "nutrição (follow infinito)"
+          ]
         }
       },
       "id": "node-clickup",
