@@ -23,15 +23,21 @@ export async function onRequestGet(context) {
 
   const botClause = includeBots ? '' : 'AND e.is_bot = 0';
 
-  // Filtro opcional de funil. O funil é capturado do parâmetro de URL `&funnel=`
-  // pelo middleware e persistido em sessions.funnel (não é UTM). Funil ausente
-  // = todos os funis (comportamento original). A lista de funis disponíveis é
-  // devolvida em `funnels` para o dashboard popular o seletor automaticamente.
+  // Filtro opcional de funil (não é UTM). Funil ausente = todos os funis
+  // (comportamento original). A lista de funis disponíveis é devolvida em
+  // `funnels` para o dashboard popular o seletor automaticamente.
+  // Funil EFETIVO do lead = o declarado no evento (event_log.funnel), com
+  // fallback para o da sessão (sessions.funnel) nas linhas históricas gravadas
+  // antes da coluna existir. Usar o da sessão sozinho categorizava errado:
+  // o funil da sessão é first-touch por cookie (400 dias) e pode vir de um
+  // `&funnel=` errado na URL do anúncio. COALESCE(NULLIF(...)) trata tanto NULL
+  // quanto '' (a coluna nasce com DEFAULT '').
+  const EFFECTIVE_FUNNEL = "COALESCE(NULLIF(e.funnel, ''), s.funnel)";
   const funnel = (url.searchParams.get('funnel') || '').trim();
   let funnelClause = '';
   const funnelBinds = [];
   if (funnel) {
-    funnelClause = 'AND s.funnel = ?';
+    funnelClause = `AND ${EFFECTIVE_FUNNEL} = ?`;
     funnelBinds.push(funnel);
   }
 
@@ -67,7 +73,7 @@ export async function onRequestGet(context) {
         s.gclid,
         s.referrer,
         s.landing_url,
-        s.funnel
+        ${EFFECTIVE_FUNNEL} AS funnel
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
       WHERE e.event_name = 'Lead'
@@ -97,13 +103,13 @@ export async function onRequestGet(context) {
     // período e do filtro atual, para o dropdown ficar estável (não some uma
     // opção ao trocar a data). Apenas funis efetivamente capturados.
     const funnels = await env.DB.prepare(`
-      SELECT DISTINCT s.funnel as funnel
+      SELECT DISTINCT ${EFFECTIVE_FUNNEL} as funnel
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
       WHERE e.event_name = 'Lead'
         AND e.is_bot = 0
-        AND s.funnel IS NOT NULL AND s.funnel != ''
-      ORDER BY s.funnel
+        AND ${EFFECTIVE_FUNNEL} IS NOT NULL AND ${EFFECTIVE_FUNNEL} != ''
+      ORDER BY funnel
     `).all();
 
     // Contagem de leads por funil no período, para o bloco "Leads por funil" do
@@ -111,13 +117,13 @@ export async function onRequestGet(context) {
     // filtro &funnel= de propósito: a ideia é ver a distribuição entre todos os
     // funis. Inclui o bucket sem funil ('') para a soma fechar com o KPI total.
     const funnelCounts = await env.DB.prepare(`
-      SELECT COALESCE(s.funnel, '') as funnel, COUNT(*) as count
+      SELECT COALESCE(${EFFECTIVE_FUNNEL}, '') as funnel, COUNT(*) as count
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
       WHERE e.event_name = 'Lead'
         AND e.timestamp >= ? AND e.timestamp <= ?
         AND e.is_bot = 0
-      GROUP BY COALESCE(s.funnel, '')
+      GROUP BY COALESCE(${EFFECTIVE_FUNNEL}, '')
       ORDER BY count DESC
     `).bind(since, until).all();
 

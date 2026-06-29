@@ -1,0 +1,14 @@
+-- Adiciona a coluna `funnel` à tabela event_log.
+-- O funil passa a ser registrado POR EVENTO (o valor que o formulário declarou
+-- no submit, vindo de lead_data.funnel), e não só por sessão.
+--
+-- Motivo: o funil em sessions é por cookie (_krob_sid, 400 dias) e first-touch,
+-- então um mesmo visitante que toca vários funis — ou que chega com um
+-- `&funnel=` errado na URL do anúncio — tinha TODOS os seus leads atribuídos ao
+-- primeiro funil que grudou na sessão. O dashboard lia sessions.funnel e
+-- categorizava errado (ex.: leads da live caindo em sessao-estrategica).
+--
+-- Com o funil no evento, o dashboard usa COALESCE(event_log.funnel,
+-- sessions.funnel): o funil que a pessoa realmente enviou manda; a sessão é só
+-- fallback para linhas históricas (gravadas antes desta coluna existir).
+ALTER TABLE event_log ADD COLUMN funnel TEXT DEFAULT '';

@@ -42,6 +42,13 @@ O projeto tem duas bases de leads que **não estão sincronizadas**:
 
 ## Problema 2 — Leads chegam ao Supabase SEM UTM
 
+> **Atualização 2026-06-29 — corrigido no código (lado do site).** O `sendToCRM`
+> em `functions/tracker.js` agora envia as UTMs **também no topo** do payload,
+> além de dentro de `attribution` (mudança aditiva, não quebra o ClickUp). Falta
+> validar pós-deploy: conferir 1 registro novo no Supabase com UTM preenchida.
+> Se ainda vier vazio, o problema está no mapeamento da ingestão (n8n/Edge
+> Function) lendo um campo diferente — aí sim precisa achar a ingestão.
+
 **Sintoma:** registros no Supabase sem `utm_source`/campaign/etc.
 
 **Evidência (D1, últimos 30 dias):** dos leads, **17 TÊM `utm_source`** capturado na sessão e **9 não** (esses 9 são tráfego direto/orgânico, legítimo). Ou seja, **o dado de UTM existe** na maioria — não é falha de captura.

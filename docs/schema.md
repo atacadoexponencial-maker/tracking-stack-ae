@@ -71,6 +71,7 @@ One row per non-PageView event. Written by `functions/tracker.js` in
 | `has_email` / `has_phone` / `has_name` | INTEGER | Coverage flags for dashboard |
 | `meta_response_body` | TEXT | Raw Meta response, for debugging (added 0010) |
 | `raw_email` | TEXT | Unhashed, for dashboard display of lead list (added 0010) |
+| `funnel` | TEXT | Funil declarado pelo formulário NESTE evento (`lead_data.funnel`), added 0017. Por-evento — o dashboard usa `COALESCE(NULLIF(event_log.funnel,''), sessions.funnel)` para não herdar o funil first-touch da sessão (que pode vir de um `&funnel=` errado na URL do anúncio) |
 
 **Indexes**: `idx_event_log_timestamp`, `idx_event_log_event_name`,
 `idx_event_log_browser`.
