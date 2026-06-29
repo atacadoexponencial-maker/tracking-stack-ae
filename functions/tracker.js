@@ -216,6 +216,11 @@ export async function onRequestPost(context) {
     const loggedEventName = (body.event_name || '').toLowerCase();
     const shouldLogEvent = loggedEventName !== 'pageview' && loggedEventName !== 'page_view';
     const browserInfo = parseBrowser(userAgent);
+    // Funil declarado pelo formulário NESTE evento (não o da sessão). É o que o
+    // dashboard usa para categorizar o lead — imune a `&funnel=` errado na URL
+    // do anúncio ou a cookie reaproveitado entre funis. Vazio em eventos sem
+    // lead_data (ex.: InitiateCheckout).
+    const loggedFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
     context.waitUntil(
       (async () => {
         try {
@@ -230,8 +235,8 @@ export async function onRequestPost(context) {
                 sent_to_meta, meta_status_code, meta_response_ok, meta_response_body, meta_payload_sent,
                 sent_to_ga4, ga4_status_code, ga4_response_ok, ga4_response_body, ga4_payload_sent,
                 has_email, has_phone, has_name,
-                raw_email
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                raw_email, funnel
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
               sessionId, body.event_name, body.event_id, body.event_time,
               browserInfo.browser, browserInfo.version, browserInfo.os, browserInfo.isMobile ? 1 : 0,
@@ -241,7 +246,7 @@ export async function onRequestPost(context) {
               isBot ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
               isBot ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
               hashedEm ? 1 : 0, hashedPh ? 1 : 0, (hashedFn || hashedLn) ? 1 : 0,
-              rawEmail
+              rawEmail, loggedFunnel
             ).run();
           }
         } catch (e) {
@@ -380,6 +385,16 @@ async function sendToCRM({ leadData, sessionData, fbc, externalId, url, token })
   try {
     const payload = {
       ...leadData,
+      // UTMs também no TOPO do payload (além de dentro de `attribution`).
+      // Aditivo e seguro: o ClickUp continua lendo `attribution.utm_*`; a
+      // ingestão do Supabase, que espera `utm_source` na raiz, passa a achar.
+      // Sem isso, os leads chegavam ao Supabase com a coluna UTM vazia mesmo
+      // com o dado existindo na sessão.
+      utm_source: sessionData.utm_source || '',
+      utm_medium: sessionData.utm_medium || '',
+      utm_campaign: sessionData.utm_campaign || '',
+      utm_content: sessionData.utm_content || '',
+      utm_term: sessionData.utm_term || '',
       attribution: {
         utm_source: sessionData.utm_source || '',
         utm_medium: sessionData.utm_medium || '',
