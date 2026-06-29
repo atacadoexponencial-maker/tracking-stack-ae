@@ -15,20 +15,28 @@ O projeto tem duas bases de leads que **não estão sincronizadas**:
 
 ---
 
-## Problema 1 — Leads preenchem o site mas não entram na 🤑 CRM
+## Problema 1 — Quem agenda não entra na 🤑 CRM (ponte Calendly → CRM)
 
-**Sintoma:** leads que comprovadamente preencheram o formulário do site (e/ou agendaram no Calendly) não aparecem na 🤑 CRM.
+**Sintoma:** leads que agendaram uma reunião (sessão estratégica) não aparecem na 🤑 CRM.
 
-**Evidência (casos confirmados, criados manualmente como paliativo):**
-- **Vanessa Paes** — `vanessapaes.vr80@gmail.com`. Lead no D1 em 25/06 21:28 (funil `diagnostico`, home). Não estava na CRM. Criada manual → task `86aj9azyy`.
-- **Floresça Joias Brutas** — `nessajacobleal@gmail.com`. Lead no D1 em 28/06 13:13 (funil `sessao-estrategica`, facebookads, home). Não estava na CRM. Criada manual → task `86aj9b8tp`.
+**Evidência — 5 casos confirmados (todos agendaram, nenhum estava na CRM; criados manualmente como paliativo):**
 
-**Causa raiz (não confirmada):** a ponte **Calendly → 🤑 CRM** parece quebrada. NÃO sabemos como ela é feita:
-- [ ] É um workflow no **n8n** (webhook do Calendly → cria tarefa no ClickUp)?
+| Lead | Email | No tracking do site? | Task criada |
+|------|-------|----------------------|-------------|
+| Vanessa Paes | vanessapaes.vr80@gmail.com | ✅ 25/06 (diagnostico) | `86aj9azyy` |
+| Floresça Joias Brutas | nessajacobleal@gmail.com | ✅ 28/06 (sessao-estrategica/fb) | `86aj9b8tp` |
+| Flavia Brandao | flaybrandao@gmail.com | ✅ 27/06 (sessao-estrategica/fb) | `86aj9c3ac` |
+| Rosangela Araújo | rosangelaacarvalho@hotmail.com | ✅ 26/06 (diagnostico) | `86aj9c3du` |
+| **Alana Mirts** | alanapkmirts@gmail.com | ❌ **NÃO está no tracking** | `86aj9c3gd` |
+
+**Conclusão (causa raiz):** o furo é a **ponte `Calendly (agendamento) → 🤑 CRM`**, NÃO o caminho do site. Prova: a **Alana agendou mas nem passou pelo site** (zero eventos no D1, nem variação de email). Como todo mundo que agenda passa pelo Calendly — venha do site ou de DM/link direto — consertar essa ponte resolve **todos** os casos. Os 4 que estão no tracking é só porque vieram do site; o canal de entrada é incidental.
+
+**O que falta saber — como a ponte Calendly → 🤑 CRM é feita:**
+- [ ] Workflow no **n8n** (webhook do Calendly → cria tarefa no ClickUp)?
 - [ ] Integração **nativa** Calendly ↔ ClickUp?
 - [ ] **Manual** (o time comercial lança quem agenda)?
 
-**Pra retomar:** descobrir o mecanismo acima. Se for n8n, olhar a execução das leads acima (provável erro lá).
+**Pra retomar:** descobrir o mecanismo acima. Se for n8n, olhar a execução de um agendamento recente (provável erro lá). Conferir também a config do Calendly (webhook/integração ativa? quebrou quando?).
 
 ---
 
@@ -58,9 +66,9 @@ Se a ingestão do Supabase espera `utm_source` **no topo** do payload (e não de
 
 ## Solução proposta (quando retomar)
 
-1. **Sync Supabase → ClickUp (limpa o passado):** o Supabase já tem TODOS os leads com dados completos (nome, telefone, IG, faturamento). Comparar Supabase × 🤑 CRM e criar em lote os que faltam, em vez de um a um.
-2. **Consertar a ponte Calendly → CRM (protege o futuro).**
-3. **Corrigir o mapeamento de UTM na ingestão do Supabase.**
+1. **PRINCIPAL — consertar a ponte Calendly → 🤑 CRM.** Resolve todos os casos (inclusive os que não vêm do site, como a Alana). É o lugar certo: todo agendamento passa pelo Calendly.
+2. **Corrigir o mapeamento de UTM na ingestão do Supabase** (Problema 2).
+3. ~~Sync Supabase → ClickUp~~ **NÃO é a solução** pra Problema 1: o Supabase é alimentado pelo site, então não teria a Alana, e jogaria no CRM comercial leads que não agendaram. Útil só se um dia quisermos cruzar bases, não pra este furo.
 
 ## O que é preciso pra avançar
 
