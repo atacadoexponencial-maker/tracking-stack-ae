@@ -1,0 +1,94 @@
+---
+import { Image } from 'astro:assets';
+
+// Importa as 19 logos tratadas (círculo/miolo recortado, quadrado branco 440x440)
+const modules = import.meta.glob('../../assets/clientes/*.webp', { eager: true });
+const logos = Object.keys(modules)
+  .sort()
+  .map((k) => (modules[k] as { default: ImageMetadata }).default);
+
+// Duplicamos a lista para o loop contínuo do marquee ficar sem emenda.
+const track = [...logos, ...logos];
+---
+
+<section class="section logowall">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Quem confia</span>
+      <h2 class="section-title">
+        Marcas de atacado reais já constroem seus resultados com a gente
+      </h2>
+      <p class="section-sub">
+        Mais de 100 marcas, de moda festa a infantil, já passaram pelo método.
+      </p>
+    </div>
+  </div>
+
+  <div class="logowall__marquee" role="list" aria-label="Marcas clientes">
+    <div class="logowall__track">
+      {track.map((logo, i) => (
+        <div class="logowall__chip" role={i < logos.length ? 'listitem' : 'presentation'} aria-hidden={i >= logos.length}>
+          <Image src={logo} alt={i < logos.length ? 'Marca cliente do Atacado Exponencial' : ''} width={132} height={132} loading="lazy" />
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .logowall {
+    overflow: hidden;
+  }
+  .logowall .section-head {
+    margin-bottom: 3rem;
+  }
+
+  .logowall__marquee {
+    /* máscara de fade nas bordas para o loop "entrar e sair" suave */
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+
+  .logowall__track {
+    display: flex;
+    width: max-content;
+    gap: 1.5rem;
+    animation: logowall-scroll 60s linear infinite;
+  }
+  .logowall__marquee:hover .logowall__track {
+    animation-play-state: paused;
+  }
+
+  @keyframes logowall-scroll {
+    from { transform: translateX(0); }
+    /* -50% porque a lista está duplicada: ao chegar na metade, reinicia sem emenda */
+    to { transform: translateX(-50%); }
+  }
+
+  .logowall__chip {
+    flex: 0 0 auto;
+    width: 8.5rem;
+    height: 8.5rem;
+    border-radius: 9999px;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    padding: 0.9rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  }
+  .logowall__chip :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 9999px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .logowall__track {
+      animation: none;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: auto;
+    }
+  }
+</style>
