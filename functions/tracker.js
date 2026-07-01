@@ -121,9 +121,14 @@ export async function onRequestPost(context) {
     // GA4 fires are suppressed. Without this gate, every link-unfurl
     // crawl (WhatsApp preview, Slackbot, facebookexternalhit, etc.)
     // would burn a Meta CAPI event and pollute the Pixel.
+    // Funil efetivo do evento (mesma regra do dashboard): o funil declarado pelo
+    // formulário NESTE evento tem prioridade; cai para o funil da sessão.
+    const eventFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
+    const effectiveFunnel = eventFunnel || (sessionData.funnel || '');
+
     const results = isBot ? [] : await Promise.allSettled([
       sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env }),
-      sendToGA4({ body, gaClientId, gaSessionId, hashedEm, env }),
+      sendToGA4({ body, gaClientId, gaSessionId, hashedEm, sessionData, funnel: effectiveFunnel, env }),
     ]);
 
     // --- Parse Meta result ---
@@ -337,7 +342,7 @@ async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashe
 // -------------------------------------------------------
 // GA4 MEASUREMENT PROTOCOL — CONVERSIONS ONLY
 // -------------------------------------------------------
-async function sendToGA4({ body, gaClientId, gaSessionId, hashedEm, env }) {
+async function sendToGA4({ body, gaClientId, gaSessionId, hashedEm, sessionData, funnel, env }) {
   if (!env.GA4_MEASUREMENT_ID || !env.GA4_API_SECRET) {
     return { skipped: 'missing ga4 env', payload: null, response: null };
   }
@@ -352,15 +357,27 @@ async function sendToGA4({ body, gaClientId, gaSessionId, hashedEm, env }) {
     : eventName === 'initiatecheckout' ? 'begin_checkout'
     : eventName;
 
+  // Params base + enriquecimento com funil/UTMs para permitir breakdown por
+  // criativo (utm_content) e por funil dentro do GA4. Só inclui o que existe —
+  // nada de `undefined` no payload.
+  const params = {
+    session_id: gaSessionId,
+    engagement_time_msec: 100,
+    page_location: body.event_source_url || '',
+  };
+  const utm = sessionData || {};
+  if (funnel) params.funnel = funnel;
+  if (utm.utm_source) params.utm_source = utm.utm_source;
+  if (utm.utm_medium) params.utm_medium = utm.utm_medium;
+  if (utm.utm_campaign) params.utm_campaign = utm.utm_campaign;
+  if (utm.utm_content) params.utm_content = utm.utm_content;
+  if (utm.utm_term) params.utm_term = utm.utm_term;
+
   const payload = {
     client_id: gaClientId,
     events: [{
       name: ga4EventName,
-      params: {
-        session_id: gaSessionId,
-        engagement_time_msec: 100,
-        page_location: body.event_source_url || '',
-      },
+      params,
     }],
   };
 
