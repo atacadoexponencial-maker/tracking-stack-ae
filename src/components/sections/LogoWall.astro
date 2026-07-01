@@ -28,7 +28,7 @@ const track = [...logos, ...logos];
     <div class="logowall__track">
       {track.map((logo, i) => (
         <div class="logowall__chip" role={i < logos.length ? 'listitem' : 'presentation'} aria-hidden={i >= logos.length}>
-          <Image src={logo} alt={i < logos.length ? 'Marca cliente do Atacado Exponencial' : ''} width={132} height={132} loading="lazy" />
+          <Image src={logo} alt={i < logos.length ? 'Marca cliente do Atacado Exponencial' : ''} width={300} height={300} loading="lazy" />
         </div>
       ))}
     </div>
@@ -67,13 +67,13 @@ const track = [...logos, ...logos];
 
   .logowall__chip {
     flex: 0 0 auto;
-    width: 8.5rem;
-    height: 8.5rem;
+    width: 9.5rem;
+    height: 9.5rem;
     border-radius: 9999px;
     background: #fff;
     display: grid;
     place-items: center;
-    padding: 0.9rem;
+    padding: 0.3rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   }
   .logowall__chip :global(img) {
