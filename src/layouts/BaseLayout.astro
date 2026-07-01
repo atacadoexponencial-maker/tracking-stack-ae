@@ -28,6 +28,16 @@ const {
     <!-- Pré-carrega a fonte da primeira dobra para reduzir o LCP -->
     <link rel="preload" href="/fonts/Satoshi-Bold.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/Satoshi-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- GA4 (gtag) via proxy first-party /scripts (anti-adblock). Envia só o
+         PageView no client; conversões (Lead/Purchase) continuam server-side no
+         /tracker — sem contagem dupla. Measurement ID não é secreto. -->
+    <script async is:inline src="/scripts/gtag.js?id=G-3C24BQVR59"></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-3C24BQVR59');
+    </script>
   </head>
   <body>
     {showHeader && <Header />}
