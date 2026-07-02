@@ -21,10 +21,12 @@ const avatar = await getImage({ src: felipeImg, width: 96, height: 96 });
 // Funil declarado pela página que usa o chat. A home passa 'sessao-estrategica';
 // as demais (ex.: /vsl) herdam o padrão 'diagnostico'. Vai como first-touch no
 // /tracker quando a URL não traz um &funnel= próprio.
-const { funnel = 'diagnostico' } = Astro.props;
+// `fullPage`: modo página dedicada (estilo Typebot) — abre sozinho no load, em
+// tela cheia e sem botão de fechar. Default false preserva o modal da home.
+const { funnel = 'diagnostico', fullPage = false } = Astro.props;
 ---
 
-<div id="lead-chat" class="lead-chat" hidden aria-hidden="true" data-avatar={avatar.src} data-funnel={funnel} role="dialog" aria-modal="true" aria-label="Inscrição na consultoria">
+<div id="lead-chat" class:list={['lead-chat', { 'lead-chat--full': fullPage }]} hidden aria-hidden="true" data-avatar={avatar.src} data-funnel={funnel} data-full-page={fullPage} role="dialog" aria-modal="true" aria-label="Inscrição na consultoria">
   <div class="lead-chat__panel">
     <header class="lead-chat__header">
       <span class="lead-chat__id">
@@ -54,6 +56,8 @@ const { funnel = 'diagnostico' } = Astro.props;
     backdrop-filter: blur(2px);
   }
   .lead-chat[hidden] { display: none; }
+  /* Modo página dedicada: sem botão de fechar (não faz sentido numa página que É o form). */
+  .lead-chat--full .lead-chat__close { display: none; }
   .lead-chat__panel {
     width: 100%;
     max-width: 30rem;
@@ -210,6 +214,7 @@ const { funnel = 'diagnostico' } = Astro.props;
   if (overlay && messagesEl && inputEl) {
     const avatarUrl = overlay.dataset.avatar || '';
     const leadFunnel = overlay.dataset.funnel || 'diagnostico';
+    const fullPage = overlay.dataset.fullPage === 'true';
     const answers: Record<string, string> = {};
     let stepIndex = 0;
     let started = false;
@@ -386,6 +391,10 @@ const { funnel = 'diagnostico' } = Astro.props;
     overlay.querySelectorAll('[data-close-chat]').forEach((el) => {
       el.addEventListener('click', close);
     });
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    // No modo página dedicada não fecha ao clicar no fundo; e abre sozinho no load.
+    if (!fullPage) {
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    }
+    if (fullPage) { open(); }
   }
 </script>
