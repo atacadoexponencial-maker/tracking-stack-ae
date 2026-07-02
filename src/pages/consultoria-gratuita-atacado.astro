@@ -1,0 +1,19 @@
+---
+/**
+ * Página dedicada de captação — só o chat de inscrição (estilo Typebot).
+ * Reaproveita o mesmo <LeadChat> da home no modo `fullPage`: abre sozinho em
+ * tela cheia, sem header/footer e sem botão de fechar. Mesmo funil da home
+ * (sessao-estrategica), então os leads seguem o mesmo destino/roteamento.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import LeadChat from '../components/LeadChat.astro';
+---
+
+<BaseLayout
+  title="Consultoria Individual e Gratuita — Atacado Exponencial"
+  description="Inscreva-se na consultoria individual e gratuita do Atacado Exponencial. Vagas limitadas."
+  showHeader={false}
+  showFooter={false}
+>
+  <LeadChat funnel="sessao-estrategica" fullPage={true} />
+</BaseLayout>
