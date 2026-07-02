@@ -563,7 +563,13 @@ function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento
 
 async function sendToClickUp({ leadData, sessionData, env }) {
   console.log('[clickup] enter', { hasToken: !!env.CLICKUP_API_TOKEN, funnel: (leadData && leadData.funnel) || '' });
-  if (!env.CLICKUP_API_TOKEN) { console.log('[clickup] skip: sem CLICKUP_API_TOKEN'); return; }
+  if (!env.CLICKUP_API_TOKEN) {
+    // DIAGNÓSTICO (temporário): registra em D1 que pulou por falta de token no
+    // runtime — o tail de logs estava instável; o D1 é legível de forma confiável.
+    await logClickUpFailure(leadData, toClickUpPhone(leadData && leadData.telefone),
+      (leadData && leadData.email) || '', 'SKIP-DIAG: CLICKUP_API_TOKEN ausente/vazio no runtime', env);
+    return;
+  }
   const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
 
   const nome = (leadData.nome || '').toString().trim();
