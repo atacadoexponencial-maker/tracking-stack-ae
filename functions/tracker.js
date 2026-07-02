@@ -562,14 +562,7 @@ function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento
 }
 
 async function sendToClickUp({ leadData, sessionData, env }) {
-  console.log('[clickup] enter', { hasToken: !!env.CLICKUP_API_TOKEN, funnel: (leadData && leadData.funnel) || '' });
-  if (!env.CLICKUP_API_TOKEN) {
-    // DIAGNÓSTICO (temporário): registra em D1 que pulou por falta de token no
-    // runtime — o tail de logs estava instável; o D1 é legível de forma confiável.
-    await logClickUpFailure(leadData, toClickUpPhone(leadData && leadData.telefone),
-      (leadData && leadData.email) || '', 'SKIP-DIAG: CLICKUP_API_TOKEN ausente/vazio no runtime', env);
-    return;
-  }
+  if (!env.CLICKUP_API_TOKEN) return; // sem token não dá pra falar com o ClickUp
   const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
 
   const nome = (leadData.nome || '').toString().trim();
@@ -593,7 +586,6 @@ async function sendToClickUp({ leadData, sessionData, env }) {
     console.error('ClickUp search error:', e.message);
   }
 
-  console.log('[clickup] dedup', existing ? `existente ${existing.id}` : 'nenhum → criar');
   try {
     if (existing) {
       // --- Task existente: muda status (secundário) + comenta (principal) ---
@@ -630,10 +622,9 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       push(CU_FIELD.utmContent, utmContent);
 
       const name = nome || email || 'Lead sem nome';
-      const createRes = await clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
+      await clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
         method: 'POST', body: JSON.stringify({ name, custom_fields: customFields }),
       }, env));
-      console.log('[clickup] created', name, createRes && createRes.status);
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
         buildLeadNotif('*Novo lead no CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
     }
