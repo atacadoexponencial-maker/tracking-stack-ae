@@ -562,7 +562,8 @@ function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento
 }
 
 async function sendToClickUp({ leadData, sessionData, env }) {
-  if (!env.CLICKUP_API_TOKEN) return; // sem token não dá pra falar com o ClickUp
+  console.log('[clickup] enter', { hasToken: !!env.CLICKUP_API_TOKEN, funnel: (leadData && leadData.funnel) || '' });
+  if (!env.CLICKUP_API_TOKEN) { console.log('[clickup] skip: sem CLICKUP_API_TOKEN'); return; }
   const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
 
   const nome = (leadData.nome || '').toString().trim();
@@ -586,6 +587,7 @@ async function sendToClickUp({ leadData, sessionData, env }) {
     console.error('ClickUp search error:', e.message);
   }
 
+  console.log('[clickup] dedup', existing ? `existente ${existing.id}` : 'nenhum → criar');
   try {
     if (existing) {
       // --- Task existente: muda status (secundário) + comenta (principal) ---
@@ -622,9 +624,10 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       push(CU_FIELD.utmContent, utmContent);
 
       const name = nome || email || 'Lead sem nome';
-      await clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
+      const createRes = await clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
         method: 'POST', body: JSON.stringify({ name, custom_fields: customFields }),
       }, env));
+      console.log('[clickup] created', name, createRes && createRes.status);
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
         buildLeadNotif('*Novo lead no CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
     }
