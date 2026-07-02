@@ -469,6 +469,7 @@ const CU_FIELD = {
   utmMedium: 'e367ce2e-a06c-43b6-ac9b-0feb4923f007',
   utmContent: '5710cb4d-a375-464b-8ac6-5267745eaddc',
 };
+const CU_DEFAULT_LIST = '205126080'; // 🤑 CRM — fallback se CLICKUP_LIST_ID não estiver setado
 const CU_PRODUTO_AE = '6cf677ce-5592-4ff7-9f63-d18d52d42be5';
 const CU_FUNIL_SESSAO = 'a158d342-c1ac-4705-a6da-ce39019f0a2a'; // SESSÃO ESTRATÉGICA
 const CU_FUNIL_LIVES = 'e6893b0b-5a69-4f48-9c99-a3c0a415a118';  // LIVES SEMANAIS
@@ -502,7 +503,8 @@ function clickupFetch(path, options, env) {
 async function searchClickUpTask(fieldId, value, env) {
   if (!value) return null;
   const cf = encodeURIComponent(JSON.stringify([{ field_id: fieldId, operator: '=', value }]));
-  const res = await clickupFetch(`/list/${env.CLICKUP_LIST_ID}/task?custom_fields=${cf}`, { method: 'GET' }, env);
+  const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
+  const res = await clickupFetch(`/list/${listId}/task?custom_fields=${cf}`, { method: 'GET' }, env);
   if (!res.ok) throw new Error(`ClickUp search ${res.status}`);
   const data = await res.json();
   return (data.tasks && data.tasks[0]) || null;
@@ -560,7 +562,8 @@ function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento
 }
 
 async function sendToClickUp({ leadData, sessionData, env }) {
-  if (!env.CLICKUP_API_TOKEN || !env.CLICKUP_LIST_ID) return; // sem config → skip
+  if (!env.CLICKUP_API_TOKEN) return; // sem token não dá pra falar com o ClickUp
+  const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
 
   const nome = (leadData.nome || '').toString().trim();
   const email = (leadData.email || '').toString().trim();
@@ -619,7 +622,7 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       push(CU_FIELD.utmContent, utmContent);
 
       const name = nome || email || 'Lead sem nome';
-      await clickupWrite(() => clickupFetch(`/list/${env.CLICKUP_LIST_ID}/task`, {
+      await clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
         method: 'POST', body: JSON.stringify({ name, custom_fields: customFields }),
       }, env));
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
