@@ -170,16 +170,24 @@ export async function onRequestPost(context) {
     // padrão. Só dispara para eventos de Lead, em background.
     const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
     if ((body.event_name || '').toLowerCase() === 'lead') {
-      // Destino principal por funil (n8n → ClickUp hoje).
-      const primaryUrl = leadFunnel === 'workshop'
-        ? env.LEAD_WEBHOOK_URL_WORKSHOP
-        : env.LEAD_WEBHOOK_URL;
+      // ClickUp: agora DIRETO na API (sem n8n) para todos os funis exceto
+      // 'workshop', que ainda usa o fluxo n8n próprio (LEAD_WEBHOOK_URL_WORKSHOP).
+      // sendToClickUp faz busca→cria/comenta, com retry + log em D1 + alerta.
+      if (leadFunnel === 'workshop') {
+        if (env.LEAD_WEBHOOK_URL_WORKSHOP) {
+          context.waitUntil(sendToCRM({
+            leadData: body.lead_data || {},
+            sessionData, fbc, externalId,
+            url: env.LEAD_WEBHOOK_URL_WORKSHOP,
+          }));
+        }
+      } else {
+        context.waitUntil(sendToClickUp({ leadData: body.lead_data || {}, sessionData, env }));
+      }
 
-      // Fan-out: cada destino dispara de forma independente — se um falhar, os
-      // outros seguem. Permite rodar o CRM novo (Supabase) em paralelo ao
-      // ClickUp durante a migração; depois é só remover a env var do ClickUp.
+      // Demais destinos desacoplados (inalterados): CRM Supabase + barramento
+      // WhatsApp (n8n). Cada um dispara independente; se um falhar, os outros seguem.
       const crmDestinations = [
-        { url: primaryUrl },
         { url: env.LEAD_WEBHOOK_URL_CRM, token: env.LEAD_WEBHOOK_TOKEN_CRM },
         // Barramento de leads (n8n → WhatsApp): recebe TODOS os leads; a decisão
         // de qual funil dispara WhatsApp fica 100% no n8n (Switch por funnel).
@@ -435,6 +443,194 @@ async function sendToCRM({ leadData, sessionData, fbc, externalId, url, token })
     });
   } catch (e) {
     console.error('CRM forward error:', e.message);
+  }
+}
+
+// -------------------------------------------------------
+// CLICKUP — cria/atualiza o lead DIRETO na API (substitui o n8n)
+// Fluxo: normaliza telefone → busca task por telefone OU email → se existe,
+// muda status + comenta; se não, cria com os custom fields. Escritas com 1
+// retry; falha persistente grava em D1 clickup_sync_failures + alerta WhatsApp.
+// Notifica o comercial (Evolution API) em ambos os casos. Tudo best-effort:
+// roda em waitUntil e nunca trava a resposta do /tracker.
+// -------------------------------------------------------
+const CLICKUP_API = 'https://api.clickup.com/api/v2';
+
+// IDs dos custom fields da lista (🤑 CRM). Ver spec 2026-07-02.
+const CU_FIELD = {
+  nome: '7f70363f-9fc4-4d34-aab1-0a81d4a6f45d',
+  email: '24f5a3d3-e21e-4e08-b396-8a4ce2133a98',
+  instagram: '3f24aa2d-050f-4be2-ab63-09b91307919b',
+  faturamento: '97d8308d-d6b2-4dd6-9bd7-76f6662d5de2',
+  whatsapp: '754a41c9-2835-48d5-a70e-8b61841e0037',
+  funil: 'a663b002-661c-4dc1-86c3-612e94f3a447',
+  produto: '6fd27248-beb5-49e1-9626-f1ab7ed81e5a',
+  utmSource: '64ffa839-dac1-4995-9cbb-7bd50f9dc5d5',
+  utmMedium: 'e367ce2e-a06c-43b6-ac9b-0feb4923f007',
+  utmContent: '5710cb4d-a375-464b-8ac6-5267745eaddc',
+};
+const CU_PRODUTO_AE = '6cf677ce-5592-4ff7-9f63-d18d52d42be5';
+const CU_FUNIL_SESSAO = 'a158d342-c1ac-4705-a6da-ce39019f0a2a'; // SESSÃO ESTRATÉGICA
+const CU_FUNIL_LIVES = 'e6893b0b-5a69-4f48-9c99-a3c0a415a118';  // LIVES SEMANAIS
+
+// Funil do site → opção do dropdown 🔻 Funil. Fallback SESSÃO ESTRATÉGICA
+// (preserva o comportamento do n8n, que carimbava tudo como SE).
+function mapFunnelToOption(funnel) {
+  return (funnel || '').toLowerCase() === 'lives-semanais-v1' ? CU_FUNIL_LIVES : CU_FUNIL_SESSAO;
+}
+
+// Mesma normalização do n8n: dígitos, sem zeros à esquerda, prefixa 55, com '+'.
+function toClickUpPhone(ph) {
+  const digits = (ph || '').toString().replace(/\D/g, '').replace(/^0+/, '');
+  if (!digits) return '';
+  return '+' + (digits.startsWith('55') ? digits : '55' + digits);
+}
+
+function clickupFetch(path, options, env) {
+  return fetch(`${CLICKUP_API}${path}`, {
+    ...options,
+    headers: {
+      Authorization: env.CLICKUP_API_TOKEN,
+      'Content-Type': 'application/json',
+      ...(options && options.headers),
+    },
+  });
+}
+
+// Busca uma task na lista pelo custom field (telefone ou email). Read-only:
+// o chamador trata falha como "não achou" — nunca pode travar o lead.
+async function searchClickUpTask(fieldId, value, env) {
+  if (!value) return null;
+  const cf = encodeURIComponent(JSON.stringify([{ field_id: fieldId, operator: '=', value }]));
+  const res = await clickupFetch(`/list/${env.CLICKUP_LIST_ID}/task?custom_fields=${cf}`, { method: 'GET' }, env);
+  if (!res.ok) throw new Error(`ClickUp search ${res.status}`);
+  const data = await res.json();
+  return (data.tasks && data.tasks[0]) || null;
+}
+
+// Executa uma chamada de escrita com 1 retry em erro transitório
+// (429 / 5xx / erro de rede). Erros não-transitórios (ex.: 401) não repetem.
+async function clickupWrite(fn) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    let res, netErr;
+    try { res = await fn(); } catch (e) { netErr = e; }
+    if (!netErr && res.ok) return res;
+    const status = res ? res.status : 0;
+    const retriable = !!netErr || status === 429 || status >= 500;
+    if (retriable && attempt === 1) {
+      await new Promise((r) => setTimeout(r, 500));
+      continue;
+    }
+    throw netErr || new Error(`ClickUp write ${status}`);
+  }
+}
+
+// Grava o lead que não conseguiu ir pro ClickUp — nada se perde.
+async function logClickUpFailure(leadData, phone, email, error, env) {
+  try {
+    if (!env.DB) return;
+    await env.DB.prepare(
+      `INSERT INTO clickup_sync_failures (phone, email, lead_json, error) VALUES (?, ?, ?, ?)`
+    ).bind(
+      phone || '', email || '', JSON.stringify(leadData || {}),
+      (error && error.message) ? error.message : String(error || '')
+    ).run();
+  } catch (e) {
+    console.error('clickup_sync_failures insert error:', e.message);
+  }
+}
+
+// Envia texto pela Evolution API. Best-effort: engole qualquer erro.
+async function sendEvolutionMessage(apikey, number, text, env) {
+  try {
+    if (!env.EVOLUTION_API_URL || !apikey || !number) return;
+    await fetch(env.EVOLUTION_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey },
+      body: JSON.stringify({ number, text }),
+    });
+  } catch (e) {
+    console.error('Evolution send error:', e.message);
+  }
+}
+
+function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento }) {
+  const digits = (phoneE164 || '').replace(/\D/g, '');
+  return `${header}\n\n*Nome:* ${nome}\n*Número:* ${phoneE164}\n*Whatsapp:* https://wa.me/${digits}\n*Email:* ${email}\n*Instagram:* ${instagram}\n*Faturamento:* ${faturamento}`;
+}
+
+async function sendToClickUp({ leadData, sessionData, env }) {
+  if (!env.CLICKUP_API_TOKEN || !env.CLICKUP_LIST_ID) return; // sem config → skip
+
+  const nome = (leadData.nome || '').toString().trim();
+  const email = (leadData.email || '').toString().trim();
+  const instagram = (leadData.instagram || '').toString().trim();
+  const faturamento = (leadData.faturamento || '').toString().trim();
+  const phoneE164 = toClickUpPhone(leadData.telefone);
+  const funnel = (leadData.funnel || '').toString().toLowerCase();
+
+  const utm = sessionData || {};
+  const utmSource = utm.utm_source || '';
+  const utmMedium = utm.utm_medium || '';
+  const utmContent = utm.utm_content || '';
+
+  // --- Dedup (telefone OU email). Read-only: falha vira "não achou". ---
+  let existing = null;
+  try {
+    existing = await searchClickUpTask(CU_FIELD.whatsapp, phoneE164, env);
+    if (!existing && email) existing = await searchClickUpTask(CU_FIELD.email, email, env);
+  } catch (e) {
+    console.error('ClickUp search error:', e.message);
+  }
+
+  try {
+    if (existing) {
+      // --- Task existente: muda status (secundário) + comenta (principal) ---
+      const taskId = existing.id;
+      try {
+        await clickupWrite(() => clickupFetch(`/task/${taskId}`, {
+          method: 'PUT', body: JSON.stringify({ status: 'LEADS DE ENTRADA' }),
+        }, env));
+      } catch (e) {
+        console.error('ClickUp status error:', e.message); // não trava o comentário
+      }
+      const comentario =
+        `Lead Voltou ao CRM:\n\nNovos Dados:\nNome: ${nome}\nTelefone: ${phoneE164}\n` +
+        `E-mail: ${email}\nInstagram: ${instagram}\nFaturamento: ${faturamento}\n\n` +
+        `${utmSource} - ${utmMedium} - ${utmContent}`;
+      await clickupWrite(() => clickupFetch(`/task/${taskId}/comment`, {
+        method: 'POST', body: JSON.stringify({ comment_text: comentario }),
+      }, env));
+      await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
+        buildLeadNotif('*Voltou ao CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
+    } else {
+      // --- Lead inédito: cria a task com os custom fields ---
+      const customFields = [];
+      const push = (id, value) => { if (value) customFields.push({ id, value }); };
+      push(CU_FIELD.nome, nome);
+      push(CU_FIELD.email, email);
+      push(CU_FIELD.instagram, instagram);
+      push(CU_FIELD.faturamento, faturamento);
+      push(CU_FIELD.whatsapp, phoneE164);
+      customFields.push({ id: CU_FIELD.funil, value: mapFunnelToOption(funnel) });
+      customFields.push({ id: CU_FIELD.produto, value: CU_PRODUTO_AE });
+      push(CU_FIELD.utmSource, utmSource);
+      push(CU_FIELD.utmMedium, utmMedium);
+      push(CU_FIELD.utmContent, utmContent);
+
+      const name = nome || email || 'Lead sem nome';
+      await clickupWrite(() => clickupFetch(`/list/${env.CLICKUP_LIST_ID}/task`, {
+        method: 'POST', body: JSON.stringify({ name, custom_fields: customFields }),
+      }, env));
+      await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
+        buildLeadNotif('*Novo lead no CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
+    }
+  } catch (e) {
+    // Escrita principal falhou após o retry → não perder o lead.
+    console.error('ClickUp write error:', e.message);
+    await logClickUpFailure(leadData, phoneE164, email, e, env);
+    await sendEvolutionMessage(env.EVOLUTION_APIKEY_ALERTA, env.EVOLUTION_NUMERO_ALERTA,
+      `Erro ao criar lead no ClickUp: ${e.message || e}`, env);
   }
 }
 
