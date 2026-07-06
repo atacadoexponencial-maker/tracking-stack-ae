@@ -1,24 +1,13 @@
-export async function onRequestGet(context) {
-  const { request, env } = context;
-  const url = new URL(request.url);
-  const measurementId = url.searchParams.get('id') || env.GA4_MEASUREMENT_ID;
-
-  if (!measurementId) {
-    return new Response('// no measurement id', {
-      status: 200,
-      headers: { 'Content-Type': 'application/javascript' },
-    });
-  }
-
-  const gtagUrl = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+async function proxyScript(context, originUrl) {
+  const { request } = context;
 
   const cache = caches.default;
-  const cacheKey = new Request(gtagUrl, request);
+  const cacheKey = new Request(originUrl, request);
   let response = await cache.match(cacheKey);
 
   if (!response) {
     try {
-      const origin = await fetch(gtagUrl, {
+      const origin = await fetch(originUrl, {
         headers: { 'User-Agent': request.headers.get('User-Agent') || '' },
       });
 
@@ -50,4 +39,33 @@ export async function onRequestGet(context) {
   }
 
   return response;
+}
+
+export async function onRequestGet(context) {
+  const { request, env, params } = context;
+  const url = new URL(request.url);
+
+  const segments = Array.isArray(params?.path)
+    ? params.path
+    : url.pathname.split('/').filter(Boolean).slice(1);
+  const scriptName = segments.length === 1 ? segments[0] : null;
+
+  if (scriptName === 'gtag.js') {
+    const measurementId = url.searchParams.get('id') || env.GA4_MEASUREMENT_ID;
+
+    if (!measurementId) {
+      return new Response('// no measurement id', {
+        status: 200,
+        headers: { 'Content-Type': 'application/javascript' },
+      });
+    }
+
+    return proxyScript(context, `https://www.googletagmanager.com/gtag/js?id=${measurementId}`);
+  }
+
+  if (scriptName === 'fbevents.js') {
+    return proxyScript(context, 'https://connect.facebook.net/en_US/fbevents.js');
+  }
+
+  return new Response('Not found', { status: 404 });
 }
