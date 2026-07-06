@@ -2,6 +2,12 @@
 import { Image } from 'astro:assets';
 import logo from '../../assets/brand/logo.png';
 
+interface Props {
+  headline?: string;
+  subheadline?: string;
+}
+const { headline, subheadline } = Astro.props;
+
 const trust = ['100% gratuito', 'Sem cartão', '35 min'];
 const stats = [
   { value: '+100', label: 'marcas atacado atendidas' },
@@ -21,13 +27,21 @@ const stats = [
 
   <div class="hero__body">
     <span class="hero__badge">Para atacadistas com faturamento acima de R$ 20 mil/mês</span>
-    <h1 class="hero__title">
-      O Plano de Ação que seu Atacado precisa para faturar <strong>R$ 400 mil</strong> ou mais por mês
-    </h1>
-    <p class="hero__sub">
-      Em uma sessão individual e gratuita, analisamos seu atacado de ponta a ponta
+    {headline ? (
+      <h1 class="hero__title">{headline}</h1>
+    ) : (
+      <h1 class="hero__title">
+        O Plano de Ação que seu Atacado precisa para faturar <strong>R$ 400 mil</strong> ou mais por mês
+      </h1>
+    )}
+    {subheadline ? (
+      <p class="hero__sub">{subheadline}</p>
+    ) : (
+      <p class="hero__sub">
+        Em uma sessão individual e gratuita, analisamos seu atacado de ponta a ponta
       e entregamos um plano personalizado para destravar seu crescimento.
-    </p>
+      </p>
+    )}
     <button type="button" class="hero__cta" data-open-chat>
       Quero meu diagnóstico gratuito
       <span class="hero__cta-arrow" aria-hidden="true">→</span>

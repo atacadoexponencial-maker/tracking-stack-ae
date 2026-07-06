@@ -1,0 +1,35 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/sections/Hero.astro';
+import Pain from '../components/sections/Pain.astro';
+import Pillars from '../components/sections/Pillars.astro';
+import LogoWall from '../components/sections/LogoWall.astro';
+import HowItWorks from '../components/sections/HowItWorks.astro';
+import Testimonials from '../components/sections/Testimonials.astro';
+import AboutFelipe from '../components/sections/AboutFelipe.astro';
+import Faq from '../components/sections/Faq.astro';
+import FinalCta from '../components/sections/FinalCta.astro';
+import LeadChat from '../components/LeadChat.astro';
+---
+
+<BaseLayout
+  title="Atacado Exponencial — Diagnóstico gratuito para sua marca atacado"
+  description="Em uma sessão individual e gratuita, analisamos seu atacado de ponta a ponta e entregamos um plano de ação personalizado para destravar seu crescimento."
+  showHeader={false}
+>
+  <Hero
+    headline="Descubra o que está travando seu atacado de escalar para R$ 100 mil, R$ 200 mil, R$ 400 mil ou mais por mês"
+    subheadline="Em uma sessão individual e gratuita, nosso time analisa seu atacado de ponta a ponta e te entrega um plano de ação personalizado para gerar novos revendedores e aumentar a recompra."
+  />
+  <main>
+    <Pain />
+    <Pillars />
+    <LogoWall />
+    <HowItWorks />
+    <Testimonials />
+    <AboutFelipe />
+    <Faq />
+    <FinalCta />
+  </main>
+  <LeadChat funnel="sessao-estrategica" />
+</BaseLayout>
