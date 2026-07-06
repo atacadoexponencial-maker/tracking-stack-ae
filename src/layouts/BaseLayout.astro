@@ -38,6 +38,35 @@ const {
       gtag('js', new Date());
       gtag('config', 'G-3C24BQVR59');
     </script>
+    <!-- Meta Pixel via proxy first-party /scripts (anti-adblock). PageView
+         redundante: cópia do navegador (fbq) + espelho server-side no /tracker
+         com o mesmo event_id — o Meta deduplica e conta 1. Pixel ID não é secreto. -->
+    <script is:inline>
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      '/scripts/fbevents.js');
+      fbq('init', '915637492681788');
+      // event_id único por visualização — mesmo padrão dos pontos de Lead
+      var pvEventId = 'pv-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      // Cópia do navegador (deduplicada no Meta pelo event_id)
+      fbq('track', 'PageView', {}, { eventID: pvEventId });
+      // Espelho server-side — via autoritativa; fire-and-forget, falha silenciosa
+      fetch('/tracker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_name: 'PageView',
+          event_id: pvEventId,
+          event_time: Math.floor(Date.now() / 1000),
+          event_source_url: window.location.href,
+        }),
+      }).catch(function () { /* silencioso */ });
+    </script>
   </head>
   <body>
     {showHeader && <Header />}
