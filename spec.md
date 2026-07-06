@@ -1,61 +1,37 @@
-# Spec: Higienização anti-scanner do tracking (2 camadas)
+# Spec: Página /se-v1 — variante da home para teste de copy
 
 ## Visão Geral
 
-Scanners de vulnerabilidade varrem o site em busca de brechas conhecidas — requisitam milhares de paths que não existem (`/wp-admin/setup-config.php`, `/.env`, `/admin.php`, `/.git/HEAD`, etc.) e todos retornam **404**. Como o middleware de tracking (`functions/_middleware.js`) grava uma sessão no D1 para **toda** requisição de página, cada hit desses vira uma linha em `sessions` com `landing_url` lixo. O resultado prático: a tabela "Conversão por LP" do dashboard fica poluída com dezenas de paths de scanner, com visitantes inflados e taxa 0%.
+Criar a página `/se-v1`, uma variante da home (`src/pages/index.astro`, landing de atacadoexponencial.com) que muda **apenas** a copy do hero — headline e subheadline. Todo o resto é idêntico: mesmas seções, mesmo chat de captura (`LeadChat`) com o **mesmo funnel da home** (`sessao-estrategica`), mesmo tracking (o `BaseLayout` já cuida de Pixel/GA4 e o middleware grava a sessão com `landing_url` automaticamente por path). Propósito: comparar variantes de LP na tabela "Conversão por LP" do dashboard (`se-v1` = sessão estratégica v1, para tráfego pago). Sem funil novo, sem SEO extra.
 
-O filtro de bots atual (lista `BOT_UA_SUBSTRINGS` em `functions/api/conversion.js`, replicada do `detectBot` do tracker) não resolve, por dois motivos observados em produção:
+**Onde está a copy hoje (levantamento):**
+- A home (`src/pages/index.astro`) é fina (33 linhas): só importa 9 componentes de seção + `LeadChat` e passa `title`/`description` ao `BaseLayout`. A copy do hero **não** está inline na página.
+- Headline e subheadline estão hardcoded em `src/components/sections/Hero.astro`: `<h1 class="hero__title">` (linhas 24–26, com `<strong>R$ 400 mil</strong>` no meio) e `<p class="hero__sub">` (linhas 27–30). O componente `Hero` não recebe props hoje.
+- Funnel da home: `<LeadChat funnel="sessao-estrategica" />` (index.astro, linha 31).
+- Title/description da home: `title="Atacado Exponencial — Diagnóstico gratuito para sua marca atacado"` e `description="Em uma sessão individual e gratuita, analisamos seu atacado de ponta a ponta..."`. **Decisão:** o title NÃO deriva da headline (é uma string independente, focada em "diagnóstico gratuito"), então a `/se-v1` usa **os mesmos** title e description da home — só o hero muda.
 
-1. Muitos scanners usam User-Agent de **Chrome real** — indistinguível de visitante legítimo pelo UA.
-2. Os que se identificam usam UAs como `TLM-Audit-Scanner/1.0` e `pathscan/1.0`, que **não** casam com nenhuma substring da lista atual (`scanner`/`pathscan` não contêm `bot`, `crawler`, `spider`, `scraper`...).
+**Decisão duplicar × parametrizar:** parametrizar. O `Hero.astro` ganha duas props opcionais (`headline` e `subheadline`) com fallback para a copy atual — mudança mínima e sem risco para a home. A nova página `src/pages/se-v1.astro` é uma cópia das 33 linhas finas do `index.astro` passando as duas strings novas ao `Hero` (duplicar a página é inevitável — cada rota exige um arquivo — mas nenhum markup/estilo de seção é duplicado).
 
-A solução tem **2 camadas**, em exatamente 2 módulos:
-
-- **Camada 1 — na origem (`functions/_middleware.js`):** parar de gravar sessão quando a página respondida é 404. Scanner pede path inexistente → 404 → nenhuma linha nova no D1. Ataca a causa para os dados futuros, independente do UA.
-- **Camada 2 — na leitura (`functions/api/conversion.js`):** o histórico já poluído **não será apagado** (regra: nada de deletar dados). O endpoint de conversão passa a (a) excluir das rows os paths que não são páginas do site (ponto em algum segmento — extensão de arquivo ou diretório oculto — ou prefixo `/wp-`) e (b) reconhecer `scan` como substring de bot, cobrindo `scanner` e `pathscan`.
-
-Restrições respeitadas:
-- `functions/tracker.js` **não** é alterado (a lista de bot do conversion continua sendo réplica manual + adição local documentada).
-- Nenhuma migration; nenhum dado histórico deletado — a higienização do passado é só no read path.
-- Toda a lógica no backend; o dashboard não muda (só passa a receber rows limpas).
-- Cookies, headers, atribuição (fbc/fbp/UTMs/funnel) e todo o resto do comportamento do middleware permanecem intactos.
+**Nova copy do hero em /se-v1:**
+- Headline: "Descubra o que está travando seu atacado de escalar para R$ 100 mil, R$ 200 mil, R$ 400 mil ou mais por mês"
+- Subheadline: "Em uma sessão individual e gratuita, nosso time analisa seu atacado de ponta a ponta e te entrega um plano de ação personalizado para gerar novos revendedores e aumentar a recompra."
 
 ## Páginas / Módulos
 
-### Módulo 1: Middleware de tracking (`functions/_middleware.js`)
+### Página /se-v1
 
-**Descrição:** O middleware hoje serve a página primeiro (`const response = await next()`, linha ~86), anexa os `Set-Cookie` numa `newResponse` e depois agenda o UPSERT em `sessions` dentro de `context.waitUntil(...)` (linha ~108). A mudança é uma só: condicionar esse UPSERT ao status da resposta — se a página respondida for **404**, o bloco do `waitUntil` não grava nada no D1. O objeto `response` já está disponível no ponto da decisão; basta checar `response.status !== 404` como guarda do UPSERT (a checagem pode envolver o próprio `context.waitUntil` ou o `env.DB` interno — o essencial é que nenhuma escrita em `sessions` aconteça no 404).
-
-**Componentes:**
-- `onRequest(context)`: único export; ganha a guarda de status 404 em volta do UPSERT em `sessions`.
-- Comentário pt-BR junto à guarda explicando o porquê: scanners de vulnerabilidade tomam 404 em massa e não devem virar sessão.
-
-**Comportamentos:**
-- Requisição de página cuja resposta do `next()` tem `status === 404` **não** executa o UPSERT em `sessions` — nenhuma linha criada nem atualizada no D1.
-- Somente 404 é excluído. Resposta `500` (ou qualquer outro status de erro) **continua gravando sessão** normalmente: um visitante real que pegou um erro transitório ainda deve ter atribuição quando voltar.
-- Respostas 200/3xx/etc. seguem exatamente o fluxo atual: UPSERT com todos os campos (fbclid, gclid, msclkid, fbc, fbp, IP, UA, referrer, landing_url, UTMs, funnel, timestamps) e semântica first-touch do `ON CONFLICT` inalterada.
-- Cookies (`_krob_sid`, `_krob_eid`, `_fbp`, `_fbc` quando houver) continuam sendo setados **inclusive na resposta 404** — só a escrita no D1 é suprimida; headers, status e body da resposta não mudam em nada.
-- Visitante real que cai numa página 404 do site também não gera sessão — **aceitável e desejado**: uma página inexistente não é landing page de campanha, e se ele navegar em seguida para uma página real, a sessão é criada ali (mesmo `_krob_sid`, já setado pelo cookie).
-- Sessão já existente cujo dono revisita e toma um 404 **não é atualizada** (nem `updated_at`, nem merge de UTMs daquele hit) — ok: o hit 404 não carrega informação de atribuição que valha registrar.
-- O filtro `isPageRequest` (extensões estáticas, `/tracker`, `/api/`, `/dash`, etc.) permanece como está; a nova guarda atua **depois** dele, apenas sobre requisições que já passariam a gravar sessão.
-- O `try/catch` com `console.error('Middleware D1 error: ...')` dentro do `waitUntil` permanece protegendo a escrita quando ela acontece.
-
-### Módulo 2: Endpoint de conversão por LP (`functions/api/conversion.js`)
-
-**Descrição:** Duas mudanças cirúrgicas no read path para higienizar o histórico já poluído, sem tocar em dado nenhum: um filtro de paths que não são páginas do site (aplicado em JS, sobre o path já normalizado) e uma substring extra na lista de bots usada nas cláusulas `NOT LIKE` do SQL.
+**Descrição:** Cópia da home com hero de copy alternativa para teste de tráfego pago. Arquivo novo `src/pages/se-v1.astro`, espelho de `src/pages/index.astro` (mesmo `BaseLayout` com o mesmo `title`/`description`/`showHeader={false}`, mesmas 9 seções na mesma ordem, mesmo `<LeadChat funnel="sessao-estrategica" />`), diferindo apenas nas props `headline` e `subheadline` passadas ao `<Hero />`.
 
 **Componentes:**
-- Filtro de path não-página: predicado aplicado **após** `normalizePath(row.landing_url)` e **antes** de acumular no `byPath` / montar `rows` — o path excluído simplesmente não entra no resultado (nem em `visitors`, nem em `leads`, nem como linha). Duas regras em **OU**: (1) algum segmento do path contém ponto (na prática: extensão de arquivo no último segmento, como `.php`/`.env`, ou diretório oculto como `.git` em `/.git/HEAD`); (2) o path começa com `/wp-`.
-- `BOT_UA_SUBSTRINGS`: ganha a entrada `'scan'`, com comentário pt-BR registrando que é uma adição **ALÉM** da lista replicada do `detectBot` de `functions/tracker.js` (que não pode ser alterado), motivada pelos UAs `TLM-Audit-Scanner/1.0` e `pathscan/1.0` vistos em produção — `'scan'` cobre ambos por ser substring de `scanner` e de `pathscan`.
+- `src/pages/se-v1.astro` (novo): página espelho da home; passa a headline e a subheadline novas ao `Hero`.
+- `src/components/sections/Hero.astro` (modificado): passa a aceitar props opcionais `headline?: string` e `subheadline?: string`. Sem props (caso da home), renderiza exatamente o markup atual — `<h1>` com o `<strong>R$ 400 mil</strong>` e o `<p class="hero__sub">` atuais. Com props (caso da /se-v1), renderiza as strings puras no mesmo `<h1 class="hero__title">` e `<p class="hero__sub">` (a headline nova não tem trecho em negrito). Badge, CTAs, trust items, stats e estilos permanecem intactos.
+- Reutilizados sem alteração: `BaseLayout.astro`, `Pain`, `Pillars`, `LogoWall`, `HowItWorks`, `Testimonials`, `AboutFelipe`, `Faq`, `FinalCta`, `LeadChat`.
 
 **Comportamentos:**
-- Path com **ponto em algum segmento** é excluído das rows: `/wp-admin/setup-config.php` (ponto no último segmento — extensão `.php`), `/.env` e `/admin.php` (idem), `/.git/HEAD` (ponto no segmento `.git`, embora o último segmento `HEAD` não tenha ponto). Nota de decisão: o escopo enunciou a regra como "último segmento contém ponto" citando `/.git/HEAD` entre os exemplos; como o ponto desse exemplo está no primeiro segmento, a spec fixa o predicado como "ponto em **qualquer** segmento" — é o menor predicado que cobre todos os exemplos citados, e nenhuma página legítima do site (Astro, URLs limpas) tem ponto no path.
-- Path que **começa com `/wp-`** é excluído: cobre `/wp-admin/` (que, normalizado pelo `normalizePath`, vira `/wp-admin` — sem ponto em segmento nenhum, por isso precisa da regra própria) e todo o ecossistema WordPress (`/wp-login.php`, `/wp-content/...`), que este site não tem.
-- A raiz `'/'` **nunca** é excluída: não tem ponto em segmento nenhum e não começa com `/wp-`.
-- O bucket `'(sem página)'` (landing_url nula/vazia/malformada) **continua existindo** nas rows: o predicado de exclusão só se aplica a paths reais (strings começando com `/` devolvidas pelo `normalizePath`); o rótulo `'(sem página)'` passa direto para o resultado como hoje.
-- Paths legítimos do site (`/`, `/lives-semanais-v1`, `/consultoria-gratuita-atacado`, `/obrigado`, etc.) não casam com nenhuma das regras e aparecem normalmente.
-- A exclusão é por linha do resultado, **não** por sessão no banco: nenhuma escrita, nenhum DELETE — sessões de scanner do histórico continuam no D1, apenas não aparecem na tabela do dashboard.
-- Com `'scan'` na `BOT_UA_SUBSTRINGS`, sessões com UA contendo `scan` (case-insensitive, semântica do `LIKE` do SQLite para ASCII) saem do denominador e, por consequência, do numerador — `TLM-Audit-Scanner/1.0` e `pathscan/1.0` deixam de contar como visitantes em **qualquer** LP, inclusive nas legítimas que eles às vezes atingem.
-- A geração das cláusulas SQL (`AND s.user_agent NOT LIKE '%scan%'`) continua vindo da lista estática do módulo — nenhum input de request entra na string; sem risco de injeção, como já documentado no comentário existente.
-- Ordenação, formato de resposta (`{ days, funnel, rows }`), autenticação por `DASH_KEY`, filtro `&funnel=` e período `days`/`from`/`to` permanecem idênticos.
-- O comentário de cabeçalho da lista ("Replicado de detectBot()... manter em sincronia manualmente") permanece válido para as entradas replicadas; a entrada `'scan'` fica visivelmente separada/anotada como adição local para não confundir uma futura ressincronização com o tracker.
+- Visitante abre `/se-v1` e vê a home completa com o hero novo: headline "Descubra o que está travando seu atacado de escalar para R$ 100 mil, R$ 200 mil, R$ 400 mil ou mais por mês" e subheadline "Em uma sessão individual e gratuita, nosso time analisa seu atacado de ponta a ponta e te entrega um plano de ação personalizado para gerar novos revendedores e aumentar a recompra."; todas as demais seções idênticas à home.
+- Visitante abre `/` (home) e vê exatamente a copy atual do hero — o fallback das props garante zero mudança visual na home.
+- O chat de captura na `/se-v1` funciona igual ao da home: mesmo `LeadChat` com `funnel="sessao-estrategica"`; lead capturado segue o mesmo fluxo de envio existente, sem nenhum funil novo.
+- A sessão do visitante da `/se-v1` é registrada pelo middleware com `landing_url` contendo `/se-v1` (comportamento já existente, nenhum código de tracking novo), permitindo comparar `/` × `/se-v1` na tabela "Conversão por LP" do dashboard.
+- O tracking de página (Pixel/GA4/cookies de sessão) roda na `/se-v1` exatamente como na home, via `BaseLayout` — nada é adicionado ou configurado.
+- A `/se-v1` usa o mesmo `title` e a mesma `description` da home no `BaseLayout` (decisão registrada na Visão Geral: o title não deriva da headline).
+- O build do Astro gera a página estática `/se-v1` junto com as demais páginas, sem configuração extra.
