@@ -525,7 +525,8 @@ async function clickupWrite(fn) {
       await new Promise((r) => setTimeout(r, 500));
       continue;
     }
-    throw netErr || new Error(`ClickUp write ${status}`);
+    // Anexa o status HTTP no erro pra quem chama poder reagir (ex.: fallback no 400).
+    throw netErr || Object.assign(new Error(`ClickUp write ${status}`), { status });
   }
 }
 
@@ -629,9 +630,25 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       push(CU_FIELD.utmContent, utmContent);
 
       const name = nome || email || 'Lead sem nome';
-      await clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
-        method: 'POST', body: JSON.stringify({ name, custom_fields: customFields }),
+      const createTask = (body) => clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
+        method: 'POST', body: JSON.stringify(body),
       }, env));
+      try {
+        await createTask({ name, custom_fields: customFields });
+      } catch (e) {
+        // Telefone fora do padrão faz o campo phone do ClickUp responder 400 e
+        // derrubar a task inteira. Tenta UMA vez sem o whatsapp, com o número
+        // cru na description pro comercial validar. Se falhar de novo (ou o 400
+        // for por outra causa), propaga pro catch de fora (log D1 + alerta).
+        const temWhatsapp = customFields.some((f) => f.id === CU_FIELD.whatsapp);
+        if (e.status !== 400 || !temWhatsapp) throw e;
+        console.error('ClickUp create 400 com whatsapp — repetindo sem o campo phone');
+        await createTask({
+          name,
+          custom_fields: customFields.filter((f) => f.id !== CU_FIELD.whatsapp),
+          description: `WhatsApp (não validado pelo ClickUp): ${leadData.telefone}`,
+        });
+      }
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
         buildLeadNotif('*Novo lead no CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
     }
