@@ -104,6 +104,31 @@
       </div>
     </section>
 
+    <!-- Conversão por LP (aba Leads) -->
+    <section class="card p-5 fade-in" data-tab="leads">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="font-semibold">Conversão por LP</div>
+          <div class="text-xs text-[color:var(--muted)]">Visitantes únicos por landing page vs. leads capturados, sem bots</div>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-xs uppercase tracking-wider text-[color:var(--dim)] border-b border-[color:var(--border)]">
+            <tr>
+              <th class="text-left py-2 pr-4">LP</th>
+              <th class="text-right py-2 pr-4">Visitantes</th>
+              <th class="text-right py-2 pr-4">Leads</th>
+              <th class="text-right py-2">Taxa de conversão</th>
+            </tr>
+          </thead>
+          <tbody id="conversion-tbody" class="mono">
+            <tr><td colspan="4" class="py-6 text-center text-[color:var(--muted)]">Carregando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- KPIs de venda (aba Vendas) -->
     <section class="fade-in hidden" data-tab="vendas">
       <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -441,6 +466,7 @@
   const fetchJson = path => fetch(`${path}${path.includes('?') ? '&' : '?'}key=${encodeURIComponent(key)}`).then(r => r.json());
   const money = (n, cur = 'BRL') => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(Number(n || 0));
   const fmtInt = n => new Intl.NumberFormat('pt-BR').format(Number(n || 0));
+  const fmtRate = r => new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r || 0));
   const fmtDate = ts => new Date(Number(ts) * 1000).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   const fmtDateOnly = ts => new Date(Number(ts) * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -601,6 +627,31 @@
         openDetails('lead', data.leads[parseInt(row.getAttribute('data-idx'), 10)]);
       });
     });
+  }
+
+  // Conversão por LP: visitantes × leads × taxa vêm prontos do /api/conversion
+  // (issue 55) — aqui só formata e injeta; nada é calculado nem reordenado.
+  async function loadConversion() {
+    const tbody = qs('#conversion-tbody');
+    try {
+      const data = await fetchJson(`/api/conversion?${periodQuery}${funnelQuery}`);
+      if (data.error) throw new Error(data.error);
+      if (!data.rows || data.rows.length === 0) {
+        const emptyMsg = funnelQuery ? 'Nenhuma visita deste funil no período.' : 'Nenhuma visita no período.';
+        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-[color:var(--muted)]">${emptyMsg}</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = data.rows.map(r => `
+        <tr class="row-hover border-b border-[color:var(--border)]">
+          <td class="py-2 pr-4 font-sans">${escapeHtml(r.lp)}</td>
+          <td class="py-2 pr-4 text-right">${fmtInt(r.visitors)}</td>
+          <td class="py-2 pr-4 text-right">${fmtInt(r.leads)}</td>
+          <td class="py-2 text-right">${fmtRate(r.rate)}</td>
+        </tr>
+      `).join('');
+    } catch (_) {
+      tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-[color:var(--accent-red)]">Não foi possível carregar a conversão por LP.</td></tr>';
+    }
   }
 
   async function loadPurchases() {
@@ -896,6 +947,7 @@
       loadAttribution(),
       loadUtm(),
       loadLeads(),
+      loadConversion(),
       loadPurchases(),
       loadHealth(),
     ]);
@@ -936,12 +988,14 @@
     loadAll();
   });
 
-  // Seletor de funil: afeta só o KPI "Leads" e a tabela "Leads recentes",
-  // preservando o período atual. O mapa funil→critério vive no backend.
+  // Seletor de funil: afeta o KPI "Leads", a tabela "Leads recentes" e a
+  // "Conversão por LP", preservando o período atual. O mapa funil→critério
+  // vive no backend.
   qs('#funnel-picker').addEventListener('change', (e) => {
     selectedFunnel = e.target.value;
     funnelQuery = selectedFunnel ? `&funnel=${encodeURIComponent(selectedFunnel)}` : '';
     loadLeads();
+    loadConversion();
   });
 
   // Abas Leads | Vendas: alterna a visibilidade das seções (filhas diretas do
