@@ -105,32 +105,40 @@ export async function onRequest(context) {
   });
 
   // --- D1 UPSERT (background, non-blocking) ---
-  context.waitUntil(
-    (async () => {
-      try {
-        if (env.DB) {
-          await env.DB.prepare(`
-            INSERT INTO sessions (session_id, external_id, fbclid, gclid, msclkid, fbc, fbp, ip_address, user_agent, referrer, landing_url, utm_source, utm_medium, utm_campaign, utm_content, utm_term, funnel, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(session_id) DO UPDATE SET
-              fbclid = CASE WHEN excluded.fbclid != '' THEN excluded.fbclid ELSE sessions.fbclid END,
-              gclid = CASE WHEN excluded.gclid != '' THEN excluded.gclid ELSE sessions.gclid END,
-              msclkid = CASE WHEN excluded.msclkid != '' THEN excluded.msclkid ELSE sessions.msclkid END,
-              fbc = CASE WHEN excluded.fbc != '' THEN excluded.fbc ELSE sessions.fbc END,
-              utm_source = CASE WHEN excluded.utm_source != '' THEN excluded.utm_source ELSE sessions.utm_source END,
-              utm_medium = CASE WHEN excluded.utm_medium != '' THEN excluded.utm_medium ELSE sessions.utm_medium END,
-              utm_campaign = CASE WHEN excluded.utm_campaign != '' THEN excluded.utm_campaign ELSE sessions.utm_campaign END,
-              utm_content = CASE WHEN excluded.utm_content != '' THEN excluded.utm_content ELSE sessions.utm_content END,
-              utm_term = CASE WHEN excluded.utm_term != '' THEN excluded.utm_term ELSE sessions.utm_term END,
-              funnel = CASE WHEN excluded.funnel != '' THEN excluded.funnel ELSE sessions.funnel END,
-              updated_at = excluded.updated_at
-          `).bind(sessionId, externalId, fbclid, gclid, msclkid, fbc, fbp, clientIp, userAgent, referrer, url.toString(), utmSource, utmMedium, utmCampaign, utmContent, utmTerm, funnel, now, now).run();
+  // Não gravar sessão quando a página respondida é 404: scanners de
+  // vulnerabilidade varrem paths inexistentes (/wp-admin, /.env, /.git/HEAD...)
+  // e tomam 404 em massa — não devem virar linhas lixo em `sessions`.
+  // Somente 404 é excluído; 500 e afins continuam gravando (visitante real
+  // com erro transitório ainda merece atribuição). Cookies já foram setados
+  // acima, então o mesmo _krob_sid cria a sessão se ele navegar p/ página real.
+  if (response.status !== 404) {
+    context.waitUntil(
+      (async () => {
+        try {
+          if (env.DB) {
+            await env.DB.prepare(`
+              INSERT INTO sessions (session_id, external_id, fbclid, gclid, msclkid, fbc, fbp, ip_address, user_agent, referrer, landing_url, utm_source, utm_medium, utm_campaign, utm_content, utm_term, funnel, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(session_id) DO UPDATE SET
+                fbclid = CASE WHEN excluded.fbclid != '' THEN excluded.fbclid ELSE sessions.fbclid END,
+                gclid = CASE WHEN excluded.gclid != '' THEN excluded.gclid ELSE sessions.gclid END,
+                msclkid = CASE WHEN excluded.msclkid != '' THEN excluded.msclkid ELSE sessions.msclkid END,
+                fbc = CASE WHEN excluded.fbc != '' THEN excluded.fbc ELSE sessions.fbc END,
+                utm_source = CASE WHEN excluded.utm_source != '' THEN excluded.utm_source ELSE sessions.utm_source END,
+                utm_medium = CASE WHEN excluded.utm_medium != '' THEN excluded.utm_medium ELSE sessions.utm_medium END,
+                utm_campaign = CASE WHEN excluded.utm_campaign != '' THEN excluded.utm_campaign ELSE sessions.utm_campaign END,
+                utm_content = CASE WHEN excluded.utm_content != '' THEN excluded.utm_content ELSE sessions.utm_content END,
+                utm_term = CASE WHEN excluded.utm_term != '' THEN excluded.utm_term ELSE sessions.utm_term END,
+                funnel = CASE WHEN excluded.funnel != '' THEN excluded.funnel ELSE sessions.funnel END,
+                updated_at = excluded.updated_at
+            `).bind(sessionId, externalId, fbclid, gclid, msclkid, fbc, fbp, clientIp, userAgent, referrer, url.toString(), utmSource, utmMedium, utmCampaign, utmContent, utmTerm, funnel, now, now).run();
+          }
+        } catch (e) {
+          console.error('Middleware D1 error:', e.message);
         }
-      } catch (e) {
-        console.error('Middleware D1 error:', e.message);
-      }
-    })()
-  );
+      })()
+    );
+  }
 
   return newResponse;
 }

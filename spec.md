@@ -1,71 +1,61 @@
-# Spec: Conversão por LP no dashboard (visitantes × leads via D1)
+# Spec: Higienização anti-scanner do tracking (2 camadas)
 
 ## Visão Geral
 
-Hoje o dashboard (`public/dash/index.html`) mostra quantos leads chegaram e de onde vieram (UTMs, funil), mas não mostra **quantas pessoas visitaram cada landing page** nem **qual percentual delas virou lead**. Sem isso, não dá para comparar a eficiência das LPs (`/lives-semanais-v1`, `/consultoria-gratuita-atacado`, etc.) — só o volume absoluto de leads.
+Scanners de vulnerabilidade varrem o site em busca de brechas conhecidas — requisitam milhares de paths que não existem (`/wp-admin/setup-config.php`, `/.env`, `/admin.php`, `/.git/HEAD`, etc.) e todos retornam **404**. Como o middleware de tracking (`functions/_middleware.js`) grava uma sessão no D1 para **toda** requisição de página, cada hit desses vira uma linha em `sessions` com `landing_url` lixo. O resultado prático: a tabela "Conversão por LP" do dashboard fica poluída com dezenas de paths de scanner, com visitantes inflados e taxa 0%.
 
-Esta feature adiciona o acompanhamento de **taxa de conversão por landing page**, 100% baseado nos dados que o D1 já captura (sem GA4, sem novas migrations):
+O filtro de bots atual (lista `BOT_UA_SUBSTRINGS` em `functions/api/conversion.js`, replicada do `detectBot` do tracker) não resolve, por dois motivos observados em produção:
 
-- **Denominador (visitantes):** a tabela `sessions` — o middleware (`functions/_middleware.js`) grava uma linha por visitante novo, server-side (imune a adblock), com `landing_url`, `user_agent`, `funnel` (first-touch) e `created_at`. Cada linha = um visitante único (cookie `_krob_sid` impede duplicata na revisita).
-- **Numerador (leads):** a tabela `event_log` — eventos `Lead` com `session_id` apontando para a sessão de origem, no mesmo padrão de "funil efetivo" já usado pelo `/api/leads`.
-- **Taxa:** leads ÷ visitantes, calculada **no backend**. O dashboard apenas exibe.
+1. Muitos scanners usam User-Agent de **Chrome real** — indistinguível de visitante legítimo pelo UA.
+2. Os que se identificam usam UAs como `TLM-Audit-Scanner/1.0` e `pathscan/1.0`, que **não** casam com nenhuma substring da lista atual (`scanner`/`pathscan` não contêm `bot`, `crawler`, `spider`, `scraper`...).
 
-Público: a operação de tráfego do Atacado Exponencial, que precisa saber qual LP converte melhor para decidir onde investir.
+A solução tem **2 camadas**, em exatamente 2 módulos:
+
+- **Camada 1 — na origem (`functions/_middleware.js`):** parar de gravar sessão quando a página respondida é 404. Scanner pede path inexistente → 404 → nenhuma linha nova no D1. Ataca a causa para os dados futuros, independente do UA.
+- **Camada 2 — na leitura (`functions/api/conversion.js`):** o histórico já poluído **não será apagado** (regra: nada de deletar dados). O endpoint de conversão passa a (a) excluir das rows os paths que não são páginas do site (ponto em algum segmento — extensão de arquivo ou diretório oculto — ou prefixo `/wp-`) e (b) reconhecer `scan` como substring de bot, cobrindo `scanner` e `pathscan`.
 
 Restrições respeitadas:
-- Toda a lógica (normalização de URL, filtro de bots, agregação, cálculo da taxa) fica no backend; o front só renderiza o que o endpoint devolve.
-- `functions/tracker.js` e `functions/_middleware.js` **não** são alterados.
-- Nenhuma migration nova — só leitura das tabelas existentes.
-- Exatamente 2 módulos: 1 endpoint novo + 1 seção nova no dashboard.
+- `functions/tracker.js` **não** é alterado (a lista de bot do conversion continua sendo réplica manual + adição local documentada).
+- Nenhuma migration; nenhum dado histórico deletado — a higienização do passado é só no read path.
+- Toda a lógica no backend; o dashboard não muda (só passa a receber rows limpas).
+- Cookies, headers, atribuição (fbc/fbp/UTMs/funnel) e todo o resto do comportamento do middleware permanecem intactos.
 
 ## Páginas / Módulos
 
-### Módulo 1: Endpoint `/api/conversion` (arquivo novo `functions/api/conversion.js`)
+### Módulo 1: Middleware de tracking (`functions/_middleware.js`)
 
-**Descrição:** Endpoint GET que devolve, por landing page (path normalizado de `sessions.landing_url`), o número de visitantes únicos no período, o número desses visitantes que viraram lead e a taxa de conversão. Segue exatamente os padrões do `/api/leads` (`functions/api/leads.js`): mesma autenticação por `DASH_KEY`, mesmos parâmetros de período (`days`/`from`/`to` resolvidos pelo mesmo padrão do `resolvePeriod`), mesmo filtro `&funnel=`, mesmo formato de resposta JSON (`json()` com CORS `*`), mesmo tratamento de erro.
-
-**Componentes:**
-- Handler `onRequestGet(context)`: único export; recebe `request` e `env` do contexto Cloudflare Pages Functions.
-- Resposta JSON de sucesso: objeto com `days`, `funnel` (o filtro aplicado ou `null`) e `rows` — array de `{ lp, visitors, leads, rate }`, ordenado por `visitors` decrescente, onde:
-  - `lp`: path normalizado da landing page (string, ex.: `/lives-semanais-v1`);
-  - `visitors`: inteiro ≥ 0 (sessões únicas não-bot no período);
-  - `leads`: inteiro ≥ 0 (sessões dessas que têm pelo menos 1 evento `Lead`);
-  - `rate`: número entre 0 e 1 (fração `leads / visitors`, calculada no SQL/backend — o front não divide nada).
-- Resposta de erro: `{ error: '...' }` com status 401 (chave errada/ausente) ou 500 (falha de query), no mesmo formato do `/api/leads`.
-
-**Comportamentos:**
-- Autenticação: lê `?key=` da query string e compara com `env.DASH_KEY`; se `DASH_KEY` não estiver configurada ou a chave não bater, responde 401 `{ error: 'Unauthorized' }` sem tocar no banco.
-- Período: aceita `?days=` (default 30, clampado entre 1 e 365) e o intervalo explícito `?from=`/`?to=` (unix seconds), com `from/to` tendo prioridade sobre `days` e `until` default = agora — mesma semântica do `resolvePeriod` do `/api/leads`. O período se aplica a `sessions.created_at` (define quais visitantes entram no denominador).
-- Normalização da LP: extrai de `sessions.landing_url` **apenas o path** — remove protocolo, domínio, query string e fragmento (ex.: `https://atacadoexponencial.com/lives-semanais-v1?utm_source=fb&funnel=x` → `/lives-semanais-v1`). Barra final é normalizada (`/pagina/` e `/pagina` agregam juntas; a raiz vira `/`). A normalização acontece no backend (em SQL ou em JS pós-query, o que for mais simples), nunca no front.
-- Sessão sem landing_url: sessões com `landing_url` NULL ou vazia são agregadas num bucket próprio rotulado `(sem página)` (valor `lp` = `(sem página)`), para a soma dos visitantes bater com o total de sessões válidas do período — não são descartadas silenciosamente.
-- Exclusão de bots do denominador: sessões cujo `sessions.user_agent` casa com a lógica do `detectBot(userAgent)` de `functions/tracker.js` (user-agent ausente/curto ou batendo na lista de padrões de bot — Googlebot, Bingbot, facebookexternalhit, WhatsApp preview, Slackbot, etc.) **não contam como visitantes**. A lista de padrões é **replicada/duplicada dentro de `conversion.js`** (copiar a função), já que `tracker.js` não pode ser alterado (não dá para exportar dele) e não há módulo compartilhado hoje.
-- Contagem de leads por LP: um visitante conta como lead se existe pelo menos 1 linha em `event_log` com `event_name = 'Lead'`, `is_bot = 0` e `session_id` igual ao da sessão. Cada sessão conta **no máximo 1 lead** (lead por visitante, não por evento — se a pessoa preencher o form 2 vezes, é 1 conversão), para a taxa nunca passar de 100%.
-- Filtro de funil: aceita `?funnel=` opcional. Quando presente, o denominador filtra por `sessions.funnel = ?` e o numerador usa o padrão de funil efetivo do `/api/leads` (`COALESCE(NULLIF(e.funnel,''), s.funnel) = ?`). Quando ausente, devolve todas as LPs de todos os funis (comportamento igual ao `/api/leads` sem filtro).
-- Ordenação: `rows` vem ordenado por `visitors` decrescente (empate: por `lp` alfabético), pronto para exibição — o front não reordena.
-- LP sem lead: LPs com visitantes mas 0 leads aparecem normalmente com `leads: 0` e `rate: 0` (não são omitidas — LP que não converte é exatamente o que se quer enxergar).
-- Divisão por zero: se por qualquer razão `visitors` for 0 num grupo, `rate` é `0` (nunca `NaN`/`null`/`Infinity`).
-- Período sem sessões: responde 200 com `rows: []` (não é erro).
-- Falha de query no D1: responde 500 `{ error: err.message }`, no mesmo `try/catch` + `json()` do `/api/leads`.
-
-### Módulo 2: Seção "Conversão por LP" no dashboard (`public/dash/index.html`)
-
-**Descrição:** Nova seção (card) na **aba Leads** do dashboard existente, com uma tabela "Conversão por LP" — colunas **LP | Visitantes | Leads | Taxa de conversão** — alimentada exclusivamente pelo `/api/conversion`. Segue o padrão visual dos cards já existentes (classe `.card`, cabeçalho `font-semibold` + subtítulo `text-xs`, tabela com `thead` uppercase, `tbody` com `row-hover`, wrapper `overflow-x-auto`) e todo o texto em PT-BR.
+**Descrição:** O middleware hoje serve a página primeiro (`const response = await next()`, linha ~86), anexa os `Set-Cookie` numa `newResponse` e depois agenda o UPSERT em `sessions` dentro de `context.waitUntil(...)` (linha ~108). A mudança é uma só: condicionar esse UPSERT ao status da resposta — se a página respondida for **404**, o bloco do `waitUntil` não grava nada no D1. O objeto `response` já está disponível no ponto da decisão; basta checar `response.status !== 404` como guarda do UPSERT (a checagem pode envolver o próprio `context.waitUntil` ou o `env.DB` interno — o essencial é que nenhuma escrita em `sessions` aconteça no 404).
 
 **Componentes:**
-- `<section class="card p-5 fade-in" data-tab="leads">`: card novo, posicionado na aba Leads (sugestão: entre "Leads por funil" e "Leads recentes"), com título "Conversão por LP" e subtítulo explicativo (ex.: "Visitantes únicos por landing page vs. leads capturados, sem bots").
-- Tabela HTML: cabeçalho com 4 colunas — "LP" (alinhada à esquerda), "Visitantes", "Leads" e "Taxa de conversão" (alinhadas à direita, fonte `mono` para os números, como as demais tabelas numéricas do dash).
-- `<tbody id="conversion-tbody">`: corpo da tabela, com a linha inicial "Carregando…" (mesmo placeholder `colspan` centralizado dos outros cards).
-- Função JS `loadConversion()`: busca `/api/conversion?${periodQuery}${funnelQuery}` via o helper `fetchJson` existente (que já anexa a `key`) e renderiza `data.rows` no `tbody`.
+- `onRequest(context)`: único export; ganha a guarda de status 404 em volta do UPSERT em `sessions`.
+- Comentário pt-BR junto à guarda explicando o porquê: scanners de vulnerabilidade tomam 404 em massa e não devem virar sessão.
 
 **Comportamentos:**
-- Carga inicial: `loadConversion()` entra na lista do `Promise.all` de `loadAll()`, carregando junto com o resto do dashboard após o portão de acesso.
-- Integração com o filtro de data: usa a variável `periodQuery` já existente; ao clicar em 7/30/90 dias ou aplicar o intervalo personalizado, a seção recarrega automaticamente (via o `loadAll()` que esses botões já chamam — sem novos listeners de data).
-- Integração com o filtro de funil: usa a variável `funnelQuery` já existente; o listener `change` do `#funnel-picker` (que hoje chama só `loadLeads()`) passa a chamar **também** `loadConversion()`, para a tabela refletir o funil selecionado.
-- Renderização de cada linha: `lp` como texto (escapado com o `escapeHtml` existente), `visitors` e `leads` formatados com o `fmtInt` existente (pt-BR), e `rate` exibida como percentual pt-BR com 1 casa decimal (ex.: `data.rows[i].rate = 0.0325` → "3,3%") — a formatação é só apresentação; o valor vem pronto do backend.
-- Ordenação: exibe as linhas na ordem em que chegam do endpoint (visitantes desc) — o front **não** reordena nem recalcula nada.
-- LP sem lead: linha renderizada normalmente com Leads "0" e taxa "0,0%".
-- Bucket `(sem página)`: renderizado como qualquer outra linha, com o rótulo que veio do backend.
-- Estado vazio: se `data.rows` for ausente ou vazio, o `tbody` mostra uma única linha centralizada "Nenhuma visita no período." (ou "Nenhuma visita deste funil no período." quando há filtro de funil ativo — mesmo padrão condicional do `loadLeads()`).
-- Erro de fetch/endpoint: se a chamada lançar exceção ou a resposta trouxer `error`, o `tbody` mostra uma única linha "Não foi possível carregar a conversão por LP." em vermelho (`--accent-red`), sem quebrar o restante do `loadAll()` (o `catch` fica dentro de `loadConversion()`).
-- Sem interação de clique: as linhas não abrem modal nem aplicam filtros (diferente de "Leads recentes") — é uma tabela somente-leitura nesta versão.
-- Nenhum cálculo no front: visitantes, leads e taxa chegam prontos do `/api/conversion`; o JS da seção só formata e injeta HTML.
+- Requisição de página cuja resposta do `next()` tem `status === 404` **não** executa o UPSERT em `sessions` — nenhuma linha criada nem atualizada no D1.
+- Somente 404 é excluído. Resposta `500` (ou qualquer outro status de erro) **continua gravando sessão** normalmente: um visitante real que pegou um erro transitório ainda deve ter atribuição quando voltar.
+- Respostas 200/3xx/etc. seguem exatamente o fluxo atual: UPSERT com todos os campos (fbclid, gclid, msclkid, fbc, fbp, IP, UA, referrer, landing_url, UTMs, funnel, timestamps) e semântica first-touch do `ON CONFLICT` inalterada.
+- Cookies (`_krob_sid`, `_krob_eid`, `_fbp`, `_fbc` quando houver) continuam sendo setados **inclusive na resposta 404** — só a escrita no D1 é suprimida; headers, status e body da resposta não mudam em nada.
+- Visitante real que cai numa página 404 do site também não gera sessão — **aceitável e desejado**: uma página inexistente não é landing page de campanha, e se ele navegar em seguida para uma página real, a sessão é criada ali (mesmo `_krob_sid`, já setado pelo cookie).
+- Sessão já existente cujo dono revisita e toma um 404 **não é atualizada** (nem `updated_at`, nem merge de UTMs daquele hit) — ok: o hit 404 não carrega informação de atribuição que valha registrar.
+- O filtro `isPageRequest` (extensões estáticas, `/tracker`, `/api/`, `/dash`, etc.) permanece como está; a nova guarda atua **depois** dele, apenas sobre requisições que já passariam a gravar sessão.
+- O `try/catch` com `console.error('Middleware D1 error: ...')` dentro do `waitUntil` permanece protegendo a escrita quando ela acontece.
+
+### Módulo 2: Endpoint de conversão por LP (`functions/api/conversion.js`)
+
+**Descrição:** Duas mudanças cirúrgicas no read path para higienizar o histórico já poluído, sem tocar em dado nenhum: um filtro de paths que não são páginas do site (aplicado em JS, sobre o path já normalizado) e uma substring extra na lista de bots usada nas cláusulas `NOT LIKE` do SQL.
+
+**Componentes:**
+- Filtro de path não-página: predicado aplicado **após** `normalizePath(row.landing_url)` e **antes** de acumular no `byPath` / montar `rows` — o path excluído simplesmente não entra no resultado (nem em `visitors`, nem em `leads`, nem como linha). Duas regras em **OU**: (1) algum segmento do path contém ponto (na prática: extensão de arquivo no último segmento, como `.php`/`.env`, ou diretório oculto como `.git` em `/.git/HEAD`); (2) o path começa com `/wp-`.
+- `BOT_UA_SUBSTRINGS`: ganha a entrada `'scan'`, com comentário pt-BR registrando que é uma adição **ALÉM** da lista replicada do `detectBot` de `functions/tracker.js` (que não pode ser alterado), motivada pelos UAs `TLM-Audit-Scanner/1.0` e `pathscan/1.0` vistos em produção — `'scan'` cobre ambos por ser substring de `scanner` e de `pathscan`.
+
+**Comportamentos:**
+- Path com **ponto em algum segmento** é excluído das rows: `/wp-admin/setup-config.php` (ponto no último segmento — extensão `.php`), `/.env` e `/admin.php` (idem), `/.git/HEAD` (ponto no segmento `.git`, embora o último segmento `HEAD` não tenha ponto). Nota de decisão: o escopo enunciou a regra como "último segmento contém ponto" citando `/.git/HEAD` entre os exemplos; como o ponto desse exemplo está no primeiro segmento, a spec fixa o predicado como "ponto em **qualquer** segmento" — é o menor predicado que cobre todos os exemplos citados, e nenhuma página legítima do site (Astro, URLs limpas) tem ponto no path.
+- Path que **começa com `/wp-`** é excluído: cobre `/wp-admin/` (que, normalizado pelo `normalizePath`, vira `/wp-admin` — sem ponto em segmento nenhum, por isso precisa da regra própria) e todo o ecossistema WordPress (`/wp-login.php`, `/wp-content/...`), que este site não tem.
+- A raiz `'/'` **nunca** é excluída: não tem ponto em segmento nenhum e não começa com `/wp-`.
+- O bucket `'(sem página)'` (landing_url nula/vazia/malformada) **continua existindo** nas rows: o predicado de exclusão só se aplica a paths reais (strings começando com `/` devolvidas pelo `normalizePath`); o rótulo `'(sem página)'` passa direto para o resultado como hoje.
+- Paths legítimos do site (`/`, `/lives-semanais-v1`, `/consultoria-gratuita-atacado`, `/obrigado`, etc.) não casam com nenhuma das regras e aparecem normalmente.
+- A exclusão é por linha do resultado, **não** por sessão no banco: nenhuma escrita, nenhum DELETE — sessões de scanner do histórico continuam no D1, apenas não aparecem na tabela do dashboard.
+- Com `'scan'` na `BOT_UA_SUBSTRINGS`, sessões com UA contendo `scan` (case-insensitive, semântica do `LIKE` do SQLite para ASCII) saem do denominador e, por consequência, do numerador — `TLM-Audit-Scanner/1.0` e `pathscan/1.0` deixam de contar como visitantes em **qualquer** LP, inclusive nas legítimas que eles às vezes atingem.
+- A geração das cláusulas SQL (`AND s.user_agent NOT LIKE '%scan%'`) continua vindo da lista estática do módulo — nenhum input de request entra na string; sem risco de injeção, como já documentado no comentário existente.
+- Ordenação, formato de resposta (`{ days, funnel, rows }`), autenticação por `DASH_KEY`, filtro `&funnel=` e período `days`/`from`/`to` permanecem idênticos.
+- O comentário de cabeçalho da lista ("Replicado de detectBot()... manter em sincronia manualmente") permanece válido para as entradas replicadas; a entrada `'scan'` fica visivelmente separada/anotada como adição local para não confundir uma futura ressincronização com o tracker.
