@@ -1,0 +1,27 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Página não encontrada — Atacado Exponencial"
+  description="A página que você procura não existe ou foi movida."
+>
+  <section class="section notfound">
+    <div class="container notfound__inner">
+      <span class="eyebrow">Erro 404</span>
+      <h1 class="notfound__title">Página não encontrada</h1>
+      <p class="notfound__sub">A página que você procura não existe ou foi movida.</p>
+      <a class="btn-cta" href="/">Voltar para o início</a>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .notfound { min-height: 55vh; display: flex; align-items: center; }
+  .notfound__inner {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: 1.25rem;
+  }
+  .notfound__title { font-size: clamp(1.75rem, 5vw, 3rem); line-height: 1.08; }
+  .notfound__sub { color: hsl(var(--muted-foreground)); }
+</style>
