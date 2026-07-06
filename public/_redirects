@@ -1,0 +1,18 @@
+# Redirects 301 de URLs legadas da era Lovable (Cloudflare Pages).
+# Essas três URLs ainda recebem tráfego real e passaram a responder 404
+# quando o site ganhou página 404 de verdade (issue 59).
+# O Pages preserva a query string (UTMs, fbclid, etc.) no redirect.
+
+# /obrigado recebe o redirect de confirmação do Calendly e tráfego com
+# UTMs de anúncio — a página atual equivalente é /obrigada.
+# As variantes com barra final são obrigatórias: o matching do _redirects é
+# exato e o tráfego real (Calendly/anúncios, conferido no D1) chega COM barra.
+/obrigado /obrigada 301
+/obrigado/ /obrigada 301
+
+# Páginas antigas de obrigado do workshop — o destino atual equivalente
+# é /video-workshop-instagram.
+/obrigado-workshop /video-workshop-instagram 301
+/obrigado-workshop/ /video-workshop-instagram 301
+/ae-video-workshop /video-workshop-instagram 301
+/ae-video-workshop/ /video-workshop-instagram 301
