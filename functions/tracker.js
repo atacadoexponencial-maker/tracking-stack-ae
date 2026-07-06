@@ -163,6 +163,13 @@ export async function onRequestPost(context) {
       ga4ResponseBody = `Fetch error: ${results[1].reason?.message || 'unknown'}`;
     }
 
+    // --- Alerta crítico (camada A): Meta recusou uma conversão real ---
+    // Em waitUntil próprio para não atrasar a resposta ao navegador. A regra
+    // (só lead/purchase, não-bot, throttle 1h) fica em maybeAlertMetaFailure.
+    context.waitUntil(maybeAlertMetaFailure({
+      eventName: body.event_name, isBot, metaResponseOk, metaStatusCode, metaResponseBody, env,
+    }));
+
     // --- Encaminhar lead ao CRM (fan-out desacoplado; destino trocável) ---
     // O site fala apenas com /tracker. O destino do CRM (n8n hoje, que leva
     // ao ClickUp) vem de env e pode ser trocado/removido sem alterar o front.
@@ -179,6 +186,7 @@ export async function onRequestPost(context) {
             leadData: body.lead_data || {},
             sessionData, fbc, externalId,
             url: env.LEAD_WEBHOOK_URL_WORKSHOP,
+            label: 'Workshop (n8n)', env,
           }));
         }
       } else {
@@ -188,10 +196,10 @@ export async function onRequestPost(context) {
       // Demais destinos desacoplados (inalterados): CRM Supabase + barramento
       // WhatsApp (n8n). Cada um dispara independente; se um falhar, os outros seguem.
       const crmDestinations = [
-        { url: env.LEAD_WEBHOOK_URL_CRM, token: env.LEAD_WEBHOOK_TOKEN_CRM },
+        { url: env.LEAD_WEBHOOK_URL_CRM, token: env.LEAD_WEBHOOK_TOKEN_CRM, label: 'Supabase/CRM' },
         // Barramento de leads (n8n → WhatsApp): recebe TODOS os leads; a decisão
         // de qual funil dispara WhatsApp fica 100% no n8n (Switch por funnel).
-        { url: env.LEAD_WEBHOOK_URL_WHATSAPP, token: env.LEAD_WEBHOOK_TOKEN_WHATSAPP },
+        { url: env.LEAD_WEBHOOK_URL_WHATSAPP, token: env.LEAD_WEBHOOK_TOKEN_WHATSAPP, label: 'WhatsApp barramento' },
       ];
       for (const dest of crmDestinations) {
         if (!dest.url) continue;
@@ -199,6 +207,7 @@ export async function onRequestPost(context) {
           leadData: body.lead_data || {},
           sessionData, fbc, externalId,
           url: dest.url, token: dest.token,
+          label: dest.label, env,
         }));
       }
 
@@ -406,7 +415,7 @@ async function sendToGA4({ body, gaClientId, gaSessionId, hashedEm, sessionData,
 // CRM FORWARD — encaminha o lead para um webhook configurável
 // (hoje n8n → ClickUp). Dados crus do formulário + atribuição da sessão.
 // -------------------------------------------------------
-async function sendToCRM({ leadData, sessionData, fbc, externalId, url, token }) {
+async function sendToCRM({ leadData, sessionData, fbc, externalId, url, token, label, env }) {
   try {
     const payload = {
       ...leadData,
@@ -436,13 +445,28 @@ async function sendToCRM({ leadData, sessionData, fbc, externalId, url, token })
     };
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['x-webhook-token'] = token;
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
     });
+    // Antes, um 500 do webhook passava como sucesso silencioso. Continua sem
+    // travar o lead (best-effort), mas agora alerta — com throttle por destino.
+    if (!response.ok) {
+      console.error(`CRM forward (${label}) HTTP ${response.status}`);
+      await sendThrottledAlert(
+        `crm_forward:${label}`,
+        `⚠️ Forward de lead p/ ${label} falhou: status ${response.status}`,
+        env
+      );
+    }
   } catch (e) {
     console.error('CRM forward error:', e.message);
+    await sendThrottledAlert(
+      `crm_forward:${label}`,
+      `⚠️ Forward de lead p/ ${label} falhou: ${e.message || e}`,
+      env
+    );
   }
 }
 
@@ -559,6 +583,49 @@ async function sendEvolutionMessage(apikey, number, text, env) {
   }
 }
 
+// --- Alertas críticos (camada A) com throttle ---
+// No máximo 1 alerta por tipo a cada 1h, controlado na tabela alert_throttle
+// do D1 — plataforma fora do ar não pode virar spam no WhatsApp da usuária.
+// FAIL-OPEN: se a consulta/gravação no D1 falhar, envia mesmo assim (melhor
+// alerta duplicado que silêncio).
+const ALERT_THROTTLE_SECONDS = 3600;
+
+async function sendThrottledAlert(type, text, env) {
+  try {
+    if (env.DB) {
+      const now = Math.floor(Date.now() / 1000);
+      const row = await env.DB.prepare(
+        'SELECT last_sent FROM alert_throttle WHERE alert_type = ?'
+      ).bind(type).first();
+      if (row && now - row.last_sent < ALERT_THROTTLE_SECONDS) return; // já alertou nesta janela
+      await env.DB.prepare(
+        `INSERT INTO alert_throttle (alert_type, last_sent) VALUES (?, ?)
+         ON CONFLICT(alert_type) DO UPDATE SET last_sent = excluded.last_sent`
+      ).bind(type, now).run();
+    }
+  } catch (e) {
+    console.error('alert_throttle D1 error:', e.message); // fail-open: envia assim mesmo
+  }
+  await sendEvolutionMessage(env.EVOLUTION_APIKEY_ALERTA, env.EVOLUTION_NUMERO_ALERTA, text, env);
+}
+
+// Camada A — Meta CAPI: alerta quando um Lead/Purchase REAL (não-bot) não foi
+// aceito pelo Meta, qualquer que seja a razão: erro HTTP, fetch rejeitado ou
+// skip por env ausente (META_PIXEL_ID/token sumiram = morte silenciosa —
+// metaResponseOk fica 0 em todos esses casos). PageView e bots não alertam.
+// Roda em waitUntil: nunca atrasa a resposta do /tracker.
+async function maybeAlertMetaFailure({ eventName, isBot, metaResponseOk, metaStatusCode, metaResponseBody, env }) {
+  const name = (eventName || '').toLowerCase();
+  if (isBot) return;
+  if (name !== 'lead' && name !== 'purchase') return;
+  if (metaResponseOk === 1) return;
+  await sendThrottledAlert(
+    'meta_capi',
+    `⚠️ Meta CAPI falhou num ${eventName}: status ${metaStatusCode} — ${(metaResponseBody || '').slice(0, 180)}`,
+    env
+  );
+}
+
 function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento }) {
   const digits = (phoneE164 || '').replace(/\D/g, '');
   return `${header}\n\n*Nome:* ${nome}\n*Número:* ${phoneE164}\n*Whatsapp:* https://wa.me/${digits}\n*Email:* ${email}\n*Instagram:* ${instagram}\n*Faturamento:* ${faturamento}`;
@@ -656,7 +723,9 @@ async function sendToClickUp({ leadData, sessionData, env }) {
     // Escrita principal falhou após o retry → não perder o lead.
     console.error('ClickUp write error:', e.message);
     await logClickUpFailure(leadData, phoneE164, email, e, env);
-    await sendEvolutionMessage(env.EVOLUTION_APIKEY_ALERTA, env.EVOLUTION_NUMERO_ALERTA,
+    // Alerta agora passa pelo throttle (1/h) como os demais da camada A; os
+    // leads em si continuam TODOS em clickup_sync_failures — nada se perde.
+    await sendThrottledAlert('clickup_write',
       `Erro ao criar lead no ClickUp: ${e.message || e}`, env);
   }
 }
