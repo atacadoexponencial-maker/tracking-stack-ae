@@ -74,6 +74,7 @@ export async function onRequestGet(context) {
     const byPath = new Map();
     for (const row of grouped.results || []) {
       const lp = normalizePath(row.landing_url);
+      if (isNonPagePath(lp)) continue;
       const acc = byPath.get(lp) || { visitors: 0, leads: 0 };
       acc.visitors += row.visitors;
       acc.leads += row.leads;
@@ -115,7 +116,19 @@ const BOT_UA_SUBSTRINGS = [
   'bot', 'crawler', 'spider', 'scraper', 'headless',
   'python-requests', 'axios', 'node-fetch', 'curl', 'wget', 'httpie',
   'phantomjs', 'selenium', 'puppeteer', 'playwright',
+  // Adição LOCAL deste módulo (ALÉM da réplica do detectBot de
+  // functions/tracker.js, que não pode ser alterado nesta feature):
+  // cobre os UAs 'TLM-Audit-Scanner/1.0' e 'pathscan/1.0' vistos em produção.
+  'scan',
 ];
+
+// Path que não é página do site (sonda de scanner): ponto em algum
+// segmento (/.env, /admin.php, /.git/HEAD) OU prefixo /wp-. Só se
+// aplica a paths reais ('/...'); '(sem página)' passa direto.
+function isNonPagePath(lp) {
+  if (!lp.startsWith('/')) return false; // '(sem página)'
+  return lp.startsWith('/wp-') || lp.split('/').some((seg) => seg.includes('.'));
+}
 
 // Normaliza landing_url para apenas o path: remove protocolo, domínio, query
 // e fragmento; barra final agregada (/pagina/ e /pagina juntas; raiz = '/').
