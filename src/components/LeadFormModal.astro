@@ -118,13 +118,15 @@ import logo from '../assets/brand/logo.png';
       submitBtn.disabled = true;
       submitBtn.textContent = 'Enviando…';
       let redirect = '/video-workshop-instagram';
+      const eventId = 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      try { if (typeof (window as any).fbq === 'function') (window as any).fbq('track', 'Lead', {}, { eventID: eventId }); } catch (e) { /* espelho browser nunca bloqueia o envio */ }
       try {
         const res = await fetch('/tracker', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             event_name: 'Lead',
-            event_id: 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+            event_id: eventId,
             event_time: Math.floor(Date.now() / 1000),
             event_source_url: window.location.href,
             user_data: { em: lead.email, ph: lead.telefone, fn: lead.nome },
