@@ -137,7 +137,6 @@ const KNOWN_PAGE_PATHS = new Set([
   '/video-workshop-instagram',
   '/vsl',
   '/workshop-gratuito-atacado',
-  '/privacy-policy',
   '/obrigada',
   '/calculadora-atacado',
   '/calculadora-atacado/perguntas',
