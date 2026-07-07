@@ -126,9 +126,18 @@ export async function onRequestPost(context) {
     const eventFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
     const effectiveFunnel = eventFunnel || (sessionData.funnel || '');
 
+    // Pixel 2 (conta de anúncios nova, em migração): recebe só PageView e Lead.
+    // Fica ativo apenas enquanto META_PIXEL_ID_2/META_ACCESS_TOKEN_2 existirem
+    // no env — remover as vars desliga sem mexer no código.
+    const eventNameLc = (body.event_name || '').toLowerCase();
+    const pixel2Eligible = eventNameLc === 'pageview' || eventNameLc === 'lead';
+
     const results = isBot ? [] : await Promise.allSettled([
-      sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env }),
+      sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId: env.META_PIXEL_ID, accessToken: env.META_ACCESS_TOKEN }),
       sendToGA4({ body, gaClientId, gaSessionId, hashedEm, sessionData, funnel: effectiveFunnel, env }),
+      pixel2Eligible
+        ? sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId: env.META_PIXEL_ID_2, accessToken: env.META_ACCESS_TOKEN_2 })
+        : Promise.resolve({ skipped: 'pixel2: evento fora do escopo', payload: null, response: null }),
     ]);
 
     // --- Parse Meta result ---
@@ -163,11 +172,35 @@ export async function onRequestPost(context) {
       ga4ResponseBody = `Fetch error: ${results[1].reason?.message || 'unknown'}`;
     }
 
+    // --- Parse Meta pixel 2 result (não vai ao D1; só alimenta o alerta) ---
+    let meta2StatusCode = 0, meta2ResponseOk = 0, meta2ResponseBody = '';
+    if (results[2]?.status === 'fulfilled' && results[2].value) {
+      const v = results[2].value;
+      if (v.skipped) {
+        meta2ResponseBody = `skipped: ${v.skipped}`;
+        // Skip não é falha para o pixel 2: evento fora do escopo, ou vars _2
+        // ausentes (= integração desligada de propósito, ao contrário do pixel 1
+        // onde env sumido é morte silenciosa e alerta).
+        meta2ResponseOk = 1;
+      } else if (v.response) {
+        meta2StatusCode = v.response.status;
+        meta2ResponseOk = v.response.ok ? 1 : 0;
+        try { meta2ResponseBody = await v.response.text(); } catch (e) { meta2ResponseBody = `Read error: ${e.message}`; }
+      }
+    } else if (results[2]?.status === 'rejected') {
+      meta2ResponseBody = `Fetch error: ${results[2].reason?.message || 'unknown'}`;
+    }
+
     // --- Alerta crítico (camada A): Meta recusou uma conversão real ---
     // Em waitUntil próprio para não atrasar a resposta ao navegador. A regra
     // (só lead/purchase, não-bot, throttle 1h) fica em maybeAlertMetaFailure.
+    // Pixel 2 tem chave de throttle própria para uma falha não silenciar a outra.
     context.waitUntil(maybeAlertMetaFailure({
       eventName: body.event_name, isBot, metaResponseOk, metaStatusCode, metaResponseBody, env,
+    }));
+    context.waitUntil(maybeAlertMetaFailure({
+      eventName: body.event_name, isBot, metaResponseOk: meta2ResponseOk, metaStatusCode: meta2StatusCode, metaResponseBody: meta2ResponseBody, env,
+      throttleKey: 'meta_capi_2', label: 'Meta CAPI (pixel 2)',
     }));
 
     // --- Encaminhar lead ao CRM (fan-out desacoplado; destino trocável) ---
@@ -314,8 +347,10 @@ export async function onRequestPost(context) {
 // -------------------------------------------------------
 // META CAPI
 // -------------------------------------------------------
-async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env }) {
-  if (!env.META_PIXEL_ID || !env.META_ACCESS_TOKEN) {
+// Recebe pixelId/accessToken explícitos para suportar múltiplos pixels
+// (pixel principal e o da conta nova em migração) com a mesma função.
+async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }) {
+  if (!pixelId || !accessToken) {
     return { skipped: 'missing meta env', payload: null, response: null };
   }
 
@@ -348,7 +383,7 @@ async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashe
   }
 
   const payloadJson = JSON.stringify(payload);
-  const response = await fetch(`https://graph.facebook.com/v25.0/${env.META_PIXEL_ID}/events?access_token=${env.META_ACCESS_TOKEN}`, {
+  const response = await fetch(`https://graph.facebook.com/v25.0/${pixelId}/events?access_token=${accessToken}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: payloadJson,
@@ -614,14 +649,14 @@ async function sendThrottledAlert(type, text, env) {
 // skip por env ausente (META_PIXEL_ID/token sumiram = morte silenciosa —
 // metaResponseOk fica 0 em todos esses casos). PageView e bots não alertam.
 // Roda em waitUntil: nunca atrasa a resposta do /tracker.
-async function maybeAlertMetaFailure({ eventName, isBot, metaResponseOk, metaStatusCode, metaResponseBody, env }) {
+async function maybeAlertMetaFailure({ eventName, isBot, metaResponseOk, metaStatusCode, metaResponseBody, env, throttleKey = 'meta_capi', label = 'Meta CAPI' }) {
   const name = (eventName || '').toLowerCase();
   if (isBot) return;
   if (name !== 'lead' && name !== 'purchase') return;
   if (metaResponseOk === 1) return;
   await sendThrottledAlert(
-    'meta_capi',
-    `⚠️ Meta CAPI falhou num ${eventName}: status ${metaStatusCode} — ${(metaResponseBody || '').slice(0, 180)}`,
+    throttleKey,
+    `⚠️ ${label} falhou num ${eventName}: status ${metaStatusCode} — ${(metaResponseBody || '').slice(0, 180)}`,
     env
   );
 }

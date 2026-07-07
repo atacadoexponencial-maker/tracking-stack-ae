@@ -51,6 +51,9 @@ const {
       s.parentNode.insertBefore(t,s)}(window, document,'script',
       '/scripts/fbevents.js');
       fbq('init', '915637492681788');
+      // Pixel 2 — conta de anúncios nova (migração). fbq('track') dispara para
+      // todos os pixels inicializados; mesmo event_id → dedup por pixel no Meta.
+      fbq('init', '2800317883678788');
       // event_id único por visualização — mesmo padrão dos pontos de Lead
       var pvEventId = 'pv-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
       // Cópia do navegador (deduplicada no Meta pelo event_id)
