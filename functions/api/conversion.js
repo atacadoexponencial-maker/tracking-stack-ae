@@ -74,7 +74,7 @@ export async function onRequestGet(context) {
     const byPath = new Map();
     for (const row of grouped.results || []) {
       const lp = normalizePath(row.landing_url);
-      if (isNonPagePath(lp)) continue;
+      if (!isKnownPage(lp)) continue;
       const acc = byPath.get(lp) || { visitors: 0, leads: 0 };
       acc.visitors += row.visitors;
       acc.leads += row.leads;
@@ -122,12 +122,37 @@ const BOT_UA_SUBSTRINGS = [
   'scan',
 ];
 
-// Path que não é página do site (sonda de scanner): ponto em algum
-// segmento (/.env, /admin.php, /.git/HEAD) OU prefixo /wp-. Só se
-// aplica a paths reais ('/...'); '(sem página)' passa direto.
-function isNonPagePath(lp) {
-  if (!lp.startsWith('/')) return false; // '(sem página)'
-  return lp.startsWith('/wp-') || lp.split('/').some((seg) => seg.includes('.'));
+// Whitelist de paths que são página real do site: rotas Astro atuais
+// (src/pages/), legados que ainda recebem tráfego real via redirect 301
+// (public/_redirects) e o endpoint funcional /grupo-da-live (redireciona
+// pro grupo de WhatsApp). Troca o antigo modelo de blacklist (excluir
+// sondas de scanner) porque a lista de sondas sem ponto (/env, /login,
+// /admin, /graphql, /rest/*, hashes aleatórios...) é grande demais e
+// sempre incompleta — whitelist é o menor conjunto estável.
+const KNOWN_PAGE_PATHS = new Set([
+  '/',
+  '/lives-semanais-v1',
+  '/se-v1',
+  '/consultoria-gratuita-atacado',
+  '/video-workshop-instagram',
+  '/vsl',
+  '/workshop-gratuito-atacado',
+  '/privacy-policy',
+  '/obrigada',
+  '/calculadora-atacado',
+  '/calculadora-atacado/perguntas',
+  '/calculadora-atacado/resultado',
+  '/obrigado',
+  '/obrigado-workshop',
+  '/ae-video-workshop',
+  '/grupo-da-live',
+]);
+
+// '(sem página)' passa direto (não começa com '/'); paths reais só
+// aparecem se estiverem na whitelist acima.
+function isKnownPage(lp) {
+  if (!lp.startsWith('/')) return true; // '(sem página)'
+  return KNOWN_PAGE_PATHS.has(lp);
 }
 
 // Normaliza landing_url para apenas o path: remove protocolo, domínio, query
