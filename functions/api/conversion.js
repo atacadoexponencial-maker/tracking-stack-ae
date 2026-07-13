@@ -132,6 +132,7 @@ const BOT_UA_SUBSTRINGS = [
 const KNOWN_PAGE_PATHS = new Set([
   '/',
   '/lives-semanais-v1',
+  '/aplicacao-mentoria',
   '/se-v1',
   '/consultoria-gratuita-atacado',
   '/video-workshop-instagram',
