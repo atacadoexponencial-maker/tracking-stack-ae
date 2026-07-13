@@ -1,0 +1,211 @@
+{
+  "name": "Disparos em massa click-up",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-trigger",
+      "name": "Disparo manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "task",
+        "operation": "getAll",
+        "list": "205126080",
+        "returnAll": true,
+        "filters": {
+          "includeClosed": true,
+          "statuses": [
+            "leads de entrada",
+            "qualificação",
+            "cynthia",
+            "follow ra",
+            "reunião",
+            "follow rr",
+            "follow futuro",
+            "nutrição (follow infinito)"
+          ]
+        }
+      },
+      "id": "node-clickup",
+      "name": "Buscar tarefas CRM",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "clickUpApi": {
+          "id": "REPLACE_CLICKUP_CRED",
+          "name": "ClickUp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtra MQLs nos status permitidos, extrai telefone/nome, normaliza e dedup.\n// Toda a regra de filtro fica aqui (fonte da verdade), independente do que o\n// no de busca trouxer.\nconst MQL_ID   = '818e9198-e84a-4695-b4da-b902ef363ea9'; // campo emoji \"MQL\"\nconst PHONE_ID = '754a41c9-2835-48d5-a70e-8b61841e0037'; // campo phone \"Whatsapp\"\nconst NAME_ID  = '7f70363f-9fc4-4d34-aab1-0a81d4a6f45d'; // campo \"Nome\"\n\nconst ALLOWED = new Set([\n  'leads de entrada', 'qualificação', 'cynthia', 'follow ra',\n  'reunião', 'follow rr', 'follow futuro', 'nutrição (follow infinito)'\n]);\n\nfunction normalizePhone(ph) {\n  if (!ph) return '';\n  const digits = String(ph).replace(/\\D/g, '').replace(/^0+/, '');\n  if (!digits) return '';\n  const cc = '55';\n  if (digits.startsWith(cc) && digits.length >= 12 && digits.length <= 13) return digits;\n  if (digits.length >= 10 && digits.length <= 11) return cc + digits;\n  return digits;\n}\n\nconst seen = new Set();\nconst out = [];\nfor (const item of $input.all()) {\n  const task = item.json;\n  const status = ((task.status && task.status.status) || '').toLowerCase().trim();\n  if (!ALLOWED.has(status)) continue;                 // 1) status permitido\n  const cf = Array.isArray(task.custom_fields) ? task.custom_fields : [];\n  const get = (id) => cf.find(f => f && f.id === id) || {};\n  const mql = get(MQL_ID);\n  const isMql = mql.value !== undefined && mql.value !== null && mql.value !== '' && Number(mql.value) !== 0;\n  if (!isMql) continue;                               // 2) MQL marcado\n  const telefone = normalizePhone(get(PHONE_ID).value);\n  if (!telefone) continue;                            // 3) tem telefone valido\n  if (seen.has(telefone)) continue;                   // 4) dedup\n  seen.add(telefone);\n  out.push({ json: { telefone, nome: get(NAME_ID).value || task.name || '', task_id: task.id } });\n}\nreturn out;\n"
+      },
+      "id": "node-filter",
+      "name": "Filtrar MQL + contato",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "node-loop",
+      "name": "Loop (ritmo)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "node-done",
+      "name": "Fim",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 4,
+        "unit": "seconds"
+      },
+      "id": "node-wait",
+      "name": "Esperar 4s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        420
+      ],
+      "webhookId": "disparo-massa-wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/1210632508793716/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"messaging_product\":\"whatsapp\",\"to\":\"{{ $json.telefone }}\",\"type\":\"template\",\"template\":{\"name\":\"aviso_workshop\",\"language\":{\"code\":\"pt_BR\"},\"components\":[{\"type\":\"header\",\"parameters\":[{\"type\":\"image\",\"image\":{\"link\":\"https://atacadoexponencial.com/disparos/aviso-workshop.png\"}}]}]}}",
+        "options": {}
+      },
+      "id": "node-wpp",
+      "name": "Enviar template WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        420
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "REPLACE_WPP_CRED",
+          "name": "WhatsApp account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Disparo manual": {
+      "main": [
+        [
+          {
+            "node": "Buscar tarefas CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar tarefas CRM": {
+      "main": [
+        [
+          {
+            "node": "Filtrar MQL + contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar MQL + contato": {
+      "main": [
+        [
+          {
+            "node": "Loop (ritmo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop (ritmo)": {
+      "main": [
+        [
+          {
+            "node": "Fim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Esperar 4s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar 4s": {
+      "main": [
+        [
+          {
+            "node": "Enviar template WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar template WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Loop (ritmo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

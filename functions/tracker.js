@@ -524,6 +524,7 @@ const CU_FIELD = {
   whatsapp: '754a41c9-2835-48d5-a70e-8b61841e0037',
   justificativa: 'bc6b9579-de7c-4256-b649-b99d95132fa4',
   objetivo: '64e17f77-689c-487a-b8f3-8878df137a27',
+  cargo: '150014bc-01ca-466f-90b6-9711ec19408e',
   funil: 'a663b002-661c-4dc1-86c3-612e94f3a447',
   produto: '6fd27248-beb5-49e1-9626-f1ab7ed81e5a',
   utmSource: '64ffa839-dac1-4995-9cbb-7bd50f9dc5d5',
@@ -676,6 +677,7 @@ async function sendToClickUp({ leadData, sessionData, env }) {
   const faturamento = (leadData.faturamento || '').toString().trim();
   const justificativa = (leadData.justificativa || '').toString().trim();
   const objetivo = (leadData.objetivo || '').toString().trim();
+  const cargo = (leadData.cargo || '').toString().trim();
   const phoneE164 = toClickUpPhone(leadData.telefone);
   const funnel = (leadData.funnel || '').toString().toLowerCase();
 
@@ -707,7 +709,7 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       const comentario =
         `Lead Voltou ao CRM:\n\nNovos Dados:\nNome: ${nome}\nTelefone: ${phoneE164}\n` +
         `E-mail: ${email}\nInstagram: ${instagram}\nFaturamento: ${faturamento}\n` +
-        `Justificativa: ${justificativa}\nObjetivo: ${objetivo}\n\n` +
+        `Cargo: ${cargo}\nJustificativa: ${justificativa}\nObjetivo: ${objetivo}\n\n` +
         `${utmSource} - ${utmMedium} - ${utmContent}`;
       await clickupWrite(() => clickupFetch(`/task/${taskId}/comment`, {
         method: 'POST', body: JSON.stringify({ comment_text: comentario }),
@@ -725,6 +727,7 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       push(CU_FIELD.whatsapp, phoneE164);
       push(CU_FIELD.justificativa, justificativa);
       push(CU_FIELD.objetivo, objetivo);
+      push(CU_FIELD.cargo, cargo);
       customFields.push({ id: CU_FIELD.funil, value: mapFunnelToOption(funnel) });
       customFields.push({ id: CU_FIELD.produto, value: CU_PRODUTO_AE });
       push(CU_FIELD.utmSource, utmSource);
