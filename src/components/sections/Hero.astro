@@ -5,28 +5,46 @@ import logo from '../../assets/brand/logo.png';
 interface Props {
   headline?: string;
   subheadline?: string;
+  badge?: string;
+  navCtaLabel?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  trust?: string[];
+  stats?: { value: string; label: string }[];
 }
-const { headline, subheadline } = Astro.props;
-
-const trust = ['100% gratuito', 'Sem cartão', '35 min'];
-const stats = [
-  { value: '+100', label: 'marcas atacado atendidas' },
-  { value: '35 min', label: 'sessão individual' },
-  { value: 'R$ 0', label: 'custo para você' },
-  { value: '1º', label: 'método próprio para atacado' },
-];
+const {
+  headline,
+  subheadline,
+  badge = 'Para atacadistas com faturamento acima de R$ 20 mil/mês',
+  navCtaLabel = 'Agendar diagnóstico',
+  ctaLabel = 'Quero meu diagnóstico gratuito',
+  ctaHref,
+  trust = ['100% gratuito', 'Sem cartão', '35 min'],
+  stats = [
+    { value: '+100', label: 'marcas atacado atendidas' },
+    { value: '35 min', label: 'sessão individual' },
+    { value: 'R$ 0', label: 'custo para você' },
+    { value: '1º', label: 'método próprio para atacado' },
+  ],
+} = Astro.props;
 ---
 
 <header class="hero">
   <nav class="hero__nav container">
     <Image src={logo} alt="Atacado Exponencial" height={72} class="hero__logo" />
-    <button type="button" class="hero__nav-cta" data-open-chat>
-      Agendar diagnóstico <span aria-hidden="true">→</span>
-    </button>
+    {ctaHref ? (
+      <a class="hero__nav-cta" href={ctaHref}>
+        {navCtaLabel} <span aria-hidden="true">→</span>
+      </a>
+    ) : (
+      <button type="button" class="hero__nav-cta" data-open-chat>
+        Agendar diagnóstico <span aria-hidden="true">→</span>
+      </button>
+    )}
   </nav>
 
   <div class="hero__body">
-    <span class="hero__badge">Para atacadistas com faturamento acima de R$ 20 mil/mês</span>
+    <span class="hero__badge">{badge}</span>
     {headline ? (
       <h1 class="hero__title">{headline}</h1>
     ) : (
@@ -42,10 +60,17 @@ const stats = [
       e entregamos um plano personalizado para destravar seu crescimento.
       </p>
     )}
-    <button type="button" class="hero__cta" data-open-chat>
-      Quero meu diagnóstico gratuito
-      <span class="hero__cta-arrow" aria-hidden="true">→</span>
-    </button>
+    {ctaHref ? (
+      <a class="hero__cta" href={ctaHref}>
+        {ctaLabel}
+        <span class="hero__cta-arrow" aria-hidden="true">→</span>
+      </a>
+    ) : (
+      <button type="button" class="hero__cta" data-open-chat>
+        Quero meu diagnóstico gratuito
+        <span class="hero__cta-arrow" aria-hidden="true">→</span>
+      </button>
+    )}
     <div class="hero__trust">
       {trust.map((t) => <span class="hero__trust-item">{t}</span>)}
     </div>

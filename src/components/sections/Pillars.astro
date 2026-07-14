@@ -1,24 +1,35 @@
 ---
-const pillars = [
-  {
-    number: '01',
-    title: 'Fluxo previsível de novos revendedores',
-    description: 'Funis de venda criados para marcas atacado, não adaptados do varejo.',
-  },
-  {
-    number: '02',
-    title: 'Alta recompra de revendedores ativos',
-    description: 'Estratégias que vão além do produto e mantêm seus revendedores comprando.',
-  },
-];
+interface Props {
+  title?: string;
+  pillars?: { number: string; title: string; description: string }[];
+}
+const {
+  title,
+  pillars = [
+    {
+      number: '01',
+      title: 'Fluxo previsível de novos revendedores',
+      description: 'Funis de venda criados para marcas atacado, não adaptados do varejo.',
+    },
+    {
+      number: '02',
+      title: 'Alta recompra de revendedores ativos',
+      description: 'Estratégias que vão além do produto e mantêm seus revendedores comprando.',
+    },
+  ],
+} = Astro.props;
 ---
 
 <section class="section section--light pillars">
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">Metodologia</span>
-      <h2 class="section-title">Os 2 pilares do Atacado Exponencial</h2>
-      <p class="section-sub">Cada sessão de diagnóstico avalia sua marca nos dois eixos abaixo.</p>
+      {title ? (
+        <h2 class="section-title">{title}</h2>
+      ) : (
+        <h2 class="section-title">Os 2 pilares do Atacado Exponencial</h2>
+      )}
+      <slot name="sub"><p class="section-sub">Cada sessão de diagnóstico avalia sua marca nos dois eixos abaixo.</p></slot>
     </div>
     <div class="pillars__grid">
       {pillars.map((p) => (

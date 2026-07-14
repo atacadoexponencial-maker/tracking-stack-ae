@@ -313,15 +313,28 @@ export async function onRequestPost(context) {
     // --- Roteamento pós-captação (regra de negócio, no backend) ---
     // Funil 'workshop' segue para a página do vídeo do workshop. A live semanal
     // ('lives-semanais-v1') manda o inscrito direto ao grupo de WhatsApp da live
-    // (env LEAD_REDIRECT_LIVE). No diagnóstico, leads de baixo faturamento
-    // ("Menos de 20 Mil") vão ao WhatsApp dos especialistas; os demais ao
-    // agendamento (Calendly). Destinos por env. O front só executa o redirect.
+    // (env LEAD_REDIRECT_LIVE). O funil 'trafego-atacado' roteia pela faixa de
+    // investimento em tráfego (issue 72): até R$ 1.500/mês vai ao WhatsApp
+    // do time (mensagem própria); as demais faixas vão ao Calendly do serviço,
+    // independente do faturamento (issue 70). No diagnóstico, leads de baixo
+    // faturamento ("Menos de 20 Mil") vão ao WhatsApp dos especialistas; os
+    // demais ao agendamento (Calendly).
+    // Destinos por env. O front só executa o redirect.
     let leadRedirect = null;
     if ((body.event_name || '').toLowerCase() === 'lead') {
       if (leadFunnel === 'workshop') {
         leadRedirect = env.LEAD_REDIRECT_WORKSHOP || '/video-workshop-instagram';
       } else if (leadFunnel === 'lives-semanais-v1') {
         leadRedirect = env.LEAD_REDIRECT_LIVE || '/obrigada';
+      } else if (leadFunnel === 'trafego-atacado') {
+        // Roteia pelo texto da faixa (mesmo padrão do faturamento abaixo).
+        // Investimento vazio cai no Calendly — não perde lead qualificado.
+        const investimento = (body.lead_data?.investimento || '').toLowerCase();
+        const baixoInvestimento =
+          investimento.includes('não invisto') || investimento.includes('até r$ 1.500');
+        leadRedirect = baixoInvestimento
+          ? (env.LEAD_REDIRECT_WHATSAPP_TRAFEGO || env.LEAD_REDIRECT_WHATSAPP || '')
+          : (env.LEAD_REDIRECT_CALENDLY_TRAFEGO || 'https://calendly.com/gruposete/aplicacao-trafego-pago');
       } else {
         const faturamento = (body.lead_data?.faturamento || '').toLowerCase();
         const baixoTicket = faturamento.includes('menos de 20');
@@ -525,6 +538,7 @@ const CU_FIELD = {
   justificativa: 'bc6b9579-de7c-4256-b649-b99d95132fa4',
   objetivo: '64e17f77-689c-487a-b8f3-8878df137a27',
   cargo: '150014bc-01ca-466f-90b6-9711ec19408e',
+  investimento: '1e87bc05-95ba-444c-a728-eddf5fb603de', // 💵 Investimento em Tráfego (short_text)
   funil: 'a663b002-661c-4dc1-86c3-612e94f3a447',
   produto: '6fd27248-beb5-49e1-9626-f1ab7ed81e5a',
   utmSource: '64ffa839-dac1-4995-9cbb-7bd50f9dc5d5',
@@ -533,13 +547,24 @@ const CU_FIELD = {
 };
 const CU_DEFAULT_LIST = '205126080'; // 🤑 CRM — fallback se CLICKUP_LIST_ID não estiver setado
 const CU_PRODUTO_AE = '6cf677ce-5592-4ff7-9f63-d18d52d42be5';
+const CU_PRODUTO_ACELERACAO = '5a98b2d7-bfe0-4c29-9de4-2c15721bd9a7'; // ACELERAÇÃO
 const CU_FUNIL_SESSAO = 'a158d342-c1ac-4705-a6da-ce39019f0a2a'; // SESSÃO ESTRATÉGICA
 const CU_FUNIL_LIVES = 'e6893b0b-5a69-4f48-9c99-a3c0a415a118';  // LIVES SEMANAIS
+const CU_FUNIL_APLICACAO = '51f77888-2ba1-4f83-9b33-d8ef516b80be'; // APLICAÇÃO
 
 // Funil do site → opção do dropdown 🔻 Funil. Fallback SESSÃO ESTRATÉGICA
 // (preserva o comportamento do n8n, que carimbava tudo como SE).
 function mapFunnelToOption(funnel) {
-  return (funnel || '').toLowerCase() === 'lives-semanais-v1' ? CU_FUNIL_LIVES : CU_FUNIL_SESSAO;
+  const f = (funnel || '').toLowerCase();
+  if (f === 'lives-semanais-v1') return CU_FUNIL_LIVES;
+  if (f === 'trafego-atacado') return CU_FUNIL_APLICACAO;
+  return CU_FUNIL_SESSAO;
+}
+
+// Funil do site → opção do dropdown 🛒 Produto. O serviço de gestão de
+// tráfego é ACELERAÇÃO; os demais funis seguem no default AE (issue 70).
+function mapProdutoToOption(funnel) {
+  return (funnel || '').toLowerCase() === 'trafego-atacado' ? CU_PRODUTO_ACELERACAO : CU_PRODUTO_AE;
 }
 
 // Mesma normalização do n8n: dígitos, sem zeros à esquerda, prefixa 55, com '+'.
@@ -678,6 +703,7 @@ async function sendToClickUp({ leadData, sessionData, env }) {
   const justificativa = (leadData.justificativa || '').toString().trim();
   const objetivo = (leadData.objetivo || '').toString().trim();
   const cargo = (leadData.cargo || '').toString().trim();
+  const investimento = (leadData.investimento || '').toString().trim();
   const phoneE164 = toClickUpPhone(leadData.telefone);
   const funnel = (leadData.funnel || '').toString().toLowerCase();
 
@@ -709,7 +735,7 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       const comentario =
         `Lead Voltou ao CRM:\n\nNovos Dados:\nNome: ${nome}\nTelefone: ${phoneE164}\n` +
         `E-mail: ${email}\nInstagram: ${instagram}\nFaturamento: ${faturamento}\n` +
-        `Cargo: ${cargo}\nJustificativa: ${justificativa}\nObjetivo: ${objetivo}\n\n` +
+        `Cargo: ${cargo}\nInvestimento em Tráfego: ${investimento}\nJustificativa: ${justificativa}\nObjetivo: ${objetivo}\n\n` +
         `${utmSource} - ${utmMedium} - ${utmContent}`;
       await clickupWrite(() => clickupFetch(`/task/${taskId}/comment`, {
         method: 'POST', body: JSON.stringify({ comment_text: comentario }),
@@ -728,8 +754,9 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       push(CU_FIELD.justificativa, justificativa);
       push(CU_FIELD.objetivo, objetivo);
       push(CU_FIELD.cargo, cargo);
+      push(CU_FIELD.investimento, investimento);
       customFields.push({ id: CU_FIELD.funil, value: mapFunnelToOption(funnel) });
-      customFields.push({ id: CU_FIELD.produto, value: CU_PRODUTO_AE });
+      customFields.push({ id: CU_FIELD.produto, value: mapProdutoToOption(funnel) });
       push(CU_FIELD.utmSource, utmSource);
       push(CU_FIELD.utmMedium, utmMedium);
       push(CU_FIELD.utmContent, utmContent);

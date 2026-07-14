@@ -1,20 +1,52 @@
 ---
+interface Props {
+  id?: string;
+  title?: string;
+  sub?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  notes?: string[];
+}
+const {
+  id,
+  title = 'Você já tem o potencial. Agora precisa do plano.',
+  sub,
+  ctaLabel = 'Agendar diagnóstico gratuito',
+  ctaHref,
+  notes,
+} = Astro.props;
 ---
 
-<section class="section final">
+<section class="section final" id={id}>
   <div class="container final__inner">
     <span class="eyebrow">Próximo passo</span>
-    <h2 class="final__title">Você já tem o potencial. Agora precisa do plano.</h2>
-    <p class="final__sub">
-      35 minutos. Individual. Gratuito. E com um plano de ação personalizado para sair da sessão já sabendo o que fazer.
-    </p>
-    <button type="button" class="btn-cta final__cta" data-open-chat>
-      Agendar diagnóstico gratuito <span aria-hidden="true">→</span>
-    </button>
-    <div class="final__notes">
-      <span>100% gratuito · sem cartão</span>
-      <span>Vagas limitadas por semana</span>
-    </div>
+    <h2 class="final__title">{title}</h2>
+    {sub ? (
+      <p class="final__sub">{sub}</p>
+    ) : (
+      <p class="final__sub">
+        35 minutos. Individual. Gratuito. E com um plano de ação personalizado para sair da sessão já sabendo o que fazer.
+      </p>
+    )}
+    {ctaHref ? (
+      <a class="btn-cta final__cta" href={ctaHref}>
+        {ctaLabel} <span aria-hidden="true">→</span>
+      </a>
+    ) : (
+      <button type="button" class="btn-cta final__cta" data-open-chat>
+        Agendar diagnóstico gratuito <span aria-hidden="true">→</span>
+      </button>
+    )}
+    {notes ? (
+      <div class="final__notes">
+        {notes.map((n) => <span>{n}</span>)}
+      </div>
+    ) : (
+      <div class="final__notes">
+        <span>100% gratuito · sem cartão</span>
+        <span>Vagas limitadas por semana</span>
+      </div>
+    )}
   </div>
 </section>
 

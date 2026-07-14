@@ -1,0 +1,112 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/sections/Hero.astro';
+import Pain from '../components/sections/Pain.astro';
+import Pillars from '../components/sections/Pillars.astro';
+import LogoWall from '../components/sections/LogoWall.astro';
+import HowItWorks from '../components/sections/HowItWorks.astro';
+import Testimonials from '../components/sections/Testimonials.astro';
+import AboutFelipe from '../components/sections/AboutFelipe.astro';
+import Faq from '../components/sections/Faq.astro';
+import FinalCta from '../components/sections/FinalCta.astro';
+
+// Mecanismo de conversão (issue 70): CTAs levam à página de aplicação do
+// serviço. Link interno simples — a atribuição (UTMs/fbclid) viaja pela
+// sessão do middleware (cookie _krob_sid), não pela query string.
+const ctaHref = '/aplicacao-trafego-atacado';
+
+const painPoints = [
+  'Você investe em anúncio e o WhatsApp enche de gente querendo comprar UMA peça: consumidora final, não lojista',
+  'Sua agência fala de alcance, seguidor e engajamento, mas não sabe dizer quantas revendedoras novas entraram no mês',
+  'Você depende de indicação para trazer novos revendedores, e crescimento sob demanda não existe',
+  'As campanhas são adaptação de estratégia de varejo e e-commerce, que simplesmente não funciona para atacado',
+];
+
+const servicePillars = [
+  {
+    number: '01',
+    title: 'Anúncio que vende negócio, não peça',
+    description: 'O atacado de verdade não vende produto, vende oportunidade: revenda, margem, parceria de crescimento. É isso que os criativos comunicam, para atrair quem revende.',
+  },
+  {
+    number: '02',
+    title: 'Funil que termina no seu comercial',
+    description: 'Segmentação e campanhas desenhadas para lojistas e revendedoras. A revendedora qualificada chega pronta no seu WhatsApp: a gente gera a entrada e seu time fecha o pedido.',
+  },
+];
+
+const howSteps = [
+  { number: '01', title: 'Reunião comercial', description: 'Uma conversa individual e direta: entendemos sua operação, mostramos como a gestão funciona e apresentamos o investimento. Você decide se faz sentido.' },
+  { number: '02', title: 'Diagnóstico da operação', description: 'Fechou? A gente mapeia seu ICP, catálogo, condição de primeiro pedido e como seu comercial atende hoje.' },
+  { number: '03', title: 'Estruturação das campanhas', description: 'Criativos, segmentação e funil montados para atrair revendedora qualificada, do jeito que o atacado exige.' },
+  { number: '04', title: 'Gestão e otimização contínua', description: 'Nosso time roda as campanhas no dia a dia: testa, corta o que não performa e escala o que gera revendedora. Com relatórios focados no que importa: custo por revendedora qualificada e novos pedidos.' },
+];
+
+const results = [
+  { initials: 'K', name: 'Keren', role: 'Moda infantil · 6 dígitos/mês', quote: 'Quase 100 novos seguidores por dia, público bem qualificado. 40% das vendas do último mês vieram do tráfego e muitos clientes fechando de primeira.' },
+  { initials: 'V', name: 'Viviane', role: 'Anifil', quote: 'Queríamos pegar estratégia de varejo e aplicar na nossa marca 100% atacada. Com R$ 321 de investimento, fechamos 4 novos clientes no primeiro pedido, ticket médio de R$ 2.000.' },
+  { initials: 'V', name: 'Viviane', role: 'Moda fitness', quote: 'Antes eu dependia literalmente dos mesmos clientes. Hoje, 45% do meu faturamento vem de novos clientes.' },
+];
+
+const faqs = [
+  { q: 'Isso é a mentoria Atacado Exponencial?', a: 'Não. Na mentoria você aprende e implementa o método no seu negócio. Aqui a gente executa o tráfego por você: é um serviço de gestão, feito pelo nosso time.' },
+  { q: 'A verba dos anúncios está inclusa?', a: 'Não. O investimento em mídia é seu e roda na sua conta de anúncios. A gestão é cobrada à parte e os valores são apresentados na reunião.' },
+  { q: 'Vocês criam os anúncios ou eu preciso enviar prontos?', a: 'A criação e a estrutura das campanhas fazem parte da entrega. O escopo completo é apresentado na reunião.' },
+  { q: 'Minha marca vende atacado e varejo. Serve para mim?', a: 'O serviço é desenhado para o canal atacado: gerar revendedoras. Se o atacado é uma parte relevante do seu negócio, faz sentido conversar.' },
+  { q: 'Em quanto tempo vejo resultado?', a: 'Depende do seu ponto de partida: oferta, catálogo, histórico de anúncios e capacidade de atendimento. Na reunião a gente analisa sua operação e fala o que dá para esperar, sem promessa mágica.' },
+  { q: 'Vou receber uma proposta de venda?', a: 'Sim, e é justamente esse o combinado. A reunião é comercial: a gente mostra como o serviço funciona, apresenta o investimento e você decide. Sem aula disfarçada.' },
+];
+---
+
+<BaseLayout
+  title="Gestão de Tráfego Pago para Marcas Atacado | Atacado Exponencial"
+  description="Gestão completa de tráfego pago para marcas atacado — campanhas, criativos e otimização pelo time do Atacado Exponencial. A gente gera a entrada de novas revendedoras e seu comercial fecha os pedidos."
+  showHeader={false}
+>
+  <Hero
+    badge="Para marcas atacado com faturamento acima de R$ 20 mil/mês"
+    headline="Escale seu atacado para R$ 100 mil, R$ 200 mil, R$ 400 mil ou mais por mês com tráfego pago feito exclusivamente para atacado"
+    subheadline="Gestão completa de tráfego pago (campanhas, criativos e otimização) feita pelo time do Atacado Exponencial, o 1º método próprio para o mercado atacado. A gente gera a entrada de novas revendedoras e seu comercial fecha os pedidos."
+    navCtaLabel="Agendar reunião"
+    ctaLabel="Quero tráfego para meu atacado"
+    ctaHref={ctaHref}
+    trust={['Reunião individual', 'Direto com nosso time', 'Sem enrolação']}
+    stats={[
+      { value: '+100', label: 'marcas atacado atendidas' },
+      { value: '2013', label: 'desde quando está no digital' },
+      { value: '1º', label: 'método próprio para atacado' },
+      { value: '100%', label: 'foco em atacado' },
+    ]}
+  />
+  <main>
+    <Pain
+      title="Sua verba de anúncio está rodando no jogo errado."
+      sub="A internet ensinou o atacado a anunciar como varejo. E o resultado aparece na sua operação:"
+      points={painPoints}
+    />
+    <Pillars title="Tráfego para Marcas Atacado: o marketing fazendo o papel certo" pillars={servicePillars}>
+      <p class="section-sub" slot="sub">No atacado, o papel do marketing é um só: <strong>gerar novos revendedores.</strong> É exatamente isso que a gestão de tráfego do Atacado Exponencial entrega: campanhas que já nascem para o jogo do atacado, não adaptadas do varejo.</p>
+    </Pillars>
+    <LogoWall />
+    <HowItWorks title="Do primeiro contato à campanha no ar" sub="" steps={howSteps} />
+    <Testimonials title="Tráfego certo para atacado, na prática" sub="" testimonials={results} />
+    <AboutFelipe />
+    <Faq sub="Tem outra dúvida? Agende a reunião e converse direto com nosso time." faqs={faqs} />
+    <FinalCta
+      title="Você já tem a marca. Agora precisa da entrada previsível."
+      sub="Uma reunião individual com nosso time comercial: a gente analisa sua operação, mostra como a gestão de tráfego funciona para marcas atacado e apresenta o investimento. Você sai com clareza para decidir."
+      ctaLabel="Agendar reunião com o time"
+      ctaHref={ctaHref}
+      notes={['Reunião individual', 'Vagas limitadas por semana']}
+    />
+  </main>
+</BaseLayout>
+
+<style is:global>
+  /* Primeira dobra: a headline desta LP é ~2x mais longa que a do Hero padrão;
+     fonte reduzida para headline + subheadline caberem na tela sem rolar.
+     CSS emitido só nesta página — não afeta /, /se-v1 e /vsl. */
+  .hero .hero__body { gap: 1rem; padding-block: 2.5rem; }
+  .hero .hero__body .hero__title { font-size: clamp(1.7rem, 4vw, 2.75rem); }
+  .hero .hero__body .hero__sub { font-size: 1rem; }
+</style>

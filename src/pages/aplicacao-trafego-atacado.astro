@@ -1,0 +1,23 @@
+---
+/**
+ * Página de aplicação do serviço de gestão de tráfego (issue 70).
+ * Destino dos 3 CTAs da /trafego-atacado. Página fina: renderiza o
+ * componente compartilhado AplicacaoForm com o campo extra de investimento
+ * mensal em tráfego pago (etapa 2). funnel = 'trafego-atacado' — o backend
+ * (functions/tracker.js) roteia todo lead deste funil para o Calendly do
+ * serviço, independente do faturamento (thin-client). O BaseLayout já cuida
+ * do tracking padrão (GA4 + Meta Pixel + espelho POST /tracker com captura
+ * de UTMs) — nenhum mecanismo novo aqui.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AplicacaoForm from '../components/AplicacaoForm.astro';
+---
+
+<BaseLayout
+  title="Aplicação — Gestão de Tráfego para Atacado | Atacado Exponencial"
+  description="Preencha a aplicação e agende a reunião comercial com nosso time: gestão completa de tráfego pago para marcas atacado, com campanhas feitas para gerar novas revendedoras."
+  showHeader={false}
+  showFooter={false}
+>
+  <AplicacaoForm funnel="trafego-atacado" showInvestimento />
+</BaseLayout>
