@@ -1,17 +1,30 @@
 ---
-const testimonials = [
-  { initials: 'MR', name: 'M. Ribeiro', role: 'Marca de moda feminina · São Paulo', quote: 'Aplicamos o plano e em 3 meses dobramos nossa base de revendedores ativos. O diagnóstico mostrou exatamente onde estávamos errando na captação.' },
-  { initials: 'AL', name: 'A. Lima', role: 'Atacado de acessórios · Rio de Janeiro', quote: 'Finalmente entendi por que minha recompra era tão baixa. Parecia simples depois que o Felipe mostrou, mas a gente fica tão dentro do dia a dia que não enxerga.' },
-  { initials: 'CS', name: 'C. Souza', role: 'Marca infantil atacado · Minas Gerais', quote: 'Não foi uma consultoria genérica. Cada ponto foi analisado dentro da realidade do meu negócio. Saí com um plano concreto, não com teoria.' },
-];
+interface Props {
+  title?: string;
+  sub?: string;
+  testimonials?: { initials: string; name: string; role: string; quote: string }[];
+}
+const {
+  title,
+  sub = '+100 marcas atendidas',
+  testimonials = [
+    { initials: 'MR', name: 'M. Ribeiro', role: 'Marca de moda feminina · São Paulo', quote: 'Aplicamos o plano e em 3 meses dobramos nossa base de revendedores ativos. O diagnóstico mostrou exatamente onde estávamos errando na captação.' },
+    { initials: 'AL', name: 'A. Lima', role: 'Atacado de acessórios · Rio de Janeiro', quote: 'Finalmente entendi por que minha recompra era tão baixa. Parecia simples depois que o Felipe mostrou, mas a gente fica tão dentro do dia a dia que não enxerga.' },
+    { initials: 'CS', name: 'C. Souza', role: 'Marca infantil atacado · Minas Gerais', quote: 'Não foi uma consultoria genérica. Cada ponto foi analisado dentro da realidade do meu negócio. Saí com um plano concreto, não com teoria.' },
+  ],
+} = Astro.props;
 ---
 
 <section class="section section--light testi">
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">Resultados</span>
-      <h2 class="section-title">Marcas que <span class="testi__hl">aplicaram</span> o método e escalaram com resultados</h2>
-      <p class="section-sub">+100 marcas atendidas</p>
+      {title ? (
+        <h2 class="section-title">{title}</h2>
+      ) : (
+        <h2 class="section-title">Marcas que <span class="testi__hl">aplicaram</span> o método e escalaram com resultados</h2>
+      )}
+      {sub && <p class="section-sub">{sub}</p>}
     </div>
     <div class="testi__track">
       {testimonials.map((t) => (

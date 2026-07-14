@@ -1,25 +1,42 @@
 ---
-const painPoints = [
-  'Seu faturamento oscila todo mês e você não sabe exatamente por quê',
-  'Você depende de indicações para trazer novos revendedores e crescimento sob demanda não existe',
-  'Revendedores fazem o primeiro pedido e somem. Recompra baixa, esforço alto',
-  'Você aplica estratégias de varejo e e-commerce que simplesmente não funcionam para atacado',
-];
+interface Props {
+  title?: string;
+  sub?: string;
+  points?: string[];
+}
+const {
+  title,
+  sub,
+  points = [
+    'Seu faturamento oscila todo mês e você não sabe exatamente por quê',
+    'Você depende de indicações para trazer novos revendedores e crescimento sob demanda não existe',
+    'Revendedores fazem o primeiro pedido e somem. Recompra baixa, esforço alto',
+    'Você aplica estratégias de varejo e e-commerce que simplesmente não funcionam para atacado',
+  ],
+} = Astro.props;
 ---
 
 <section class="section pain">
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">O Problema</span>
-      <h2 class="section-title">
-        Seu atacado cresceu até aqui no braço. Mas escala de verdade <span class="pain__hl">exige um sistema.</span>
-      </h2>
-      <p class="section-sub">
-        A maioria das marcas atacado trava no mesmo ponto, e o problema quase nunca está no produto.
-      </p>
+      {title ? (
+        <h2 class="section-title">{title}</h2>
+      ) : (
+        <h2 class="section-title">
+          Seu atacado cresceu até aqui no braço. Mas escala de verdade <span class="pain__hl">exige um sistema.</span>
+        </h2>
+      )}
+      {sub ? (
+        <p class="section-sub">{sub}</p>
+      ) : (
+        <p class="section-sub">
+          A maioria das marcas atacado trava no mesmo ponto, e o problema quase nunca está no produto.
+        </p>
+      )}
     </div>
     <div class="pain__list">
-      {painPoints.map((point) => (
+      {points.map((point) => (
         <div class="pain__item">
           <span class="pain__x" aria-hidden="true">✕</span>
           <p>{point}</p>

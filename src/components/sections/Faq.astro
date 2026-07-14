@@ -1,11 +1,18 @@
 ---
-const faqs = [
+interface Props {
+  sub?: string;
+  faqs?: { q: string; a: string }[];
+}
+const {
+  sub = 'Tem outra dúvida? Agende o diagnóstico e tire suas dúvidas com nosso time de especialistas.',
+  faqs = [
   { q: 'O diagnóstico é realmente gratuito?', a: 'Sim, 100% gratuito. Você não paga nada pela sessão e não precisa fornecer cartão de crédito. O diagnóstico é a nossa forma de mostrar o valor do nosso método antes de qualquer decisão de investimento.' },
   { q: 'Quem pode participar?', a: 'O diagnóstico é exclusivo para donos de marcas que já vendem no atacado para revendedores, ou que querem estruturar esse modelo. Se você vende só no varejo, essa sessão não é para o seu momento atual.' },
   { q: 'Quanto tempo dura a sessão?', a: '35 minutos por videochamada. Esse tempo é suficiente para mapear sua situação atual, identificar o gargalo principal e montar um plano de ação inicial.' },
   { q: 'Vou receber uma proposta de venda?', a: 'Só nos últimos 5 minutos, e apenas se fizer sentido para o seu momento. Nos 30 minutos anteriores o foco é 100% no seu diagnóstico e no seu plano de ação. Você pode sair da sessão sem comprar nada e ainda assim ter muito valor.' },
   { q: 'Preciso me preparar para a sessão?', a: 'Não precisa de preparação especial. Chegue com disposição para ser honesto sobre onde seu atacado está hoje. Quanto mais contexto você trouxer sobre sua marca, mais preciso será o diagnóstico.' },
-];
+  ],
+} = Astro.props;
 ---
 
 <section class="section section--light faq">
@@ -13,7 +20,7 @@ const faqs = [
     <div class="faq__intro">
       <span class="eyebrow">FAQ</span>
       <h2 class="section-title">Perguntas frequentes</h2>
-      <p class="section-sub">Tem outra dúvida? Agende o diagnóstico e tire suas dúvidas com nosso time de especialistas.</p>
+      <p class="section-sub">{sub}</p>
     </div>
     <div class="faq__list">
       {faqs.map((faq) => (

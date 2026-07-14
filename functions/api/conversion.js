@@ -133,6 +133,8 @@ const KNOWN_PAGE_PATHS = new Set([
   '/',
   '/lives-semanais-v1',
   '/aplicacao-mentoria',
+  '/aplicacao-trafego-atacado',
+  '/trafego-atacado',
   '/se-v1',
   '/consultoria-gratuita-atacado',
   '/video-workshop-instagram',

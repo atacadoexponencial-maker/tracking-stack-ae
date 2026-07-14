@@ -1,0 +1,395 @@
+---
+/**
+ * Formulário de aplicação multi-etapas (cartão) — componente compartilhado
+ * (issue 70), extraído de aplicacao-mentoria.astro (issues 64/65/66/68).
+ * Logo + form em cartão com 3 etapas, validação client-side por campo,
+ * máscara de telefone, navegação ←/→ e envio ao /tracker com redirect
+ * decidido pelo backend (thin-client). Usado com o BaseLayout, que já
+ * cuida do tracking padrão (GA4 + Meta Pixel + espelho POST /tracker
+ * com captura de UTMs) — nenhum mecanismo novo de rastreamento aqui.
+ *
+ * Props:
+ * - funnel: valor de lead_data.funnel (vai em data-funnel no <form>;
+ *   o script lê form.dataset.funnel).
+ * - showInvestimento: renderiza o <select name="investimento"> na etapa 2
+ *   (após faturamento). O script tolera campos ausentes (if (!el) continue),
+ *   então páginas sem o campo seguem com o payload de sempre.
+ */
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+
+interface Props {
+  funnel: string;
+  showInvestimento?: boolean;
+}
+
+const { funnel, showInvestimento = false } = Astro.props;
+
+// As 10 faixas de faturamento — idênticas ao LeadFormModal/LeadChat;
+// o backend (functions/tracker.js) roteia pelo texto, não alterar.
+const faturamentoOptions = [
+  'Menos de 20 Mil',
+  'De 20 a 30 Mil',
+  'De 30 a 40 Mil',
+  'De 40 a 75 Mil',
+  'De 75 a 100 Mil',
+  'De 100 a 150 Mil',
+  'De 150 a 200 Mil',
+  'De 200 a 300 Mil',
+  'De 300 a 500 Mil',
+  'Mais de 500 Mil',
+];
+
+// As 4 opções de cargo (campo novo, definido na spec).
+const cargoOptions = ['Dono(a) / Sócio(a)', 'Gestor(a)', 'Funcionário(a)', 'Outro'];
+
+// As 5 faixas de investimento em tráfego pago — exatas da decisão da
+// usuária (issues 70/72); o ClickUp recebe o texto da faixa (short_text)
+// e o backend (functions/tracker.js) roteia pelo texto, não alterar.
+const investimentoOptions = [
+  'Ainda não invisto',
+  'Até R$ 1.500/mês',
+  'De R$ 1.500 a R$ 3.000/mês',
+  'De R$ 3.000 a R$ 10.000/mês',
+  'Acima de R$ 10.000/mês',
+];
+---
+
+<main class="section aplicacao">
+  <div class="container aplicacao__inner">
+    <Image src={logo} alt="Atacado Exponencial" height={72} class="aplicacao__logo" />
+
+    <form class="aplicacao__form" id="aplicacao-form-el" data-funnel={funnel}>
+      <h1 class="aplicacao__card-titulo">FORMULÁRIO DE APLICAÇÃO <span class="aplicacao__card-etapa" id="aplicacao-etapa-indicador">1 de 3</span></h1>
+
+      <div class="aplicacao__etapa" data-etapa="1">
+        <label class="aplicacao__field">
+          <span>Nome *</span>
+          <input name="nome" type="text" placeholder="Nome" autocomplete="name" />
+          <small class="aplicacao__field-erro" hidden></small>
+        </label>
+        <label class="aplicacao__field">
+          <span>WhatsApp *</span>
+          <input name="telefone" type="tel" placeholder="WhatsApp" autocomplete="tel" />
+          <small class="aplicacao__field-erro" hidden></small>
+        </label>
+        <label class="aplicacao__field">
+          <span>@instagram da marca *</span>
+          <input name="instagram" type="text" placeholder="@suamarca" />
+          <small class="aplicacao__field-erro" hidden></small>
+        </label>
+      </div>
+
+      <div class="aplicacao__etapa" data-etapa="2" hidden>
+        <label class="aplicacao__field">
+          <span>Email *</span>
+          <input name="email" type="email" placeholder="Email" autocomplete="email" />
+          <small class="aplicacao__field-erro" hidden></small>
+        </label>
+        <label class="aplicacao__field">
+          <span>Faturamento mensal *</span>
+          <select name="faturamento">
+            <option value="" disabled selected>Selecione…</option>
+            {faturamentoOptions.map((opt) => <option>{opt}</option>)}
+          </select>
+          <small class="aplicacao__field-erro" hidden></small>
+        </label>
+        {showInvestimento && (
+          <label class="aplicacao__field">
+            <span>Quanto você investe em tráfego pago por mês? *</span>
+            <select name="investimento">
+              <option value="" disabled selected>Selecione…</option>
+              {investimentoOptions.map((opt) => <option>{opt}</option>)}
+            </select>
+            <small class="aplicacao__field-erro" hidden></small>
+          </label>
+        )}
+        <label class="aplicacao__field">
+          <span>Cargo *</span>
+          <select name="cargo">
+            <option value="" disabled selected>Selecione…</option>
+            {cargoOptions.map((opt) => <option>{opt}</option>)}
+          </select>
+          <small class="aplicacao__field-erro" hidden></small>
+        </label>
+      </div>
+
+      <div class="aplicacao__etapa" data-etapa="3" hidden>
+        <label class="aplicacao__field">
+          <span>Qual o principal desafio do seu negócio hoje? *</span>
+          <input name="justificativa" type="text" placeholder="Conte em poucas palavras" />
+          <small class="aplicacao__field-erro" hidden></small>
+        </label>
+        <label class="aplicacao__field">
+          <span>E qual o seu maior objetivo para os próximos meses? *</span>
+          <input name="objetivo" type="text" placeholder="Conte em poucas palavras" />
+          <small class="aplicacao__field-erro" hidden></small>
+        </label>
+      </div>
+
+      <p id="aplicacao-erro" class="aplicacao__erro" hidden></p>
+
+      <div class="aplicacao__nav">
+        <button type="button" id="aplicacao-voltar" aria-label="Voltar" hidden>←</button>
+        <button type="button" id="aplicacao-avancar" aria-label="Avançar">→</button>
+        <button type="submit" id="aplicacao-submit" class="btn-cta aplicacao__submit" hidden>ENVIAR APLICAÇÃO →</button>
+      </div>
+    </form>
+
+    <p class="aplicacao__privacidade">Seus dados ficam seguros. O time entra em contato pelo WhatsApp/email informados.</p>
+  </div>
+</main>
+
+<style>
+  .aplicacao__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1rem; max-width: 32rem; margin-inline: auto; }
+  .aplicacao__logo { height: 2.25rem; width: auto; margin-bottom: 0.5rem; }
+
+  .aplicacao__form {
+    margin-top: 1.5rem; width: 100%; display: flex; flex-direction: column; gap: 1rem; text-align: left;
+    background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 1rem;
+    overflow: hidden; padding: 0;
+  }
+  .aplicacao__card-titulo {
+    padding: 1.25rem 1.25rem 0; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: hsl(var(--light-bg));
+    display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
+  }
+  .aplicacao__card-etapa { color: hsl(var(--muted-foreground)); }
+  .aplicacao__etapa { display: flex; flex-direction: column; gap: 1rem; padding: 0 1.25rem; }
+  .aplicacao__etapa[hidden] { display: none; }
+  .aplicacao__field { display: flex; flex-direction: column; gap: 0.4rem; }
+  .aplicacao__field > span { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: hsl(var(--light-bg)); }
+  .aplicacao__field input,
+  .aplicacao__field select {
+    width: 100%; padding: 1rem 1.25rem; border: 1px solid hsl(var(--input)); border-radius: 0.75rem;
+    background: hsl(var(--card)); color: hsl(var(--card-foreground)); font-family: inherit; font-size: 1rem;
+  }
+  .aplicacao__field input::placeholder { color: hsl(var(--muted-foreground)); }
+  .aplicacao__field input:focus,
+  .aplicacao__field select:focus { outline: none; border-color: hsl(var(--ring)); }
+
+  .aplicacao__erro { color: hsl(var(--destructive)); font-size: 0.9rem; padding: 0 1.25rem; }
+  .aplicacao__field-erro { color: hsl(var(--destructive)); font-size: 0.8rem; }
+
+  .aplicacao__nav {
+    display: flex; justify-content: space-between; align-items: center;
+    background: hsl(var(--primary-foreground)); padding: 0.75rem 1.25rem;
+  }
+  .aplicacao__nav button[hidden],
+  #aplicacao-voltar[hidden],
+  #aplicacao-avancar[hidden],
+  .aplicacao__submit[hidden] { display: none; }
+  #aplicacao-voltar,
+  #aplicacao-avancar {
+    background: none; border: none; cursor: pointer; color: hsl(var(--light-bg));
+    font-size: 1.5rem; line-height: 1; min-width: 44px; min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 0.5rem;
+  }
+  #aplicacao-avancar,
+  .aplicacao__submit { margin-left: auto; }
+  .aplicacao__privacidade { margin-top: 0.5rem; color: hsl(var(--muted-foreground)); font-size: 0.85rem; max-width: 28rem; }
+</style>
+
+<script>
+  // Validação client-side de formato (issue 65). Validadores e mensagens
+  // copiados dos steps do LeadChat.astro; selects (faturamento/investimento/
+  // cargo) são válidos quando value !== '' (a option placeholder tem value="").
+  // FIELDS/STEP_FIELDS são o SUPERSET dos campos de todas as páginas que usam
+  // o componente — validateAll/validateStep ignoram campos ausentes no DOM
+  // (if (!el) continue), então a página sem 'investimento' segue igual.
+  type Field = { name: string; validate: (v: string) => boolean; errorMsg: string };
+
+  const FIELDS: Field[] = [
+    { name: 'nome', validate: (v) => v.trim().length >= 2, errorMsg: 'Digite seu nome.' },
+    { name: 'telefone', validate: (v) => v.replace(/\D/g, '').length >= 10, errorMsg: 'Digite um WhatsApp válido com DDD.' },
+    { name: 'email', validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), errorMsg: 'Digite um email válido.' },
+    { name: 'instagram', validate: (v) => v.trim().length >= 1, errorMsg: 'Digite o @ da sua marca.' },
+    { name: 'faturamento', validate: (v) => v !== '', errorMsg: 'Escolha a faixa de faturamento.' },
+    { name: 'investimento', validate: (v) => v !== '', errorMsg: 'Escolha a faixa de investimento.' },
+    { name: 'cargo', validate: (v) => v !== '', errorMsg: 'Escolha o seu cargo.' },
+    { name: 'justificativa', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
+    { name: 'objetivo', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
+  ];
+
+  const form = document.getElementById('aplicacao-form-el') as HTMLFormElement | null;
+
+  if (form) {
+    type FieldEl = HTMLInputElement | HTMLSelectElement;
+
+    const getEl = (name: string) =>
+      form.querySelector<FieldEl>(`[name="${name}"]`);
+
+    const getErrEl = (el: FieldEl) =>
+      el.closest('.aplicacao__field')?.querySelector<HTMLElement>('.aplicacao__field-erro') ?? null;
+
+    function showError(el: FieldEl, msg: string) {
+      el.setAttribute('aria-invalid', 'true');
+      const err = getErrEl(el);
+      if (err) { err.textContent = msg; err.hidden = false; }
+    }
+
+    function clearError(el: FieldEl) {
+      el.removeAttribute('aria-invalid');
+      const err = getErrEl(el);
+      if (err) { err.textContent = ''; err.hidden = true; }
+    }
+
+    // Valida os campos presentes no DOM, mostra/esconde os erros por campo e
+    // devolve o primeiro elemento inválido na ordem do form (ou null).
+    function validateAll(): FieldEl | null {
+      let firstInvalid: FieldEl | null = null;
+      for (const field of FIELDS) {
+        const el = getEl(field.name);
+        if (!el) continue;
+        if (field.validate(el.value)) {
+          clearError(el);
+        } else {
+          showError(el, field.errorMsg);
+          if (!firstInvalid) firstInvalid = el;
+        }
+      }
+      return firstInvalid;
+    }
+
+    // ——— Multi-etapas (issue 68) ———
+    // Ordem = ordem no DOM; validação por etapa reaproveita FIELDS/showError/clearError.
+    const STEP_FIELDS = [
+      ['nome', 'telefone', 'instagram'],
+      ['email', 'faturamento', 'investimento', 'cargo'],
+      ['justificativa', 'objetivo'],
+    ];
+    let currentStep = 1;
+
+    const etapaEls = form.querySelectorAll<HTMLElement>('.aplicacao__etapa[data-etapa]');
+    const voltarBtn = document.getElementById('aplicacao-voltar') as HTMLButtonElement | null;
+    const avancarBtn = document.getElementById('aplicacao-avancar') as HTMLButtonElement | null;
+    const submitBtn = document.getElementById('aplicacao-submit') as HTMLButtonElement | null;
+    const etapaIndicador = document.getElementById('aplicacao-etapa-indicador');
+
+    // Igual ao validateAll, mas só nos campos da etapa n; campos das outras
+    // etapas não são tocados (etapas não visitadas nunca exibem erro).
+    function validateStep(n: number): FieldEl | null {
+      const names = STEP_FIELDS[n - 1] ?? [];
+      let firstInvalid: FieldEl | null = null;
+      for (const field of FIELDS) {
+        if (!names.includes(field.name)) continue;
+        const el = getEl(field.name);
+        if (!el) continue;
+        if (field.validate(el.value)) {
+          clearError(el);
+        } else {
+          showError(el, field.errorMsg);
+          if (!firstInvalid) firstInvalid = el;
+        }
+      }
+      return firstInvalid;
+    }
+
+    // Mostra só a etapa n, ajusta botões e indicador. Não valida, não limpa valores.
+    function showStep(n: number) {
+      etapaEls.forEach((el) => { el.hidden = el.dataset.etapa !== String(n); });
+      if (voltarBtn) voltarBtn.hidden = !(n > 1);
+      if (avancarBtn) avancarBtn.hidden = !(n < 3);
+      if (submitBtn) submitBtn.hidden = n !== 3;
+      if (etapaIndicador) etapaIndicador.textContent = `${n} de 3`;
+      currentStep = n;
+    }
+
+    function avancar() {
+      const invalid = validateStep(currentStep);
+      if (invalid) { invalid.focus(); return; }
+      showStep(currentStep + 1);
+    }
+
+    avancarBtn?.addEventListener('click', avancar);
+    voltarBtn?.addEventListener('click', () => showStep(currentStep - 1));
+
+    // Máscara de telefone brasileiro: só dígitos, máx. 11, sempre
+    // recalculada a partir dos dígitos (apagar caracteres funciona).
+    const telefoneEl = getEl('telefone');
+    if (telefoneEl) {
+      telefoneEl.addEventListener('input', () => {
+        const digits = telefoneEl.value.replace(/\D/g, '').slice(0, 11);
+        let masked = digits;
+        if (digits.length > 2) {
+          const rest = digits.slice(2);
+          const split = digits.length === 11 ? 5 : 4;
+          masked = `(${digits.slice(0, 2)}) ${rest.length > split ? `${rest.slice(0, split)}-${rest.slice(split)}` : rest}`;
+        } else if (digits.length > 0) {
+          masked = `(${digits}`;
+        }
+        telefoneEl.value = masked;
+      });
+    }
+
+    // Correção em tempo real: some a mensagem assim que o campo fica válido
+    // (erro novo só aparece no submit).
+    for (const field of FIELDS) {
+      const el = getEl(field.name);
+      if (!el) continue;
+      const eventName = el instanceof HTMLSelectElement ? 'change' : 'input';
+      el.addEventListener(eventName, () => {
+        if (field.validate(el.value)) clearError(el);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      // Enter num input das etapas 1/2 dispara submit — tratar como "→".
+      if (currentStep < 3) { avancar(); return; }
+      const firstInvalid = validateAll();
+      if (firstInvalid) {
+        // Defensivo: se o inválido estiver numa etapa anterior, navega até ela.
+        const stepIdx = STEP_FIELDS.findIndex((names) => names.includes(firstInvalid.getAttribute('name') ?? ''));
+        if (stepIdx !== -1 && stepIdx + 1 !== currentStep) showStep(stepIdx + 1);
+        firstInvalid.focus();
+        return;
+      }
+      // Issue 66: envio ao /tracker + estado "Enviando…" + redirect.
+      // Padrão copiado de lives-semanais-v1.astro — o destino pós-envio
+      // é decidido 100% pelo backend (por funil/faixa de faturamento);
+      // a página só segue o redirect ou o fallback.
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enviando…';
+      }
+      const lead: Record<string, string> = {
+        nome: getEl('nome')?.value ?? '',
+        telefone: getEl('telefone')?.value ?? '',
+        email: getEl('email')?.value ?? '',
+        instagram: getEl('instagram')?.value ?? '',
+        faturamento: getEl('faturamento')?.value ?? '',
+        cargo: getEl('cargo')?.value ?? '',
+        justificativa: getEl('justificativa')?.value ?? '',
+        objetivo: getEl('objetivo')?.value ?? '',
+        funnel: form.dataset.funnel ?? '',
+      };
+      // 'investimento' só entra no payload quando o campo existe na página —
+      // o payload das páginas sem o campo permanece idêntico ao de antes.
+      const investimentoEl = getEl('investimento');
+      if (investimentoEl) lead.investimento = investimentoEl.value;
+      let redirect = '/obrigada';
+      const eventId = 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      try { if (typeof (window as any).fbq === 'function') (window as any).fbq('track', 'Lead', {}, { eventID: eventId }); } catch (e) { /* espelho browser nunca bloqueia o envio */ }
+      try {
+        const res = await fetch('/tracker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: 'Lead',
+            event_id: eventId,
+            event_time: Math.floor(Date.now() / 1000),
+            event_source_url: window.location.href,
+            user_data: { em: lead.email, ph: lead.telefone, fn: lead.nome },
+            lead_data: lead,
+          }),
+        });
+        const json = await res.json();
+        if (json && json.redirect) redirect = json.redirect;
+      } catch (e) {
+        /* sem retry (evitaria lead duplicado) — segue para o fallback */
+      }
+      window.location.href = redirect;
+    });
+  }
+</script>
