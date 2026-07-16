@@ -128,14 +128,17 @@
   };
 
   R.funil = (d) => {
-    const max = Math.max(...d.etapas.map((e) => e.valor), 1);
+    // Silhueta fixa: 100% na primeira etapa, afunilando por igual até 40% na
+    // última — o desenho não muda com os dados (pedido da usuária).
+    const n = d.etapas.length;
+    const largura = (i) => 100 - (n > 1 ? (i * 60) / (n - 1) : 0);
     $('#funil-etapas').innerHTML = d.etapas.map((e, i) => {
       const taxa = i === 0 ? '' :
         `<div class="f-taxa">▼ <b>${fmtNum((e.valor / (d.etapas[i - 1].valor || 1)) * 100)}%</b> da etapa anterior</div>`;
       return `
       <div class="f-etapa">
         ${taxa}
-        <div class="f-barra" style="width:${Math.max((e.valor / max) * 100, 42)}%">
+        <div class="f-barra" style="width:${largura(i)}%">
           <span class="f-nome">${esc(e.nome)}</span>
           <span class="f-valor">${fmtInt(e.valor)}</span>
         </div>
