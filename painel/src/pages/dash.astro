@@ -1,0 +1,100 @@
+---
+// App do dashboard do cliente (issues 75–82). Servido em /c/<slug> via
+// rewrite (_redirects). O slug é lido do path pelo dash.js e validado no
+// backend a cada chamada de dados. Thin client: só exibe o que as APIs mandam.
+import '../styles/dash.css';
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Painel — Atacado Exponencial</title>
+  </head>
+  <body>
+    <div class="erro-slug" id="erro-slug" hidden>
+      <div>
+        <p><strong>Link inválido ou expirado.</strong></p>
+        <p>Fale com a equipe para receber um novo acesso.</p>
+      </div>
+    </div>
+
+    <div class="layout" id="app" hidden>
+      <aside class="sidebar">
+        <div class="marca">Atacado Exponencial<small id="nome-cliente">—</small></div>
+        <nav class="nav" id="nav">
+          <a href="#home" data-secao="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21h-6v-6h-6v6H3z"/></svg>Home</a>
+          <a href="#funil" data-secao="funil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>Funil</a>
+          <a href="#receita" data-secao="receita"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 6H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg>Receita</a>
+          <a href="#conversao" data-secao="conversao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Conversão</a>
+          <a href="#produtos" data-secao="produtos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8"/></svg>Produtos</a>
+          <a href="#metas" data-secao="metas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 12h.01"/></svg>Metas</a>
+          <a href="#criativos" data-secao="criativos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>Criativos</a>
+        </nav>
+      </aside>
+
+      <main class="conteudo">
+        <div class="topo">
+          <div>
+            <h1 id="titulo-secao">Home</h1>
+            <div class="cliente" id="subtitulo"></div>
+          </div>
+          <div class="filtros">
+            <select id="preset">
+              <option value="7">Últimos 7 dias</option>
+              <option value="14">Últimos 14 dias</option>
+              <option value="30" selected>Últimos 30 dias</option>
+              <option value="mes">Este mês</option>
+              <option value="mes-passado">Mês passado</option>
+              <option value="custom">Personalizado…</option>
+            </select>
+            <input type="date" id="data-de" hidden />
+            <input type="date" id="data-ate" hidden />
+            <span class="atualizado" id="atualizado"></span>
+          </div>
+        </div>
+
+        <section class="secao" id="secao-home">
+          <div class="grid-kpi" id="home-kpis"></div>
+          <div class="duas-colunas">
+            <div class="card"><h2>Principais Fontes de Receita <small>por canal</small></h2><div class="tabela-wrap" id="home-canais"></div></div>
+            <div class="card"><h2>Produtos <small>por receita</small></h2><div class="tabela-wrap" id="home-produtos"></div></div>
+          </div>
+        </section>
+
+        <section class="secao" id="secao-funil">
+          <div class="card"><h2>Funil de Vendas</h2><div class="funil" id="funil-etapas"></div></div>
+          <div class="grid-kpi" id="funil-kpis"></div>
+        </section>
+
+        <section class="secao" id="secao-receita">
+          <div class="card"><h2>Receita por dia</h2><div class="grafico" id="receita-grafico"></div></div>
+          <div id="receita-fontes"></div>
+        </section>
+
+        <section class="secao" id="secao-conversao">
+          <div class="grid-kpi" id="conv-kpis"></div>
+          <div class="card"><h2>Agrupamento de Canais</h2><div class="tabela-wrap" id="conv-canais"></div></div>
+          <div class="card"><h2>Origem / Mídia</h2><div class="tabela-wrap" id="conv-origem"></div></div>
+        </section>
+
+        <section class="secao" id="secao-produtos">
+          <div class="card"><h2>Produtos</h2><div class="tabela-wrap" id="produtos-tabela"></div></div>
+        </section>
+
+        <section class="secao" id="secao-metas">
+          <div class="grid-kpi" id="metas-kpis"></div>
+          <div class="card"><h2>Acompanhamento da Meta <small>mês corrente</small></h2><div class="tabela-wrap" id="metas-tabela"></div></div>
+        </section>
+
+        <section class="secao" id="secao-criativos">
+          <div class="card"><h2>Criativos de Conversão <small>Meta Ads</small></h2><div class="tabela-wrap" id="criativos-tabela"></div></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/dash.js" is:inline defer></script>
+  </body>
+</html>

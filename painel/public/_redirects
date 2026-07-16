@@ -1,3 +1,0 @@
-# /c/<slug> serve o app do dashboard (SPA estática); o slug é resolvido
-# no cliente e validado pelo backend em toda chamada de dados.
-/c/* /dash 200
