@@ -142,6 +142,18 @@
       : '<div class="aviso">Nenhuma conexão para monitorar ainda.</div>';
   }
 
+  $('#btn-sync').addEventListener('click', async () => {
+    $('#btn-sync').disabled = true;
+    $('#sync-msg').textContent = 'Sincronizando…';
+    try {
+      const r = await api('sync', 'POST', {});
+      const total = r.clientes.flatMap((c) => c.resultados).reduce((s, x) => s + (x.linhas || 0), 0);
+      $('#sync-msg').textContent = `Sincronizado (${r.de} a ${r.ate}) — ${total} linhas.`;
+      carregarStatus();
+    } catch (e) { $('#sync-msg').textContent = 'Falhou: ' + e.message; }
+    $('#btn-sync').disabled = false;
+  });
+
   // ---------- navegação ----------
   const VIEWS = { clientes: carregarClientes, metas: async () => { await carregarClientes(); await carregarMetas(); }, status: carregarStatus };
   function trocarView() {
