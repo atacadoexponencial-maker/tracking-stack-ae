@@ -63,8 +63,12 @@ Google Ads ─┐
 
 ## Parte 1 — O que será construído
 
-Projeto **novo e separado** do tracking-avancado (repositório e domínio próprios,
-ex.: `painel.atacadoexponencial.com`), na mesma stack Cloudflare (Pages + Functions + D1 + Cron), custo ~zero.
+**Mesmo repositório** (tracking-avancado), em subpasta isolada `painel/` com app próprio —
+decisão da usuária para manter tudo organizado num lugar só. No Cloudflare, um **segundo
+projeto Pages** aponta para o mesmo repo com root directory = `painel/` e build watch paths,
+garantindo builds, subdomínio (`painel.atacadoexponencial.com` — mesmo domínio do site, decisão confirmada) e banco D1 independentes
+do site de produção. Mesma stack (Pages + Functions + D1 + Cron), custo ~zero.
+As issues do painel vivem em `issues/74-*` a `issues/104-*` (prefixo `painel-`).
 
 ### 1. Sync (o robô)
 - Cron 4x/dia (a cada 6h) puxa do endpoint JSON do Windsor os resumos diários de
@@ -89,7 +93,7 @@ ex.: `painel.atacadoexponencial.com`), na mesma stack Cloudflare (Pages + Functi
 - Gestão dos links secretos (gerar, revogar, regenerar).
 
 ### 4. Acesso do cliente
-- Link secreto por cliente (ex.: `painel.seteads.com.br/c/qvestido-x7k2m9`).
+- Link secreto por cliente (ex.: `painel.atacadoexponencial.com/c/upsemijoias-x7k2m9`).
 - Cliente enxerga apenas os próprios dados; link revogável no admin.
 
 ## Parte 2 — Requisitos e pendências (o que precisamos ter/verificar)
@@ -131,7 +135,8 @@ Windsor MCP conectado ao Claude Code e testado com a API key da conta
    (⚠️ reforçado: a API reporta `is_paid: false` — conferir billing).
 3. **Backfill histórico** — GA4 confirmado com 6+ meses; falta testar a profundidade
    nas fontes de ads (Meta/Google).
-4. **Domínio** — definir e apontar o subdomínio (ex.: `painel.atacadoexponencial.com`) no Cloudflare.
+4. ~~Domínio~~ ✅ **decidido** — subdomínio `painel.atacadoexponencial.com` (mesmo domínio
+   do site, zona já no Cloudflare; criar o registro ao fazer o deploy).
 5. **Contas por cliente** — inventário obtido via MCP (ver Validação acima); falta só
    confirmar o agrupamento cliente → contas (ex.: Fabiola Molina tem 3 propriedades GA4).
 6. **Identidade visual** — logo/cores do **Atacado Exponencial** para o layout do dashboard
