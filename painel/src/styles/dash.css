@@ -23,9 +23,9 @@
   --fg: #ffffff;
   --muted: #a6a6a6;
   --bege: #f5f0eb;
-  /* dados: 1 série = 1 matiz (âmbar AE); deltas = status com seta (nunca só cor) */
-  --serie: #e8a33d;
-  --serie-area: rgba(232, 163, 61, 0.18);
+  /* dados: 1 série = 1 matiz (bege da identidade AE); deltas = status com seta (nunca só cor) */
+  --serie: #f5f0eb;
+  --serie-area: rgba(245, 240, 235, 0.13);
   --up: #5dc986;
   --down: #f37f7f;
   --radius: 0.75rem;
@@ -78,13 +78,18 @@ body {
 .atualizado { color: var(--muted); font-size: 0.78rem; }
 
 /* ---- Cards e KPIs ---- */
-.grid-kpi { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.7rem; margin-bottom: 1rem; }
+.grid-kpi { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 0.7rem; margin-bottom: 1rem; }
 .kpi {
   background: var(--card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 0.8rem 0.9rem;
+  min-width: 0; /* permite o tile encolher dentro do grid sem estourar */
 }
 .kpi .rotulo { color: var(--muted); font-size: 0.76rem; margin-bottom: 0.25rem; }
-.kpi .valor { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi .valor {
+  font-size: clamp(1.05rem, 1.6vw, 1.3rem); font-weight: 700;
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+  overflow-wrap: break-word; /* valor longo quebra linha, nunca vaza do card */
+}
 .kpi .semdado { color: var(--muted); font-size: 1rem; font-weight: 400; }
 .delta { font-size: 0.76rem; font-variant-numeric: tabular-nums; margin-top: 0.15rem; display: inline-block; }
 .delta.up { color: var(--up); }
@@ -105,23 +110,24 @@ body {
 table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 th, td { text-align: left; padding: 0.45rem 0.55rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
 th { color: var(--muted); font-weight: 400; font-size: 0.74rem; }
+th.ordenavel { cursor: pointer; user-select: none; }
+th.ordenavel:hover { color: var(--fg); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 tbody tr:last-child td { border-bottom: none; }
 td .mini { color: var(--muted); font-size: 0.72rem; }
 img.thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; display: block; background: var(--card-2); }
 
-/* ---- Funil ---- */
-.funil { display: flex; flex-direction: column; gap: 0.55rem; }
-.etapa { display: grid; grid-template-columns: 130px 1fr 170px; gap: 0.7rem; align-items: center; }
-.etapa .nome { color: var(--muted); font-size: 0.82rem; }
-.etapa .barra { background: var(--card-2); border-radius: 4px; height: 26px; position: relative; overflow: hidden; }
-.etapa .barra i {
-  position: absolute; inset: 0 auto 0 0; background: var(--serie);
-  border-radius: 4px 3px 3px 4px; min-width: 3px;
+/* ---- Funil (formato de funil: barras centralizadas afunilando) ---- */
+.funil { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; max-width: 720px; margin: 0 auto; }
+.f-etapa { width: 100%; text-align: center; }
+.f-nome { color: var(--muted); font-size: 0.8rem; }
+.f-valor { font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums; margin-left: 0.45rem; }
+.f-barra {
+  height: 30px; background: var(--serie); border-radius: 6px;
+  margin: 0.3rem auto 0; min-width: 12%;
 }
-.etapa .barra span { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; font-weight: 700; mix-blend-mode: difference; }
-.etapa .taxa { font-size: 0.78rem; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
-.etapa .taxa b { color: var(--fg); }
+.f-taxa { color: var(--muted); font-size: 0.75rem; margin: 0.35rem 0 0.55rem; font-variant-numeric: tabular-nums; }
+.f-taxa b { color: var(--fg); }
 
 /* ---- Gráfico (SVG) ---- */
 .grafico { position: relative; }
@@ -131,6 +137,7 @@ img.thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; di
 .grafico .linha { fill: none; stroke: var(--serie); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .grafico .area { fill: var(--serie-area); }
 .grafico .cursor { stroke: var(--muted); stroke-dasharray: 3 3; stroke-width: 1; }
+.grafico circle { fill: var(--serie); }
 .tooltip {
   position: absolute; pointer-events: none; background: var(--card-2);
   border: 1px solid var(--border); border-radius: 0.5rem;

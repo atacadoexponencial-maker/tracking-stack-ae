@@ -38,11 +38,43 @@
       ${deltaChip(k.delta_pct, k.invertido)}
     </div>`;
 
-  function tabela(colunas, linhas) {
-    if (!linhas.length) return '<div class="aviso">Sem dados no período.</div>';
-    const ths = colunas.map((c) => `<th class="${c.num ? 'num' : ''}">${esc(c.titulo)}</th>`).join('');
-    const trs = linhas.map((l) => `<tr>${colunas.map((c) => `<td class="${c.num ? 'num' : ''}">${c.render(l)}</td>`).join('')}</tr>`).join('');
-    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  // Tabela ordenável: clique no cabeçalho ordena pela coluna (asc/desc, ↑↓).
+  // `campo` define o valor bruto usado na ordenação; coluna sem campo não ordena.
+  function tabela(el, colunas, linhas) {
+    if (!linhas.length) { el.innerHTML = '<div class="aviso">Sem dados no período.</div>'; return; }
+    const ordem = { campo: null, asc: false };
+
+    const desenhar = () => {
+      let dados = linhas;
+      if (ordem.campo) {
+        dados = [...linhas].sort((a, b) => {
+          const va = a[ordem.campo], vb = b[ordem.campo];
+          if (va == null && vb == null) return 0;
+          if (va == null) return 1;   // nulos sempre por último
+          if (vb == null) return -1;
+          const cmp = (typeof va === 'number' && typeof vb === 'number')
+            ? va - vb
+            : String(va).localeCompare(String(vb), 'pt-BR');
+          return ordem.asc ? cmp : -cmp;
+        });
+      }
+      const ths = colunas.map((c, i) =>
+        `<th class="${c.num ? 'num' : ''}${c.campo ? ' ordenavel' : ''}" data-i="${i}">` +
+        `${esc(c.titulo)}${c.campo === ordem.campo ? (ordem.asc ? ' ↑' : ' ↓') : ''}</th>`).join('');
+      const trs = dados.map((l) => `<tr>${colunas.map((c) => `<td class="${c.num ? 'num' : ''}">${c.render(l)}</td>`).join('')}</tr>`).join('');
+      el.innerHTML = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+    };
+
+    // Delegação: sobrevive aos re-renders; onclick evita handler duplicado.
+    el.onclick = (ev) => {
+      const th = ev.target.closest('th.ordenavel');
+      if (!th) return;
+      const campo = colunas[Number(th.dataset.i)].campo;
+      if (ordem.campo === campo) ordem.asc = !ordem.asc;
+      else { ordem.campo = campo; ordem.asc = false; }
+      desenhar();
+    };
+    desenhar();
   }
 
   // ---------- estado ----------
@@ -83,32 +115,30 @@
 
   R.home = (d) => {
     $('#home-kpis').innerHTML = d.kpis.map(kpiTile).join('');
-    $('#home-canais').innerHTML = tabela([
-      { titulo: 'Canal', render: (l) => esc(l.canal) },
-      { titulo: 'Receita', num: true, render: (l) => fmtBRL(l.receita_cents) },
-      { titulo: 'Tx conv.', num: true, render: (l) => fmtPct(l.tx_conversao) },
-      { titulo: 'Δ', num: true, render: (l) => deltaChip(l.delta_pct) },
+    tabela($('#home-canais'), [
+      { titulo: 'Canal', campo: 'canal', render: (l) => esc(l.canal) },
+      { titulo: 'Receita', num: true, campo: 'receita_cents', render: (l) => fmtBRL(l.receita_cents) },
+      { titulo: 'Tx conv.', num: true, campo: 'tx_conversao', render: (l) => fmtPct(l.tx_conversao) },
+      { titulo: 'Δ', num: true, campo: 'delta_pct', render: (l) => deltaChip(l.delta_pct) },
     ], d.canais);
-    $('#home-produtos').innerHTML = tabela([
-      { titulo: 'Produto', render: (l) => esc(l.produto) },
-      { titulo: 'Receita', num: true, render: (l) => fmtBRL(l.receita_cents) },
+    tabela($('#home-produtos'), [
+      { titulo: 'Produto', campo: 'produto', render: (l) => esc(l.produto) },
+      { titulo: 'Receita', num: true, campo: 'receita_cents', render: (l) => fmtBRL(l.receita_cents) },
     ], d.produtos);
   };
 
   R.funil = (d) => {
     const max = Math.max(...d.etapas.map((e) => e.valor), 1);
-    $('#funil-etapas').innerHTML = d.etapas.map((e) => `
-      <div class="etapa">
-        <div class="nome">${esc(e.nome)}</div>
-        <div class="barra"><i style="width:${Math.max((e.valor / max) * 100, 0.5)}%"></i><span>${fmtInt(e.valor)}</span></div>
-        <div class="taxa"></div>
-      </div>`).join('');
-    // taxas etapa a etapa na coluna direita
-    const taxas = $('#funil-etapas').querySelectorAll('.taxa');
-    for (let i = 1; i < d.etapas.length; i++) {
-      const t = (d.etapas[i].valor / (d.etapas[i - 1].valor || 1)) * 100;
-      taxas[i].innerHTML = `<b>${fmtNum(t)}%</b> da etapa anterior`;
-    }
+    $('#funil-etapas').innerHTML = d.etapas.map((e, i) => {
+      const taxa = i === 0 ? '' :
+        `<div class="f-taxa"><b>${fmtNum((e.valor / (d.etapas[i - 1].valor || 1)) * 100)}%</b> da etapa anterior</div>`;
+      return `
+      <div class="f-etapa">
+        ${taxa}
+        <span class="f-nome">${esc(e.nome)}</span><span class="f-valor">${fmtInt(e.valor)}</span>
+        <div class="f-barra" style="width:${Math.max((e.valor / max) * 100, 12)}%"></div>
+      </div>`;
+    }).join('');
     $('#funil-kpis').innerHTML = d.kpis.map(kpiTile).join('');
   };
 
@@ -122,52 +152,52 @@
   R.conversao = (d) => {
     $('#conv-kpis').innerHTML = d.kpis.map(kpiTile).join('');
     const cols = (rotulo) => [
-      { titulo: rotulo, render: (l) => esc(l.nome) },
-      { titulo: 'Usuários', num: true, render: (l) => fmtInt(l.usuarios) },
-      { titulo: 'Novos', num: true, render: (l) => fmtInt(l.novos) },
-      { titulo: 'Tx conv.', num: true, render: (l) => fmtPct(l.tx_conversao) },
-      { titulo: 'Pedidos', num: true, render: (l) => fmtInt(l.pedidos) },
-      { titulo: 'Ticket', num: true, render: (l) => fmtBRL(l.ticket_cents) },
-      { titulo: 'Receita', num: true, render: (l) => fmtBRL(l.receita_cents) },
-      { titulo: 'Δ receita', num: true, render: (l) => deltaChip(l.delta_pct) },
+      { titulo: rotulo, campo: 'nome', render: (l) => esc(l.nome) },
+      { titulo: 'Usuários', num: true, campo: 'usuarios', render: (l) => fmtInt(l.usuarios) },
+      { titulo: 'Novos', num: true, campo: 'novos', render: (l) => fmtInt(l.novos) },
+      { titulo: 'Tx conv.', num: true, campo: 'tx_conversao', render: (l) => fmtPct(l.tx_conversao) },
+      { titulo: 'Pedidos', num: true, campo: 'pedidos', render: (l) => fmtInt(l.pedidos) },
+      { titulo: 'Ticket', num: true, campo: 'ticket_cents', render: (l) => fmtBRL(l.ticket_cents) },
+      { titulo: 'Receita', num: true, campo: 'receita_cents', render: (l) => fmtBRL(l.receita_cents) },
+      { titulo: 'Δ receita', num: true, campo: 'delta_pct', render: (l) => deltaChip(l.delta_pct) },
     ];
-    $('#conv-canais').innerHTML = tabela(cols('Canal'), d.canais);
-    $('#conv-origem').innerHTML = tabela(cols('Origem / Mídia'), d.origem_midia);
+    tabela($('#conv-canais'), cols('Canal'), d.canais);
+    tabela($('#conv-origem'), cols('Origem / Mídia'), d.origem_midia);
   };
 
   R.produtos = (d) => {
-    $('#produtos-tabela').innerHTML = tabela([
-      { titulo: 'Produto', render: (l) => esc(l.produto) },
-      { titulo: 'Pedidos', num: true, render: (l) => fmtInt(l.pedidos) },
-      { titulo: 'Receita', num: true, render: (l) => fmtBRL(l.receita_cents) },
+    tabela($('#produtos-tabela'), [
+      { titulo: 'Produto', campo: 'produto', render: (l) => esc(l.produto) },
+      { titulo: 'Pedidos', num: true, campo: 'pedidos', render: (l) => fmtInt(l.pedidos) },
+      { titulo: 'Receita', num: true, campo: 'receita_cents', render: (l) => fmtBRL(l.receita_cents) },
     ], d.produtos);
   };
 
   R.metas = (d) => {
     $('#metas-kpis').innerHTML = d.kpis.map(kpiTile).join('');
-    $('#metas-tabela').innerHTML = tabela([
-      { titulo: 'Data', render: (l) => dataBR(l.data) },
-      { titulo: 'Projetado', num: true, render: (l) => fmtBRL(l.projetado_cents) },
-      { titulo: 'Realizado', num: true, render: (l) => fmtBRL(l.realizado_cents) },
-      { titulo: 'Investido', num: true, render: (l) => fmtBRL(l.gasto_cents) },
-      { titulo: 'Sessões', num: true, render: (l) => fmtInt(l.sessoes) },
-      { titulo: 'Pedidos', num: true, render: (l) => fmtInt(l.pedidos) },
-      { titulo: 'ROAS', num: true, render: (l) => (l.roas == null ? '—' : fmtNum(l.roas)) },
+    tabela($('#metas-tabela'), [
+      { titulo: 'Data', campo: 'data', render: (l) => dataBR(l.data) },
+      { titulo: 'Projetado', num: true, campo: 'projetado_cents', render: (l) => fmtBRL(l.projetado_cents) },
+      { titulo: 'Realizado', num: true, campo: 'realizado_cents', render: (l) => fmtBRL(l.realizado_cents) },
+      { titulo: 'Investido', num: true, campo: 'gasto_cents', render: (l) => fmtBRL(l.gasto_cents) },
+      { titulo: 'Sessões', num: true, campo: 'sessoes', render: (l) => fmtInt(l.sessoes) },
+      { titulo: 'Pedidos', num: true, campo: 'pedidos', render: (l) => fmtInt(l.pedidos) },
+      { titulo: 'ROAS', num: true, campo: 'roas', render: (l) => (l.roas == null ? '—' : fmtNum(l.roas)) },
     ], d.diario);
   };
 
   R.criativos = (d) => {
-    $('#criativos-tabela').innerHTML = tabela([
+    tabela($('#criativos-tabela'), [
       { titulo: '', render: (l) => l.thumbnail_url ? `<img class="thumb" src="${esc(l.thumbnail_url)}" alt="" loading="lazy" />` : '<div class="thumb"></div>' },
-      { titulo: 'Criativo', render: (l) => esc(l.ad_nome) },
-      { titulo: 'Investimento', num: true, render: (l) => fmtBRL(l.gasto_cents) },
-      { titulo: 'Receita', num: true, render: (l) => fmtBRL(l.receita_cents) },
-      { titulo: 'Pedidos', num: true, render: (l) => fmtInt(l.pedidos) },
-      { titulo: 'Alcance', num: true, render: (l) => fmtInt(l.alcance) },
-      { titulo: 'Freq.', num: true, render: (l) => fmtNum(l.frequencia) },
-      { titulo: 'Cliques', num: true, render: (l) => fmtInt(l.cliques) },
-      { titulo: 'Sessões', num: true, render: (l) => (l.sessoes == null ? '—' : fmtInt(l.sessoes)) },
-      { titulo: 'CTR', num: true, render: (l) => fmtPct(l.ctr) },
+      { titulo: 'Criativo', campo: 'ad_nome', render: (l) => esc(l.ad_nome) },
+      { titulo: 'Investimento', num: true, campo: 'gasto_cents', render: (l) => fmtBRL(l.gasto_cents) },
+      { titulo: 'Receita', num: true, campo: 'receita_cents', render: (l) => fmtBRL(l.receita_cents) },
+      { titulo: 'Pedidos', num: true, campo: 'pedidos', render: (l) => fmtInt(l.pedidos) },
+      { titulo: 'Alcance', num: true, campo: 'alcance', render: (l) => fmtInt(l.alcance) },
+      { titulo: 'Freq.', num: true, campo: 'frequencia', render: (l) => fmtNum(l.frequencia) },
+      { titulo: 'Cliques', num: true, campo: 'cliques', render: (l) => fmtInt(l.cliques) },
+      { titulo: 'Sessões', num: true, campo: 'sessoes', render: (l) => (l.sessoes == null ? '—' : fmtInt(l.sessoes)) },
+      { titulo: 'CTR', num: true, campo: 'ctr', render: (l) => fmtPct(l.ctr) },
     ], d.criativos);
   };
 
