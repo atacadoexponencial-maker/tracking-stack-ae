@@ -123,6 +123,10 @@ import logo from '../assets/brand/logo.png';
       try {
         const res = await fetch('/tracker', {
           method: 'POST',
+          // keepalive: o navegador termina o envio mesmo se a aba fechar no
+          // meio (comum no browser embutido do Instagram) — sem isso o fbq
+          // acima conta o lead no Meta e o /tracker nunca recebe nada.
+          keepalive: true,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             event_name: 'Lead',
