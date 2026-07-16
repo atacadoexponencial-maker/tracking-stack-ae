@@ -22,13 +22,15 @@ export function delta(atual, anterior) {
 
 export const div = (a, b) => (b ? a / b : null);
 
-// Totais GA4 do intervalo (ga4_diario agregado).
+// Totais GA4 do intervalo — lê de ga4_funil (totais diários SEM quebra de
+// dimensão), evitando o overcount de métricas únicas que a soma por
+// canal/origem causaria (check-up da issue 107).
 export async function totaisGa4(db, clienteId, de, ate) {
   return db.prepare(
     `SELECT COALESCE(SUM(sessoes),0) sessoes, COALESCE(SUM(usuarios),0) usuarios,
             COALESCE(SUM(novos_usuarios),0) novos, COALESCE(SUM(sessoes_engajadas),0) engajadas,
             COALESCE(SUM(pedidos),0) pedidos, COALESCE(SUM(receita_cents),0) receita_cents
-     FROM ga4_diario WHERE cliente_id = ? AND data BETWEEN ? AND ?`
+     FROM ga4_funil WHERE cliente_id = ? AND data BETWEEN ? AND ?`
   ).bind(clienteId, de, ate).first();
 }
 

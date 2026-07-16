@@ -10,8 +10,8 @@ export async function onRequestGet({ request, env }) {
   if (!p) return json({ error: 'período inválido' }, 400);
 
   const { results: porDia } = await env.DB.prepare(
-    `SELECT data, SUM(receita_cents) receita_cents FROM ga4_diario
-     WHERE cliente_id = ? AND data BETWEEN ? AND ? GROUP BY data ORDER BY data`
+    `SELECT data, receita_cents FROM ga4_funil
+     WHERE cliente_id = ? AND data BETWEEN ? AND ? ORDER BY data`
   ).bind(cliente.id, p.de, p.ate).all();
 
   const fontes = [];

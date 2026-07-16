@@ -122,14 +122,19 @@ export async function sincronizarCliente(env, cliente, de, ate) {
 
     resultados.push(await rodarFonte(env, cliente, 'funil', async () => {
       const dados = await windsor(env, 'googleanalytics4',
-        ['date', 'sessions', 'add_to_carts', 'checkouts', 'transactions'],
+        ['date', 'sessions', 'add_to_carts', 'checkouts', 'transactions', 'totalusers', 'newusers', 'engaged_sessions', 'totalrevenue'],
         cliente.ga4_property_id, de, ate);
       return upsert(env.DB,
-        `INSERT INTO ga4_funil (cliente_id, data, sessoes, carrinho, checkout, pedidos)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO ga4_funil (cliente_id, data, sessoes, carrinho, checkout, pedidos, usuarios, novos_usuarios, sessoes_engajadas, receita_cents)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(cliente_id, data) DO UPDATE SET
-           sessoes = excluded.sessoes, carrinho = excluded.carrinho, checkout = excluded.checkout, pedidos = excluded.pedidos`,
-        dados, (d) => [cliente.id, d.date, int(d.sessions), int(d.add_to_carts), int(d.checkouts), int(d.transactions)]);
+           sessoes = excluded.sessoes, carrinho = excluded.carrinho, checkout = excluded.checkout, pedidos = excluded.pedidos,
+           usuarios = excluded.usuarios, novos_usuarios = excluded.novos_usuarios,
+           sessoes_engajadas = excluded.sessoes_engajadas, receita_cents = excluded.receita_cents`,
+        dados, (d) => [
+          cliente.id, d.date, int(d.sessions), int(d.add_to_carts), int(d.checkouts), int(d.transactions),
+          int(d.totalusers), int(d.newusers), int(d.engaged_sessions), cents(d.totalrevenue),
+        ]);
     }));
 
     resultados.push(await rodarFonte(env, cliente, 'produtos', async () => {
