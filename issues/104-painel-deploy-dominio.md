@@ -14,5 +14,5 @@ completo com o cliente piloto UP Semijoias.
 - [x] Projeto Pages `painel-atacadoexponencial` em produção com D1 + secrets (WINDSOR_API_KEY, SYNC_SECRET, ADMIN_PASSWORD)
 - [x] Fluxo completo validado com o piloto UP Semijoias: sync 5 fontes, backfill jan–jul, dashboard com dados reais, admin operante
 - [x] Runbook em `painel/README.md`
-- [ ] **Pendente (manual, usuária)**: dashboard Cloudflare → Workers & Pages → painel-atacadoexponencial → Custom domains → adicionar `painel.atacadoexponencial.com` (o wrangler não gerencia domínios de Pages; a zona já está na conta, o CNAME é criado sozinho)
-- [ ] **Pendente (manual, usuária)**: agendar o cron externo do sync (POST /api/sync/run com x-sync-secret, a cada 6h)
+- [x] Domínio `painel.atacadoexponencial.com` configurado pela usuária (health 200, db:true)
+- [x] Cron do sync agendado no crontab da VPS (root@31.97.241.169): a cada 6h (minuto 15), POST /api/sync/run com x-sync-secret; log em /var/log/painel-sync.log; execução manual validada da própria VPS (5 fontes ok)
