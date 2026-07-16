@@ -117,16 +117,20 @@ tbody tr:last-child td { border-bottom: none; }
 td .mini { color: var(--muted); font-size: 0.72rem; }
 img.thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; display: block; background: var(--card-2); }
 
-/* ---- Funil (formato de funil: barras centralizadas afunilando) ---- */
-.funil { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; max-width: 720px; margin: 0 auto; }
-.f-etapa { width: 100%; text-align: center; }
-.f-nome { color: var(--muted); font-size: 0.8rem; }
-.f-valor { font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums; margin-left: 0.45rem; }
+/* ---- Funil: barras centralizadas afunilando, dados DENTRO das barras ---- */
+.funil { display: flex; flex-direction: column; align-items: center; max-width: 720px; margin: 0 auto; }
+.f-etapa { width: 100%; display: flex; flex-direction: column; align-items: center; }
 .f-barra {
-  height: 30px; background: var(--serie); border-radius: 6px;
-  margin: 0.3rem auto 0; min-width: 12%;
+  min-width: 42%; min-height: 58px; background: var(--serie); border-radius: 8px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0.4rem 1rem; text-align: center;
 }
-.f-taxa { color: var(--muted); font-size: 0.75rem; margin: 0.35rem 0 0.55rem; font-variant-numeric: tabular-nums; }
+.f-barra .f-nome { color: #4a4442; font-size: 0.78rem; }
+.f-barra .f-valor { color: var(--bg); font-weight: 700; font-size: 1.25rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.f-taxa {
+  color: var(--muted); font-size: 0.76rem; padding: 0.45rem 0;
+  font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 0.4rem;
+}
 .f-taxa b { color: var(--fg); }
 
 /* ---- Gráfico (SVG) ---- */

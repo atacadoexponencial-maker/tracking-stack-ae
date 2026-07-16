@@ -131,12 +131,14 @@
     const max = Math.max(...d.etapas.map((e) => e.valor), 1);
     $('#funil-etapas').innerHTML = d.etapas.map((e, i) => {
       const taxa = i === 0 ? '' :
-        `<div class="f-taxa"><b>${fmtNum((e.valor / (d.etapas[i - 1].valor || 1)) * 100)}%</b> da etapa anterior</div>`;
+        `<div class="f-taxa">▼ <b>${fmtNum((e.valor / (d.etapas[i - 1].valor || 1)) * 100)}%</b> da etapa anterior</div>`;
       return `
       <div class="f-etapa">
         ${taxa}
-        <span class="f-nome">${esc(e.nome)}</span><span class="f-valor">${fmtInt(e.valor)}</span>
-        <div class="f-barra" style="width:${Math.max((e.valor / max) * 100, 12)}%"></div>
+        <div class="f-barra" style="width:${Math.max((e.valor / max) * 100, 42)}%">
+          <span class="f-nome">${esc(e.nome)}</span>
+          <span class="f-valor">${fmtInt(e.valor)}</span>
+        </div>
       </div>`;
     }).join('');
     $('#funil-kpis').innerHTML = d.kpis.map(kpiTile).join('');
