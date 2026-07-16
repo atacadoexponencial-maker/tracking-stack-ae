@@ -83,7 +83,10 @@ const microBenefits = [
       // a navegação para as perguntas é controlada aqui).
       try {
         await fetch('/tracker', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          // keepalive: o navegador termina o envio mesmo se a página navegar
+          // ou fechar no meio — sem isso o fbq acima conta o lead no Meta e
+          // o /tracker nunca recebe nada.
+          method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             event_name: 'Lead', event_id: eventId,
             event_time: Math.floor(Date.now() / 1000), event_source_url: window.location.href,
