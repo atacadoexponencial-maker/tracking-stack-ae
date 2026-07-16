@@ -1,6 +1,5 @@
 /* Dashboard do painel — thin client: lê o slug da URL, pede dados prontos às
-   APIs e só renderiza. Nesta fase (issues 75–82) usa mocks com o MESMO
-   contrato das APIs reais (issues 94–100), trocados por fetch ao final. */
+   APIs /api/painel/* e só formata/renderiza. Toda a matemática é do backend. */
 (() => {
   'use strict';
 
@@ -72,139 +71,11 @@
   }
 
   // ---------- camada de dados ----------
-  const USE_MOCK = true; // issues 94–100 trocam para false
-
   async function api(secao) {
     const { de, ate } = periodo();
-    if (USE_MOCK) return mock(secao, de, ate);
     const r = await fetch(`/api/painel/${secao}?slug=${encodeURIComponent(slug)}&de=${de}&ate=${ate}`);
     if (!r.ok) throw new Error(`api ${secao} ${r.status}`);
     return r.json();
-  }
-
-  // ---------- mocks (mesmo contrato das APIs reais) ----------
-  function mock(secao, de, ate) {
-    const dias = [];
-    for (let d = new Date(de + 'T12:00:00'); dataISO(d) <= ate; d.setDate(d.getDate() + 1)) dias.push(dataISO(d));
-    const rnd = (a, b) => Math.round(a + Math.random() * (b - a));
-    const del = () => rnd(-30, 60);
-
-    if (secao === 'home') {
-      const kpis = [
-        { rotulo: 'Receita Captada', valor: 5969338, tipo: 'moeda', delta_pct: del() },
-        { rotulo: 'Pedidos', valor: 95, tipo: 'int', delta_pct: del() },
-        { rotulo: 'Ticket Médio', valor: 62835, tipo: 'moeda', delta_pct: del() },
-        { rotulo: 'Tx de Conversão', valor: 0.58, tipo: 'pct', delta_pct: del() },
-        { rotulo: 'Sessões', valor: 16470, tipo: 'int', delta_pct: del() },
-        { rotulo: 'Novos usuários', valor: 8186, tipo: 'int', delta_pct: del() },
-      ];
-      if (fontes.meta || fontes.google) kpis.push(
-        { rotulo: 'Investimento Total', valor: 1830022, tipo: 'moeda', delta_pct: del(), invertido: true },
-        { rotulo: 'ROAS Geral', valor: 3.26, tipo: 'num', delta_pct: del() },
-        { rotulo: 'CPA Geral', valor: 19263, tipo: 'moeda', delta_pct: del(), invertido: true },
-        { rotulo: 'CPS Geral', valor: 1111, tipo: 'moeda', delta_pct: del(), invertido: true },
-      );
-      return {
-        kpis,
-        canais: ['(direct)', 'google', 'l.instagram.com', 'linktr.ee', 'IGShopping'].map((c) => ({
-          canal: c, receita_cents: rnd(150000, 2100000), tx_conversao: rnd(30, 160) / 100, delta_pct: del(),
-        })),
-        produtos: Array.from({ length: 8 }, (_, i) => ({ produto: `Produto exemplo ${i + 1}`, receita_cents: rnd(80000, 170000) })),
-      };
-    }
-    if (secao === 'funil') {
-      const s = 16470, c = 2800, ck = 1272, p = 95;
-      return {
-        etapas: [
-          { nome: 'Sessões', valor: s }, { nome: 'Adições ao carrinho', valor: c },
-          { nome: 'Checkout', valor: ck }, { nome: 'Pedidos', valor: p },
-        ],
-        kpis: [
-          { rotulo: 'Carrinho × Sessões', valor: (c / s) * 100, tipo: 'pct', delta_pct: del() },
-          { rotulo: 'Checkout × Carrinho', valor: (ck / c) * 100, tipo: 'pct', delta_pct: del() },
-          { rotulo: 'Pedidos × Checkout', valor: (p / ck) * 100, tipo: 'pct', delta_pct: del() },
-          { rotulo: 'Pedidos × Sessões', valor: (p / s) * 100, tipo: 'pct', delta_pct: del() },
-        ],
-      };
-    }
-    if (secao === 'receita') {
-      const fontesOut = [];
-      if (fontes.ga4) fontesOut.push({ id: 'ga4', titulo: 'Google Analytics', kpis: [
-        { rotulo: 'Receita', valor: 5969338, tipo: 'moeda', delta_pct: del() },
-        { rotulo: 'Pedidos', valor: 95, tipo: 'int', delta_pct: del() },
-        { rotulo: 'Ticket Médio', valor: 62835, tipo: 'moeda', delta_pct: del() },
-        { rotulo: 'Sessões', valor: 16470, tipo: 'int', delta_pct: del() },
-        { rotulo: 'Tx de Conversão', valor: 0.58, tipo: 'pct', delta_pct: del() },
-      ]});
-      if (fontes.meta) fontesOut.push({ id: 'meta', titulo: 'Meta Ads', kpis: [
-        { rotulo: 'Investimento', valor: 1560000, tipo: 'moeda', delta_pct: del(), invertido: true },
-        { rotulo: 'Receita atribuída', valor: 4300000, tipo: 'moeda', delta_pct: del() },
-        { rotulo: 'ROAS', valor: 2.76, tipo: 'num', delta_pct: del() },
-        { rotulo: 'CPM', valor: 1240, tipo: 'moeda', delta_pct: del(), invertido: true },
-        { rotulo: 'CTR', valor: 1.9, tipo: 'pct', delta_pct: del() },
-        { rotulo: 'CPC', valor: 87, tipo: 'moeda', delta_pct: del(), invertido: true },
-      ]});
-      if (fontes.google) fontesOut.push({ id: 'google', titulo: 'Google Ads', kpis: [
-        { rotulo: 'Investimento', valor: 270022, tipo: 'moeda', delta_pct: del(), invertido: true },
-        { rotulo: 'Impressões', valor: 88410, tipo: 'int', delta_pct: del() },
-        { rotulo: 'Cliques', valor: 3120, tipo: 'int', delta_pct: del() },
-        { rotulo: 'CPC', valor: 87, tipo: 'moeda', delta_pct: del(), invertido: true },
-        { rotulo: 'Conversões', valor: 41, tipo: 'num', delta_pct: del() },
-        { rotulo: 'CPA', valor: 6586, tipo: 'moeda', delta_pct: del(), invertido: true },
-      ]});
-      return { por_dia: dias.map((d) => ({ data: d, receita_cents: rnd(90000, 800000) })), fontes: fontesOut };
-    }
-    if (secao === 'conversao') {
-      const linha = (nome) => ({
-        nome, usuarios: rnd(90, 1900), novos: rnd(40, 1100), tx_conversao: rnd(30, 160) / 100,
-        pedidos: rnd(2, 35), ticket_cents: rnd(50000, 90000), receita_cents: rnd(150000, 2100000), delta_pct: del(),
-      });
-      return {
-        kpis: [
-          { rotulo: 'Pedidos', valor: 95, tipo: 'int', delta_pct: del() },
-          { rotulo: 'Ticket Médio', valor: 62835, tipo: 'moeda', delta_pct: del() },
-          { rotulo: 'Tx de Conversão', valor: 0.58, tipo: 'pct', delta_pct: del() },
-          { rotulo: 'Total de usuários', valor: 9971, tipo: 'int', delta_pct: del() },
-          { rotulo: 'Sessões', valor: 16470, tipo: 'int', delta_pct: del() },
-          { rotulo: 'Sessões engajadas', valor: 11353, tipo: 'int', delta_pct: del() },
-          { rotulo: 'Tx de Engajamento', valor: 67.48, tipo: 'pct', delta_pct: del() },
-        ],
-        canais: ['Direct', 'Paid Social', 'Organic Social', 'Paid Search', 'Organic Search'].map(linha),
-        origem_midia: ['(direct) / (none)', 'instagram / cpc', 'google / organic', 'facebook / cpc', 'linktr.ee / referral'].map(linha),
-      };
-    }
-    if (secao === 'produtos') {
-      return { produtos: Array.from({ length: 15 }, (_, i) => ({ produto: `Produto exemplo ${i + 1}`, receita_cents: rnd(40000, 180000), pedidos: rnd(1, 22) })) };
-    }
-    if (secao === 'metas') {
-      return {
-        mes: ate.slice(0, 7),
-        kpis: [
-          { rotulo: 'Meta de Faturamento', valor: 8000000, tipo: 'moeda' },
-          { rotulo: 'Faturamento Captado', valor: 5969338, tipo: 'moeda' },
-          { rotulo: '% Atingimento (Faturamento)', valor: 74.6, tipo: 'pct' },
-          { rotulo: 'Meta de Investimento', valor: 2000000, tipo: 'moeda' },
-          { rotulo: 'Investimento', valor: 1830022, tipo: 'moeda' },
-          { rotulo: '% Atingimento (Investimento)', valor: 91.5, tipo: 'pct' },
-          { rotulo: 'Taxa Projetada', valor: 1.2, tipo: 'pct' },
-          { rotulo: 'Taxa Atual', valor: 0.58, tipo: 'pct' },
-        ],
-        diario: dias.slice(-10).map((d) => ({
-          data: d, projetado_cents: 266000, realizado_cents: rnd(90000, 700000),
-          gasto_cents: rnd(40000, 90000), sessoes: rnd(300, 900), pedidos: rnd(1, 12), roas: rnd(15, 45) / 10,
-        })),
-      };
-    }
-    if (secao === 'criativos') {
-      if (!fontes.meta) return { criativos: [] };
-      return { criativos: Array.from({ length: 10 }, (_, i) => ({
-        ad_nome: `Criativo exemplo ${i + 1}`, thumbnail_url: '',
-        gasto_cents: rnd(20000, 300000), receita_cents: rnd(0, 900000), pedidos: rnd(0, 14),
-        alcance: rnd(4000, 90000), frequencia: rnd(10, 32) / 10, cliques: rnd(80, 2400),
-        sessoes: rnd(60, 2000), ctr: rnd(8, 34) / 10,
-      })) };
-    }
-    return {};
   }
 
   // ---------- renderizadores ----------
@@ -281,7 +152,7 @@
       { titulo: 'Investido', num: true, render: (l) => fmtBRL(l.gasto_cents) },
       { titulo: 'Sessões', num: true, render: (l) => fmtInt(l.sessoes) },
       { titulo: 'Pedidos', num: true, render: (l) => fmtInt(l.pedidos) },
-      { titulo: 'ROAS', num: true, render: (l) => fmtNum(l.roas) },
+      { titulo: 'ROAS', num: true, render: (l) => (l.roas == null ? '—' : fmtNum(l.roas)) },
     ], d.diario);
   };
 
@@ -295,7 +166,7 @@
       { titulo: 'Alcance', num: true, render: (l) => fmtInt(l.alcance) },
       { titulo: 'Freq.', num: true, render: (l) => fmtNum(l.frequencia) },
       { titulo: 'Cliques', num: true, render: (l) => fmtInt(l.cliques) },
-      { titulo: 'Sessões', num: true, render: (l) => fmtInt(l.sessoes) },
+      { titulo: 'Sessões', num: true, render: (l) => (l.sessoes == null ? '—' : fmtInt(l.sessoes)) },
       { titulo: 'CTR', num: true, render: (l) => fmtPct(l.ctr) },
     ], d.criativos);
   };
