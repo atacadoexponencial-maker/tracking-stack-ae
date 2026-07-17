@@ -73,9 +73,14 @@ export async function onRequestGet(context) {
         s.gclid,
         s.referrer,
         s.landing_url,
-        ${EFFECTIVE_FUNNEL} AS funnel
+        ${EFFECTIVE_FUNNEL} AS funnel,
+        d.resultado AS crm_resultado,
+        d.task_url AS crm_task_url,
+        (SELECT status FROM crm_status_log st
+          WHERE st.task_id = d.task_id ORDER BY st.id DESC LIMIT 1) AS crm_status
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
+      LEFT JOIN lead_dispatch d ON d.event_id = e.event_id
       WHERE e.event_name = 'Lead'
         AND e.timestamp >= ? AND e.timestamp <= ?
         ${botClause}

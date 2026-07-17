@@ -1,0 +1,97 @@
+---
+// Painel admin (issues 83–85): clientes, metas e status das conexões.
+// Só a agência acessa — senha única (env ADMIN_PASSWORD), cookie de sessão.
+import '../styles/dash.css';
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Admin — Painel Atacado Exponencial</title>
+    <style>
+      .login-box { display: grid; place-items: center; min-height: 100vh; }
+      .login-box form { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; width: min(340px, 90vw); display: grid; gap: 0.8rem; }
+      .campo { display: grid; gap: 0.25rem; }
+      .campo label { color: var(--muted); font-size: 0.78rem; }
+      .campo input, .campo select { background: var(--card-2); color: var(--fg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.55rem 0.65rem; font: inherit; }
+      .btn { background: var(--fg); color: var(--bg); border: 0; border-radius: 0.5rem; padding: 0.6rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+      .btn.sec { background: var(--card-2); color: var(--fg); border: 1px solid var(--border); font-weight: 400; }
+      .btn.mini { padding: 0.3rem 0.6rem; font-size: 0.78rem; }
+      .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.7rem; align-items: end; }
+      .msg { font-size: 0.82rem; color: var(--muted); }
+      .msg.erro { color: var(--down); }
+      .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.4rem; vertical-align: baseline; }
+      .dot.verde { background: var(--up); }
+      .dot.amarelo { background: #e0b34c; }
+      .dot.vermelho { background: var(--down); }
+      code.slug { background: var(--card-2); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.78rem; user-select: all; }
+    </style>
+  </head>
+  <body>
+    <div class="login-box" id="login" hidden>
+      <form id="form-login">
+        <strong>Painel — Admin</strong>
+        <div class="campo"><label for="senha">Senha da agência</label><input type="password" id="senha" autocomplete="current-password" required /></div>
+        <button class="btn" type="submit">Entrar</button>
+        <span class="msg" id="login-msg"></span>
+      </form>
+    </div>
+
+    <div class="layout" id="app" hidden>
+      <aside class="sidebar">
+        <div class="marca">Atacado Exponencial<small>Admin do painel</small></div>
+        <nav class="nav" id="nav">
+          <a href="#clientes" data-view="clientes">Clientes</a>
+          <a href="#metas" data-view="metas">Metas</a>
+          <a href="#status" data-view="status">Status das conexões</a>
+        </nav>
+      </aside>
+      <main class="conteudo">
+        <section class="secao" id="view-clientes">
+          <div class="card">
+            <h2 id="form-clientes-titulo">Novo cliente</h2>
+            <form id="form-cliente" class="form-grid">
+              <input type="hidden" id="c-id" />
+              <div class="campo"><label for="c-nome">Nome *</label><input id="c-nome" required /></div>
+              <div class="campo"><label for="c-meta">Conta Meta Ads</label><input id="c-meta" placeholder="ex.: 628094463950329" /></div>
+              <div class="campo"><label for="c-gads">Conta Google Ads</label><input id="c-gads" placeholder="ex.: 792-585-8854" /></div>
+              <div class="campo"><label for="c-ga4">Propriedade GA4</label><input id="c-ga4" placeholder="ex.: 315016683" /></div>
+              <div><button class="btn" type="submit">Salvar</button> <button class="btn sec" type="button" id="c-cancelar" hidden>Cancelar</button></div>
+            </form>
+            <p class="msg" id="clientes-msg"></p>
+          </div>
+          <div class="card"><h2>Clientes</h2><div class="tabela-wrap" id="clientes-tabela"></div></div>
+        </section>
+
+        <section class="secao" id="view-metas">
+          <div class="card">
+            <h2>Metas mensais</h2>
+            <form id="form-meta" class="form-grid">
+              <div class="campo"><label for="m-cliente">Cliente *</label><select id="m-cliente" required></select></div>
+              <div class="campo"><label for="m-mes">Mês *</label><input type="month" id="m-mes" required /></div>
+              <div class="campo"><label for="m-fat">Meta de faturamento (R$)</label><input type="number" id="m-fat" min="0" step="0.01" /></div>
+              <div class="campo"><label for="m-inv">Meta de investimento (R$)</label><input type="number" id="m-inv" min="0" step="0.01" /></div>
+              <div class="campo"><label for="m-taxa">Taxa projetada (%)</label><input type="number" id="m-taxa" min="0" max="100" step="0.01" /></div>
+              <div><button class="btn" type="submit">Salvar mês</button></div>
+            </form>
+            <p class="msg" id="metas-msg"></p>
+          </div>
+          <div class="card"><h2>Meses cadastrados</h2><div class="tabela-wrap" id="metas-tabela"></div></div>
+        </section>
+
+        <section class="secao" id="view-status">
+          <div class="card">
+            <h2>Conexões <small>🟢 ok · 🟡 sem dados novos há 24h · 🔴 erro no último sync</small></h2>
+            <p style="margin-bottom:0.8rem"><button class="btn sec mini" id="btn-sync">Sincronizar agora</button> <span class="msg" id="sync-msg"></span></p>
+            <div class="tabela-wrap" id="status-tabela"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/admin.js" is:inline defer></script>
+  </body>
+</html>

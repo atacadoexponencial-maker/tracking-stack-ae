@@ -208,23 +208,15 @@ export async function onRequestPost(context) {
     // ao ClickUp) vem de env e pode ser trocado/removido sem alterar o front.
     // Cada funil tem seu próprio webhook: 'workshop' usa um, o diagnóstico o
     // padrão. Só dispara para eventos de Lead, em background.
-    const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
     if ((body.event_name || '').toLowerCase() === 'lead') {
-      // ClickUp: agora DIRETO na API (sem n8n) para todos os funis exceto
-      // 'workshop', que ainda usa o fluxo n8n próprio (LEAD_WEBHOOK_URL_WORKSHOP).
-      // sendToClickUp faz busca→cria/comenta, com retry + log em D1 + alerta.
-      if (leadFunnel === 'workshop') {
-        if (env.LEAD_WEBHOOK_URL_WORKSHOP) {
-          context.waitUntil(sendToCRM({
-            leadData: body.lead_data || {},
-            sessionData, fbc, externalId,
-            url: env.LEAD_WEBHOOK_URL_WORKSHOP,
-            label: 'Workshop (n8n)', env,
-          }));
-        }
-      } else {
-        context.waitUntil(sendToClickUp({ leadData: body.lead_data || {}, sessionData, env }));
-      }
+      // ClickUp DIRETO na API (sem n8n) para TODOS os funis — inclusive
+      // 'workshop', que antes ia a um workflow n8n hoje desativado (leads se
+      // perdiam; ver spec ponte-tracking-clickup). sendToClickUp faz
+      // busca→cria/comenta, retry, log em D1 (lead_dispatch) + alerta.
+      context.waitUntil(sendToClickUp({
+        leadData: body.lead_data || {}, sessionData, env,
+        eventId: body.event_id || '',
+      }));
 
       // Demais destinos desacoplados (inalterados): CRM Supabase + barramento
       // WhatsApp (n8n). Cada um dispara independente; se um falhar, os outros seguem.
@@ -321,6 +313,7 @@ export async function onRequestPost(context) {
     // demais ao agendamento (Calendly).
     // Destinos por env. O front só executa o redirect.
     let leadRedirect = null;
+    const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
     if ((body.event_name || '').toLowerCase() === 'lead') {
       if (leadFunnel === 'workshop') {
         leadRedirect = env.LEAD_REDIRECT_WORKSHOP || '/video-workshop-instagram';
@@ -544,6 +537,7 @@ const CU_FIELD = {
   utmSource: '64ffa839-dac1-4995-9cbb-7bd50f9dc5d5',
   utmMedium: 'e367ce2e-a06c-43b6-ac9b-0feb4923f007',
   utmContent: '5710cb4d-a375-464b-8ac6-5267745eaddc',
+  utmCampaign: '78b59aa4-6e98-4555-bbbf-5a0259309eb0', // "utm_campaing" (nome com typo na lista)
 };
 const CU_DEFAULT_LIST = '205126080'; // 🤑 CRM — fallback se CLICKUP_LIST_ID não estiver setado
 const CU_PRODUTO_AE = '6cf677ce-5592-4ff7-9f63-d18d52d42be5';
@@ -551,6 +545,7 @@ const CU_PRODUTO_ACELERACAO = '5a98b2d7-bfe0-4c29-9de4-2c15721bd9a7'; // ACELERA
 const CU_FUNIL_SESSAO = 'a158d342-c1ac-4705-a6da-ce39019f0a2a'; // SESSÃO ESTRATÉGICA
 const CU_FUNIL_LIVES = 'e6893b0b-5a69-4f48-9c99-a3c0a415a118';  // LIVES SEMANAIS
 const CU_FUNIL_APLICACAO = '51f77888-2ba1-4f83-9b33-d8ef516b80be'; // APLICAÇÃO
+const CU_FUNIL_WORKSHOP = 'b5e04cdb-f62d-4159-b89b-751726a61831'; // WORKSHOP
 
 // Funil do site → opção do dropdown 🔻 Funil. Fallback SESSÃO ESTRATÉGICA
 // (preserva o comportamento do n8n, que carimbava tudo como SE).
@@ -558,6 +553,7 @@ function mapFunnelToOption(funnel) {
   const f = (funnel || '').toLowerCase();
   if (f === 'lives-semanais-v1') return CU_FUNIL_LIVES;
   if (f === 'trafego-atacado') return CU_FUNIL_APLICACAO;
+  if (f === 'workshop') return CU_FUNIL_WORKSHOP;
   return CU_FUNIL_SESSAO;
 }
 
@@ -612,6 +608,20 @@ async function clickupWrite(fn) {
     }
     // Anexa o status HTTP no erro pra quem chama poder reagir (ex.: fallback no 400).
     throw netErr || Object.assign(new Error(`ClickUp write ${status}`), { status });
+  }
+}
+
+// Grava o resultado do envio ao ClickUp (vínculo lead→tarefa + novos×retorno).
+// Best-effort: falha aqui nunca afeta o lead nem o envio em si.
+async function gravarDispatch(env, { eventId, email, phone, funnel, resultado, taskId = null, taskUrl = null, erro = null }) {
+  try {
+    if (!env.DB) return;
+    await env.DB.prepare(
+      `INSERT INTO lead_dispatch (event_id, email, phone, funnel, resultado, task_id, task_url, erro, criado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s','now'))`
+    ).bind(eventId || '', email || '', phone || '', funnel || '', resultado, taskId, taskUrl, erro).run();
+  } catch (e) {
+    console.error('lead_dispatch insert error:', e.message);
   }
 }
 
@@ -692,7 +702,7 @@ function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento
   return `${header}\n\n*Nome:* ${nome}\n*Número:* ${phoneE164}\n*Whatsapp:* https://wa.me/${digits}\n*Email:* ${email}\n*Instagram:* ${instagram}\n*Faturamento:* ${faturamento}`;
 }
 
-async function sendToClickUp({ leadData, sessionData, env }) {
+async function sendToClickUp({ leadData, sessionData, env, eventId = '' }) {
   if (!env.CLICKUP_API_TOKEN) return; // sem token não dá pra falar com o ClickUp
   const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
 
@@ -711,6 +721,7 @@ async function sendToClickUp({ leadData, sessionData, env }) {
   const utmSource = utm.utm_source || '';
   const utmMedium = utm.utm_medium || '';
   const utmContent = utm.utm_content || '';
+  const utmCampaign = utm.utm_campaign || '';
 
   // --- Dedup (telefone OU email). Read-only: falha vira "não achou". ---
   let existing = null;
@@ -740,6 +751,7 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       await clickupWrite(() => clickupFetch(`/task/${taskId}/comment`, {
         method: 'POST', body: JSON.stringify({ comment_text: comentario }),
       }, env));
+      await gravarDispatch(env, { eventId, email, phone: phoneE164, funnel, resultado: 'comentado', taskId, taskUrl: existing.url || `https://app.clickup.com/t/${taskId}` });
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
         buildLeadNotif('*Voltou ao CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
     } else {
@@ -760,13 +772,20 @@ async function sendToClickUp({ leadData, sessionData, env }) {
       push(CU_FIELD.utmSource, utmSource);
       push(CU_FIELD.utmMedium, utmMedium);
       push(CU_FIELD.utmContent, utmContent);
+      push(CU_FIELD.utmCampaign, utmCampaign);
+
+      // Link da jornada no /dash (a seção Jornada aceita ?email= pré-preenchido).
+      const linkJornada = email
+        ? `Jornada completa: https://atacadoexponencial.com/dash/?jornada=${encodeURIComponent(email)}#jornada`
+        : '';
 
       const name = nome || email || 'Lead sem nome';
       const createTask = (body) => clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
         method: 'POST', body: JSON.stringify(body),
       }, env));
+      let criada = null;
       try {
-        await createTask({ name, custom_fields: customFields });
+        criada = await createTask({ name, custom_fields: customFields, description: linkJornada });
       } catch (e) {
         // Telefone fora do padrão faz o campo phone do ClickUp responder 400 e
         // derrubar a task inteira. Tenta UMA vez sem o whatsapp, com o número
@@ -775,18 +794,25 @@ async function sendToClickUp({ leadData, sessionData, env }) {
         const temWhatsapp = customFields.some((f) => f.id === CU_FIELD.whatsapp);
         if (e.status !== 400 || !temWhatsapp) throw e;
         console.error('ClickUp create 400 com whatsapp — repetindo sem o campo phone');
-        await createTask({
+        criada = await createTask({
           name,
           custom_fields: customFields.filter((f) => f.id !== CU_FIELD.whatsapp),
-          description: `WhatsApp (não validado pelo ClickUp): ${leadData.telefone}`,
+          description: `${linkJornada ? linkJornada + '\n' : ''}WhatsApp (não validado pelo ClickUp): ${leadData.telefone}`,
         });
       }
+      let novaTask = null;
+      try { novaTask = await criada.json(); } catch {}
+      await gravarDispatch(env, {
+        eventId, email, phone: phoneE164, funnel, resultado: 'criado',
+        taskId: novaTask && novaTask.id, taskUrl: novaTask && (novaTask.url || `https://app.clickup.com/t/${novaTask.id}`),
+      });
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
         buildLeadNotif('*Novo lead no CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
     }
   } catch (e) {
     // Escrita principal falhou após o retry → não perder o lead.
     console.error('ClickUp write error:', e.message);
+    await gravarDispatch(env, { eventId, email, phone: phoneE164, funnel, resultado: 'falha', erro: e.message });
     await logClickUpFailure(leadData, phoneE164, email, e, env);
     // Alerta agora passa pelo throttle (1/h) como os demais da camada A; os
     // leads em si continuam TODOS em clickup_sync_failures — nada se perde.
