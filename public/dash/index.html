@@ -151,6 +151,13 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
     </section>
 
     <section class="secao" id="secao-leads">
+      <div class="card"><h2>CRM <small>novos × retornando (ClickUp)</small></h2>
+        <div class="grid-kpi" id="crm-kpis"></div>
+        <div class="duas-colunas">
+          <div><h2 style="margin-top:0.4rem">Por origem</h2><div class="tabela-wrap" id="crm-origem"></div></div>
+          <div><h2 style="margin-top:0.4rem">Estágio atual no CRM</h2><div class="tabela-wrap" id="crm-status"></div></div>
+        </div>
+      </div>
       <div class="card"><h2>Leads por funil</h2><div class="grid-kpi" id="leads-funis"></div></div>
       <div class="card"><h2>Conversão por LP</h2><div class="tabela-wrap" id="leads-conversao"></div></div>
       <div class="card"><h2>Leads recentes <small>clique para detalhes · Meta/GA4 = envio server-side</small></h2><div class="tabela-wrap" id="leads-tabela"></div></div>
@@ -385,11 +392,30 @@ R.visao = async () => {
 
 R.leads = async () => {
   const p = intervalo();
-  const [dados, conv] = await Promise.all([
+  const [dados, conv, crm] = await Promise.all([
     fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&limit=50`),
     fetchJson(`/api/conversion?${q(p.de, p.ate)}${funilQ}`),
+    fetchJson(`/api/crm-funnel?${q(p.de, p.ate)}`).catch(() => null),
   ]);
   popularFunis(dados.funnels);
+  if (crm) {
+    $('#crm-kpis').innerHTML = [
+      { rotulo: 'Novos no CRM', valor: fmtInt(crm.novos) },
+      { rotulo: 'Retornando', valor: fmtInt(crm.retornando) },
+      { rotulo: 'Falhas de envio', valor: fmtInt(crm.falhas) },
+    ].map((k) => tile(k)).join('');
+    tabela($('#crm-origem'), [
+      { titulo: 'Origem', campo: 'origem', render: (r) => esc(r.origem) },
+      { titulo: 'Novos', num: true, campo: 'novos', render: (r) => fmtInt(r.novos) },
+      { titulo: 'Retornando', num: true, campo: 'retornando', render: (r) => fmtInt(r.retornando) },
+    ], crm.por_origem || []);
+    tabela($('#crm-status'), [
+      { titulo: 'Estágio', campo: 'status', render: (r) => esc(r.status) },
+      { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
+    ], crm.por_status || []);
+  } else {
+    $('#crm-kpis').innerHTML = '<div class="aviso">Dados do CRM indisponíveis.</div>';
+  }
   $('#leads-funis').innerHTML = (dados.funnelCounts || []).map((c) => tile({ rotulo: c.funnel || '(sem funil)', valor: fmtInt(c.count) })).join('') || '<div class="aviso">Nenhum lead no período.</div>';
   tabela($('#leads-conversao'), [
     { titulo: 'LP', campo: 'lp', render: (r) => esc(r.lp) },
@@ -405,6 +431,9 @@ R.leads = async () => {
     { titulo: 'Conteúdo', campo: 'utm_content', render: (l) => `<span class="mini">${esc(l.utm_content || '—')}</span>` },
     { titulo: 'Meta', num: true, render: (l) => l.meta_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
     { titulo: 'GA4', num: true, render: (l) => l.ga4_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
+    { titulo: 'CRM', campo: 'crm_resultado', render: (l) => l.crm_resultado === 'criado' ? '<span class="ok">novo</span>'
+        : l.crm_resultado === 'comentado' ? '<span class="mini">retorno</span>'
+        : l.crm_resultado === 'falha' ? '<span class="falha">falha</span>' : '<span class="mini">—</span>' },
   ], dados.leads || [], (l) => abrirDetalhes('lead', l));
 };
 
@@ -568,7 +597,17 @@ async function abrirDetalhes(tipo, linha) {
   $('#modal-sub').textContent = tipo === 'lead'
     ? `${fmtData(linha.timestamp)} · ${linha.raw_email || '(sem email)'} · event_id ${linha.event_id || '—'}`
     : `${fmtData(linha.created_at)} · ${linha.raw_email || '(sem email)'} · ${money(linha.value, linha.currency || 'BRL')} · txn ${linha.transaction_id || '—'}`;
+  const blocoCrm = tipo === 'lead' && linha.crm_resultado
+    ? `<div><b style="font-size:0.86rem">CRM (ClickUp)</b><div class="mini" style="margin-top:0.3rem">` +
+      (linha.crm_resultado === 'falha'
+        ? '<span class="falha">falha no envio</span>'
+        : `${linha.crm_resultado === 'criado' ? 'tarefa criada (lead novo)' : 'retornou — comentário na tarefa existente'}` +
+          (linha.crm_status ? ` · estágio atual: <b>${esc(linha.crm_status)}</b>` : '') +
+          (linha.crm_task_url ? ` · <a href="${esc(linha.crm_task_url)}" target="_blank" style="color:var(--info)">abrir no ClickUp</a>` : '')) +
+      '</div></div>'
+    : '';
   const secoes = [
+    blocoCrm,
     '<div id="modal-jornada"><div class="aviso">Carregando jornada…</div></div>',
     secaoPayload('Meta CAPI', { status_code: linha.meta_status_code, response_ok: linha.meta_response_ok, payload_sent: linha.meta_payload_sent, response_body: linha.meta_response_body }),
     secaoPayload('GA4 Measurement Protocol', { status_code: linha.ga4_status_code, response_ok: linha.ga4_response_ok, payload_sent: linha.ga4_payload_sent, response_body: linha.ga4_response_body }),
@@ -628,9 +667,15 @@ $('#data-ate').addEventListener('change', render);
 
 // ---------- boot ----------
 (async () => {
+  // Link "ver jornada" das tarefas do ClickUp: /dash/?jornada=<email>#jornada
+  const jornadaParam = new URL(location.href).searchParams.get('jornada');
+  if (jornadaParam) $('#jornada-email').value = jornadaParam;
+
   if (key && await chaveValida(key)) {
     sessionStorage.setItem('dashKey', key);
-    $('#app').hidden = false; trocar(); return;
+    $('#app').hidden = false; trocar();
+    if (jornadaParam) $('#jornada-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    return;
   }
   $('#gate').hidden = false;
   $('#gate-form').addEventListener('submit', async (ev) => {
