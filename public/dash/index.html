@@ -1,1042 +1,644 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel de Rastreamento</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<meta name="robots" content="noindex">
+<title>Tracking — Atacado Exponencial</title>
 <style>
-  :root {
-    --bg: #f7f7f8;
-    --card: #ffffff;
-    --border: #e4e4e7;
-    --text: #18181b;
-    --dim: #52525b;
-    --muted: #a1a1aa;
-    --accent-blue:   #2563eb;
-    --accent-green:  #16a34a;
-    --accent-amber:  #d97706;
-    --accent-red:    #dc2626;
-    --accent-purple: #7c3aed;
-  }
-  html, body { background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  .mono { font-family: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
-  .kpi-label { color: var(--dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
-  .kpi-value { font-size: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
-  .accent-blue   { color: var(--accent-blue);   }
-  .accent-green  { color: var(--accent-green);  }
-  .accent-amber  { color: var(--accent-amber);  }
-  .accent-red    { color: var(--accent-red);    }
-  .accent-purple { color: var(--accent-purple); }
-  .dash-tab { padding: 0.5rem 0.875rem; font-size: 0.875rem; border-bottom: 2px solid transparent; color: var(--dim); cursor: pointer; }
-  .dash-tab.active { color: var(--text); border-color: var(--accent-blue); }
-  .range-btn { padding: 0.375rem 0.75rem; font-size: 0.8125rem; border: 1px solid var(--border); background: var(--card); border-radius: 8px; cursor: pointer; color: var(--dim); }
-  .range-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
-  .range-input { border: 1px solid var(--border); border-radius: 8px; padding: 0.3rem 0.5rem; font-size: 0.8125rem; color: var(--text); background: var(--card); }
-  .row-hover:hover { background: #fafafa; }
-  .fade-in { animation: fadeIn 0.35s ease-out; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-  /* Linha do tempo da jornada */
-  .tl { position: relative; padding-left: 1.5rem; }
-  .tl::before { content: ''; position: absolute; left: 0.45rem; top: 0.2rem; bottom: 0.2rem; width: 2px; background: var(--border); }
-  .tl-item { position: relative; padding-bottom: 1rem; }
-  .tl-dot { position: absolute; left: -1.5rem; top: 0.15rem; width: 0.95rem; height: 0.95rem; border-radius: 9999px; border: 2px solid var(--card); }
+/* Redesign do dash de tracking (issues 108–117) — mesmos tokens/componentes
+   do painel de clientes (painel/src/styles/dash.css), adaptados. */
+@font-face { font-family: 'Satoshi'; src: url('/fonts/Satoshi-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Satoshi'; src: url('/fonts/Satoshi-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+:root {
+  --font-sans: 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --bg: #1e1e1e; --card: #242424; --card-2: #2a2a2a; --border: #393536;
+  --fg: #ffffff; --muted: #a6a6a6; --bege: #f5f0eb;
+  --serie: #f5f0eb; --serie-area: rgba(245,240,235,0.13);
+  --up: #5dc986; --down: #f37f7f; --info: #7fb5f3; --warn: #e0b34c;
+  --radius: 0.75rem;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { color-scheme: dark; }
+body { font-family: var(--font-sans); background: var(--bg); color: var(--fg); font-size: 15px; line-height: 1.45; }
+.layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+.sidebar { border-right: 1px solid var(--border); padding: 1.25rem 0.9rem; display: flex; flex-direction: column; gap: 1.5rem; position: sticky; top: 0; height: 100vh; }
+.marca { font-weight: 700; font-size: 1.02rem; padding: 0 0.6rem; }
+.marca small { display: block; color: var(--muted); font-weight: 400; font-size: 0.72rem; }
+.nav { display: flex; flex-direction: column; gap: 0.15rem; }
+.nav a { color: var(--muted); text-decoration: none; padding: 0.55rem 0.6rem; border-radius: 0.5rem; font-size: 0.92rem; }
+.nav a:hover { color: var(--fg); background: var(--card); }
+.nav a.ativo { color: var(--fg); background: var(--card-2); font-weight: 700; }
+.conteudo { padding: 1.4rem 1.8rem 3rem; min-width: 0; }
+.topo { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; justify-content: space-between; margin-bottom: 1.4rem; }
+.topo h1 { font-size: 1.25rem; }
+.topo .sub { color: var(--muted); font-size: 0.85rem; }
+.filtros { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+select, input[type="date"], input[type="text"], input[type="password"], input[type="email"] {
+  background: var(--card); color: var(--fg); border: 1px solid var(--border);
+  border-radius: 0.5rem; padding: 0.45rem 0.6rem; font: inherit; font-size: 0.86rem;
+}
+.btn { background: var(--fg); color: var(--bg); border: 0; border-radius: 0.5rem; padding: 0.5rem 0.9rem; font: inherit; font-weight: 700; cursor: pointer; font-size: 0.86rem; }
+.btn.sec { background: var(--card-2); color: var(--fg); border: 1px solid var(--border); font-weight: 400; }
+.grid-kpi { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 0.7rem; margin-bottom: 1rem; }
+.grid-heroi { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
+.kpi { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 0.9rem; min-width: 0; }
+.kpi .rotulo { color: var(--muted); font-size: 0.76rem; margin-bottom: 0.25rem; }
+.kpi .valor { font-size: clamp(1.05rem, 1.6vw, 1.3rem); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; overflow-wrap: break-word; }
+.kpi.heroi { padding: 1.1rem 1.2rem; }
+.kpi.heroi .rotulo { font-size: 0.84rem; }
+.kpi.heroi .valor { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.kpi .semdado { color: var(--muted); font-size: 1rem; font-weight: 400; }
+.delta { font-size: 0.76rem; font-variant-numeric: tabular-nums; margin-top: 0.15rem; display: inline-block; }
+.delta.up { color: var(--up); } .delta.down { color: var(--down); } .delta.neutro { color: var(--muted); }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; margin-bottom: 1rem; }
+.card h2 { font-size: 0.95rem; margin-bottom: 0.7rem; }
+.card h2 small { color: var(--muted); font-weight: 400; font-size: 0.78rem; }
+.duas-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+@media (max-width: 980px) { .duas-colunas { grid-template-columns: 1fr; } .layout { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; flex-direction: row; align-items: center; overflow-x: auto; } .nav { flex-direction: row; } }
+.tabela-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+th, td { text-align: left; padding: 0.45rem 0.55rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--muted); font-weight: 400; font-size: 0.74rem; }
+th.ordenavel { cursor: pointer; user-select: none; }
+th.ordenavel:hover { color: var(--fg); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr.clicavel { cursor: pointer; }
+tbody tr.clicavel:hover td { background: var(--card-2); }
+td .mini, .mini { color: var(--muted); font-size: 0.72rem; }
+.ok { color: var(--up); } .falha { color: var(--down); }
+.aviso { color: var(--muted); font-size: 0.83rem; padding: 1rem; text-align: center; }
+.secao { display: none; } .secao.ativa { display: block; }
+.grafico { position: relative; }
+.grafico svg { display: block; width: 100%; height: auto; }
+.grafico .eixo { stroke: var(--border); stroke-width: 1; }
+.grafico .rot-eixo { fill: var(--muted); font-size: 10px; font-family: var(--font-sans); }
+.grafico .linha { fill: none; stroke: var(--serie); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.grafico .area { fill: var(--serie-area); }
+.grafico .cursor { stroke: var(--muted); stroke-dasharray: 3 3; stroke-width: 1; }
+.grafico circle { fill: var(--serie); }
+.tooltip { position: absolute; pointer-events: none; background: var(--card-2); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.4rem 0.6rem; font-size: 0.78rem; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); display: none; z-index: 5; }
+.tooltip b { display: block; font-variant-numeric: tabular-nums; }
+.chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.chip { background: var(--fg); color: var(--bg); border: 0; border-radius: 999px; padding: 0.25rem 0.7rem; font: inherit; font-size: 0.75rem; cursor: pointer; }
+.abas { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+.abas button { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 0.3rem 0.75rem; font: inherit; font-size: 0.78rem; cursor: pointer; }
+.abas button.ativo { background: var(--card-2); color: var(--fg); font-weight: 700; }
+.gate { display: grid; place-items: center; min-height: 100vh; }
+.gate form { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; width: min(340px, 90vw); display: grid; gap: 0.8rem; }
+.modal-fundo { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: grid; place-items: center; z-index: 50; padding: 1rem; }
+.modal { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); width: min(760px, 96vw); max-height: 85vh; overflow-y: auto; }
+.modal header { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); }
+.modal header small { display: block; color: var(--muted); font-size: 0.75rem; }
+.modal .corpo { padding: 1.1rem; display: grid; gap: 1rem; }
+.modal .fechar { background: none; border: 0; color: var(--muted); font-size: 1.5rem; cursor: pointer; line-height: 1; }
+pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.7rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+.tl { display: grid; gap: 0.6rem; }
+.tl-item { position: relative; padding-left: 1.1rem; }
+.tl-dot { position: absolute; left: 0; top: 0.35rem; width: 9px; height: 9px; border-radius: 50%; }
 </style>
 </head>
 <body>
 
-<!-- Portão de acesso: lê ?key= da URL, cai para sessionStorage, pede se faltar -->
-<div id="app" class="hidden min-h-screen">
+<div class="gate" id="gate" hidden>
+  <form id="gate-form">
+    <strong>Chave do painel</strong>
+    <span class="mini">Cole a <code>DASH_KEY</code> definida no Cloudflare.</span>
+    <input type="password" id="gate-key" placeholder="DASH_KEY" autocomplete="off">
+    <button class="btn" type="submit">Abrir painel</button>
+    <span class="mini falha" id="gate-erro" hidden>Chave inválida.</span>
+  </form>
+</div>
 
-  <header class="border-b border-[color:var(--border)] bg-white">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-lg bg-[color:var(--text)] text-white flex items-center justify-center font-bold">T</div>
-        <div>
-          <div class="font-semibold">Painel de Rastreamento</div>
-          <div class="text-xs text-[color:var(--muted)]">Atribuição e desempenho deste ambiente</div>
-        </div>
-      </div>
-      <div class="flex items-center gap-2 flex-wrap" id="range-picker">
-        <button class="range-btn" data-days="7">7 dias</button>
-        <button class="range-btn active" data-days="30">30 dias</button>
-        <button class="range-btn" data-days="90">90 dias</button>
-        <button class="range-btn" id="custom-range-btn">Personalizado</button>
-        <div id="custom-range" class="hidden items-center gap-2">
-          <input type="date" id="date-from" class="range-input" aria-label="Data inicial">
-          <span class="text-xs text-[color:var(--muted)]">até</span>
-          <input type="date" id="date-to" class="range-input" aria-label="Data final">
-          <button id="apply-range" class="range-btn">Aplicar</button>
-        </div>
-        <select id="funnel-picker" class="range-input" aria-label="Filtrar leads por funil">
-          <option value="">Todos os funis</option>
+<div class="layout" id="app" hidden>
+  <aside class="sidebar">
+    <div class="marca">Atacado Exponencial<small>Tracking interno</small></div>
+    <nav class="nav" id="nav">
+      <a href="#visao" data-secao="visao">Visão geral</a>
+      <a href="#leads" data-secao="leads">Leads</a>
+      <a href="#vendas" data-secao="vendas">Vendas</a>
+      <a href="#atribuicao" data-secao="atribuicao">Atribuição</a>
+      <a href="#metaads" data-secao="metaads">Meta Ads</a>
+      <a href="#jornada" data-secao="jornada">Jornada</a>
+      <a href="#eventos" data-secao="eventos">Eventos</a>
+    </nav>
+  </aside>
+
+  <main class="conteudo">
+    <div class="topo">
+      <div><h1 id="titulo">Visão geral</h1><div class="sub" id="subtitulo"></div></div>
+      <div class="filtros">
+        <select id="funil"><option value="">Todos os funis</option></select>
+        <select id="preset">
+          <option value="7">Últimos 7 dias</option>
+          <option value="14">Últimos 14 dias</option>
+          <option value="30" selected>Últimos 30 dias</option>
+          <option value="mes">Este mês</option>
+          <option value="mes-passado">Mês passado</option>
+          <option value="custom">Personalizado…</option>
         </select>
+        <input type="date" id="data-de" hidden><input type="date" id="data-ate" hidden>
       </div>
     </div>
-  </header>
 
-  <main class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+    <section class="secao" id="secao-visao">
+      <div class="grid-heroi" id="visao-herois"></div>
+      <div class="grid-kpi" id="visao-kpis"></div>
+      <div class="card"><h2>Leads por dia <small id="visao-serie-nota"></small></h2><div class="grafico" id="visao-grafico"></div></div>
+      <div class="card"><h2>Conversão por LP <small>resumo</small></h2><div class="tabela-wrap" id="visao-lps"></div></div>
+    </section>
 
-    <!-- Abas: Leads (padrão) | Vendas -->
-    <div class="flex gap-1 border-b border-[color:var(--border)]" id="dash-tabs">
-      <button class="dash-tab active" data-tab="leads">Leads</button>
-      <button class="dash-tab" data-tab="vendas">Vendas</button>
-    </div>
+    <section class="secao" id="secao-leads">
+      <div class="card"><h2>Leads por funil</h2><div class="grid-kpi" id="leads-funis"></div></div>
+      <div class="card"><h2>Conversão por LP</h2><div class="tabela-wrap" id="leads-conversao"></div></div>
+      <div class="card"><h2>Leads recentes <small>clique para detalhes · Meta/GA4 = envio server-side</small></h2><div class="tabela-wrap" id="leads-tabela"></div></div>
+    </section>
 
-    <!-- KPI Leads (aba Leads) -->
-    <section class="fade-in" data-tab="leads">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="card p-5">
-          <div class="kpi-label">Leads</div>
-          <div class="kpi-value mono accent-green mt-1" id="kpi-leads">—</div>
-          <div class="text-xs text-[color:var(--muted)] mt-1">Sem bots, no período</div>
+    <section class="secao" id="secao-vendas">
+      <div class="grid-kpi" id="vendas-kpis"></div>
+      <div class="card"><h2>Receita por dia</h2><div class="grafico" id="vendas-grafico"></div></div>
+      <div class="card"><h2>Produtos</h2><div class="tabela-wrap" id="vendas-produtos"></div></div>
+      <div class="card"><h2>Compras registradas <small>clique para detalhes</small></h2><div class="tabela-wrap" id="vendas-compras"></div></div>
+    </section>
+
+    <section class="secao" id="secao-atribuicao">
+      <div class="grid-kpi" id="atr-canais"></div>
+      <div class="card">
+        <h2>Quebra por UTM <small>clique numa linha para filtrar por ela</small></h2>
+        <div class="abas" id="utm-abas">
+          <button data-dim="utm_source" class="ativo">Origem</button>
+          <button data-dim="utm_campaign">Campanha</button>
+          <button data-dim="utm_medium">Mídia</button>
+          <button data-dim="utm_content">Conteúdo</button>
         </div>
+        <div class="chips" id="utm-chips"></div>
+        <div class="tabela-wrap" id="utm-tabela"></div>
       </div>
     </section>
 
-    <!-- Leads por funil (aba Leads) -->
-    <section class="card p-5 fade-in" data-tab="leads">
-      <div class="font-semibold mb-3">Leads por funil</div>
-      <div id="funnel-counts" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div class="text-sm text-[color:var(--muted)]">Carregando…</div>
+    <section class="secao" id="secao-metaads">
+      <div class="grid-kpi" id="meta-kpis"></div>
+      <div class="card"><h2>Campanhas <small id="meta-sync-nota"></small></h2><div class="tabela-wrap" id="meta-campanhas"></div></div>
+    </section>
+
+    <section class="secao" id="secao-jornada">
+      <div class="card">
+        <h2>Buscar jornada de um lead</h2>
+        <form id="jornada-form" style="display:flex; gap:0.5rem; flex-wrap:wrap">
+          <input type="email" id="jornada-email" placeholder="email do lead" style="flex:1; min-width:220px" required>
+          <button class="btn" type="submit">Buscar</button>
+        </form>
+        <div id="jornada-resultado" style="margin-top:1rem"></div>
       </div>
     </section>
 
-    <!-- Conversão por LP (aba Leads) -->
-    <section class="card p-5 fade-in" data-tab="leads">
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <div class="font-semibold">Conversão por LP</div>
-          <div class="text-xs text-[color:var(--muted)]">Visitantes únicos por landing page vs. leads capturados, sem bots</div>
-        </div>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="text-xs uppercase tracking-wider text-[color:var(--dim)] border-b border-[color:var(--border)]">
-            <tr>
-              <th class="text-left py-2 pr-4">LP</th>
-              <th class="text-right py-2 pr-4">Visitantes</th>
-              <th class="text-right py-2 pr-4">Leads</th>
-              <th class="text-right py-2">Taxa de conversão</th>
-            </tr>
-          </thead>
-          <tbody id="conversion-tbody" class="mono">
-            <tr><td colspan="4" class="py-6 text-center text-[color:var(--muted)]">Carregando…</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <section class="secao" id="secao-eventos">
+      <div class="card"><h2>Saúde da captura <small>recuperação de rastreio</small></h2><div class="grid-kpi" id="ev-saude"></div></div>
+      <div class="card"><h2>Eventos recentes</h2><div class="tabela-wrap" id="ev-tabela"></div></div>
     </section>
-
-    <!-- KPIs de venda (aba Vendas) -->
-    <section class="fade-in hidden" data-tab="vendas">
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div class="card p-5">
-          <div class="kpi-label">Receita bruta</div>
-          <div class="kpi-value mono accent-amber mt-1" id="kpi-revenue">—</div>
-          <div class="text-xs text-[color:var(--muted)] mt-1" id="kpi-revenue-sub">&nbsp;</div>
-        </div>
-        <div class="card p-5">
-          <div class="kpi-label">Vendas</div>
-          <div class="kpi-value mono mt-1" id="kpi-sales">—</div>
-          <div class="text-xs text-[color:var(--muted)] mt-1">Transações pagas</div>
-        </div>
-        <div class="card p-5">
-          <div class="kpi-label">Ticket médio</div>
-          <div class="kpi-value mono accent-blue mt-1" id="kpi-aov">—</div>
-          <div class="text-xs text-[color:var(--muted)] mt-1">Bruto / vendas</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Receita ao longo do tempo (aba Vendas) -->
-    <section class="card p-5 fade-in hidden" data-tab="vendas">
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <div class="font-semibold">Receita ao longo do tempo</div>
-          <div class="text-xs text-[color:var(--muted)]">Receita bruta diária e número de vendas</div>
-        </div>
-      </div>
-      <div class="h-64"><canvas id="chart-revenue"></canvas></div>
-    </section>
-
-    <!-- Produtos + série temporal (aba Vendas) -->
-    <section class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 fade-in hidden" data-tab="vendas">
-      <div class="card p-5">
-        <div class="font-semibold mb-3">Produtos</div>
-        <div id="product-cards" class="space-y-2">
-          <div class="text-sm text-[color:var(--muted)]">Carregando…</div>
-        </div>
-      </div>
-      <div class="card p-5">
-        <div class="font-semibold mb-3">Vendas por produto ao longo do tempo</div>
-        <div class="h-64"><canvas id="chart-products"></canvas></div>
-      </div>
-    </section>
-
-    <!-- Atribuição de tráfego pago (aba Vendas) -->
-    <section class="card p-5 fade-in hidden" data-tab="vendas">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <div class="font-semibold">Atribuição de tráfego pago</div>
-          <div class="text-xs text-[color:var(--muted)]">
-            Vendas agrupadas pelo identificador de clique da sessão de origem.
-            O investimento da Meta é sincronizado pela API de Marketing da Meta
-            <span id="attribution-sync-note" class="ml-1"></span>.
-          </div>
-        </div>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="border border-[color:var(--border)] rounded-lg p-4">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-2 h-2 rounded-full" style="background:var(--accent-blue)"></div>
-            <div class="text-sm font-semibold">Meta</div>
-          </div>
-          <div class="grid grid-cols-2 gap-3 mt-3 mono">
-            <div>
-              <div class="text-[11px] text-[color:var(--muted)] uppercase tracking-wider">Vendas</div>
-              <div class="text-xl" id="meta-sales">—</div>
-            </div>
-            <div>
-              <div class="text-[11px] text-[color:var(--muted)] uppercase tracking-wider">Receita</div>
-              <div class="text-xl" id="meta-revenue">—</div>
-            </div>
-            <div>
-              <div class="text-[11px] text-[color:var(--muted)] uppercase tracking-wider">Investimento</div>
-              <div class="text-xl" id="meta-spend">—</div>
-            </div>
-            <div>
-              <div class="text-[11px] text-[color:var(--muted)] uppercase tracking-wider">CPA</div>
-              <div class="text-xl" id="meta-cpa">—</div>
-            </div>
-            <div class="col-span-2">
-              <div class="text-[11px] text-[color:var(--muted)] uppercase tracking-wider">ROAS</div>
-              <div class="text-2xl" id="meta-roas">—</div>
-            </div>
-          </div>
-        </div>
-        <div class="border border-[color:var(--border)] rounded-lg p-4">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-2 h-2 rounded-full" style="background:var(--accent-amber)"></div>
-            <div class="text-sm font-semibold">Google</div>
-          </div>
-          <div class="grid grid-cols-2 gap-3 mt-3 mono">
-            <div>
-              <div class="text-[11px] text-[color:var(--muted)] uppercase tracking-wider">Vendas</div>
-              <div class="text-xl" id="google-sales">—</div>
-            </div>
-            <div>
-              <div class="text-[11px] text-[color:var(--muted)] uppercase tracking-wider">Receita</div>
-              <div class="text-xl" id="google-revenue">—</div>
-            </div>
-          </div>
-          <div class="text-[11px] text-[color:var(--muted)] mt-3 leading-snug">
-            A sincronização de investimento do Google Ads chega na v1.1. A receita acima vem de compras com gclid/gbraid/wbraid capturados na sessão.
-          </div>
-        </div>
-        <div class="border border-[color:var(--border)] rounded-lg p-4">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-2 h-2 rounded-full" style="background:var(--accent-green)"></div>
-            <div class="text-sm font-semibold">Orgânico</div>
-          </div>
-          <div class="grid grid-cols-2 gap-3 mt-3 mono">
-            <div>
-              <div class="text-[11px] text-[color:var(--muted)] uppercase tracking-wider">Vendas</div>
-              <div class="text-xl" id="organic-sales">—</div>
-            </div>
-            <div>
-              <div class="text-[11px] text-[color:var(--muted)] uppercase tracking-wider">Receita</div>
-              <div class="text-xl" id="organic-revenue">—</div>
-            </div>
-          </div>
-          <div class="text-[11px] text-[color:var(--muted)] mt-3 leading-snug">
-            Sem fbclid / gclid / wbraid / gbraid na sessão de origem.
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Detalhamento por UTM (aba Vendas) -->
-    <section class="card p-5 fade-in hidden" data-tab="vendas">
-      <div class="flex items-center justify-between mb-3">
-        <div class="font-semibold">Detalhamento por UTM</div>
-        <div class="text-xs text-[color:var(--muted)]">Agrupado das compras</div>
-      </div>
-      <div class="flex gap-1 border-b border-[color:var(--border)] mb-4 -mx-5 px-5 overflow-x-auto" id="utm-tabs">
-        <div class="dash-tab active" data-dim="utm_source">origem</div>
-        <div class="dash-tab" data-dim="utm_medium">mídia</div>
-        <div class="dash-tab" data-dim="utm_campaign">campanha</div>
-        <div class="dash-tab" data-dim="utm_content">conteúdo</div>
-        <div class="dash-tab" data-dim="utm_term">termo</div>
-      </div>
-      <div id="utm-filters" class="flex flex-wrap gap-2 mb-3"></div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="text-xs uppercase tracking-wider text-[color:var(--dim)] border-b border-[color:var(--border)]">
-            <tr>
-              <th class="text-left py-2 pr-4">Valor</th>
-              <th class="text-right py-2 pr-4">Vendas</th>
-              <th class="text-right py-2 pr-4">Receita</th>
-              <th class="text-right py-2">Ticket</th>
-            </tr>
-          </thead>
-          <tbody id="utm-tbody" class="mono">
-            <tr><td colspan="4" class="py-6 text-center text-[color:var(--muted)]">Carregando…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Leads recentes (aba Leads) -->
-    <section class="card p-5 fade-in" data-tab="leads">
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <div class="font-semibold">Leads recentes</div>
-          <div class="text-xs text-[color:var(--muted)]">Clique numa linha para ver a jornada do lead e o que foi enviado à Meta / GA4</div>
-        </div>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="text-xs uppercase tracking-wider text-[color:var(--dim)] border-b border-[color:var(--border)]">
-            <tr>
-              <th class="text-left py-2 pr-4">Quando</th>
-              <th class="text-left py-2 pr-4">Email</th>
-              <th class="text-left py-2 pr-4">Origem</th>
-              <th class="text-left py-2 pr-4">Campanha</th>
-              <th class="text-left py-2 pr-4">Mídia</th>
-              <th class="text-left py-2 pr-4">Conteúdo</th>
-              <th class="text-center py-2 pr-4">Meta</th>
-              <th class="text-center py-2">GA4</th>
-            </tr>
-          </thead>
-          <tbody id="leads-tbody">
-            <tr><td colspan="8" class="py-6 text-center text-[color:var(--muted)]">Carregando…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Compras recentes (aba Vendas) -->
-    <section class="card p-5 fade-in hidden" data-tab="vendas">
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <div class="font-semibold">Compras recentes</div>
-          <div class="text-xs text-[color:var(--muted)]">Clique numa linha para ver a jornada e o que foi enviado à Meta / GA4 / Google Ads</div>
-        </div>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="text-xs uppercase tracking-wider text-[color:var(--dim)] border-b border-[color:var(--border)]">
-            <tr>
-              <th class="text-left py-2 pr-4">Quando</th>
-              <th class="text-left py-2 pr-4">Email</th>
-              <th class="text-left py-2 pr-4">Produto</th>
-              <th class="text-right py-2 pr-4">Valor</th>
-              <th class="text-center py-2 pr-4">Meta</th>
-              <th class="text-center py-2 pr-4">GA4</th>
-              <th class="text-center py-2">Google Ads</th>
-            </tr>
-          </thead>
-          <tbody id="purchases-tbody">
-            <tr><td colspan="7" class="py-6 text-center text-[color:var(--muted)]">Carregando…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Saúde do rastreamento (aba Leads) -->
-    <section class="card p-5 fade-in" data-tab="leads">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <div class="font-semibold">Saúde do rastreamento</div>
-          <div class="text-xs text-[color:var(--muted)]">
-            Captura first-party vs pixel. Mostra quantos eventos você teria perdido sem o rastreamento no servidor.
-          </div>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mono">
-        <div>
-          <div class="kpi-label">Eventos reais</div>
-          <div class="text-2xl" id="health-real">—</div>
-        </div>
-        <div>
-          <div class="kpi-label">Recuperados (ITP)</div>
-          <div class="text-2xl accent-blue" id="health-itp">—</div>
-        </div>
-        <div>
-          <div class="kpi-label">Recuperados (Adblock)</div>
-          <div class="text-2xl accent-green" id="health-adblock">—</div>
-        </div>
-        <div>
-          <div class="kpi-label">Bots filtrados</div>
-          <div class="text-2xl accent-red" id="health-bots">—</div>
-        </div>
-      </div>
-      <div class="mt-5">
-        <div class="text-xs uppercase tracking-wider text-[color:var(--dim)] mb-2">Origem do fbp</div>
-        <div class="flex flex-wrap gap-2 text-xs" id="health-fbp"></div>
-      </div>
-    </section>
-
-    <footer class="pt-4 pb-10 text-xs text-[color:var(--muted)] text-center">
-      Tracking Stack &middot; auto-hospedado no Cloudflare Pages
-    </footer>
   </main>
 </div>
 
-<!-- Pedido de chave quando não há key -->
-<div id="auth-gate" class="min-h-screen flex items-center justify-center hidden">
-  <div class="card p-6 max-w-sm w-full">
-    <div class="font-semibold mb-2">Chave do painel necessária</div>
-    <div class="text-sm text-[color:var(--dim)] mb-4">
-      Cole a <code>DASH_KEY</code> que você definiu nas variáveis de ambiente do Cloudflare.
-    </div>
-    <input id="auth-input" type="password" placeholder="DASH_KEY" class="w-full border border-[color:var(--border)] rounded-lg px-3 py-2 text-sm mb-3 font-mono">
-    <button id="auth-submit" class="w-full bg-[color:var(--text)] text-white rounded-lg py-2 text-sm font-semibold">Abrir painel</button>
-    <div id="auth-error" class="text-xs text-[color:var(--accent-red)] mt-2 hidden">Chave inválida.</div>
-  </div>
-</div>
-
-<!-- Modal de detalhes: clique numa linha de lead/compra para abrir -->
-<div id="details-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
-  <div class="card w-full max-w-3xl max-h-[85vh] overflow-y-auto">
-    <div class="flex items-center justify-between px-5 py-3 border-b border-[color:var(--border)] sticky top-0 bg-white">
-      <div>
-        <div id="modal-title" class="font-semibold">Detalhes do evento</div>
-        <div id="modal-subtitle" class="text-xs text-[color:var(--muted)] mt-0.5"></div>
-      </div>
-      <button id="modal-close" class="text-[color:var(--dim)] hover:text-[color:var(--text)] text-2xl leading-none px-2" aria-label="Fechar">&times;</button>
-    </div>
-    <div id="modal-body" class="p-5 space-y-5"></div>
+<div class="modal-fundo" id="modal-fundo" hidden>
+  <div class="modal">
+    <header>
+      <div><strong id="modal-titulo"></strong><small id="modal-sub"></small></div>
+      <button class="fechar" id="modal-fechar" aria-label="Fechar">&times;</button>
+    </header>
+    <div class="corpo" id="modal-corpo"></div>
   </div>
 </div>
 
 <script>
-(function () {
-  const qs  = sel => document.querySelector(sel);
-  const qsa = sel => document.querySelectorAll(sel);
+(() => {
+'use strict';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = (n, cur = 'BRL') => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: cur });
+const fmtInt = (n) => Number(n || 0).toLocaleString('pt-BR');
+const fmtPct = (n, c = 1) => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: c, minimumFractionDigits: c }) + '%';
+const fmtNum = (n, c = 2) => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: c });
+const fmtData = (ts) => new Date(ts * 1000).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+const diaBR = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
 
-  // -------- Acesso --------
-  const url = new URL(window.location.href);
-  let key = url.searchParams.get('key') || sessionStorage.getItem('dashKey') || '';
-  const authGate = qs('#auth-gate');
-  const app = qs('#app');
+// ---------- acesso (mesmo mecanismo do dash antigo) ----------
+let key = new URL(location.href).searchParams.get('key') || sessionStorage.getItem('dashKey') || '';
+const fetchJson = (p) => fetch(p + (p.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key)).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+async function chaveValida(k) { try { return (await fetch('/api/revenue?days=1&key=' + encodeURIComponent(k))).ok; } catch { return false; } }
 
-  async function openDashboard() {
-    app.classList.remove('hidden');
-    authGate.classList.add('hidden');
+// ---------- período (padrão do painel, em unix from/to) ----------
+function intervalo() {
+  const preset = $('#preset').value;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  let de, ate = Math.floor(Date.now() / 1000);
+  const dias = (n) => { const d = new Date(hoje); d.setDate(d.getDate() - n); return Math.floor(d.getTime() / 1000); };
+  if (preset === 'custom') {
+    const dv = $('#data-de').value, av = $('#data-ate').value;
+    de = dv ? Math.floor(new Date(dv + 'T00:00:00').getTime() / 1000) : dias(30);
+    ate = av ? Math.floor(new Date(av + 'T23:59:59').getTime() / 1000) : ate;
+  } else if (preset === 'mes') {
+    de = Math.floor(new Date(hoje.getFullYear(), hoje.getMonth(), 1).getTime() / 1000);
+  } else if (preset === 'mes-passado') {
+    de = Math.floor(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1).getTime() / 1000);
+    ate = Math.floor(new Date(hoje.getFullYear(), hoje.getMonth(), 1).getTime() / 1000) - 1;
+  } else { de = dias(Number(preset)); }
+  const dur = ate - de;
+  return { de, ate, antDe: de - dur - 1, antAte: de - 1 };
+}
+const q = (de, ate) => `from=${de}&to=${ate}`;
+const delta = (a, b) => (b ? ((a - b) / b) * 100 : null);
+let funilQ = '';
+
+// ---------- componentes (portados do painel) ----------
+function deltaChip(pct, invertido = false) {
+  if (pct === null || pct === undefined || !isFinite(pct)) return '';
+  const up = pct >= 0, bom = invertido ? !up : up;
+  const cls = pct === 0 ? 'neutro' : (bom ? 'up' : 'down');
+  return `<span class="delta ${cls}">${pct === 0 ? '•' : (up ? '▲' : '▼')} ${fmtNum(Math.abs(pct), 1)}%</span>`;
+}
+const tile = (k, heroi = false) => `
+  <div class="kpi${heroi ? ' heroi' : ''}">
+    <div class="rotulo">${esc(k.rotulo)}</div>
+    <div class="valor">${k.valor === null || k.valor === undefined ? '<span class="semdado">—</span>' : k.valor}</div>
+    ${k.delta !== undefined ? deltaChip(k.delta, k.invertido) : ''}${k.nota ? `<div class="mini">${k.nota}</div>` : ''}
+  </div>`;
+
+function tabela(el, colunas, linhas, aoClicar) {
+  if (!linhas.length) { el.innerHTML = '<div class="aviso">Sem dados no período.</div>'; return; }
+  const ordem = { campo: null, asc: false };
+  const desenhar = () => {
+    let dados = linhas;
+    if (ordem.campo) {
+      dados = [...linhas].sort((a, b) => {
+        const va = a[ordem.campo], vb = b[ordem.campo];
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        const cmp = (typeof va === 'number' && typeof vb === 'number') ? va - vb : String(va).localeCompare(String(vb), 'pt-BR');
+        return ordem.asc ? cmp : -cmp;
+      });
+    }
+    const ths = colunas.map((c, i) => `<th class="${c.num ? 'num' : ''}${c.campo ? ' ordenavel' : ''}" data-i="${i}">${esc(c.titulo)}${c.campo === ordem.campo ? (ordem.asc ? ' ↑' : ' ↓') : ''}</th>`).join('');
+    const trs = dados.map((l) => `<tr class="${aoClicar ? 'clicavel' : ''}" data-k="${linhas.indexOf(l)}">${colunas.map((c) => `<td class="${c.num ? 'num' : ''}">${c.render(l)}</td>`).join('')}</tr>`).join('');
+    el.innerHTML = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  };
+  el.onclick = (ev) => {
+    const th = ev.target.closest('th.ordenavel');
+    if (th) {
+      const campo = colunas[Number(th.dataset.i)].campo;
+      if (ordem.campo === campo) ordem.asc = !ordem.asc; else { ordem.campo = campo; ordem.asc = false; }
+      desenhar(); return;
+    }
+    const tr = ev.target.closest('tr[data-k]');
+    if (tr && aoClicar) aoClicar(linhas[Number(tr.dataset.k)]);
+  };
+  desenhar();
+}
+
+function grafico(el, serie, valorFmt) {
+  if (!serie.length) { el.innerHTML = '<div class="aviso">Sem dados no período.</div>'; return; }
+  const W = 900, H = 240, m = { t: 14, r: 12, b: 26, l: 56 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const max = Math.max(...serie.map((p) => p.v), 1) * 1.08;
+  const x = (i) => m.l + (serie.length === 1 ? iw / 2 : (i / (serie.length - 1)) * iw);
+  const y = (v) => m.t + ih - (v / max) * ih;
+  const pts = serie.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`);
+  const linha = 'M' + pts.join('L');
+  const area = `${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z`;
+  const yt = [0, 0.5, 1].map((f) => { const v = max * f, yy = y(v); return `<line class="eixo" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/><text class="rot-eixo" x="${m.l - 6}" y="${yy + 3}" text-anchor="end">${valorFmt(v, true)}</text>`; }).join('');
+  const passo = Math.max(1, Math.ceil(serie.length / 8));
+  const xt = serie.map((p, i) => i % passo ? '' : `<text class="rot-eixo" x="${x(i)}" y="${H - 8}" text-anchor="middle">${diaBR(p.d)}</text>`).join('');
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${yt}${xt}<path class="area" d="${area}"/><path class="linha" d="${linha}"/><line class="cursor" y1="${m.t}" y2="${m.t + ih}" x1="-9" x2="-9" style="display:none"/><circle r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/></svg><div class="tooltip"></div>`;
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tooltip');
+  const cur = el.querySelector('.cursor'), pt = el.querySelector('circle');
+  svg.addEventListener('pointermove', (ev) => {
+    const r = svg.getBoundingClientRect();
+    const px = ((ev.clientX - r.left) / r.width) * W;
+    const i = Math.max(0, Math.min(serie.length - 1, Math.round(((px - m.l) / iw) * (serie.length - 1))));
+    const cx = x(i), cy = y(serie[i].v);
+    cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.style.display = '';
+    pt.setAttribute('cx', cx); pt.setAttribute('cy', cy); pt.style.display = '';
+    tip.style.display = 'block'; tip.style.left = (cx / W) * r.width + 'px'; tip.style.top = (cy / H) * r.height + 'px';
+    tip.innerHTML = `${diaBR(serie[i].d)}<b>${valorFmt(serie[i].v)}</b>`;
+  });
+  svg.addEventListener('pointerleave', () => { cur.style.display = 'none'; pt.style.display = 'none'; tip.style.display = 'none'; });
+}
+
+// ---------- seções ----------
+const R = {};
+
+R.visao = async () => {
+  const p = intervalo();
+  const [leadsA, leadsB, convA, convB, atrA, atrB, revA, revB] = await Promise.all([
+    fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&limit=500`),
+    fetchJson(`/api/leads?${q(p.antDe, p.antAte)}${funilQ}&limit=1`),
+    fetchJson(`/api/conversion?${q(p.de, p.ate)}${funilQ}`),
+    fetchJson(`/api/conversion?${q(p.antDe, p.antAte)}${funilQ}`),
+    fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
+    fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
+    fetchJson(`/api/revenue?${q(p.de, p.ate)}`),
+    fetchJson(`/api/revenue?${q(p.antDe, p.antAte)}`),
+  ]);
+  // funnelCounts sempre traz TODOS os funis; com filtro ativo, usa só o dele.
+  const fSel = $('#funil').value;
+  const soma = (fc) => (fc || [])
+    .filter((c) => !fSel || (c.funnel || '') === fSel)
+    .reduce((s, c) => s + Number(c.count || 0), 0);
+  const totalLeads = soma(leadsA.funnelCounts), totalLeadsAnt = soma(leadsB.funnelCounts);
+  const somaConv = (rows) => (rows || []).reduce((s, r) => ({ v: s.v + Number(r.visitors || 0), l: s.l + Number(r.leads || 0) }), { v: 0, l: 0 });
+  const cA = somaConv(convA.rows), cB = somaConv(convB.rows);
+  const txA = cA.v ? (cA.l / cA.v) * 100 : null, txB = cB.v ? (cB.l / cB.v) * 100 : null;
+  const cplA = totalLeads && atrA.meta_spend > 0 ? atrA.meta_spend / totalLeads : null;
+  const cplB = totalLeadsAnt && atrB.meta_spend > 0 ? atrB.meta_spend / totalLeadsAnt : null;
+
+  $('#visao-herois').innerHTML = [
+    { rotulo: 'Leads', valor: fmtInt(totalLeads), delta: delta(totalLeads, totalLeadsAnt) },
+    { rotulo: 'Conversão geral', valor: txA === null ? null : fmtPct(txA, 2), delta: txA !== null && txB !== null ? delta(txA, txB) : undefined },
+    { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, invertido: true, nota: cplA === null ? 'precisa do sync de investimento' : '' },
+  ].map((k) => tile(k, true)).join('');
+
+  $('#visao-kpis').innerHTML = [
+    { rotulo: 'Sessões (visitantes)', valor: fmtInt(cA.v), delta: delta(cA.v, cB.v) },
+    { rotulo: 'Investimento (Meta)', valor: atrA.meta_spend > 0 ? money(atrA.meta_spend) : null, delta: atrA.meta_spend > 0 && atrB.meta_spend > 0 ? delta(atrA.meta_spend, atrB.meta_spend) : undefined, invertido: true },
+    { rotulo: 'Receita', valor: revA.gross > 0 ? money(revA.gross, revA.currency) : null, delta: revA.gross > 0 && revB.gross > 0 ? delta(revA.gross, revB.gross) : undefined, nota: revA.gross > 0 ? '' : 'aguardando conversões do CRM' },
+    { rotulo: 'ROAS', valor: atrA.meta_roas != null ? fmtNum(atrA.meta_roas) + 'x' : null, nota: atrA.meta_roas != null ? '' : 'aguardando conversões do CRM' },
+  ].map((k) => tile(k)).join('');
+
+  // Leads por dia derivado das linhas (limit 500 — se estourar, série parcial)
+  const porDia = {};
+  for (const l of (leadsA.leads || [])) { const d = new Date(l.timestamp * 1000).toISOString().slice(0, 10); porDia[d] = (porDia[d] || 0) + 1; }
+  const serie = Object.keys(porDia).sort().map((d) => ({ d, v: porDia[d] }));
+  $('#visao-serie-nota').textContent = (leadsA.leads || []).length >= 500 ? 'amostra dos 500 leads mais recentes' : '';
+  grafico($('#visao-grafico'), serie, (v, eixo) => eixo ? fmtInt(v) : fmtInt(v) + ' leads');
+
+  tabela($('#visao-lps'), [
+    { titulo: 'LP', campo: 'lp', render: (r) => esc(r.lp) },
+    { titulo: 'Visitantes', num: true, campo: 'visitors', render: (r) => fmtInt(r.visitors) },
+    { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
+    { titulo: 'Conversão', num: true, campo: 'rate', render: (r) => fmtPct(r.rate * 100, 1) },
+  ], (convA.rows || []).slice(0, 6));
+};
+
+R.leads = async () => {
+  const p = intervalo();
+  const [dados, conv] = await Promise.all([
+    fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&limit=50`),
+    fetchJson(`/api/conversion?${q(p.de, p.ate)}${funilQ}`),
+  ]);
+  popularFunis(dados.funnels);
+  $('#leads-funis').innerHTML = (dados.funnelCounts || []).map((c) => tile({ rotulo: c.funnel || '(sem funil)', valor: fmtInt(c.count) })).join('') || '<div class="aviso">Nenhum lead no período.</div>';
+  tabela($('#leads-conversao'), [
+    { titulo: 'LP', campo: 'lp', render: (r) => esc(r.lp) },
+    { titulo: 'Visitantes', num: true, campo: 'visitors', render: (r) => fmtInt(r.visitors) },
+    { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
+    { titulo: 'Conversão', num: true, campo: 'rate', render: (r) => fmtPct(r.rate * 100, 1) },
+  ], conv.rows || []);
+  tabela($('#leads-tabela'), [
+    { titulo: 'Quando', campo: 'timestamp', render: (l) => `<span class="mini">${fmtData(l.timestamp)}</span>` },
+    { titulo: 'Email', campo: 'raw_email', render: (l) => esc(l.raw_email || '—') },
+    { titulo: 'Origem', campo: 'utm_source', render: (l) => esc(l.utm_source || '(direto)') },
+    { titulo: 'Campanha', campo: 'utm_campaign', render: (l) => `<span class="mini">${esc(l.utm_campaign || '—')}</span>` },
+    { titulo: 'Conteúdo', campo: 'utm_content', render: (l) => `<span class="mini">${esc(l.utm_content || '—')}</span>` },
+    { titulo: 'Meta', num: true, render: (l) => l.meta_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
+    { titulo: 'GA4', num: true, render: (l) => l.ga4_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
+  ], dados.leads || [], (l) => abrirDetalhes('lead', l));
+};
+
+R.vendas = async () => {
+  const p = intervalo();
+  const [rev, revAnt, prod, compras] = await Promise.all([
+    fetchJson(`/api/revenue?${q(p.de, p.ate)}`),
+    fetchJson(`/api/revenue?${q(p.antDe, p.antAte)}`),
+    fetchJson(`/api/products?${q(p.de, p.ate)}`),
+    fetchJson('/api/purchases?limit=50'),
+  ]);
+  $('#vendas-kpis').innerHTML = [
+    { rotulo: 'Receita', valor: rev.gross > 0 ? money(rev.gross, rev.currency) : null, delta: rev.gross > 0 && revAnt.gross > 0 ? delta(rev.gross, revAnt.gross) : undefined, nota: rev.gross > 0 ? '' : 'aguardando conversões do CRM' },
+    { rotulo: 'Vendas', valor: fmtInt(rev.sales), delta: delta(rev.sales, revAnt.sales) },
+    { rotulo: 'Ticket médio', valor: rev.sales > 0 ? money(rev.aov, rev.currency) : null },
+  ].map((k) => tile(k)).join('');
+  grafico($('#vendas-grafico'), (rev.time_series || []).map((r) => ({ d: r.date, v: Number(r.revenue || 0) })), (v) => money(v));
+  tabela($('#vendas-produtos'), [
+    { titulo: 'Produto', campo: 'product_name', render: (r) => esc(r.product_name || r.product_id) },
+    { titulo: 'Vendas', num: true, campo: 'sales', render: (r) => fmtInt(r.sales) },
+    { titulo: 'Receita', num: true, campo: 'revenue', render: (r) => money(r.revenue, r.currency || 'BRL') },
+  ], prod.products || []);
+  tabela($('#vendas-compras'), [
+    { titulo: 'Quando', campo: 'created_at', render: (c) => `<span class="mini">${fmtData(c.created_at)}</span>` },
+    { titulo: 'Email', campo: 'raw_email', render: (c) => esc(c.raw_email || '—') },
+    { titulo: 'Produto', campo: 'product_name', render: (c) => esc(c.product_name || c.product_id || '—') },
+    { titulo: 'Valor', num: true, campo: 'value', render: (c) => money(c.value, c.currency || 'BRL') },
+    { titulo: 'Meta', num: true, render: (c) => c.meta_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
+    { titulo: 'GA4', num: true, render: (c) => c.ga4_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
+    { titulo: 'GAds', num: true, render: (c) => c.google_ads_response_ok ? '<span class="ok">✓</span>' : (String(c.google_ads_response_body || '').startsWith('skipped:') ? '<span class="mini">—</span>' : '<span class="falha">✕</span>') },
+  ], compras.rows || [], (c) => abrirDetalhes('purchase', c));
+};
+
+let utmDim = 'utm_source', utmFiltros = {};
+R.atribuicao = async () => {
+  const p = intervalo();
+  const atr = await fetchJson(`/api/attribution?${q(p.de, p.ate)}`);
+  const g = atr.groups || {};
+  $('#atr-canais').innerHTML = [
+    { rotulo: 'Meta — vendas', valor: fmtInt(g.meta?.sales) },
+    { rotulo: 'Meta — receita', valor: money(g.meta?.revenue) },
+    { rotulo: 'Google — vendas', valor: fmtInt(g.google?.sales) },
+    { rotulo: 'Google — receita', valor: money(g.google?.revenue) },
+    { rotulo: 'Orgânico — vendas', valor: fmtInt(g.organic?.sales) },
+    { rotulo: 'Orgânico — receita', valor: money(g.organic?.revenue) },
+  ].map((k) => tile(k)).join('');
+  await carregarUtm();
+};
+async function carregarUtm() {
+  const p = intervalo();
+  const filtros = Object.entries(utmFiltros).map(([k, v]) => `&${k}=${encodeURIComponent(v)}`).join('');
+  const dados = await fetchJson(`/api/utm-breakdown?${q(p.de, p.ate)}&dimension=${encodeURIComponent(utmDim)}${filtros}`);
+  $('#utm-chips').innerHTML = Object.entries(utmFiltros).map(([k, v]) => `<button class="chip" data-k="${k}"><span class="mini" style="color:inherit">${k}:</span> ${esc(v)} ×</button>`).join('');
+  document.querySelectorAll('#utm-chips .chip').forEach((b) => b.addEventListener('click', () => { delete utmFiltros[b.dataset.k]; carregarUtm(); }));
+  tabela($('#utm-tabela'), [
+    { titulo: 'Valor', campo: 'value', render: (r) => esc(r.value) },
+    { titulo: 'Vendas', num: true, campo: 'sales', render: (r) => fmtInt(r.sales) },
+    { titulo: 'Receita', num: true, campo: 'revenue', render: (r) => money(r.revenue) },
+    { titulo: 'Ticket', num: true, campo: 'aov', render: (r) => money(r.aov) },
+  ], dados.rows || [], (r) => {
+    if (r.value && r.value !== '(not set)' && r.value !== '(não definido)') { utmFiltros[utmDim] = r.value; carregarUtm(); }
+  });
+}
+document.querySelectorAll('#utm-abas button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('#utm-abas button').forEach((x) => x.classList.remove('ativo'));
+  b.classList.add('ativo'); utmDim = b.dataset.dim; utmFiltros = {}; carregarUtm();
+}));
+
+R.metaads = async () => {
+  const p = intervalo();
+  const [atr, atrAnt, camp, leads] = await Promise.all([
+    fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
+    fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
+    fetchJson(`/api/ad-spend?${q(p.de, p.ate)}`),
+    fetchJson(`/api/leads?${q(p.de, p.ate)}&limit=1`),
+  ]);
+  const totalLeads = (leads.funnelCounts || []).reduce((s, c) => s + Number(c.count || 0), 0);
+  const cpl = totalLeads && atr.meta_spend > 0 ? atr.meta_spend / totalLeads : null;
+  $('#meta-kpis').innerHTML = [
+    { rotulo: 'Investimento', valor: atr.meta_spend > 0 ? money(atr.meta_spend) : null, delta: atr.meta_spend > 0 && atrAnt.meta_spend > 0 ? delta(atr.meta_spend, atrAnt.meta_spend) : undefined, invertido: true },
+    { rotulo: 'CPL', valor: cpl === null ? null : money(cpl), invertido: true },
+    { rotulo: 'CPA', valor: atr.meta_cpa != null ? money(atr.meta_cpa) : null, invertido: true, nota: atr.meta_cpa != null ? '' : 'aguardando conversões do CRM' },
+    { rotulo: 'ROAS', valor: atr.meta_roas != null ? fmtNum(atr.meta_roas) + 'x' : null, nota: atr.meta_roas != null ? '' : 'aguardando conversões do CRM' },
+  ].map((k) => tile(k)).join('');
+  $('#meta-sync-nota').textContent = atr.last_synced_at ? `última sincronização ${new Date(atr.last_synced_at * 1000).toLocaleString('pt-BR')}` : 'sincronização de investimento ainda não configurada';
+  tabela($('#meta-campanhas'), [
+    { titulo: 'Campanha', campo: 'campaign_name', render: (r) => esc(r.campaign_name) },
+    { titulo: 'Investimento', num: true, campo: 'spend', render: (r) => money(r.spend) },
+    { titulo: 'Impressões', num: true, campo: 'impressions', render: (r) => fmtInt(r.impressions) },
+    { titulo: 'Cliques', num: true, campo: 'clicks', render: (r) => fmtInt(r.clicks) },
+    { titulo: 'CPC', num: true, campo: 'cpc', render: (r) => r.cpc == null ? '—' : money(r.cpc) },
+    { titulo: 'CPM', num: true, campo: 'cpm', render: (r) => r.cpm == null ? '—' : money(r.cpm) },
+  ], camp.rows || []);
+};
+
+R.jornada = async () => {};
+$('#jornada-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const alvo = $('#jornada-resultado');
+  alvo.innerHTML = '<div class="aviso">Buscando…</div>';
+  try {
+    alvo.innerHTML = htmlJornada(await fetchJson('/api/lead-journey?email=' + encodeURIComponent($('#jornada-email').value.trim())));
+  } catch { alvo.innerHTML = '<div class="aviso falha">Não foi possível carregar a jornada.</div>'; }
+});
+function htmlJornada(dados) {
+  const tps = dados.touchpoints || [], s = dados.summary || {};
+  if (!tps.length) return '<div class="aviso">Sem pontos de contato registrados para este lead.</div>';
+  return `<div class="mini" style="margin-bottom:0.6rem">${fmtInt(s.visits)} visita(s) · ${fmtInt(s.leads)} lead(s) · ${fmtInt(s.purchases)} compra(s)</div><div class="tl">${tps.map(htmlToque).join('')}</div>`;
+}
+function htmlToque(t) {
+  let cor, rotulo, detalhe;
+  if (t.kind === 'visit') {
+    cor = 'var(--info)'; rotulo = 'Visita ao site';
+    const origem = t.utm_source || (t.has_fbclid ? 'Meta (fbclid)' : (t.has_gclid ? 'Google (gclid)' : (t.referrer ? 'referência' : 'direto')));
+    detalhe = [origem && `origem: <b>${esc(origem)}</b>`, t.utm_campaign && `campanha: ${esc(t.utm_campaign)}`, t.utm_content && `conteúdo: ${esc(t.utm_content)}`].filter(Boolean).join(' · ');
+  } else if (t.kind === 'lead') {
+    cor = 'var(--up)'; rotulo = 'Lead capturado';
+    detalhe = t.meta_ok ? 'Enviado à Meta ✓' : 'Falha no envio à Meta';
+  } else {
+    cor = 'var(--warn)'; rotulo = 'Compra';
+    detalhe = money(t.value, t.currency) + (t.product_name ? ' · ' + esc(t.product_name) : '');
+  }
+  return `<div class="tl-item"><span class="tl-dot" style="background:${cor}"></span><div style="display:flex;justify-content:space-between;gap:0.5rem"><b style="font-size:0.86rem">${rotulo}</b><span class="mini">${fmtData(t.ts)}</span></div>${detalhe ? `<div class="mini">${detalhe}</div>` : ''}</div>`;
+}
+
+R.eventos = async () => {
+  const dados = await fetchJson('/api/events?limit=60');
+  const rec = dados.recovery || {};
+  $('#ev-saude').innerHTML = [
+    { rotulo: 'Eventos reais', valor: fmtInt(rec.real_events) },
+    { rotulo: 'Recuperados (ITP)', valor: fmtInt(rec.itp_recovered) },
+    { rotulo: 'Recuperados (adblock)', valor: fmtInt(rec.adblock_recovered) },
+    { rotulo: 'Bots filtrados', valor: fmtInt((rec.total_events || 0) - (rec.real_events || 0)) },
+    { rotulo: '_fbp via pixel', valor: fmtInt(rec.fbp_from_pixel) },
+    { rotulo: '_fbp via middleware', valor: fmtInt(rec.fbp_from_middleware) },
+    { rotulo: '_fbp via tracker', valor: fmtInt(rec.fbp_from_session) },
+    { rotulo: 'sem _fbp', valor: fmtInt(rec.fbp_none) },
+  ].map((k) => tile(k)).join('');
+  tabela($('#ev-tabela'), [
+    { titulo: 'Quando', campo: 'timestamp', render: (e) => `<span class="mini">${fmtData(e.timestamp)}</span>` },
+    { titulo: 'Evento', campo: 'event_name', render: (e) => esc(e.event_name) },
+    { titulo: 'Navegador', campo: 'browser', render: (e) => `<span class="mini">${esc(e.browser || '—')}${e.is_mobile ? ' · mobile' : ''}</span>` },
+    { titulo: 'Bot?', render: (e) => e.is_bot ? `<span class="falha">sim</span>` : '<span class="mini">não</span>' },
+    { titulo: 'Meta', num: true, render: (e) => e.sent_to_meta ? (e.meta_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>') : '<span class="mini">—</span>' },
+  ], dados.events || dados.rows || []);
+};
+
+// ---------- modal de detalhes (lead/compra) com payloads + jornada ----------
+function secaoPayload(titulo, d) {
+  const tem = d.payload_sent != null || (d.response_body && d.response_body.length);
+  let badge;
+  if (!tem) badge = '<span class="mini">— não disparado</span>';
+  else if (d.response_ok === 1) badge = `<span class="ok">✓ aceito${d.status_code ? ` (HTTP ${d.status_code})` : ''}</span>`;
+  else if (String(d.response_body || '').startsWith('skipped:')) badge = `<span class="mini">${esc(d.response_body)}</span>`;
+  else badge = `<span class="falha">✕ falhou${d.status_code ? ` (HTTP ${d.status_code})` : ''}</span>`;
+  const j = (raw) => { if (raw == null || raw === '') return '—'; try { return JSON.stringify(typeof raw === 'object' ? raw : JSON.parse(raw), null, 2); } catch { return String(raw); } };
+  return `<div><div style="display:flex;justify-content:space-between;margin-bottom:0.4rem"><b style="font-size:0.86rem">${titulo}</b><span style="font-size:0.78rem">${badge}</span></div><div class="mini" style="margin-bottom:0.2rem">DADOS ENVIADOS</div><pre>${esc(j(d.payload_sent))}</pre><div class="mini" style="margin:0.4rem 0 0.2rem">RESPOSTA</div><pre>${esc(j(d.response_body))}</pre></div>`;
+}
+async function abrirDetalhes(tipo, linha) {
+  $('#modal-titulo').textContent = tipo === 'lead' ? 'Detalhes do lead' : 'Detalhes da compra';
+  $('#modal-sub').textContent = tipo === 'lead'
+    ? `${fmtData(linha.timestamp)} · ${linha.raw_email || '(sem email)'} · event_id ${linha.event_id || '—'}`
+    : `${fmtData(linha.created_at)} · ${linha.raw_email || '(sem email)'} · ${money(linha.value, linha.currency || 'BRL')} · txn ${linha.transaction_id || '—'}`;
+  const secoes = [
+    '<div id="modal-jornada"><div class="aviso">Carregando jornada…</div></div>',
+    secaoPayload('Meta CAPI', { status_code: linha.meta_status_code, response_ok: linha.meta_response_ok, payload_sent: linha.meta_payload_sent, response_body: linha.meta_response_body }),
+    secaoPayload('GA4 Measurement Protocol', { status_code: linha.ga4_status_code, response_ok: linha.ga4_response_ok, payload_sent: linha.ga4_payload_sent, response_body: linha.ga4_response_body }),
+  ];
+  if (tipo === 'purchase') secoes.push(secaoPayload('Google Ads', { status_code: linha.google_ads_status_code, response_ok: linha.google_ads_response_ok, payload_sent: linha.google_ads_payload_sent, response_body: linha.google_ads_response_body }));
+  $('#modal-corpo').innerHTML = secoes.join('');
+  $('#modal-fundo').hidden = false;
+  const alvo = $('#modal-jornada');
+  if (!linha.raw_email && !linha.session_id) { alvo.innerHTML = ''; return; }
+  try {
+    const ps = new URLSearchParams();
+    if (linha.raw_email) ps.set('email', linha.raw_email);
+    if (linha.session_id) ps.set('session_id', linha.session_id);
+    alvo.innerHTML = `<div class="card" style="margin:0"><h2>Jornada deste lead</h2>${htmlJornada(await fetchJson('/api/lead-journey?' + ps))}</div>`;
+  } catch { alvo.innerHTML = '<div class="aviso falha">Não foi possível carregar a jornada.</div>'; }
+}
+$('#modal-fechar').addEventListener('click', () => { $('#modal-fundo').hidden = true; });
+$('#modal-fundo').addEventListener('click', (e) => { if (e.target.id === 'modal-fundo') $('#modal-fundo').hidden = true; });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#modal-fundo').hidden = true; });
+
+// ---------- funis ----------
+let funisConhecidos = [];
+function popularFunis(lista) {
+  if (!Array.isArray(lista)) return;
+  funisConhecidos = lista;
+  const sel = $('#funil'), atual = sel.value;
+  sel.innerHTML = '<option value="">Todos os funis</option>' + lista.map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+  sel.value = atual;
+  if (sel.value !== atual) { sel.value = ''; funilQ = ''; }
+}
+$('#funil').addEventListener('change', () => {
+  funilQ = $('#funil').value ? '&funnel=' + encodeURIComponent($('#funil').value) : '';
+  render();
+});
+
+// ---------- navegação/ciclo ----------
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', jornada: 'Jornada', eventos: 'Eventos' };
+let secao = 'visao';
+async function render() {
+  const p = intervalo();
+  $('#titulo').textContent = TITULOS[secao];
+  $('#subtitulo').textContent = `${new Date(p.de * 1000).toLocaleDateString('pt-BR')} – ${new Date(p.ate * 1000).toLocaleDateString('pt-BR')} · comparado ao período anterior`;
+  document.querySelectorAll('.secao').forEach((s) => s.classList.toggle('ativa', s.id === 'secao-' + secao));
+  document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('ativo', a.dataset.secao === secao));
+  try { await R[secao](); }
+  catch (e) { document.querySelector(`#secao-${secao} .card, #secao-${secao}`).insertAdjacentHTML('afterbegin', '<div class="aviso falha">Não foi possível carregar os dados agora.</div>'); }
+}
+function trocar() { const h = location.hash.replace('#', ''); secao = TITULOS[h] ? h : 'visao'; render(); }
+window.addEventListener('hashchange', trocar);
+$('#preset').addEventListener('change', () => {
+  const custom = $('#preset').value === 'custom';
+  $('#data-de').hidden = !custom; $('#data-ate').hidden = !custom;
+  if (!custom) render();
+});
+$('#data-de').addEventListener('change', render);
+$('#data-ate').addEventListener('change', render);
+
+// ---------- boot ----------
+(async () => {
+  if (key && await chaveValida(key)) {
     sessionStorage.setItem('dashKey', key);
-    await loadAll();
+    $('#app').hidden = false; trocar(); return;
   }
-
-  async function probeKey(k) {
-    try {
-      const r = await fetch(`/api/revenue?key=${encodeURIComponent(k)}&days=1`);
-      return r.ok;
-    } catch (_) { return false; }
-  }
-
-  (async function gate() {
-    if (key && await probeKey(key)) { return openDashboard(); }
-    authGate.classList.remove('hidden');
-    qs('#auth-submit').addEventListener('click', async () => {
-      key = qs('#auth-input').value.trim();
-      if (!key) return;
-      if (await probeKey(key)) { openDashboard(); }
-      else { qs('#auth-error').classList.remove('hidden'); }
-    });
-    qs('#auth-input').addEventListener('keydown', e => { if (e.key === 'Enter') qs('#auth-submit').click(); });
-  })();
-
-  // -------- Estado --------
-  // Período atual como query string: 'days=30' ou 'from=<unix>&to=<unix>'.
-  let periodQuery = 'days=30';
-  let periodLabel = '30 dias';
-  // Filtro de funil aplicado só aos leads. selectedFunnel = valor cru
-  // ('' = todos); funnelQuery = fragmento pronto pra querystring.
-  let selectedFunnel = '';
-  let funnelQuery = '';
-  let utmDimension = 'utm_source';
-  let utmFilters = {};
-  let revenueChart = null;
-  let productsChart = null;
-
-  // -------- Helpers --------
-  const fetchJson = path => fetch(`${path}${path.includes('?') ? '&' : '?'}key=${encodeURIComponent(key)}`).then(r => r.json());
-  const money = (n, cur = 'BRL') => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(Number(n || 0));
-  const fmtInt = n => new Intl.NumberFormat('pt-BR').format(Number(n || 0));
-  const fmtRate = r => new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r || 0));
-  const fmtDate = ts => new Date(Number(ts) * 1000).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const fmtDateOnly = ts => new Date(Number(ts) * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-  // -------- Carregadores de dados --------
-  async function loadRevenue() {
-    const data = await fetchJson(`/api/revenue?${periodQuery}`);
-    qs('#kpi-revenue').textContent = money(data.gross, data.currency);
-    qs('#kpi-revenue-sub').textContent = periodLabel;
-    qs('#kpi-sales').textContent = fmtInt(data.sales);
-    qs('#kpi-aov').textContent = money(data.aov, data.currency);
-    renderRevenueChart(data.time_series || []);
-  }
-
-  async function loadProducts() {
-    const data = await fetchJson(`/api/products?${periodQuery}`);
-    const container = qs('#product-cards');
-    if (!data.products || data.products.length === 0) {
-      container.innerHTML = '<div class="text-sm text-[color:var(--muted)]">Nenhum produto ainda.</div>';
-    } else {
-      container.innerHTML = data.products.map(p => `
-        <div class="border border-[color:var(--border)] rounded-lg p-3">
-          <div class="text-xs text-[color:var(--muted)] truncate">${escapeHtml(p.product_name || p.product_id)}</div>
-          <div class="mt-1 flex items-baseline justify-between">
-            <div class="mono text-lg accent-amber">${money(p.revenue, p.currency || 'BRL')}</div>
-            <div class="mono text-xs text-[color:var(--dim)]">${fmtInt(p.sales)} vendas</div>
-          </div>
-        </div>
-      `).join('');
-    }
-    renderProductsChart(data.time_series || []);
-  }
-
-  async function loadAttribution() {
-    const data = await fetchJson(`/api/attribution?${periodQuery}`);
-    qs('#meta-sales').textContent   = fmtInt(data.groups.meta.sales);
-    qs('#meta-revenue').textContent = money(data.groups.meta.revenue);
-    qs('#meta-spend').textContent   = data.meta_spend > 0 ? money(data.meta_spend) : '—';
-    qs('#meta-cpa').textContent     = data.meta_cpa != null ? money(data.meta_cpa) : '—';
-    qs('#meta-roas').textContent    = data.meta_roas != null ? data.meta_roas.toFixed(2) + 'x' : '—';
-    qs('#google-sales').textContent  = fmtInt(data.groups.google.sales);
-    qs('#google-revenue').textContent= money(data.groups.google.revenue);
-    qs('#organic-sales').textContent = fmtInt(data.groups.organic.sales);
-    qs('#organic-revenue').textContent = money(data.groups.organic.revenue);
-
-    const note = qs('#attribution-sync-note');
-    if (data.last_synced_at) {
-      const dt = new Date(data.last_synced_at * 1000);
-      note.textContent = `(última sincronização ${dt.toLocaleString('pt-BR')})`;
-    } else {
-      note.textContent = '(sincronização ainda não configurada — ver docs/ad-spend-sync.md)';
-    }
-  }
-
-  async function loadUtm() {
-    const params = `${periodQuery}&dimension=${encodeURIComponent(utmDimension)}`;
-    const filterParams = Object.entries(utmFilters).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-    const data = await fetchJson(`/api/utm-breakdown?${params}${filterParams ? '&' + filterParams : ''}`);
-    renderUtmFilters();
-    const tbody = qs('#utm-tbody');
-    if (!data.rows || data.rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-[color:var(--muted)]">Nenhuma compra no período.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = data.rows.map(r => `
-      <tr class="row-hover cursor-pointer border-b border-[color:var(--border)]" data-value="${escapeHtml(r.value)}">
-        <td class="py-2 pr-4 font-sans">${escapeHtml(r.value)}</td>
-        <td class="py-2 pr-4 text-right">${fmtInt(r.sales)}</td>
-        <td class="py-2 pr-4 text-right accent-amber">${money(r.revenue)}</td>
-        <td class="py-2 text-right text-[color:var(--dim)]">${money(r.aov)}</td>
-      </tr>
-    `).join('');
-    qsa('#utm-tbody tr[data-value]').forEach(row => {
-      row.addEventListener('click', () => {
-        const v = row.getAttribute('data-value');
-        if (v && v !== '(not set)' && v !== '(não definido)') {
-          utmFilters[utmDimension] = v;
-          loadUtm();
-        }
-      });
-    });
-  }
-
-  function renderUtmFilters() {
-    const container = qs('#utm-filters');
-    const entries = Object.entries(utmFilters);
-    if (entries.length === 0) { container.innerHTML = ''; return; }
-    container.innerHTML = entries.map(([k, v]) => `
-      <button class="inline-flex items-center gap-1 bg-[color:var(--text)] text-white rounded-full px-3 py-1 text-xs" data-filter-key="${k}">
-        <span class="text-[color:var(--muted)]">${k}:</span> ${escapeHtml(v)} <span class="ml-1">&times;</span>
-      </button>
-    `).join('');
-    qsa('#utm-filters button[data-filter-key]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        delete utmFilters[btn.getAttribute('data-filter-key')];
-        loadUtm();
-      });
-    });
-  }
-
-  // Popula o seletor de funil com os funis presentes nos dados, preservando a
-  // seleção atual. Idempotente — chamado a cada carga de leads.
-  function populateFunnelOptions(funnels) {
-    const sel = qs('#funnel-picker');
-    if (!sel) return;
-    const list = Array.isArray(funnels) ? funnels : [];
-    const opts = ['<option value="">Todos os funis</option>']
-      .concat(list.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`));
-    sel.innerHTML = opts.join('');
-    sel.value = selectedFunnel;
-    // Se o funil selecionado não está mais na lista, volta para "todos".
-    if (sel.value !== selectedFunnel) { selectedFunnel = ''; funnelQuery = ''; }
-  }
-
-  // Renderiza data.funnelCounts no bloco "Leads por funil" (aba Leads). Só
-  // exibição — a contagem por funil vem pronta do backend.
-  function renderFunnelCounts(counts) {
-    const box = qs('#funnel-counts');
-    if (!box) return;
-    const list = Array.isArray(counts) ? counts : [];
-    if (list.length === 0) {
-      box.innerHTML = '<div class="text-sm text-[color:var(--muted)]">Nenhum lead no período.</div>';
-      return;
-    }
-    box.innerHTML = list.map(c => {
-      const label = c.funnel ? escapeHtml(c.funnel) : '(sem funil)';
-      return `<div class="border border-[color:var(--border)] rounded-lg p-3">
-        <div class="kpi-label">${label}</div>
-        <div class="text-xl mono mt-1">${fmtInt(c.count)}</div>
-      </div>`;
-    }).join('');
-  }
-
-  async function loadLeads() {
-    const data = await fetchJson(`/api/leads?${periodQuery}${funnelQuery}&limit=50`);
-    populateFunnelOptions(data.funnels);
-    renderFunnelCounts(data.funnelCounts);
-    qs('#kpi-leads').textContent = fmtInt((data.leads || []).length);
-    const tbody = qs('#leads-tbody');
-    if (!data.leads || data.leads.length === 0) {
-      const emptyMsg = funnelQuery ? 'Nenhum lead deste funil no período.' : 'Nenhum lead no período.';
-      tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-[color:var(--muted)]">${emptyMsg}</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = data.leads.map((l, i) => `
-      <tr class="row-hover border-b border-[color:var(--border)] cursor-pointer" data-idx="${i}">
-        <td class="py-2 pr-4 text-[color:var(--dim)]">${fmtDate(l.timestamp)}</td>
-        <td class="py-2 pr-4 mono">${escapeHtml(l.raw_email || '—')}</td>
-        <td class="py-2 pr-4">${escapeHtml(l.utm_source || '(direto)')}</td>
-        <td class="py-2 pr-4 text-[color:var(--dim)]">${escapeHtml(l.utm_campaign || '—')}</td>
-        <td class="py-2 pr-4 text-[color:var(--dim)]">${escapeHtml(l.utm_medium || '—')}</td>
-        <td class="py-2 pr-4 text-[color:var(--dim)]">${escapeHtml(l.utm_content || '—')}</td>
-        <td class="py-2 pr-4 text-center">${l.meta_response_ok ? '<span class="accent-green">✓</span>' : '<span class="accent-red">✕</span>'}</td>
-        <td class="py-2 text-center">${l.ga4_response_ok ? '<span class="accent-green">✓</span>' : '<span class="accent-red">✕</span>'}</td>
-      </tr>
-    `).join('');
-    qsa('#leads-tbody tr[data-idx]').forEach(row => {
-      row.addEventListener('click', () => {
-        openDetails('lead', data.leads[parseInt(row.getAttribute('data-idx'), 10)]);
-      });
-    });
-  }
-
-  // Conversão por LP: visitantes × leads × taxa vêm prontos do /api/conversion
-  // (issue 55) — aqui só formata e injeta; nada é calculado nem reordenado.
-  async function loadConversion() {
-    const tbody = qs('#conversion-tbody');
-    try {
-      const data = await fetchJson(`/api/conversion?${periodQuery}${funnelQuery}`);
-      if (data.error) throw new Error(data.error);
-      if (!data.rows || data.rows.length === 0) {
-        const emptyMsg = funnelQuery ? 'Nenhuma visita deste funil no período.' : 'Nenhuma visita no período.';
-        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-[color:var(--muted)]">${emptyMsg}</td></tr>`;
-        return;
-      }
-      tbody.innerHTML = data.rows.map(r => `
-        <tr class="row-hover border-b border-[color:var(--border)]">
-          <td class="py-2 pr-4 font-sans">${escapeHtml(r.lp)}</td>
-          <td class="py-2 pr-4 text-right">${fmtInt(r.visitors)}</td>
-          <td class="py-2 pr-4 text-right">${fmtInt(r.leads)}</td>
-          <td class="py-2 text-right">${fmtRate(r.rate)}</td>
-        </tr>
-      `).join('');
-    } catch (_) {
-      tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-[color:var(--accent-red)]">Não foi possível carregar a conversão por LP.</td></tr>';
-    }
-  }
-
-  async function loadPurchases() {
-    const data = await fetchJson('/api/purchases?limit=50');
-    const tbody = qs('#purchases-tbody');
-    const rows = data.rows || [];
-    if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-[color:var(--muted)]">Nenhuma compra ainda.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = rows.map((p, i) => `
-      <tr class="row-hover border-b border-[color:var(--border)] cursor-pointer" data-idx="${i}">
-        <td class="py-2 pr-4 text-[color:var(--dim)]">${fmtDate(p.created_at)}</td>
-        <td class="py-2 pr-4 mono">${escapeHtml(p.raw_email || '—')}</td>
-        <td class="py-2 pr-4">${escapeHtml(p.product_name || p.product_id || '—')}</td>
-        <td class="py-2 pr-4 text-right accent-amber mono">${money(p.value, p.currency || 'BRL')}</td>
-        <td class="py-2 pr-4 text-center">${p.meta_response_ok ? '<span class="accent-green">✓</span>' : '<span class="accent-red">✕</span>'}</td>
-        <td class="py-2 pr-4 text-center">${p.ga4_response_ok ? '<span class="accent-green">✓</span>' : '<span class="accent-red">✕</span>'}</td>
-        <td class="py-2 text-center">${renderGadsStatus(p)}</td>
-      </tr>
-    `).join('');
-    qsa('#purchases-tbody tr[data-idx]').forEach(row => {
-      row.addEventListener('click', () => {
-        openDetails('purchase', rows[parseInt(row.getAttribute('data-idx'), 10)]);
-      });
-    });
-  }
-
-  function renderGadsStatus(p) {
-    if (p.google_ads_response_ok) return '<span class="accent-green">✓</span>';
-    if (typeof p.google_ads_response_body === 'string' && p.google_ads_response_body.startsWith('skipped:')) {
-      return '<span class="text-[color:var(--muted)]">—</span>';
-    }
-    return '<span class="accent-red">✕</span>';
-  }
-
-  // -------- Modal de detalhes --------
-  function openDetails(kind, row) {
-    const title = qs('#modal-title');
-    const subtitle = qs('#modal-subtitle');
-    const body = qs('#modal-body');
-
-    if (kind === 'lead') {
-      title.textContent = 'Detalhes do lead';
-      subtitle.textContent = `${fmtDate(row.timestamp)} · ${row.raw_email || '(sem email)'} · event_id ${row.event_id || '—'}`;
-    } else {
-      title.textContent = 'Detalhes da compra';
-      subtitle.textContent = `${fmtDate(row.created_at)} · ${row.raw_email || '(sem email)'} · ${money(row.value, row.currency || 'BRL')} · txn ${row.transaction_id || '—'}`;
-    }
-
-    const sections = [
-      // Espaço da jornada (preenchido de forma assíncrona logo abaixo)
-      '<div id="journey-section"><div class="text-xs text-[color:var(--muted)]">Carregando jornada…</div></div>',
-      renderPayloadSection('Meta CAPI', {
-        status_code: row.meta_status_code,
-        response_ok: row.meta_response_ok,
-        payload_sent: row.meta_payload_sent,
-        response_body: row.meta_response_body,
-      }),
-      renderPayloadSection('GA4 Measurement Protocol', {
-        status_code: row.ga4_status_code,
-        response_ok: row.ga4_response_ok,
-        payload_sent: row.ga4_payload_sent,
-        response_body: row.ga4_response_body,
-      }),
-    ];
-
-    if (kind === 'purchase') {
-      sections.push(renderPayloadSection('Google Ads', {
-        status_code: row.google_ads_status_code,
-        response_ok: row.google_ads_response_ok,
-        payload_sent: row.google_ads_payload_sent,
-        response_body: row.google_ads_response_body,
-      }));
-    }
-
-    body.innerHTML = sections.join('');
-    const modal = qs('#details-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    // Carrega a jornada deste lead/comprador
-    loadJourney(row.raw_email || '', row.session_id || '');
-  }
-
-  // -------- Jornada do lead --------
-  async function loadJourney(email, sessionId) {
-    const target = qs('#journey-section');
-    if (!target) return;
-    if (!email && !sessionId) { target.innerHTML = ''; return; }
-    let data;
-    try {
-      const params = new URLSearchParams();
-      if (email) params.set('email', email);
-      if (sessionId) params.set('session_id', sessionId);
-      data = await fetchJson(`/api/lead-journey?${params.toString()}`);
-    } catch (_) {
-      target.innerHTML = '<div class="text-xs text-[color:var(--accent-red)]">Não foi possível carregar a jornada.</div>';
-      return;
-    }
-    const tps = data.touchpoints || [];
-    const s = data.summary || {};
-    const summaryLine = `${fmtInt(s.visits || 0)} visita(s) · ${fmtInt(s.leads || 0)} lead(s) · ${fmtInt(s.purchases || 0)} compra(s)`;
-
-    let inner = '';
-    if (tps.length === 0) {
-      inner = '<div class="text-xs text-[color:var(--muted)]">Sem pontos de contato registrados para este lead.</div>';
-    } else {
-      inner = `<div class="tl">${tps.map(renderTouchpoint).join('')}</div>`;
-    }
-
-    target.innerHTML = `
-      <div class="border border-[color:var(--border)] rounded-lg p-4 bg-[color:var(--bg)]">
-        <div class="flex items-center justify-between mb-3">
-          <div class="font-semibold text-sm">Jornada deste lead</div>
-          <div class="text-xs text-[color:var(--muted)] mono">${summaryLine}</div>
-        </div>
-        ${inner}
-      </div>
-    `;
-  }
-
-  function renderTouchpoint(t) {
-    let dotColor, label, detail;
-    if (t.kind === 'visit') {
-      dotColor = 'var(--accent-blue)';
-      const origem = t.utm_source ? t.utm_source : (t.has_fbclid ? 'Meta (fbclid)' : (t.has_gclid ? 'Google (gclid)' : (t.referrer ? 'referência' : 'direto')));
-      label = 'Visita ao site';
-      const partes = [];
-      if (origem) partes.push(`origem: <span class="font-semibold">${escapeHtml(origem)}</span>`);
-      if (t.utm_campaign) partes.push(`campanha: ${escapeHtml(t.utm_campaign)}`);
-      if (t.utm_content) partes.push(`conteúdo: ${escapeHtml(t.utm_content)}`);
-      detail = partes.join(' · ');
-    } else if (t.kind === 'lead') {
-      dotColor = 'var(--accent-green)';
-      label = 'Lead capturado';
-      detail = t.meta_ok ? 'Enviado à Meta ✓' : 'Falha no envio à Meta';
-    } else {
-      dotColor = 'var(--accent-amber)';
-      label = 'Compra';
-      detail = `${money(t.value, t.currency)}${t.product_name ? ' · ' + escapeHtml(t.product_name) : ''}`;
-    }
-    return `
-      <div class="tl-item">
-        <span class="tl-dot" style="background:${dotColor}"></span>
-        <div class="flex items-baseline justify-between gap-2">
-          <div class="text-sm font-medium">${label}</div>
-          <div class="text-xs text-[color:var(--muted)] mono whitespace-nowrap">${fmtDate(t.ts)}</div>
-        </div>
-        ${detail ? `<div class="text-xs text-[color:var(--dim)] mt-0.5">${detail}</div>` : ''}
-      </div>
-    `;
-  }
-
-  function renderPayloadSection(sectionTitle, data) {
-    const hasAnything = data.payload_sent != null || (data.response_body && data.response_body.length);
-    let badge;
-    if (!hasAnything) {
-      badge = '<span class="text-[color:var(--muted)]">— não disparado</span>';
-    } else if (data.response_ok === 1) {
-      badge = `<span class="accent-green">✓ aceito${data.status_code ? ` (HTTP ${data.status_code})` : ''}</span>`;
-    } else if (typeof data.response_body === 'string' && data.response_body.startsWith('skipped:')) {
-      badge = `<span class="text-[color:var(--muted)]">${escapeHtml(data.response_body)}</span>`;
-    } else {
-      badge = `<span class="accent-red">✕ falhou${data.status_code ? ` (HTTP ${data.status_code})` : ''}</span>`;
-    }
-
-    return `
-      <div>
-        <div class="flex items-center justify-between mb-2">
-          <div class="font-semibold text-sm">${sectionTitle}</div>
-          <div class="text-xs mono">${badge}</div>
-        </div>
-        <div class="mb-2">
-          <div class="text-xs uppercase tracking-wider text-[color:var(--dim)] mb-1">Dados enviados</div>
-          <pre class="mono text-xs bg-[color:var(--bg)] border border-[color:var(--border)] rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">${escapeHtml(formatJson(data.payload_sent) || '—')}</pre>
-        </div>
-        <div>
-          <div class="text-xs uppercase tracking-wider text-[color:var(--dim)] mb-1">Resposta</div>
-          <pre class="mono text-xs bg-[color:var(--bg)] border border-[color:var(--border)] rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">${escapeHtml(formatJson(data.response_body) || '—')}</pre>
-        </div>
-      </div>
-    `;
-  }
-
-  function formatJson(raw) {
-    if (raw == null || raw === '') return '';
-    if (typeof raw === 'object') return JSON.stringify(raw, null, 2);
-    try {
-      return JSON.stringify(JSON.parse(raw), null, 2);
-    } catch (_) {
-      return String(raw);
-    }
-  }
-
-  function closeModal() {
-    const modal = qs('#details-modal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-  }
-
-  async function loadHealth() {
-    const data = await fetchJson(`/api/events?limit=1`);
-    const rec = data.recovery || {};
-    qs('#health-real').textContent    = fmtInt(rec.real_events);
-    qs('#health-itp').textContent     = fmtInt(rec.itp_recovered);
-    qs('#health-adblock').textContent = fmtInt(rec.adblock_recovered);
-    qs('#health-bots').textContent    = fmtInt((rec.total_events || 0) - (rec.real_events || 0));
-    const fbp = qs('#health-fbp');
-    fbp.innerHTML = [
-      ['pixel_js',         rec.fbp_from_pixel,      'blue'],
-      ['middleware_http',  rec.fbp_from_middleware, 'green'],
-      ['tracker_http',     rec.fbp_from_session,    'amber'],
-      ['none',             rec.fbp_none,            'red'],
-    ].map(([label, val, color]) => `
-      <span class="border border-[color:var(--border)] rounded-lg px-2 py-1">
-        <span class="accent-${color} mono font-semibold">${fmtInt(val)}</span>
-        <span class="text-[color:var(--muted)] ml-1">${label}</span>
-      </span>
-    `).join('');
-  }
-
-  // -------- Gráficos --------
-  function renderRevenueChart(series) {
-    const ctx = qs('#chart-revenue').getContext('2d');
-    if (revenueChart) revenueChart.destroy();
-    revenueChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: series.map(r => r.date),
-        datasets: [{
-          label: 'Receita',
-          data: series.map(r => r.revenue),
-          borderColor: 'rgb(37, 99, 235)',
-          backgroundColor: 'rgba(37, 99, 235, 0.08)',
-          fill: true,
-          tension: 0.35,
-          pointRadius: 0,
-          borderWidth: 2,
-        }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { display: false }, ticks: { color: '#a1a1aa', font: { size: 11 } } },
-          y: { grid: { color: '#f1f1f3' }, ticks: { color: '#a1a1aa', font: { size: 11 } } },
-        },
-      },
-    });
-  }
-
-  function renderProductsChart(series) {
-    const ctx = qs('#chart-products').getContext('2d');
-    if (productsChart) productsChart.destroy();
-    const byProduct = {};
-    const dates = new Set();
-    for (const row of series) {
-      if (!byProduct[row.product_name]) byProduct[row.product_name] = {};
-      byProduct[row.product_name][row.date] = Number(row.sales || 0);
-      dates.add(row.date);
-    }
-    const sortedDates = [...dates].sort();
-    const palette = ['rgb(37, 99, 235)', 'rgb(22, 163, 74)', 'rgb(217, 119, 6)', 'rgb(220, 38, 38)', 'rgb(124, 58, 237)'];
-    const datasets = Object.entries(byProduct).slice(0, 5).map(([name, bydate], i) => ({
-      label: name,
-      data: sortedDates.map(d => bydate[d] || 0),
-      borderColor: palette[i % palette.length],
-      backgroundColor: palette[i % palette.length] + '20',
-      tension: 0.35,
-      pointRadius: 0,
-      borderWidth: 2,
-    }));
-    productsChart = new Chart(ctx, {
-      type: 'line',
-      data: { labels: sortedDates, datasets },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
-        scales: {
-          x: { grid: { display: false }, ticks: { color: '#a1a1aa', font: { size: 11 } } },
-          y: { grid: { color: '#f1f1f3' }, ticks: { color: '#a1a1aa', font: { size: 11 }, precision: 0 } },
-        },
-      },
-    });
-  }
-
-  // -------- Orquestração de carregamento --------
-  async function loadAll() {
-    await Promise.all([
-      loadRevenue(),
-      loadProducts(),
-      loadAttribution(),
-      loadUtm(),
-      loadLeads(),
-      loadConversion(),
-      loadPurchases(),
-      loadHealth(),
-    ]);
-  }
-
-  // -------- Bindings da UI --------
-  qsa('#range-picker .range-btn[data-days]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      qsa('#range-picker .range-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const cr = qs('#custom-range'); cr.classList.add('hidden'); cr.classList.remove('flex');
-      const d = btn.getAttribute('data-days');
-      periodQuery = `days=${d}`;
-      periodLabel = `${d} dias`;
-      loadAll();
-    });
+  $('#gate').hidden = false;
+  $('#gate-form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const k = $('#gate-key').value.trim();
+    if (!k) return;
+    if (await chaveValida(k)) { key = k; sessionStorage.setItem('dashKey', k); $('#gate').hidden = true; $('#app').hidden = false; trocar(); }
+    else $('#gate-erro').hidden = false;
   });
-
-  // Abre/fecha o seletor de intervalo personalizado
-  qs('#custom-range-btn').addEventListener('click', () => {
-    const cr = qs('#custom-range');
-    cr.classList.toggle('hidden');
-    cr.classList.toggle('flex');
-  });
-
-  // Aplica o intervalo personalizado
-  qs('#apply-range').addEventListener('click', () => {
-    const fromStr = qs('#date-from').value;
-    const toStr = qs('#date-to').value;
-    if (!fromStr || !toStr) return;
-    let from = Math.floor(new Date(fromStr + 'T00:00:00').getTime() / 1000);
-    let to = Math.floor(new Date(toStr + 'T23:59:59').getTime() / 1000);
-    if (from > to) { const tmp = from; from = Math.floor(new Date(toStr + 'T00:00:00').getTime() / 1000); to = Math.floor(new Date(fromStr + 'T23:59:59').getTime() / 1000); }
-    periodQuery = `from=${from}&to=${to}`;
-    periodLabel = `${fmtDateOnly(from)} – ${fmtDateOnly(to)}`;
-    qsa('#range-picker .range-btn').forEach(b => b.classList.remove('active'));
-    qs('#custom-range-btn').classList.add('active');
-    loadAll();
-  });
-
-  // Seletor de funil: afeta o KPI "Leads", a tabela "Leads recentes" e a
-  // "Conversão por LP", preservando o período atual. O mapa funil→critério
-  // vive no backend.
-  qs('#funnel-picker').addEventListener('change', (e) => {
-    selectedFunnel = e.target.value;
-    funnelQuery = selectedFunnel ? `&funnel=${encodeURIComponent(selectedFunnel)}` : '';
-    loadLeads();
-    loadConversion();
-  });
-
-  // Abas Leads | Vendas: alterna a visibilidade das seções (filhas diretas do
-  // <main> com data-tab). Não refaz fetch — os dados das duas abas já carregam;
-  // só mostra/esconde. Os botões ficam em #dash-tabs, fora do seletor abaixo.
-  (function setupDashTabs() {
-    const btns = qsa('#dash-tabs .dash-tab');
-    function activate(tab) {
-      btns.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === tab));
-      qsa('main > [data-tab]').forEach(el => {
-        el.classList.toggle('hidden', el.getAttribute('data-tab') !== tab);
-      });
-    }
-    btns.forEach(b => b.addEventListener('click', () => activate(b.getAttribute('data-tab'))));
-    activate('leads');
-  })();
-
-  qsa('#utm-tabs .dash-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      qsa('#utm-tabs .dash-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      utmDimension = tab.getAttribute('data-dim');
-      utmFilters = {};
-      loadUtm();
-    });
-  });
-
-  // Fechar modal: botão ×, clique no fundo, tecla Esc.
-  qs('#modal-close').addEventListener('click', closeModal);
-  qs('#details-modal').addEventListener('click', e => {
-    if (e.target.id === 'details-modal') closeModal();
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !qs('#details-modal').classList.contains('hidden')) closeModal();
-  });
-
-  function escapeHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
+})();
 })();
 </script>
 </body>
