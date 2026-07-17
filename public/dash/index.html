@@ -366,9 +366,11 @@ R.visao = async () => {
     { rotulo: 'ROAS', valor: atrA.meta_roas != null ? fmtNum(atrA.meta_roas) + 'x' : null, nota: atrA.meta_roas != null ? '' : 'aguardando conversões do CRM' },
   ].map((k) => tile(k)).join('');
 
-  // Leads por dia derivado das linhas (limit 500 — se estourar, série parcial)
+  // Leads por dia derivado das linhas (limit 500 — se estourar, série parcial).
+  // Agrupamento no fuso do Brasil — dia UTC deslocaria leads da noite p/ o dia seguinte.
+  const diaBRT = (ts) => new Date(ts * 1000).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
   const porDia = {};
-  for (const l of (leadsA.leads || [])) { const d = new Date(l.timestamp * 1000).toISOString().slice(0, 10); porDia[d] = (porDia[d] || 0) + 1; }
+  for (const l of (leadsA.leads || [])) { const d = diaBRT(l.timestamp); porDia[d] = (porDia[d] || 0) + 1; }
   const serie = Object.keys(porDia).sort().map((d) => ({ d, v: porDia[d] }));
   $('#visao-serie-nota').textContent = (leadsA.leads || []).length >= 500 ? 'amostra dos 500 leads mais recentes' : '';
   grafico($('#visao-grafico'), serie, (v, eixo) => eixo ? fmtInt(v) : fmtInt(v) + ' leads');
