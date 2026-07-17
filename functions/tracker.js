@@ -313,6 +313,7 @@ export async function onRequestPost(context) {
     // demais ao agendamento (Calendly).
     // Destinos por env. O front só executa o redirect.
     let leadRedirect = null;
+    const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
     if ((body.event_name || '').toLowerCase() === 'lead') {
       if (leadFunnel === 'workshop') {
         leadRedirect = env.LEAD_REDIRECT_WORKSHOP || '/video-workshop-instagram';
