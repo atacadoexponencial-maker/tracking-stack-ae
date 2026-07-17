@@ -10,3 +10,7 @@ Status contrato assinado → lê 💰 Arrecadado e registra a venda via processP
 ## Arquivos
 
 functions/webhook/clickup.js
+
+## Status
+
+- [x] Implementado e commitado (d4c4048); validado no preview o que não depende de secret de produção

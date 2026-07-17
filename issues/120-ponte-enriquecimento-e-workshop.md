@@ -10,3 +10,7 @@ utm_campaing preenchido, link da jornada na descrição da tarefa, funil worksho
 ## Arquivos
 
 functions/tracker.js
+
+## Status
+
+- [x] Implementado e commitado (d4c4048); validado no preview o que não depende de secret de produção

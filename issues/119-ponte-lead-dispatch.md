@@ -10,3 +10,7 @@ sendToClickUp grava lead_dispatch (criado/comentado/falha, task_id/url, funil, e
 ## Arquivos
 
 functions/tracker.js
+
+## Status
+
+- [x] Implementado e commitado (d4c4048); validado no preview o que não depende de secret de produção
