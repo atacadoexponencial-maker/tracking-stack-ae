@@ -11,9 +11,16 @@ export async function onRequestGet({ request, env }) {
   const token = env.META_ADS_ACCESS_TOKEN || env.META_ACCESS_TOKEN;
   if (!token) return json({ error: 'sem token Meta configurado' }, 500);
 
-  const r = await fetch(`https://graph.facebook.com/v25.0/me/adaccounts?fields=id,name,account_status&limit=100&access_token=${token}`);
-  const corpo = await r.json();
-  if (!r.ok) return json({ error: 'adaccounts falhou', detalhe: corpo }, 502);
+  // Erros sempre em 200: o proxy do Cloudflare substitui respostas 5xx pela
+  // página genérica dele e esconderia o detalhe do Graph.
+  let r, corpo;
+  try {
+    r = await fetch(`https://graph.facebook.com/v25.0/me/adaccounts?fields=id,name,account_status&limit=100&access_token=${token}`);
+    corpo = await r.json();
+  } catch (e) {
+    return json({ error: 'fetch adaccounts falhou', detalhe: String(e.message || e) });
+  }
+  if (!r.ok) return json({ error: 'adaccounts falhou', detalhe: corpo });
 
   const contas = (corpo.data || []).map((c) => ({ id: c.id, nome: c.name, status: c.account_status }));
 
