@@ -69,7 +69,11 @@ export async function processPurchase({ parsed, env, context }) {
   // never blocks the others.
   const handlerPromises = [];
 
-  if (parsed.trk && checkoutData.trk) {
+  // handleTracking (Meta CAPI + GA4 + Google Ads) exige a sessão de checkout
+  // rastreada (trk) — OU o adaptador pode optar por `forceSend: true` quando a
+  // venda não nasce no site (ex.: CRM/ClickUp): os envios rodam só com os
+  // identificadores hasheados (email/telefone), sem dados de navegação.
+  if ((parsed.trk && checkoutData.trk) || parsed.forceSend) {
     handlerPromises.push(
       handleTracking({ parsed: enriched, eventId, eventTime, env })
         .then(r => ({ handler: 'tracking', ...r }))

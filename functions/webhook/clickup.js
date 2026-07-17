@@ -78,6 +78,7 @@ async function processarVenda(taskId, env, context) {
       parsed: {
         platform: 'clickup',
         trk: '',
+        forceSend: true, // venda de CRM não tem sessão de checkout; match por email/telefone
         email,
         name: task.name || '',
         phone,
