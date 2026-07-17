@@ -27,7 +27,7 @@ estágio está, e transformar "contrato assinado" em receita real no dash + conv
 | Decisão | Escolha |
 |---|---|
 | CRM fonte da verdade | **ClickUp** (🤑 CRM 205126080); Supabase intocado |
-| Valor da venda | Novo campo de dinheiro **"Valor do contrato"** na lista, preenchido pelo comercial ao fechar |
+| Valor da venda | Campo existente **"💰 Arrecadado"** (currency BRL, id `85ef1a33-01f7-4ea4-9f24-f742b660a04e`), preenchido pelo comercial ao fechar |
 | Sincronização de status | **Webhook oficial do ClickUp** (push, assinado) — sem polling, sem n8n |
 | Registro de venda | Reusa o pipeline de compras existente (`purchase_log` + webhook/_core) — ClickUp vira "mais um gateway", e Receita/ROAS acendem no dash sem código novo de leitura |
 | Workshop | Migra para o caminho direto do ClickUp (remove exceção no tracker) |
@@ -54,7 +54,7 @@ estágio está, e transformar "contrato assinado" em receita real no dash + conv
 
 ### 3. Venda fecha o ciclo
 - No webhook, status novo = "contrato assinado" → GET task → lê campo
-  "Valor do contrato" → registra em `purchase_log` via pipeline existente
+  "💰 Arrecadado" → registra em `purchase_log` via pipeline existente
   (`transaction_id = clickup:<task_id>` garante dedup; product = "Contrato <funil/produto>")
   → dispara Meta CAPI Purchase (mesmo fluxo dos webhooks Hotmart/Kiwify/Eduzz,
   com email/telefone do lead para match).
@@ -64,23 +64,21 @@ estágio está, e transformar "contrato assinado" em receita real no dash + conv
   para o comercial corrigir e o webhook reprocessar na próxima mudança.
 
 ### 4. Enriquecimento da tarefa
-- Novo campo **utm_campaign** (a criar na lista) preenchido junto com os demais.
+- Campo existente **"utm_campaing"** (sic — nome com typo na lista; id
+  `78b59aa4-6e98-4555-bbbf-5a0259309eb0`) passa a ser preenchido junto com os demais.
 - Descrição da tarefa ganha link "Ver jornada completa" →
   `https://atacadoexponencial.com/dash/#jornada` (seção Jornada aceita `?email=` pré-preenchido — ajuste pequeno no dash).
 
 ### 5. Workshop no caminho direto
 - Remove a exceção `leadFunnel === 'workshop'` no tracker → `sendToClickUp` para todos.
-- Opção "WORKSHOP" no dropdown 🔻 Funil (a criar na lista; até existir, cai no
-  fallback SESSÃO ESTRATÉGICA, comportamento atual do código).
+- Opção existente **"WORKSHOP"** no dropdown 🔻 Funil (id
+  `b5e04cdb-f62d-4159-b89b-751726a61831`) mapeada no `mapFunnelToOption`.
 - `LEAD_WEBHOOK_URL_WORKSHOP` deixa de ser usado (env pode ser removida depois).
 
-## Passos manuais (usuária, no ClickUp — a API não cria campos)
+## Passos manuais
 
-1. Criar campo de dinheiro **"Valor do contrato"** na lista 🤑 CRM
-2. Criar campo curto **"UTM Campaign"** na lista
-3. Adicionar opção **"WORKSHOP"** no dropdown 🔻 Funil
-
-(Depois de criados, eu descubro os IDs via API — nenhum copiar/colar necessário.)
+**Nenhum.** Os três campos já existiam na lista; IDs confirmados via API em 2026-07-17:
+💰 Arrecadado `85ef1a33…`, utm_campaing `78b59aa4…`, opção WORKSHOP `b5e04cdb…`.
 
 ## Tratamento de erros
 
