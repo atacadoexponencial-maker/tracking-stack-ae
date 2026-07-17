@@ -32,3 +32,12 @@ Validação ponta a ponta no preview + registro do webhook em produção após o
 - [x] Rastros de teste removidos (tarefa ClickUp + linhas D1)
 - [ ] Usuária: registrar o webhook — `curl -X POST "https://atacadoexponencial.com/api/crm-setup?key=<DASH_KEY>"`
 - [ ] Teste de venda: mover uma tarefa de teste para "contrato assinado" com 💰 Arrecadado preenchido
+
+## Ciclo de venda validado (2026-07-17)
+
+- [x] Webhook registrado pela usuária via /api/crm-setup (id ffdd3136…, endpoint produção)
+- [x] Tarefa de teste com 💰 Arrecadado R$ 123,45 → "contrato assinado" → purchase_log + **Meta CAPI 200 (events_received: 1)** + GA4 ok
+- [x] Fix no caminho: handleTracking exigia trk (sessão de checkout); adaptadores agora podem optar por `forceSend` (venda de CRM casa por email/telefone) — mergeado na main (a9d560a)
+- [x] Todos os rastros de teste removidos (tarefa, purchase_log, crm_status_log)
+
+**PONTE COMPLETA E OPERACIONAL.**

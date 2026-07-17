@@ -28,7 +28,8 @@ export async function onRequestPost(context) {
     return json({ error: 'Unauthorized' }, 401);
   }
 
-  if (!env.META_ADS_ACCESS_TOKEN || !env.META_ADS_ACCOUNT_ID) {
+  const adsToken = env.META_ADS_ACCESS_TOKEN || env.META_ACCESS_TOKEN;
+  if (!adsToken || !env.META_ADS_ACCOUNT_ID) {
     return json({
       ok: true,
       skipped: true,
@@ -54,7 +55,7 @@ export async function onRequestPost(context) {
       `&level=campaign` +
       `&time_increment=1` +
       `&limit=500` +
-      `&access_token=${env.META_ADS_ACCESS_TOKEN}`;
+      `&access_token=${adsToken}`;
 
     const rows = await fetchAllPages(url);
     rowsUpserted = await upsertAdSpend(env.DB, rows);
