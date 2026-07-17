@@ -1,0 +1,8 @@
+name = "painel-atacadoexponencial"
+compatibility_date = "2025-03-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "painel-clientes-db"
+database_id = "b0d86f2d-f961-40de-bc24-50f42c3ca460"

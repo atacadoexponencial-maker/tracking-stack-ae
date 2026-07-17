@@ -29,3 +29,6 @@ dist/
 # Playwright MCP artifacts
 .playwright-mcp/
 *.jpeg
+
+# o wrangler.toml do painel é config de projeto (sem secrets) e precisa versionar
+!painel/wrangler.toml
