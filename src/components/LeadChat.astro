@@ -179,6 +179,8 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
 </style>
 
 <script>
+  import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone, sugerirEmail } from '../scripts/lead-validacao';
+
   type Step =
     | { kind: 'messages'; texts: string[] }
     | { kind: 'start'; button: string }
@@ -199,7 +201,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
     ] },
     { kind: 'start', button: 'Toque para começar' },
     { kind: 'input', key: 'nome', inputType: 'text', question: 'Qual o seu nome?', placeholder: 'Digite seu nome', validate: (v) => v.trim().length >= 2, errorMsg: 'Digite seu nome.' },
-    { kind: 'input', key: 'telefone', inputType: 'tel', before: ['Importante: para que eu consiga entrar em contato pra te avisar sobre sua aprovação.'], question: 'Qual o seu Whatsapp?', placeholder: 'Digite seu Whatsapp', validate: (v) => v.replace(/\D/g, '').length >= 10, errorMsg: 'Digite um Whatsapp válido com DDD.' },
+    { kind: 'input', key: 'telefone', inputType: 'tel', before: ['Importante: para que eu consiga entrar em contato pra te avisar sobre sua aprovação.'], question: 'Qual o seu Whatsapp?', placeholder: 'Digite seu Whatsapp', validate: telefoneValido, errorMsg: TELEFONE_ERRO },
     { kind: 'input', key: 'email', inputType: 'email', before: ['(Só lembrando que vou mandar o link da sessão por lá)'], question: 'Qual o seu melhor email?', placeholder: 'Digite seu email', validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), errorMsg: 'Digite um email válido.' },
     { kind: 'input', key: 'instagram', inputType: 'text', question: 'Excelente! Qual o @instagram da sua marca?', placeholder: 'Digite o @ do Instagram', validate: (v) => v.trim().length >= 1, errorMsg: 'Digite o @ da sua marca.' },
     { kind: 'choice', key: 'faturamento', before: ['Show!'], question: 'qual o faturamento MENSAL do seu negócio?', options: FAT_OPTIONS },
@@ -311,15 +313,28 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
         const input = document.createElement('input');
         input.type = step.inputType;
         input.placeholder = step.placeholder;
+        if (step.inputType === 'tel') aplicarMascaraTelefone(input);
         const err = document.createElement('p');
         err.className = 'lead-chat__error';
         err.hidden = true;
         const btn = document.createElement('button');
         btn.className = 'lead-chat__btn';
         btn.textContent = 'Enviar';
+        let emailSuspeito = '';
         const advance = () => {
           const v = input.value.trim();
           if (!step.validate(v)) { err.textContent = step.errorMsg; err.hidden = false; return; }
+          // Typo de domínio (ex.: ghotmail.com): pede confirmação UMA vez;
+          // enviar de novo o mesmo valor confirma — nunca bloqueia de vez.
+          if (step.key === 'email') {
+            const sug = sugerirEmail(v);
+            if (sug && v !== emailSuspeito) {
+              emailSuspeito = v;
+              err.textContent = `Será que não é ${sug}? Confira — ou toque Enviar de novo para confirmar.`;
+              err.hidden = false;
+              return;
+            }
+          }
           answers[step.key] = v;
           addUserBubble(v);
           stepIndex++;

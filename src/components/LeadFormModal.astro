@@ -87,12 +87,19 @@ import logo from '../assets/brand/logo.png';
 </style>
 
 <script>
+  import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone, aplicarSugestaoEmail } from '../scripts/lead-validacao';
+
   const overlay = document.getElementById('lead-form') as HTMLElement | null;
   const form = document.getElementById('lead-form-el') as HTMLFormElement | null;
   const errEl = document.getElementById('lead-form-error') as HTMLElement | null;
   const submitBtn = document.getElementById('lead-form-submit') as HTMLButtonElement | null;
 
   if (overlay && form && errEl && submitBtn) {
+    const telEl = form.querySelector('input[name="telefone"]') as HTMLInputElement | null;
+    const emailEl = form.querySelector('input[name="email"]') as HTMLInputElement | null;
+    if (telEl) aplicarMascaraTelefone(telEl);
+    if (emailEl) aplicarSugestaoEmail(emailEl);
+
     const open = () => { overlay.hidden = false; document.body.style.overflow = 'hidden'; };
     const close = () => { overlay.hidden = true; document.body.style.overflow = ''; };
 
@@ -115,6 +122,11 @@ import logo from '../assets/brand/logo.png';
         faturamento: String(data.get('faturamento') || ''),
         funnel: 'workshop',
       };
+      if (!telefoneValido(lead.telefone)) {
+        errEl.textContent = TELEFONE_ERRO;
+        errEl.hidden = false;
+        return;
+      }
       submitBtn.disabled = true;
       submitBtn.textContent = 'Enviando…';
       let redirect = '/video-workshop-instagram';
