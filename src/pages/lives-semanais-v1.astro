@@ -119,11 +119,18 @@ const proofImages = Object.entries(proofModules)
 </style>
 
 <script>
+  import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone, aplicarSugestaoEmail } from '../scripts/lead-validacao';
+
   const form = document.getElementById('inscricao-form-el') as HTMLFormElement | null;
   const errEl = document.getElementById('inscricao-erro') as HTMLElement | null;
   const submitBtn = document.getElementById('inscricao-submit') as HTMLButtonElement | null;
 
   if (form && errEl && submitBtn) {
+    const telEl = form.querySelector('input[name="telefone"]') as HTMLInputElement | null;
+    const emailEl = form.querySelector('input[name="email"]') as HTMLInputElement | null;
+    if (telEl) aplicarMascaraTelefone(telEl);
+    if (emailEl) aplicarSugestaoEmail(emailEl);
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errEl.hidden = true;
@@ -135,6 +142,11 @@ const proofImages = Object.entries(proofModules)
         email: String(data.get('email') || ''),
         funnel: 'lives-semanais-v1',
       };
+      if (!telefoneValido(lead.telefone)) {
+        errEl.textContent = TELEFONE_ERRO;
+        errEl.hidden = false;
+        return;
+      }
       submitBtn.disabled = true;
       submitBtn.textContent = 'Enviando…';
       let redirect = '/obrigada';

@@ -191,8 +191,11 @@ const investimentoOptions = [
 </style>
 
 <script>
-  // Validação client-side de formato (issue 65). Validadores e mensagens
-  // copiados dos steps do LeadChat.astro; selects (faturamento/investimento/
+  import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone, aplicarSugestaoEmail } from '../scripts/lead-validacao';
+
+  // Validação client-side de formato (issue 65; regras de telefone/email
+  // compartilhadas em scripts/lead-validacao desde a issue 127). Validadores e
+  // mensagens copiados dos steps do LeadChat.astro; selects (faturamento/investimento/
   // cargo) são válidos quando value !== '' (a option placeholder tem value="").
   // FIELDS/STEP_FIELDS são o SUPERSET dos campos de todas as páginas que usam
   // o componente — validateAll/validateStep ignoram campos ausentes no DOM
@@ -201,7 +204,7 @@ const investimentoOptions = [
 
   const FIELDS: Field[] = [
     { name: 'nome', validate: (v) => v.trim().length >= 2, errorMsg: 'Digite seu nome.' },
-    { name: 'telefone', validate: (v) => v.replace(/\D/g, '').length >= 10, errorMsg: 'Digite um WhatsApp válido com DDD.' },
+    { name: 'telefone', validate: telefoneValido, errorMsg: TELEFONE_ERRO },
     { name: 'email', validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), errorMsg: 'Digite um email válido.' },
     { name: 'instagram', validate: (v) => v.trim().length >= 1, errorMsg: 'Digite o @ da sua marca.' },
     { name: 'faturamento', validate: (v) => v !== '', errorMsg: 'Escolha a faixa de faturamento.' },
@@ -304,23 +307,11 @@ const investimentoOptions = [
     avancarBtn?.addEventListener('click', avancar);
     voltarBtn?.addEventListener('click', () => showStep(currentStep - 1));
 
-    // Máscara de telefone brasileiro: só dígitos, máx. 11, sempre
-    // recalculada a partir dos dígitos (apagar caracteres funciona).
+    // Máscara compartilhada (BR com DDD; "+..." libera formato internacional).
     const telefoneEl = getEl('telefone');
-    if (telefoneEl) {
-      telefoneEl.addEventListener('input', () => {
-        const digits = telefoneEl.value.replace(/\D/g, '').slice(0, 11);
-        let masked = digits;
-        if (digits.length > 2) {
-          const rest = digits.slice(2);
-          const split = digits.length === 11 ? 5 : 4;
-          masked = `(${digits.slice(0, 2)}) ${rest.length > split ? `${rest.slice(0, split)}-${rest.slice(split)}` : rest}`;
-        } else if (digits.length > 0) {
-          masked = `(${digits}`;
-        }
-        telefoneEl.value = masked;
-      });
-    }
+    if (telefoneEl instanceof HTMLInputElement) aplicarMascaraTelefone(telefoneEl);
+    const emailEl = getEl('email');
+    if (emailEl instanceof HTMLInputElement) aplicarSugestaoEmail(emailEl);
 
     // Correção em tempo real: some a mensagem assim que o campo fica válido
     // (erro novo só aparece no submit).
