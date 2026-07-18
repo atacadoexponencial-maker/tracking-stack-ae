@@ -611,17 +611,34 @@ async function clickupWrite(fn) {
   }
 }
 
-// Grava o resultado do envio ao ClickUp (vínculo lead→tarefa + novos×retorno).
+// Dispatch-first (issue 126): grava 'pendente' COM o payload antes de tentar o
+// ClickUp; o desfecho atualiza a mesma linha. O que ficar pendente/falha é
+// re-tentado pelo /api/sync/crm-retry usando o lead_json guardado.
 // Best-effort: falha aqui nunca afeta o lead nem o envio em si.
-async function gravarDispatch(env, { eventId, email, phone, funnel, resultado, taskId = null, taskUrl = null, erro = null }) {
+async function criarDispatchPendente(env, { eventId, email, phone, funnel, leadJson }) {
   try {
-    if (!env.DB) return;
-    await env.DB.prepare(
-      `INSERT INTO lead_dispatch (event_id, email, phone, funnel, resultado, task_id, task_url, erro, criado_em)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s','now'))`
-    ).bind(eventId || '', email || '', phone || '', funnel || '', resultado, taskId, taskUrl, erro).run();
+    if (!env.DB) return null;
+    const r = await env.DB.prepare(
+      `INSERT INTO lead_dispatch (event_id, email, phone, funnel, resultado, lead_json, criado_em)
+       VALUES (?, ?, ?, ?, 'pendente', ?, strftime('%s','now'))`
+    ).bind(eventId || '', email || '', phone || '', funnel || '', leadJson || null).run();
+    return r.meta.last_row_id;
   } catch (e) {
     console.error('lead_dispatch insert error:', e.message);
+    return null;
+  }
+}
+
+async function atualizarDispatch(env, id, { resultado, taskId = null, taskUrl = null, erro = null }) {
+  try {
+    if (!env.DB || !id) return;
+    // Sucesso descarta o payload (não precisamos mais dele); falha mantém p/ retry.
+    const limpaJson = resultado === 'falha' ? '' : ', lead_json = NULL';
+    await env.DB.prepare(
+      `UPDATE lead_dispatch SET resultado = ?, task_id = ?, task_url = ?, erro = ?${limpaJson} WHERE id = ?`
+    ).bind(resultado, taskId, taskUrl, erro, id).run();
+  } catch (e) {
+    console.error('lead_dispatch update error:', e.message);
   }
 }
 
@@ -702,7 +719,7 @@ function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento
   return `${header}\n\n*Nome:* ${nome}\n*Número:* ${phoneE164}\n*Whatsapp:* https://wa.me/${digits}\n*Email:* ${email}\n*Instagram:* ${instagram}\n*Faturamento:* ${faturamento}`;
 }
 
-async function sendToClickUp({ leadData, sessionData, env, eventId = '' }) {
+export async function sendToClickUp({ leadData, sessionData, env, eventId = '', dispatchId = null }) {
   if (!env.CLICKUP_API_TOKEN) return; // sem token não dá pra falar com o ClickUp
   const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
 
@@ -722,6 +739,18 @@ async function sendToClickUp({ leadData, sessionData, env, eventId = '' }) {
   const utmMedium = utm.utm_medium || '';
   const utmContent = utm.utm_content || '';
   const utmCampaign = utm.utm_campaign || '';
+
+  // Dispatch-first: registro 'pendente' com o payload ANTES de tentar (issue
+  // 126). No retry, a linha já existe e chega via dispatchId.
+  if (!dispatchId) {
+    dispatchId = await criarDispatchPendente(env, {
+      eventId, email, phone: phoneE164, funnel,
+      leadJson: JSON.stringify({
+        leadData,
+        sessionData: { utm_source: utmSource, utm_medium: utmMedium, utm_content: utmContent, utm_campaign: utmCampaign },
+      }),
+    });
+  }
 
   // --- Dedup (telefone OU email). Read-only: falha vira "não achou". ---
   let existing = null;
@@ -751,7 +780,7 @@ async function sendToClickUp({ leadData, sessionData, env, eventId = '' }) {
       await clickupWrite(() => clickupFetch(`/task/${taskId}/comment`, {
         method: 'POST', body: JSON.stringify({ comment_text: comentario }),
       }, env));
-      await gravarDispatch(env, { eventId, email, phone: phoneE164, funnel, resultado: 'comentado', taskId, taskUrl: existing.url || `https://app.clickup.com/t/${taskId}` });
+      await atualizarDispatch(env, dispatchId, { resultado: 'comentado', taskId, taskUrl: existing.url || `https://app.clickup.com/t/${taskId}` });
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
         buildLeadNotif('*Voltou ao CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
     } else {
@@ -802,8 +831,8 @@ async function sendToClickUp({ leadData, sessionData, env, eventId = '' }) {
       }
       let novaTask = null;
       try { novaTask = await criada.json(); } catch {}
-      await gravarDispatch(env, {
-        eventId, email, phone: phoneE164, funnel, resultado: 'criado',
+      await atualizarDispatch(env, dispatchId, {
+        resultado: 'criado',
         taskId: novaTask && novaTask.id, taskUrl: novaTask && (novaTask.url || `https://app.clickup.com/t/${novaTask.id}`),
       });
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
@@ -812,7 +841,7 @@ async function sendToClickUp({ leadData, sessionData, env, eventId = '' }) {
   } catch (e) {
     // Escrita principal falhou após o retry → não perder o lead.
     console.error('ClickUp write error:', e.message);
-    await gravarDispatch(env, { eventId, email, phone: phoneE164, funnel, resultado: 'falha', erro: e.message });
+    await atualizarDispatch(env, dispatchId, { resultado: 'falha', erro: e.message });
     await logClickUpFailure(leadData, phoneE164, email, e, env);
     // Alerta agora passa pelo throttle (1/h) como os demais da camada A; os
     // leads em si continuam TODOS em clickup_sync_failures — nada se perde.
