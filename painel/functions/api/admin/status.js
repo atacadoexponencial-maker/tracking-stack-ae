@@ -27,6 +27,13 @@ export async function onRequestGet({ env }) {
   const ultimaData = {};
   for (const d of [...datasAds, ...datasGa4]) ultimaData[`${d.cliente_id}:${d.fonte}`] = d.ultima;
 
+  // Heartbeat do backup externo (cron da VPS grava em config_kv).
+  let backup = null;
+  try {
+    const b = await env.DB.prepare("SELECT valor FROM config_kv WHERE chave = 'ultimo_backup'").first();
+    backup = b ? b.valor : null;
+  } catch {}
+
   const ontem = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
   const linhas = [];
   for (const c of clientes) {
@@ -44,5 +51,5 @@ export async function onRequestGet({ env }) {
       });
     }
   }
-  return json({ status: linhas });
+  return json({ status: linhas, backup });
 }

@@ -562,7 +562,18 @@ function htmlToque(t) {
 R.eventos = async () => {
   const dados = await fetchJson('/api/events?limit=60');
   const rec = dados.recovery || {};
+  // Tile "Último backup": heartbeat "status|YYYYMMDD-HHMM|tamanho|drive".
+  let tileBackup = { rotulo: 'Último backup (bancos)', valor: '<span class="falha">sem registro</span>' };
+  if (dados.backup) {
+    const [st, stamp, tam, drive] = dados.backup.split('|');
+    const dt = new Date(`${stamp.slice(0,4)}-${stamp.slice(4,6)}-${stamp.slice(6,8)}T${stamp.slice(9,11)}:${stamp.slice(11,13)}:00-03:00`);
+    const horas = (Date.now() - dt.getTime()) / 36e5;
+    const ok = st === 'ok' && drive !== 'erro' && horas < 12;
+    tileBackup.valor = `<span class="${ok ? 'ok' : 'falha'}">${ok ? '✓' : '✕'} ${dt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>`;
+    tileBackup.nota = `${tam} · Drive ${drive}${horas >= 12 ? ' · atrasado!' : ''}`;
+  }
   $('#ev-saude').innerHTML = [
+    tileBackup,
     { rotulo: 'Eventos reais', valor: fmtInt(rec.real_events) },
     { rotulo: 'Recuperados (ITP)', valor: fmtInt(rec.itp_recovered) },
     { rotulo: 'Recuperados (adblock)', valor: fmtInt(rec.adblock_recovered) },

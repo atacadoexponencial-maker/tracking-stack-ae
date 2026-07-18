@@ -18,3 +18,10 @@ comentário (sem duplicar).
 - functions/tracker.js (criarDispatchPendente/atualizarDispatch; sendToClickUp exportado)
 - functions/api/sync/crm-retry.js (novo)
 - cron VPS: 35 */6 * * * POST /api/sync/crm-retry
+
+## Resultado
+
+- [x] Migração 0021 aplicada; dispatch-first no ar (pendente→criado validado com lead de teste em produção: resultado 'criado', payload descartado no sucesso)
+- [x] /api/sync/crm-retry: 401 sem secret; execução ok (0 pendências — correto)
+- [x] Cron na VPS: 35 */6 * * * (log /var/log/tracking-crm-retry.log)
+- [x] Rastros de teste limpos
