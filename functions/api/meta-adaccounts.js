@@ -25,7 +25,15 @@ export async function onRequestGet({ request, env }) {
     definido: typeof env.META_ADS_ACCESS_TOKEN !== 'undefined',
     tamanho: (env.META_ADS_ACCESS_TOKEN || '').length,
   };
-  if (!r.ok) return json({ error: 'adaccounts falhou', fonte_token: fonteToken, ads_token: debugAds, detalhe: corpo });
+  if (!r.ok) {
+    // Lista as permissões concedidas ao token (ajuda a diagnosticar #200).
+    let permissoes = null;
+    try {
+      const p = await (await fetch(`https://graph.facebook.com/v25.0/me/permissions?access_token=${token}`)).json();
+      permissoes = (p.data || []).map((x) => `${x.permission}:${x.status}`);
+    } catch {}
+    return json({ error: 'adaccounts falhou', fonte_token: fonteToken, ads_token: debugAds, permissoes, detalhe: corpo });
+  }
 
   const contas = (corpo.data || []).map((c) => ({ id: c.id, nome: c.name, status: c.account_status }));
 
