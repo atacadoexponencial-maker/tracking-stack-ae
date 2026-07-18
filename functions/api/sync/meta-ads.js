@@ -28,12 +28,15 @@ export async function onRequestPost(context) {
     return json({ error: 'Unauthorized' }, 401);
   }
 
+  // Fonte preferida: Windsor (a conta CA_AtacadoExponencial está conectada lá;
+  // dispensa token do Business Manager). Fallback: Meta Marketing API direta.
   const adsToken = env.META_ADS_ACCESS_TOKEN || env.META_ACCESS_TOKEN;
-  if (!adsToken || !env.META_ADS_ACCOUNT_ID) {
+  const viaWindsor = !!(env.WINDSOR_API_KEY && env.WINDSOR_META_ACCOUNT);
+  if (!viaWindsor && (!adsToken || !env.META_ADS_ACCOUNT_ID)) {
     return json({
       ok: true,
       skipped: true,
-      reason: 'META_ADS_ACCESS_TOKEN and META_ADS_ACCOUNT_ID must be set to enable sync',
+      reason: 'configure WINDSOR_API_KEY + WINDSOR_META_ACCOUNT (ou META_ADS_ACCESS_TOKEN + META_ADS_ACCOUNT_ID) para habilitar o sync',
     });
   }
 
@@ -48,16 +51,20 @@ export async function onRequestPost(context) {
   let rowsUpserted = 0;
 
   try {
-    const accountId = String(env.META_ADS_ACCOUNT_ID).replace(/^act_/, '');
-    const url = `https://graph.facebook.com/v22.0/act_${accountId}/insights` +
-      `?fields=campaign_id,campaign_name,spend,impressions,clicks,account_currency,date_start` +
-      `&time_range=${encodeURIComponent(JSON.stringify({ since: dateFrom, until: dateTo }))}` +
-      `&level=campaign` +
-      `&time_increment=1` +
-      `&limit=500` +
-      `&access_token=${adsToken}`;
-
-    const rows = await fetchAllPages(url);
+    let rows;
+    if (viaWindsor) {
+      rows = await fetchWindsorRows(env, dateFrom, dateTo);
+    } else {
+      const accountId = String(env.META_ADS_ACCOUNT_ID).replace(/^act_/, '');
+      const url = `https://graph.facebook.com/v22.0/act_${accountId}/insights` +
+        `?fields=campaign_id,campaign_name,spend,impressions,clicks,account_currency,date_start` +
+        `&time_range=${encodeURIComponent(JSON.stringify({ since: dateFrom, until: dateTo }))}` +
+        `&level=campaign` +
+        `&time_increment=1` +
+        `&limit=500` +
+        `&access_token=${adsToken}`;
+      rows = await fetchAllPages(url);
+    }
     rowsUpserted = await upsertAdSpend(env.DB, rows);
   } catch (err) {
     status = 'error';
@@ -85,6 +92,33 @@ export async function onRequestPost(context) {
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
+
+// Busca o resumo diário por campanha no Windsor e devolve no MESMO formato
+// das linhas do insights da Meta, para reusar o upsertAdSpend sem mudanças.
+async function fetchWindsorRows(env, dateFrom, dateTo) {
+  const url = `https://connectors.windsor.ai/facebook` +
+    `?api_key=${encodeURIComponent(env.WINDSOR_API_KEY)}` +
+    `&date_from=${dateFrom}&date_to=${dateTo}` +
+    `&fields=date,campaign_id,campaign,spend,impressions,clicks` +
+    `&select_accounts=${encodeURIComponent(env.WINDSOR_META_ACCOUNT)}`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(`Windsor ${resp.status}: ${text.slice(0, 300)}`);
+  }
+  const data = await resp.json();
+  return (data.data || [])
+    .filter((r) => r.campaign_id)
+    .map((r) => ({
+      date_start: r.date,
+      campaign_id: r.campaign_id,
+      campaign_name: r.campaign || '',
+      spend: r.spend,
+      impressions: r.impressions,
+      clicks: r.clicks,
+      account_currency: 'BRL',
+    }));
+}
 
 async function fetchAllPages(url) {
   const all = [];
