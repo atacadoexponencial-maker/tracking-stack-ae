@@ -20,7 +20,8 @@ export async function onRequestGet({ request, env }) {
   } catch (e) {
     return json({ error: 'fetch adaccounts falhou', detalhe: String(e.message || e) });
   }
-  if (!r.ok) return json({ error: 'adaccounts falhou', detalhe: corpo });
+  const fonteToken = env.META_ADS_ACCESS_TOKEN ? 'META_ADS_ACCESS_TOKEN' : 'META_ACCESS_TOKEN';
+  if (!r.ok) return json({ error: 'adaccounts falhou', fonte_token: fonteToken, detalhe: corpo });
 
   const contas = (corpo.data || []).map((c) => ({ id: c.id, nome: c.name, status: c.account_status }));
 
