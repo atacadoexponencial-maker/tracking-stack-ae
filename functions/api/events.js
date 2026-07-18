@@ -87,11 +87,21 @@ export async function onRequestGet(context) {
       ORDER BY total DESC
     `).all();
 
+    // Heartbeat do backup externo (gravado pelo cron da VPS em config_kv).
+    let backup = null;
+    try {
+      const row = await env.DB.prepare(
+        "SELECT valor FROM config_kv WHERE chave = 'ultimo_backup'"
+      ).first();
+      backup = row ? row.valor : null;
+    } catch (_) {}
+
     return new Response(JSON.stringify({
       events: results,
       summary: summary.results,
       recovery: recovery || {},
       browsers: browserBreakdown.results,
+      backup,
     }), {
       status: 200,
       headers: corsHeaders,

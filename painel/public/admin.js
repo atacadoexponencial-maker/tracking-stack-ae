@@ -129,8 +129,19 @@
 
   // ---------- status ----------
   const NOME_FONTE = { meta: 'Meta Ads', google: 'Google Ads', ga4: 'GA4' };
+  function htmlBackup(raw) {
+    if (!raw) return '<p class="msg"><span class="dot vermelho"></span>Último backup: sem registro</p>';
+    const [st, stamp, tam, drive] = raw.split('|');
+    const dt = new Date(`${stamp.slice(0,4)}-${stamp.slice(4,6)}-${stamp.slice(6,8)}T${stamp.slice(9,11)}:${stamp.slice(11,13)}:00-03:00`);
+    const horas = (Date.now() - dt.getTime()) / 36e5;
+    const ok = st === 'ok' && drive !== 'erro' && horas < 12;
+    return `<p class="msg"><span class="dot ${ok ? 'verde' : 'vermelho'}"></span>` +
+      `Último backup: ${dt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` +
+      ` · ${tam} · Drive ${drive}${horas >= 12 ? ' · <b>atrasado!</b>' : ''}</p>`;
+  }
   async function carregarStatus() {
-    const { status } = await api('status');
+    const { status, backup } = await api('status');
+    $('#backup-status').innerHTML = htmlBackup(backup);
     $('#status-tabela').innerHTML = status.length ? `<table><thead><tr>
       <th>Cliente</th><th>Fonte</th><th>Situação</th><th>Dados até</th><th>Último sync</th><th>Erro</th>
     </tr></thead><tbody>${status.map((s) => `<tr>
