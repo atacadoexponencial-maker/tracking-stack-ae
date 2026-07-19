@@ -546,13 +546,14 @@ const CU_FUNIL_SESSAO = 'a158d342-c1ac-4705-a6da-ce39019f0a2a'; // SESSÃO ESTRA
 const CU_FUNIL_LIVES = 'e6893b0b-5a69-4f48-9c99-a3c0a415a118';  // LIVES SEMANAIS
 const CU_FUNIL_APLICACAO = '51f77888-2ba1-4f83-9b33-d8ef516b80be'; // APLICAÇÃO
 const CU_FUNIL_WORKSHOP = 'b5e04cdb-f62d-4159-b89b-751726a61831'; // WORKSHOP
+const CU_FUNIL_TRAFEGO = 'f88ef3e2-2928-439b-83ad-c7ff55083f60'; // TRAFEGO PAGO
 
 // Funil do site → opção do dropdown 🔻 Funil. Fallback SESSÃO ESTRATÉGICA
 // (preserva o comportamento do n8n, que carimbava tudo como SE).
 function mapFunnelToOption(funnel) {
   const f = (funnel || '').toLowerCase();
   if (f === 'lives-semanais-v1') return CU_FUNIL_LIVES;
-  if (f === 'trafego-atacado') return CU_FUNIL_APLICACAO;
+  if (f === 'trafego-atacado') return CU_FUNIL_TRAFEGO; // APLICAÇÃO ficou exclusiva da mentoria
   if (f === 'workshop') return CU_FUNIL_WORKSHOP;
   return CU_FUNIL_SESSAO;
 }
