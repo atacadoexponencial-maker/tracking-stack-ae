@@ -683,7 +683,13 @@ async function sendEvolutionMessage(apikey, number, text, env) {
         !env.EVOLUTION_API_URL && 'EVOLUTION_API_URL',
         !apikey && 'apikey', !number && 'number',
       ].filter(Boolean).join(', ');
-      console.error('Evolution skip — config faltando:', faltando);
+      // Nomes (NUNCA valores) das chaves que o runtime realmente enxerga. Este
+      // projeto já teve secret cadastrada como "CLICKUP_API_TOKEN " (com espaço
+      // no fim): aparece no painel, mas o código nunca acha. JSON.stringify
+      // deixa o espaço visível nas aspas.
+      const vistas = Object.keys(env).filter((k) => /evolution/i.test(k));
+      console.error('Evolution skip — config faltando:', faltando,
+        '| chaves EVOLUTION* visíveis ao runtime:', JSON.stringify(vistas));
       return;
     }
     const res = await fetch(env.EVOLUTION_API_URL, {
