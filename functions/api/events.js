@@ -82,7 +82,7 @@ export async function onRequestGet(context) {
         SUM(CASE WHEN pixel_was_blocked = 1 THEN 1 ELSE 0 END) as blocked,
         SUM(CASE WHEN fbp_source = 'middleware_http' THEN 1 ELSE 0 END) as itp_recovered
       FROM event_log
-      WHERE event_name = 'Lead' AND is_bot = 0
+      WHERE event_name = 'Lead' AND is_bot = 0 AND is_junk = 0
       GROUP BY browser
       ORDER BY total DESC
     `).all();

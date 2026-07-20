@@ -22,6 +22,10 @@ export async function onRequestGet(context) {
   const { since, until } = resolvePeriod(url, days);
 
   const botClause = includeBots ? '' : 'AND e.is_bot = 0';
+  // Testes internos (is_junk = 1, ver migration 0022) nunca entram nas métricas.
+  // Diferente de is_bot, não há flag para reincluir: se precisar auditar um
+  // teste, consulte o D1 direto — o dado continua lá, só não é contado.
+  const junkClause = 'AND e.is_junk = 0';
 
   // Filtro opcional de funil (não é UTM). Funil ausente = todos os funis
   // (comportamento original). A lista de funis disponíveis é devolvida em
@@ -84,6 +88,7 @@ export async function onRequestGet(context) {
       WHERE e.event_name = 'Lead'
         AND e.timestamp >= ? AND e.timestamp <= ?
         ${botClause}
+        ${junkClause}
         ${funnelClause}
       ORDER BY e.timestamp DESC
       LIMIT ?
@@ -99,6 +104,7 @@ export async function onRequestGet(context) {
       WHERE e.event_name = 'Lead'
         AND e.timestamp >= ? AND e.timestamp <= ?
         AND e.is_bot = 0
+        AND e.is_junk = 0
         ${funnelClause}
       GROUP BY utm_source
       ORDER BY count DESC
@@ -113,6 +119,7 @@ export async function onRequestGet(context) {
       LEFT JOIN sessions s ON e.session_id = s.session_id
       WHERE e.event_name = 'Lead'
         AND e.is_bot = 0
+        AND e.is_junk = 0
         AND ${EFFECTIVE_FUNNEL} IS NOT NULL AND ${EFFECTIVE_FUNNEL} != ''
       ORDER BY funnel
     `).all();
@@ -128,6 +135,7 @@ export async function onRequestGet(context) {
       WHERE e.event_name = 'Lead'
         AND e.timestamp >= ? AND e.timestamp <= ?
         AND e.is_bot = 0
+        AND e.is_junk = 0
       GROUP BY COALESCE(${EFFECTIVE_FUNNEL}, '')
       ORDER BY count DESC
     `).bind(since, until).all();

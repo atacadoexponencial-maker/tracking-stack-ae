@@ -60,6 +60,7 @@ export async function onRequestGet(context) {
         ON e.session_id = s.session_id
        AND e.event_name = 'Lead'
        AND e.is_bot = 0
+       AND e.is_junk = 0
       WHERE s.created_at >= ? AND s.created_at <= ?
         AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
         ${botClauses}
