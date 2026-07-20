@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+
+const aprender = [
+  'Por que postar mais, investir em tráfego e contratar agência não destravou o seu faturamento — e o que realmente está no caminho.',
+  'As 2 variáveis que decidem se o seu atacado vai escalar ou continuar travado no mesmo número.',
+  'O sistema que marcas de atacado usam para ter revendedor novo entrando toda semana, de forma previsível.',
+  'Por que chega consumidor final no seu DM em vez de lojista — e como virar essa chave.',
+];
+
+// Prints de depoimentos — reaproveita as imagens de src/assets/proof/
+// (mesmo padrão de src/pages/video-workshop-instagram.astro).
+const proofModules = import.meta.glob('../assets/proof/*.{jpg,png}', { eager: true });
+const proofImages = Object.entries(proofModules)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([, m]) => (m as { default: ImageMetadata }).default);
+---
+
+<BaseLayout
+  title="Live do Atacado: novos revendedores chegando toda semana"
+  description="Live gratuita e online, toda quinta às 12h. Descubra o sistema que marcas de atacado usam para ter revendedor novo entrando toda semana, de forma previsível."
+  showHeader={false}
+>
+  <!-- Hero -->
+  <header class="lv-hero">
+    <nav class="lv-hero__nav container"><Image src={logo} alt="Atacado Exponencial" height={72} style="height:2.25rem;width:auto;filter:brightness(0)" /></nav>
+    <div class="lv-hero__body container">
+      <span class="lv-hero__badge">🔴 LIVE GRATUITA E ONLINE • QUINTA, 12H</span>
+      <h1 class="lv-hero__title">Como ter novos revendedores chegando toda semana no seu atacado</h1>
+      <p class="lv-hero__sub">Sem depender dos mesmos clientes de sempre, sem representante e sem aplicar estratégia de varejo num mercado que é completamente diferente.</p>
+      <a href="/grupo-da-live" class="btn-cta lv-hero__cta">QUERO MINHA VAGA NA LIVE →</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- O que vai entender -->
+    <section class="section section--light aprender">
+      <div class="container">
+        <div class="section-head">
+          <h2 class="section-title">Nesta hora, você vai entender:</h2>
+        </div>
+        <ul class="aprender__list">
+          {aprender.map((item) => <li class="aprender__item">✅ {item}</li>)}
+        </ul>
+      </div>
+    </section>
+
+    <!-- Para quem é a live -->
+    <section class="section paraquem">
+      <div class="container paraquem__inner">
+        <span class="eyebrow">Para quem é a live</span>
+        <p class="paraquem__text">Essa live é pra você que tem uma marca de atacado — vende pra revendedor, lojista ou empreendedor — já tem produto validado, mas sente que o faturamento travou e que as estratégias que você usa não foram feitas pro seu mercado.</p>
+      </div>
+    </section>
+
+    <!-- Depoimentos (prints) -->
+    <section class="section section--light lv-prints">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Depoimentos</span>
+          <h2 class="section-title">O que dizem quem já aplicou o método</h2>
+        </div>
+        <div class="lv-prints__grid">
+          {proofImages.map((img, i) => (
+            <Image src={img} alt={`Depoimento ${i + 1}`} class="lv-prints__img" loading="lazy" />
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA final (sem formulário — variante v2) -->
+    <section id="inscricao" class="section inscricao">
+      <div class="container inscricao__inner">
+        <h2 class="section-title">Garanta sua vaga gratuita</h2>
+        <p class="inscricao__reforco">Quinta-feira, 12h · ao vivo e online</p>
+        <a href="/grupo-da-live" class="btn-cta inscricao__cta">QUERO PARTICIPAR DA LIVE →</a>
+        <p class="inscricao__garantia">Vaga gratuita. É só entrar no grupo que o link e os lembretes da live chegam por lá.</p>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .lv-hero { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); min-height: 80vh; display: flex; flex-direction: column; }
+  .lv-hero__nav { display: flex; justify-content: center; padding-block: 1.5rem; }
+  .lv-hero__body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.25rem; max-width: 44rem; padding-block: 3rem; }
+  .lv-hero__badge { display: inline-block; border: 1px solid rgba(30,30,30,0.15); border-radius: 9999px; padding: 0.5rem 1.25rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(30,30,30,0.7); }
+  .lv-hero__title { font-size: clamp(1.75rem, 4.5vw, 3.25rem); line-height: 1.1; }
+  .lv-hero__sub { color: rgba(30,30,30,0.7); max-width: 36rem; }
+  .lv-hero__cta { margin-top: 0.5rem; }
+
+  .aprender__list { margin-top: 2.5rem; max-width: 44rem; margin-inline: auto; display: flex; flex-direction: column; gap: 0.75rem; list-style: none; }
+  .aprender__item { padding: 1rem 1.25rem; border: 1px solid rgba(30,30,30,0.12); border-radius: 0.75rem; background: rgba(255,255,255,0.4); font-size: 0.95rem; }
+
+  .paraquem__inner { display: flex; flex-direction: column; gap: 1rem; align-items: center; text-align: center; max-width: 40rem; margin-inline: auto; }
+  .paraquem__text { color: hsl(var(--muted-foreground)); font-size: 1.05rem; }
+
+  .inscricao__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1rem; max-width: 32rem; margin-inline: auto; }
+  .inscricao__reforco { color: hsl(var(--muted-foreground)); font-weight: 700; }
+  .inscricao__cta { margin-top: 1rem; }
+  .inscricao__garantia { margin-top: 0.5rem; color: hsl(var(--muted-foreground)); font-size: 0.9rem; max-width: 28rem; }
+
+  .lv-prints__grid { margin-top: 2.5rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .lv-prints__img { width: 100%; height: auto; border-radius: 1rem; object-fit: cover; }
+  @media (min-width: 768px) { .lv-prints__grid { grid-template-columns: repeat(3, 1fr); } }
+</style>

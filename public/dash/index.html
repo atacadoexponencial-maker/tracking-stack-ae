@@ -132,6 +132,8 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <div class="filtros">
         <select id="funil"><option value="">Todos os funis</option></select>
         <select id="preset">
+          <option value="hoje">Hoje</option>
+          <option value="1">Ontem</option>
           <option value="7">Últimos 7 dias</option>
           <option value="14">Últimos 14 dias</option>
           <option value="30" selected>Últimos 30 dias</option>
@@ -250,7 +252,14 @@ function intervalo() {
   } else if (preset === 'mes-passado') {
     de = Math.floor(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1).getTime() / 1000);
     ate = Math.floor(new Date(hoje.getFullYear(), hoje.getMonth(), 1).getTime() / 1000) - 1;
-  } else { de = dias(Number(preset)); }
+  } else if (preset === 'hoje') {
+    de = Math.floor(hoje.getTime() / 1000); // hoje 00:00 até agora (dia em andamento)
+  } else {
+    // "Últimos N dias" = N dias cheios anteriores, sem o dia de hoje (que estaria parcial).
+    // "Ontem" é o caso N = 1.
+    de = dias(Number(preset));
+    ate = Math.floor(hoje.getTime() / 1000) - 1; // ontem 23:59:59
+  }
   const dur = ate - de;
   return { de, ate, antDe: de - dur - 1, antAte: de - 1 };
 }
