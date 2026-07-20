@@ -218,6 +218,10 @@ export async function onRequestPost(context) {
         eventId: body.event_id || '',
       }));
 
+      // GoHighLevel (email marketing): upsert do contato + tag do funil, aditiva.
+      // Só marca — não dispara automação. Independente dos outros destinos.
+      context.waitUntil(sendToGHL({ leadData: body.lead_data || {}, env }));
+
       // Demais destinos desacoplados (inalterados): CRM Supabase + barramento
       // WhatsApp (n8n). Cada um dispara independente; se um falhar, os outros seguem.
       const crmDestinations = [
@@ -523,6 +527,81 @@ async function sendToCRM({ leadData, sessionData, fbc, externalId, url, token, l
       `⚠️ Forward de lead p/ ${label} falhou: ${e.message || e}`,
       env
     );
+  }
+}
+
+// -------------------------------------------------------
+// GOHIGHLEVEL — cria/atualiza o contato e aplica a tag do funil (issues 131-133)
+// -------------------------------------------------------
+const GHL_API = 'https://services.leadconnectorhq.com';
+const GHL_VERSION = '2021-07-28';
+
+// Funil efetivo do lead → tag do GHL. Deriva `funil-<nome>` (funis novos saem
+// de graça, sem editar código), com duas normalizações: as duas versões da LP
+// da live viram o MESMO funil (tag por funil, não por LP), e o chat da home
+// (rótulo interno 'diagnostico') é o funil de sessão estratégica. Vazio → null
+// (sem tag; o contato ainda é criado). Ver issue 131.
+function ghlFunnelTag(funnel) {
+  const f = (funnel || '').toLowerCase().trim();
+  if (!f) return null;
+  if (f === 'lives-semanais-v1' || f === 'lives-semanais-v2') return 'funil-lives-semanais';
+  if (f === 'diagnostico') return 'funil-sessao-estrategica';
+  return 'funil-' + f;
+}
+
+function ghlFetch(path, body, env) {
+  return fetch(`${GHL_API}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.TOKEN_GHL}`,
+      Version: GHL_VERSION,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+// 4º destino do fan-out (issue 132). Best-effort, nunca bloqueia o lead.
+// Duas chamadas: upsert (dedup por email/telefone, SEM tags pra não sobrescrever
+// as existentes) e add-tags (aditivo — um lead que passa por vários funis
+// acumula as tags). Confere res.ok e loga status+corpo, lição do Evolution.
+async function sendToGHL({ leadData, env }) {
+  try {
+    if (!env.TOKEN_GHL || !env.LOCAL_ID) {
+      const faltando = [!env.TOKEN_GHL && 'TOKEN_GHL', !env.LOCAL_ID && 'LOCAL_ID'].filter(Boolean).join(', ');
+      console.error('GHL skip — config faltando:', faltando);
+      return;
+    }
+    const email = (leadData.email || '').toString().trim();
+    const phone = toClickUpPhone(leadData.telefone);
+    if (!email && !phone) return; // sem identificador não dá pra deduplicar
+
+    const upsertRes = await ghlFetch('/contacts/upsert', {
+      locationId: env.LOCAL_ID,
+      firstName: (leadData.nome || '').toString().trim(),
+      email,
+      phone,
+    }, env);
+    if (!upsertRes.ok) {
+      const corpo = await upsertRes.text().catch(() => '');
+      console.error(`GHL upsert failed: HTTP ${upsertRes.status} — ${corpo.slice(0, 300)}`);
+      return;
+    }
+    const upserted = await upsertRes.json().catch(() => ({}));
+    const contactId = upserted && upserted.contact && upserted.contact.id;
+    if (!contactId) { console.error('GHL upsert sem contact.id:', JSON.stringify(upserted).slice(0, 200)); return; }
+
+    const tag = ghlFunnelTag(leadData.funnel);
+    if (!tag) return; // lead sem funil: contato criado, sem tag
+
+    const tagRes = await ghlFetch(`/contacts/${contactId}/tags`, { tags: [tag] }, env);
+    if (!tagRes.ok) {
+      const corpo = await tagRes.text().catch(() => '');
+      console.error(`GHL add-tags failed: HTTP ${tagRes.status} — ${corpo.slice(0, 300)}`);
+    }
+  } catch (e) {
+    console.error('GHL send error:', e.message);
   }
 }
 
