@@ -676,12 +676,27 @@ async function logClickUpFailure(leadData, phone, email, error, env) {
 // Envia texto pela Evolution API. Best-effort: engole qualquer erro.
 async function sendEvolutionMessage(apikey, number, text, env) {
   try {
-    if (!env.EVOLUTION_API_URL || !apikey || !number) return;
-    await fetch(env.EVOLUTION_API_URL, {
+    // Antes esta guarda saía calada: config faltando era indistinguível de
+    // envio bem-sucedido. O WhatsApp parou em 2026-07-20 e ninguém percebeu.
+    if (!env.EVOLUTION_API_URL || !apikey || !number) {
+      const faltando = [
+        !env.EVOLUTION_API_URL && 'EVOLUTION_API_URL',
+        !apikey && 'apikey', !number && 'number',
+      ].filter(Boolean).join(', ');
+      console.error('Evolution skip — config faltando:', faltando);
+      return;
+    }
+    const res = await fetch(env.EVOLUTION_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey },
       body: JSON.stringify({ number, text }),
     });
+    // O status NUNCA era conferido: instância caída (404) ou apikey inválida
+    // (401) passavam por sucesso.
+    if (!res.ok) {
+      const corpo = await res.text().catch(() => '');
+      console.error(`Evolution send failed: HTTP ${res.status} — ${corpo.slice(0, 300)}`);
+    }
   } catch (e) {
     console.error('Evolution send error:', e.message);
   }
