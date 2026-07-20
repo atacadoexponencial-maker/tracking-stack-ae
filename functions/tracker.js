@@ -268,6 +268,10 @@ export async function onRequestPost(context) {
     // do anúncio ou a cookie reaproveitado entre funis. Vazio em eventos sem
     // lead_data (ex.: InitiateCheckout).
     const loggedFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
+    // Testes internos saem das métricas do dash já na entrada (migration 0022).
+    // Só afeta CONTAGEM: o lead segue normalmente para ClickUp/CRM/Meta, para o
+    // teste continuar exercitando o pipeline inteiro de ponta a ponta.
+    const isJunk = isInternalTestEmail(rawEmail) ? 1 : 0;
     context.waitUntil(
       (async () => {
         try {
@@ -282,8 +286,8 @@ export async function onRequestPost(context) {
                 sent_to_meta, meta_status_code, meta_response_ok, meta_response_body, meta_payload_sent,
                 sent_to_ga4, ga4_status_code, ga4_response_ok, ga4_response_body, ga4_payload_sent,
                 has_email, has_phone, has_name,
-                raw_email, funnel
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                raw_email, funnel, is_junk
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
               sessionId, body.event_name, body.event_id, body.event_time,
               browserInfo.browser, browserInfo.version, browserInfo.os, browserInfo.isMobile ? 1 : 0,
@@ -293,7 +297,7 @@ export async function onRequestPost(context) {
               isBot ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
               isBot ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
               hashedEm ? 1 : 0, hashedPh ? 1 : 0, (hashedFn || hashedLn) ? 1 : 0,
-              rawEmail, loggedFunnel
+              rawEmail, loggedFunnel, isJunk
             ).run();
           }
         } catch (e) {
@@ -355,6 +359,17 @@ export async function onRequestPost(context) {
 // -------------------------------------------------------
 // Recebe pixelId/accessToken explícitos para suportar múltiplos pixels
 // (pixel principal e o da conta nova em migração) com a mesma função.
+// Domínios usados nos testes internos. Por DOMÍNIO (não lista de endereços) para
+// não precisar editar código a cada teste novo. Mesmos critérios da migration
+// 0022 — se mudar aqui, alinhe lá. `zzteste@gmail.com` ficou de fora de
+// propósito: foi um teste avulso de 02/07, não uma regra.
+const INTERNAL_TEST_DOMAINS = ['seteads.com', 'teste.com'];
+function isInternalTestEmail(email) {
+  const e = (email || '').toLowerCase().trim();
+  const at = e.lastIndexOf('@');
+  return at !== -1 && INTERNAL_TEST_DOMAINS.includes(e.slice(at + 1));
+}
+
 async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }) {
   if (!pixelId || !accessToken) {
     return { skipped: 'missing meta env', payload: null, response: null };
