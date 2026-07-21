@@ -41,28 +41,26 @@ export async function onRequestPost(context) {
   // antigas já têm stats estabilizado. Override via body {limit}.
   let body = {};
   try { body = await request.json(); } catch (_) { body = {}; }
-  const limitCampanhas = Math.max(1, Math.min(45, parseInt(body.limit, 10) || 40));
-
-  // >>> DIAGNÓSTICO TEMPORÁRIO: só lista e retorna (sem stats, sem D1) <<<
-  if (body.diag) {
-    try {
-      const r = await ghlV3(`/emails/locations/${loc}/campaigns/emails?status=sent&limit=100`, env);
-      const txt = await r.text();
-      return json({ diag: true, list_status: r.status, list_len: txt.length, sample: txt.slice(0, 200) });
-    } catch (e) {
-      return json({ diag: true, erro: e.message, stack: (e.stack || '').slice(0, 300) }, 200);
-    }
-  }
+  const limitCampanhas = Math.max(1, Math.min(45, parseInt(body.limit, 10) || 20));
 
   const erros = [];
   try {
-    // 1) Lista as campanhas enviadas (1 subrequisição) e pega as mais recentes.
-    const res = await ghlV3(`/emails/locations/${loc}/campaigns/emails?status=sent&limit=100`, env);
-    if (!res.ok) {
-      const corpo = await res.text().catch(() => '');
-      return json({ error: `list campaigns HTTP ${res.status}`, corpo: corpo.slice(0, 300) }, 502);
+    // 1) Lista as campanhas enviadas, paginando. A v3 limita `limit` a 20 por
+    //    página, e devolve as mais recentes primeiro; junta páginas até cobrir
+    //    limitCampanhas.
+    const PAGINA = 20;
+    const todasBrutas = [];
+    for (let offset = 0; offset < limitCampanhas + PAGINA; offset += PAGINA) {
+      const res = await ghlV3(`/emails/locations/${loc}/campaigns/emails?status=sent&limit=${PAGINA}&offset=${offset}`, env);
+      if (!res.ok) {
+        const corpo = await res.text().catch(() => '');
+        return json({ error: `list campaigns HTTP ${res.status}`, corpo: corpo.slice(0, 300) }, 502);
+      }
+      const lote = (await res.json().catch(() => ({}))).campaigns || [];
+      todasBrutas.push(...lote);
+      if (lote.length < PAGINA || todasBrutas.length >= limitCampanhas + PAGINA) break;
     }
-    const todas = ((await res.json().catch(() => ({}))).campaigns || [])
+    const todas = todasBrutas
       .filter((c) => c.sourceId) // rascunho/sem envio real não tem sourceId
       .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))
       .slice(0, limitCampanhas);
