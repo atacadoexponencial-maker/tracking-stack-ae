@@ -121,6 +121,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <a href="#vendas" data-secao="vendas">Vendas</a>
       <a href="#atribuicao" data-secao="atribuicao">Atribuição</a>
       <a href="#metaads" data-secao="metaads">Meta Ads</a>
+      <a href="#email" data-secao="email">Email</a>
       <a href="#jornada" data-secao="jornada">Jornada</a>
       <a href="#eventos" data-secao="eventos">Eventos</a>
     </nav>
@@ -190,6 +191,10 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
     <section class="secao" id="secao-metaads">
       <div class="grid-kpi" id="meta-kpis"></div>
       <div class="card"><h2>Campanhas <small id="meta-sync-nota"></small></h2><div class="tabela-wrap" id="meta-campanhas"></div></div>
+    </section>
+
+    <section class="secao" id="secao-email">
+      <div class="card"><h2>Campanhas de email <small id="email-sync-nota"></small></h2><div class="tabela-wrap" id="email-campanhas"></div></div>
     </section>
 
     <section class="secao" id="secao-jornada">
@@ -538,6 +543,24 @@ R.metaads = async () => {
   ], camp.rows || []);
 };
 
+R.email = async () => {
+  const p = intervalo();
+  const dados = await fetchJson(`/api/email-campaigns?${q(p.de, p.ate)}`);
+  $('#email-sync-nota').textContent = dados.last_synced_at
+    ? `última sincronização ${new Date(dados.last_synced_at * 1000).toLocaleString('pt-BR')}`
+    : 'sincronização de email ainda não configurada';
+  const dataBR = (iso) => { const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); };
+  tabela($('#email-campanhas'), [
+    { titulo: 'Campanha', campo: 'name', render: (r) => esc(r.name || '—') },
+    { titulo: 'Data', campo: 'sent_at', render: (r) => `<span class="mini">${dataBR(r.sent_at)}</span>` },
+    { titulo: 'Enviados', num: true, campo: 'sent', render: (r) => fmtInt(r.sent) },
+    { titulo: 'Entregues', num: true, campo: 'delivered', render: (r) => fmtInt(r.delivered) },
+    { titulo: 'Abertura', num: true, campo: 'open_rate', render: (r) => r.open_rate == null ? '—' : fmtPct(r.open_rate) },
+    { titulo: 'Clique', num: true, campo: 'click_rate', render: (r) => r.click_rate == null ? '—' : fmtPct(r.click_rate) },
+    { titulo: 'Bounce', num: true, campo: 'bounce_rate', render: (r) => r.bounce_rate == null ? '—' : fmtPct(r.bounce_rate) },
+  ], dados.rows || []);
+};
+
 R.jornada = async () => {};
 $('#jornada-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
@@ -664,7 +687,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', jornada: 'Jornada', eventos: 'Eventos' };
 let secao = 'visao';
 async function render() {
   const p = intervalo();
