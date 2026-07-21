@@ -13,6 +13,11 @@ puxa a estatística de cada uma (enviados, entregues, aberturas, cliques, bounce
 descadastros) e faz upsert em `email_campaign_stats`. É idempotente — re-rodar não
 duplica.
 
+**Limite por execução:** sincroniza as **40 campanhas mais recentes** por chamada
+(cada campanha é uma subrequisição, e o Worker tem teto por invocação). Campanhas
+mais antigas já têm o stats estabilizado, então não precisam re-sincronizar. Pra
+forçar mais numa chamada manual, mande `{"limit": N}` no corpo (máx 45).
+
 ## Requisitos (secrets do Pages, produção)
 
 Já configurados nesta stack:

@@ -35,70 +35,67 @@ export async function onRequestPost(context) {
 
   const loc = env.LOCAL_ID;
   const agora = Math.floor(Date.now() / 1000);
-  let sincronizadas = 0;
+  // Teto de campanhas por execução: cada campanha = 1 subrequisição de stats, e
+  // o Worker tem limite de subrequisições por invocação. As gravações no D1 vão
+  // num batch único (1 subrequisição). Sincroniza as MAIS RECENTES — campanhas
+  // antigas já têm stats estabilizado. Override via body {limit}.
+  let body = {};
+  try { body = await request.json(); } catch (_) { body = {}; }
+  const limitCampanhas = Math.max(1, Math.min(45, parseInt(body.limit, 10) || 40));
+
   const erros = [];
-
   try {
-    // 1) Lista as campanhas enviadas (paginando).
-    const campanhas = [];
-    let offset = 0;
-    const limit = 100;
-    for (let pagina = 0; pagina < 20; pagina++) { // teto de segurança: 2000 campanhas
-      const res = await ghlV3(`/emails/locations/${loc}/campaigns/emails?status=sent&limit=${limit}&offset=${offset}`, env);
-      if (!res.ok) {
-        const corpo = await res.text().catch(() => '');
-        return json({ error: `list campaigns HTTP ${res.status}`, corpo: corpo.slice(0, 300) }, 502);
-      }
-      const data = await res.json().catch(() => ({}));
-      const lote = data.campaigns || [];
-      campanhas.push(...lote);
-      if (lote.length < limit) break;
-      offset += limit;
+    // 1) Lista as campanhas enviadas (1 subrequisição) e pega as mais recentes.
+    const res = await ghlV3(`/emails/locations/${loc}/campaigns/emails?status=sent&limit=100`, env);
+    if (!res.ok) {
+      const corpo = await res.text().catch(() => '');
+      return json({ error: `list campaigns HTTP ${res.status}`, corpo: corpo.slice(0, 300) }, 502);
     }
+    const todas = ((await res.json().catch(() => ({}))).campaigns || [])
+      .filter((c) => c.sourceId) // rascunho/sem envio real não tem sourceId
+      .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))
+      .slice(0, limitCampanhas);
 
-    // 2) Pra cada campanha enviada com sourceId, puxa o stats e faz upsert.
-    for (const c of campanhas) {
-      const sourceId = c.sourceId;
-      if (!sourceId) continue; // rascunho/sem envio real
+    // 2) Puxa o stats de cada (subrequisições) e monta os upserts.
+    const stmt = env.DB.prepare(
+      `INSERT INTO email_campaign_stats
+         (source_id, campaign_id, name, subject, from_email, status, sent_at,
+          sent, delivered, opened, clicked, bounced, unsubscribed, complained, failed, synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(source_id) DO UPDATE SET
+         campaign_id=excluded.campaign_id, name=excluded.name, subject=excluded.subject,
+         from_email=excluded.from_email, status=excluded.status, sent_at=excluded.sent_at,
+         sent=excluded.sent, delivered=excluded.delivered, opened=excluded.opened,
+         clicked=excluded.clicked, bounced=excluded.bounced, unsubscribed=excluded.unsubscribed,
+         complained=excluded.complained, failed=excluded.failed, synced_at=excluded.synced_at`
+    );
+    const batch = [];
+    for (const c of todas) {
       try {
-        const sres = await ghlV3(`/emails/locations/${loc}/campaigns/stats/email-campaigns/${sourceId}`, env);
-        if (!sres.ok) {
-          const corpo = await sres.text().catch(() => '');
-          console.error(`GHL stats ${sourceId} HTTP ${sres.status}: ${corpo.slice(0, 200)}`);
-          erros.push(sourceId);
-          continue;
-        }
+        const sres = await ghlV3(`/emails/locations/${loc}/campaigns/stats/email-campaigns/${c.sourceId}`, env);
+        if (!sres.ok) { console.error(`GHL stats ${c.sourceId} HTTP ${sres.status}`); erros.push(c.sourceId); continue; }
         const s = (await sres.json().catch(() => ({}))).stats || {};
         const bounced = Number(s.permanentFail || 0) + Number(s.temporaryFail || 0);
-        await env.DB.prepare(
-          `INSERT INTO email_campaign_stats
-             (source_id, campaign_id, name, subject, from_email, status, sent_at,
-              sent, delivered, opened, clicked, bounced, unsubscribed, complained, failed, synced_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(source_id) DO UPDATE SET
-             campaign_id=excluded.campaign_id, name=excluded.name, subject=excluded.subject,
-             from_email=excluded.from_email, status=excluded.status, sent_at=excluded.sent_at,
-             sent=excluded.sent, delivered=excluded.delivered, opened=excluded.opened,
-             clicked=excluded.clicked, bounced=excluded.bounced, unsubscribed=excluded.unsubscribed,
-             complained=excluded.complained, failed=excluded.failed, synced_at=excluded.synced_at`
-        ).bind(
-          sourceId, c.id || '', c.name || '', c.subject || '', c.fromEmail || '', c.status || '',
+        batch.push(stmt.bind(
+          c.sourceId, c.id || '', c.name || '', c.subject || '', c.fromEmail || '', c.status || '',
           c.updatedAt || c.createdAt || '',
           Number(s.sent || 0), Number(s.delivered || 0), Number(s.opened || 0), Number(s.clicked || 0),
           bounced, Number(s.unsubscribed || 0), Number(s.complained || 0), Number(s.failed || 0), agora
-        ).run();
-        sincronizadas++;
+        ));
       } catch (e) {
-        console.error(`GHL sync campanha ${sourceId} erro:`, e.message);
-        erros.push(sourceId);
+        console.error(`GHL sync campanha ${c.sourceId} erro:`, e.message);
+        erros.push(c.sourceId);
       }
     }
+
+    // 3) Grava tudo num batch único (1 subrequisição ao D1).
+    if (batch.length) await env.DB.batch(batch);
+
+    return json({ ok: true, sincronizadas: batch.length, com_erro: erros.length });
   } catch (e) {
     console.error('GHL email sync erro:', e.message);
     return json({ error: e.message }, 500);
   }
-
-  return json({ ok: true, sincronizadas, com_erro: erros.length });
 }
 
 function json(data, status = 200) {
