@@ -122,6 +122,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <a href="#atribuicao" data-secao="atribuicao">Atribuição</a>
       <a href="#metaads" data-secao="metaads">Meta Ads</a>
       <a href="#email" data-secao="email">Email</a>
+      <a href="#workshops" data-secao="workshops">Workshops</a>
       <a href="#jornada" data-secao="jornada">Jornada</a>
       <a href="#eventos" data-secao="eventos">Eventos</a>
     </nav>
@@ -195,6 +196,17 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 
     <section class="secao" id="secao-email">
       <div class="card"><h2>Campanhas de email <small id="email-sync-nota"></small></h2><div class="tabela-wrap" id="email-campanhas"></div></div>
+    </section>
+
+    <section class="secao" id="secao-workshops">
+      <div class="card"><h2>Workshops <small id="workshops-sync-nota"></small></h2><div class="tabela-wrap" id="workshops-lista"></div></div>
+      <div class="card" id="workshops-detalhe-card" hidden><h2 id="workshops-detalhe-titulo">Detalhe</h2>
+        <div style="display:grid;gap:1rem">
+          <div><h2 style="margin-top:0.2rem;font-size:0.95rem">Presentes</h2><div class="tabela-wrap" id="workshops-presentes"></div></div>
+          <div><h2 style="margin-top:0.2rem;font-size:0.95rem">Faltaram</h2><div class="tabela-wrap" id="workshops-faltaram"></div></div>
+          <div><h2 style="margin-top:0.2rem;font-size:0.95rem">Sem inscrição</h2><div class="tabela-wrap" id="workshops-sem-inscricao"></div></div>
+        </div>
+      </div>
     </section>
 
     <section class="secao" id="secao-jornada">
@@ -561,6 +573,44 @@ R.email = async () => {
   ], dados.rows || []);
 };
 
+R.workshops = async () => {
+  const dados = await fetchJson('/api/workshops');
+  $('#workshops-sync-nota').textContent = dados.last_synced_at
+    ? `última sincronização ${new Date(dados.last_synced_at * 1000).toLocaleString('pt-BR')}`
+    : 'sincronização de workshops ainda não configurada';
+  const dataBR = (iso) => { const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }); };
+  const pct = (v) => v == null ? '—' : v.toFixed(0) + '%';
+
+  const linhas = dados.rows || [];
+  tabela($('#workshops-lista'), [
+    { titulo: 'Workshop', campo: 'title', render: (r) => `${esc(r.title || '—')}<br><span class="mini">${dataBR(r.started_at)}</span>` },
+    { titulo: 'Inscritos', num: true, campo: 'registered', render: (r) => fmtInt(r.registered) },
+    { titulo: 'Presentes', num: true, campo: 'attended', render: (r) => fmtInt(r.attended) },
+    { titulo: 'Taxa', num: true, campo: 'attendance_rate', render: (r) => pct(r.attendance_rate) },
+    { titulo: 'Tempo médio', num: true, campo: 'avg_minutes', render: (r) => `${fmtInt(r.avg_minutes)} min` },
+  ], linhas, (r) => mostraDetalheWorkshop(r));
+
+  if (linhas.length) mostraDetalheWorkshop(linhas[0]);
+};
+
+function mostraDetalheWorkshop(r) {
+  $('#workshops-detalhe-card').hidden = false;
+  $('#workshops-detalhe-titulo').textContent = r.title || 'Detalhe';
+  tabela($('#workshops-presentes'), [
+    { titulo: 'Nome', campo: 'name', render: (p) => esc(p.name || '—') },
+    { titulo: 'Tempo', num: true, campo: 'minutes', render: (p) => `${fmtInt(p.minutes)} min` },
+    { titulo: 'Recorrência', num: true, campo: 'recorrencia', render: (p) => `${fmtInt(p.recorrencia)}×` },
+  ], r.presentes || []);
+  tabela($('#workshops-faltaram'), [
+    { titulo: 'Nome', campo: 'name', render: (p) => esc(p.name || '—') },
+    { titulo: 'Email', campo: 'email', render: (p) => `<span class="mini">${esc(p.email || '—')}</span>` },
+  ], r.faltaram || []);
+  tabela($('#workshops-sem-inscricao'), [
+    { titulo: 'Nome no Meet', campo: 'display_name', render: (p) => esc(p.display_name || '—') },
+    { titulo: 'Tempo', num: true, campo: 'minutes', render: (p) => `${fmtInt(p.minutes)} min` },
+  ], r.sem_inscricao || []);
+}
+
 R.jornada = async () => {};
 $('#jornada-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
@@ -687,7 +737,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', jornada: 'Jornada', eventos: 'Eventos' };
 let secao = 'visao';
 async function render() {
   const p = intervalo();
