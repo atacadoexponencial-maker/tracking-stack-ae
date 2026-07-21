@@ -4,6 +4,12 @@
 //   novos × retornando × falhas (lead_dispatch, por período)
 //   por_origem: novos/retornando por utm_source (join event_log→sessions)
 //   por_status: distribuição atual dos leads do período pelos estágios do CRM
+//
+// Todas as contagens excluem leads de teste (is_junk = 1, migration 0022) e bots
+// (is_bot = 1), pelo mesmo critério de /api/leads — senão este card diverge da
+// lista de leads. O event_log entra como LEFT JOIN, então COALESCE(...,0) garante
+// que um lead_dispatch sem evento correspondente não seja descartado: só os
+// testes/bots conhecidos saem da conta.
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -15,10 +21,13 @@ export async function onRequestGet(context) {
 
   const totais = await env.DB.prepare(
     `SELECT
-       SUM(CASE WHEN resultado = 'criado' THEN 1 ELSE 0 END) AS novos,
-       SUM(CASE WHEN resultado = 'comentado' THEN 1 ELSE 0 END) AS retornando,
-       SUM(CASE WHEN resultado = 'falha' THEN 1 ELSE 0 END) AS falhas
-     FROM lead_dispatch WHERE criado_em BETWEEN ? AND ?`
+       SUM(CASE WHEN d.resultado = 'criado' THEN 1 ELSE 0 END) AS novos,
+       SUM(CASE WHEN d.resultado = 'comentado' THEN 1 ELSE 0 END) AS retornando,
+       SUM(CASE WHEN d.resultado = 'falha' THEN 1 ELSE 0 END) AS falhas
+     FROM lead_dispatch d
+     LEFT JOIN event_log e ON e.event_id = d.event_id
+     WHERE d.criado_em BETWEEN ? AND ?
+       AND COALESCE(e.is_junk, 0) = 0 AND COALESCE(e.is_bot, 0) = 0`
   ).bind(since, until).first();
 
   const { results: porOrigem } = await env.DB.prepare(
@@ -29,6 +38,7 @@ export async function onRequestGet(context) {
      LEFT JOIN event_log e ON e.event_id = d.event_id
      LEFT JOIN sessions s ON s.session_id = e.session_id
      WHERE d.criado_em BETWEEN ? AND ? AND d.resultado != 'falha'
+       AND COALESCE(e.is_junk, 0) = 0 AND COALESCE(e.is_bot, 0) = 0
      GROUP BY origem ORDER BY (novos + retornando) DESC LIMIT 20`
   ).bind(since, until).all();
 
@@ -38,7 +48,9 @@ export async function onRequestGet(context) {
      FROM lead_dispatch d
      JOIN crm_status_log st ON st.task_id = d.task_id
        AND st.id = (SELECT MAX(id) FROM crm_status_log WHERE task_id = d.task_id)
+     LEFT JOIN event_log e ON e.event_id = d.event_id
      WHERE d.criado_em BETWEEN ? AND ? AND d.task_id IS NOT NULL
+       AND COALESCE(e.is_junk, 0) = 0 AND COALESCE(e.is_bot, 0) = 0
      GROUP BY st.status ORDER BY leads DESC`
   ).bind(since, until).all();
 
