@@ -43,6 +43,17 @@ export async function onRequestPost(context) {
   try { body = await request.json(); } catch (_) { body = {}; }
   const limitCampanhas = Math.max(1, Math.min(45, parseInt(body.limit, 10) || 40));
 
+  // >>> DIAGNÓSTICO TEMPORÁRIO: só lista e retorna (sem stats, sem D1) <<<
+  if (body.diag) {
+    try {
+      const r = await ghlV3(`/emails/locations/${loc}/campaigns/emails?status=sent&limit=100`, env);
+      const txt = await r.text();
+      return json({ diag: true, list_status: r.status, list_len: txt.length, sample: txt.slice(0, 200) });
+    } catch (e) {
+      return json({ diag: true, erro: e.message, stack: (e.stack || '').slice(0, 300) }, 200);
+    }
+  }
+
   const erros = [];
   try {
     // 1) Lista as campanhas enviadas (1 subrequisição) e pega as mais recentes.
