@@ -12,6 +12,7 @@ import requests
 from collect_calendly import fetch_workshop_events
 from collect_meet import build_service, fetch_conference_records
 from match import match_workshop
+from team import TEAM_GOOGLE_USER_IDS
 
 WINDOW_HOURS = 30
 MATCH_TOLERANCE_HOURS = 3
@@ -59,7 +60,10 @@ def main():
         if not rec:
             print(f"Sem conferenceRecord casando com '{ev['title']}' — pulando (lag?).")
             continue
-        matched = match_workshop(rec["participants"], ev["registrants"], identity_map)
+        # remove a equipe interna (por google_user_id) antes de casar/contar
+        participants = [p for p in rec["participants"]
+                        if p["google_user_id"] not in TEAM_GOOGLE_USER_IDS]
+        matched = match_workshop(participants, ev["registrants"], identity_map)
         workshops.append({
             "id": rec["meet_record_name"],
             "title": ev["title"],
