@@ -1,12 +1,11 @@
 // POST /api/sync/workshops
 //
-// Recebe o payload já montado pelo coletor Python da VPS (Meet + Calendly já
-// casados) e faz UPSERT idempotente nas tabelas de workshops. NÃO chama Meet
-// nem Calendly — toda a busca acontece na VPS (onde vive a chave do Google).
+// Recebe o payload montado pelo coletor Python da VPS (Meet + Calendly) e faz
+// UPSERT idempotente. NÃO chama Meet nem Calendly — a busca acontece na VPS.
+// Métrica por contagem: guardamos inscritos (Calendly) e participantes (Meet,
+// já sem a equipe interna). Não há casamento por nome.
 //
 // Auth: header `x-sync-secret: <env.SYNC_SECRET>` (mesmo secret dos outros syncs).
-// Body: ver contrato em docs/superpowers/plans/2026-07-21-presenca-workshops.md
-//
 // Idempotente: reprocessar o mesmo workshop (mesmo meet_record_name) faz update.
 
 export async function onRequestPost(context) {
@@ -22,7 +21,6 @@ export async function onRequestPost(context) {
     return json({ error: 'invalid JSON' }, 400);
   }
   const workshops = Array.isArray(body.workshops) ? body.workshops : [];
-  const learned = Array.isArray(body.learned) ? body.learned : [];
 
   const now = Math.floor(Date.now() / 1000);
   const nowIso = new Date(now * 1000).toISOString();
@@ -44,18 +42,11 @@ export async function onRequestPost(context) {
 
   const upPart = env.DB.prepare(
     `INSERT INTO workshop_participants
-       (workshop_id, google_user_id, display_name, total_minutes, first_join, last_leave, registrant_email)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+       (workshop_id, google_user_id, display_name, total_minutes, first_join, last_leave)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(workshop_id, google_user_id) DO UPDATE SET
        display_name=excluded.display_name, total_minutes=excluded.total_minutes,
-       first_join=excluded.first_join, last_leave=excluded.last_leave,
-       registrant_email=excluded.registrant_email`);
-
-  const upIdentity = env.DB.prepare(
-    `INSERT INTO meet_identity_map (google_user_id, email, display_name, first_seen, last_seen)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(google_user_id) DO UPDATE SET
-       email=excluded.email, display_name=excluded.display_name, last_seen=excluded.last_seen`);
+       first_join=excluded.first_join, last_leave=excluded.last_leave`);
 
   let pCount = 0;
   for (const w of workshops) {
@@ -69,13 +60,9 @@ export async function onRequestPost(context) {
     for (const p of (w.participants || [])) {
       stmts.push(upPart.bind(
         w.id, p.google_user_id, p.display_name || null, p.total_minutes || 0,
-        p.first_join || null, p.last_leave || null, p.registrant_email || null));
+        p.first_join || null, p.last_leave || null));
       pCount++;
     }
-  }
-  for (const l of learned) {
-    if (!l.google_user_id || !l.email) continue;
-    stmts.push(upIdentity.bind(l.google_user_id, l.email, l.display_name || null, nowIso, nowIso));
   }
 
   if (stmts.length) await env.DB.batch(stmts);
@@ -90,7 +77,6 @@ export async function onRequestPost(context) {
     ok: true,
     workshops_upserted: workshops.length,
     participants_upserted: pCount,
-    learned_upserted: learned.length,
   });
 }
 

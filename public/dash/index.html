@@ -201,11 +201,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
     <section class="secao" id="secao-workshops">
       <div class="card"><h2>Workshops <small id="workshops-sync-nota"></small></h2><div class="tabela-wrap" id="workshops-lista"></div></div>
       <div class="card" id="workshops-detalhe-card" hidden><h2 id="workshops-detalhe-titulo">Detalhe</h2>
-        <div style="display:grid;gap:1rem">
-          <div><h2 style="margin-top:0.2rem;font-size:0.95rem">Presentes</h2><div class="tabela-wrap" id="workshops-presentes"></div></div>
-          <div><h2 style="margin-top:0.2rem;font-size:0.95rem">Faltaram</h2><div class="tabela-wrap" id="workshops-faltaram"></div></div>
-          <div><h2 style="margin-top:0.2rem;font-size:0.95rem">Sem inscrição</h2><div class="tabela-wrap" id="workshops-sem-inscricao"></div></div>
-        </div>
+        <div><h2 style="margin-top:0.2rem;font-size:0.95rem">Presentes <small>(pelo Meet, equipe já excluída)</small></h2><div class="tabela-wrap" id="workshops-presentes"></div></div>
       </div>
     </section>
 
@@ -597,18 +593,10 @@ function mostraDetalheWorkshop(r) {
   $('#workshops-detalhe-card').hidden = false;
   $('#workshops-detalhe-titulo').textContent = r.title || 'Detalhe';
   tabela($('#workshops-presentes'), [
-    { titulo: 'Nome', campo: 'name', render: (p) => esc(p.name || '—') },
+    { titulo: 'Nome no Meet', campo: 'display_name', render: (p) => esc(p.display_name || '—') },
     { titulo: 'Tempo', num: true, campo: 'minutes', render: (p) => `${fmtInt(p.minutes)} min` },
     { titulo: 'Recorrência', num: true, campo: 'recorrencia', render: (p) => `${fmtInt(p.recorrencia)}×` },
   ], r.presentes || []);
-  tabela($('#workshops-faltaram'), [
-    { titulo: 'Nome', campo: 'name', render: (p) => esc(p.name || '—') },
-    { titulo: 'Email', campo: 'email', render: (p) => `<span class="mini">${esc(p.email || '—')}</span>` },
-  ], r.faltaram || []);
-  tabela($('#workshops-sem-inscricao'), [
-    { titulo: 'Nome no Meet', campo: 'display_name', render: (p) => esc(p.display_name || '—') },
-    { titulo: 'Tempo', num: true, campo: 'minutes', render: (p) => `${fmtInt(p.minutes)} min` },
-  ], r.sem_inscricao || []);
 }
 
 R.jornada = async () => {};

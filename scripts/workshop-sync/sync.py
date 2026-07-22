@@ -1,7 +1,9 @@
-"""Orquestrador: Calendly + Meet -> match -> POST no endpoint de escrita.
+"""Orquestrador: Calendly + Meet -> POST no endpoint de escrita.
 
-Roda na VPS por cron. Janela padrão: últimas 30h (pega o workshop do dia
-mesmo com folga de fuso/lag da API do Meet). Idempotente no lado do servidor.
+Conta inscritos (Calendly) e presentes (Meet, sem a equipe interna) — sem
+casamento por nome. Roda na VPS por cron. Janela padrão: últimas 30h (pega o
+workshop do dia mesmo com folga de fuso/lag da API do Meet). Idempotente no
+lado do servidor.
 """
 import os
 import sys
@@ -11,7 +13,6 @@ import requests
 
 from collect_calendly import fetch_workshop_events
 from collect_meet import build_service, fetch_conference_records
-from match import match_workshop
 from team import TEAM_GOOGLE_USER_IDS
 
 WINDOW_HOURS = 30
@@ -52,18 +53,16 @@ def main():
 
     svc = build_service(os.environ["GOOGLE_KEY_PATH"], os.environ["GOOGLE_SUBJECT"])
     records = fetch_conference_records(svc, since_iso, until_iso)
-    identity_map = {}  # cache futuro: o servidor devolve o mapa conhecido (v2)
 
-    workshops, learned_all = [], []
+    workshops = []
     for ev in events:
         rec = _pick_record(ev, records)
         if not rec:
             print(f"Sem conferenceRecord casando com '{ev['title']}' — pulando (lag?).")
             continue
-        # remove a equipe interna (por google_user_id) antes de casar/contar
+        # remove a equipe interna (por google_user_id) — presença é por contagem
         participants = [p for p in rec["participants"]
                         if p["google_user_id"] not in TEAM_GOOGLE_USER_IDS]
-        matched = match_workshop(participants, ev["registrants"], identity_map)
         workshops.append({
             "id": rec["meet_record_name"],
             "title": ev["title"],
@@ -72,15 +71,14 @@ def main():
             "calendly_event_uri": ev["event_uri"],
             "meet_record_name": rec["meet_record_name"],
             "registrants": ev["registrants"],
-            "participants": matched["participants"],
+            "participants": participants,
         })
-        learned_all.extend(matched["learned"])
 
     if not workshops:
         print("Nenhum workshop casou com sessão do Meet. Nada enviado.")
         return 0
 
-    payload = {"workshops": workshops, "learned": learned_all}
+    payload = {"workshops": workshops}
     resp = requests.post(
         os.environ["SYNC_ENDPOINT"],
         headers={"x-sync-secret": os.environ["SYNC_SECRET"],
