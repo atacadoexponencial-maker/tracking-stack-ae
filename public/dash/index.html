@@ -274,7 +274,12 @@ function intervalo() {
     ate = Math.floor(hoje.getTime() / 1000) - 1; // ontem 23:59:59
   }
   const dur = ate - de;
-  return { de, ate, antDe: de - dur - 1, antAte: de - 1 };
+  // Preset "Hoje" é um dia em andamento (00:00 → agora). Nesse caso o período
+  // anterior é o dia anterior INTEIRO (00:00 → 23:59:59), não uma fatia do mesmo
+  // tamanho: a comparação pedida é "hoje até agora" vs "ontem inteiro". Para os
+  // demais presets (dias cheios), mantém a janela de mesma duração.
+  const antDe = preset === 'hoje' ? dias(1) : de - dur - 1;
+  return { de, ate, antDe, antAte: de - 1 };
 }
 const q = (de, ate) => `from=${de}&to=${ate}`;
 const delta = (a, b) => (b ? ((a - b) / b) * 100 : null);
