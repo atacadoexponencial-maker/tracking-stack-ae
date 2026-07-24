@@ -452,7 +452,8 @@ R.leads = async () => {
   ], conv.rows || []);
   tabela($('#leads-tabela'), [
     { titulo: 'Quando', campo: 'timestamp', render: (l) => `<span class="mini">${fmtData(l.timestamp)}</span>` },
-    { titulo: 'Email', campo: 'raw_email', render: (l) => esc(l.raw_email || '—') },
+    { titulo: 'Email', campo: 'raw_email', render: (l) => esc(l.raw_email || '—')
+        + (l.origin === 'meta_form' ? ' <span class="mini" title="Lead do formulário nativo do Meta" style="background:#e7f0ff;color:#1a56db;padding:1px 5px;border-radius:4px;margin-left:4px">form Meta</span>' : '') },
     { titulo: 'Origem', campo: 'utm_source', render: (l) => esc(l.utm_source || '(direto)') },
     { titulo: 'Campanha', campo: 'utm_campaign', render: (l) => `<span class="mini">${esc(l.utm_campaign || '—')}</span>` },
     { titulo: 'Conteúdo', campo: 'utm_content', render: (l) => `<span class="mini">${esc(l.utm_content || '—')}</span>` },

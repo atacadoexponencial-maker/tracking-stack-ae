@@ -1,0 +1,4 @@
+# Referência (a VPS já tem estes pacotes no Python3 do sistema — sem venv).
+google-api-python-client
+google-auth
+requests

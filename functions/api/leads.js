@@ -68,6 +68,7 @@ export async function onRequestGet(context) {
         e.fbp_source,
         e.fbc_source,
         e.fbclid_source,
+        e.origin,
         s.utm_source,
         s.utm_medium,
         s.utm_campaign,
