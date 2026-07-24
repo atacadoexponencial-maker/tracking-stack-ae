@@ -35,4 +35,4 @@ Se a coluna já existir (aplicação manual repetida), o SQLite retorna "duplica
 - [x] Criar `migrations/0025_event_log_origin.sql` com `ALTER TABLE event_log ADD COLUMN origin TEXT NOT NULL DEFAULT 'site';`
 - [x] Adicionar `CREATE INDEX IF NOT EXISTS idx_event_log_origin ON event_log(origin);` (paridade com `is_junk`)
 - [x] Comentário-cabeçalho explicando o propósito (padrão das outras migrations)
-- [ ] [PAUSA/produção] Aplicar no D1 remoto (`wrangler d1 migrations apply tracking-ae-db --remote`) — junto do deploy, com o usuário
+- [x] Aplicado no D1 remoto em 2026-07-24 via `wrangler d1 execute --remote --file` (o projeto usa aplicação manual, não `migrations apply`; 149 leads existentes = `site`)
