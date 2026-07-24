@@ -39,4 +39,4 @@ Cron roda `sync.py`: lê a planilha, filtra leads com `created_ts > cursor`, nor
 - [x] Mapeamento de colunas + atribuição (platform→utm_source, adset/campaign/ad)
 - [x] `.env.example`, `README.md`, `requirements.txt`
 - [x] Sintaxe validada (`py_compile`)
-- [ ] [PAUSA/VPS] Copiar para `/root/scripts/meta-leads-sync/`, preencher `.env`, primeira execução (marco de corte)
+- [x] Copiado para `/root/scripts/meta-leads-sync/` (VPS), `.env` criado (reusa `SYNC_SECRET`/`GOOGLE_*` do workshop-sync), 1ª execução OK em 2026-07-24 (cursor `1784840157`, 8 leads existentes ignorados)
