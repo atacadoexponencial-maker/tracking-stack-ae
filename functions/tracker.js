@@ -368,7 +368,7 @@ export async function onRequestPost(context) {
 // 0022 — se mudar aqui, alinhe lá. `zzteste@gmail.com` ficou de fora de
 // propósito: foi um teste avulso de 02/07, não uma regra.
 const INTERNAL_TEST_DOMAINS = ['seteads.com', 'teste.com'];
-function isInternalTestEmail(email) {
+export function isInternalTestEmail(email) {
   const e = (email || '').toLowerCase().trim();
   const at = e.lastIndexOf('@');
   return at !== -1 && INTERNAL_TEST_DOMAINS.includes(e.slice(at + 1));
@@ -566,7 +566,7 @@ function ghlFetch(path, body, env) {
 // Duas chamadas: upsert (dedup por email/telefone, SEM tags pra não sobrescrever
 // as existentes) e add-tags (aditivo — um lead que passa por vários funis
 // acumula as tags). Confere res.ok e loga status+corpo, lição do Evolution.
-async function sendToGHL({ leadData, env }) {
+export async function sendToGHL({ leadData, env }) {
   try {
     if (!env.TOKEN_GHL || !env.LOCAL_ID) {
       const faltando = [!env.TOKEN_GHL && 'TOKEN_GHL', !env.LOCAL_ID && 'LOCAL_ID'].filter(Boolean).join(', ');
@@ -706,6 +706,19 @@ async function clickupWrite(fn) {
   }
 }
 
+// Aplica uma tag a uma task JÁ existente (POST /task/{id}/tag/{name}). O ClickUp
+// cria a tag no Space se ela ainda não existir. Best-effort: falha aqui nunca
+// trava o lead — o card/comentário e o lead_dispatch já garantem que nada se perde.
+async function addClickUpTag(taskId, tag, env) {
+  if (!taskId || !tag) return;
+  try {
+    await clickupWrite(() => clickupFetch(
+      `/task/${taskId}/tag/${encodeURIComponent(tag)}`, { method: 'POST' }, env));
+  } catch (e) {
+    console.error('ClickUp add tag error:', e.message);
+  }
+}
+
 // Dispatch-first (issue 126): grava 'pendente' COM o payload antes de tentar o
 // ClickUp; o desfecho atualiza a mesma linha. O que ficar pendente/falha é
 // re-tentado pelo /api/sync/crm-retry usando o lead_json guardado.
@@ -829,7 +842,7 @@ function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento
   return `${header}\n\n*Nome:* ${nome}\n*Número:* ${phoneE164}\n*Whatsapp:* https://wa.me/${digits}\n*Email:* ${email}\n*Instagram:* ${instagram}\n*Faturamento:* ${faturamento}`;
 }
 
-export async function sendToClickUp({ leadData, sessionData, env, eventId = '', dispatchId = null }) {
+export async function sendToClickUp({ leadData, sessionData, env, eventId = '', dispatchId = null, tag = null }) {
   if (!env.CLICKUP_API_TOKEN) return; // sem token não dá pra falar com o ClickUp
   const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
 
@@ -890,6 +903,7 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
       await clickupWrite(() => clickupFetch(`/task/${taskId}/comment`, {
         method: 'POST', body: JSON.stringify({ comment_text: comentario }),
       }, env));
+      await addClickUpTag(taskId, tag, env); // best-effort; só age se `tag` foi passada
       await atualizarDispatch(env, dispatchId, { resultado: 'comentado', taskId, taskUrl: existing.url || `https://app.clickup.com/t/${taskId}` });
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
         buildLeadNotif('*Voltou ao CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
@@ -919,12 +933,15 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
         : '';
 
       const name = nome || email || 'Lead sem nome';
+      // Tag opcional (ex.: 'formulario-meta' nos leads do Meta). O ClickUp cria a
+      // tag no Space se não existir. Sem `tag`, o body sai idêntico ao de antes.
+      const tagsField = tag ? { tags: [tag] } : {};
       const createTask = (body) => clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
         method: 'POST', body: JSON.stringify(body),
       }, env));
       let criada = null;
       try {
-        criada = await createTask({ name, custom_fields: customFields, description: linkJornada });
+        criada = await createTask({ name, custom_fields: customFields, description: linkJornada, ...tagsField });
       } catch (e) {
         // Telefone fora do padrão faz o campo phone do ClickUp responder 400 e
         // derrubar a task inteira. Tenta UMA vez sem o whatsapp, com o número
@@ -937,6 +954,7 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
           name,
           custom_fields: customFields.filter((f) => f.id !== CU_FIELD.whatsapp),
           description: `${linkJornada ? linkJornada + '\n' : ''}WhatsApp (não validado pelo ClickUp): ${leadData.telefone}`,
+          ...tagsField,
         });
       }
       let novaTask = null;
