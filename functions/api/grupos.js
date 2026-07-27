@@ -53,7 +53,10 @@ export async function onRequestGet(context) {
        FROM whatsapp_groups_seen s
        LEFT JOIN whatsapp_groups_tracked t ON t.group_jid = s.group_jid
       WHERE t.group_jid IS NULL
-      ORDER BY s.events DESC
+      -- ordenar por último evento (não por volume): o caso que importa é o
+      -- grupo novo (poucos eventos) que acabou de começar a ser visto, não os
+      -- ~119 grupos de terceiros com muito volume que o número já participa.
+      ORDER BY s.last_event_at DESC
       LIMIT 20`
   ).all();
 
@@ -71,14 +74,23 @@ export async function onRequestGet(context) {
 
   const saida = (grupos || []).map((g) => {
     const mapa = porGrupo[g.group_jid] || {};
-    const serie = dias.map((d) => ({
-      d,
-      entradas: Number(mapa[d]?.entradas || 0),
-      saidas: Number(mapa[d]?.saidas || 0),
-    }));
+    // saldo por dia usa a mesma fórmula do total (entradas - saidas - removidos),
+    // calculado aqui para o dash nunca precisar recalcular no front.
+    const serie = dias.map((d) => {
+      const entradasDia = Number(mapa[d]?.entradas || 0);
+      const saidasDia = Number(mapa[d]?.saidas || 0);
+      const removidosDia = Number(mapa[d]?.removidos || 0);
+      return {
+        d,
+        entradas: entradasDia,
+        saidas: saidasDia,
+        removidos: removidosDia,
+        saldo: entradasDia - saidasDia - removidosDia,
+      };
+    });
     const entradas = serie.reduce((a, p) => a + p.entradas, 0);
     const saidas = serie.reduce((a, p) => a + p.saidas, 0);
-    const removidos = dias.reduce((a, d) => a + Number(mapa[d]?.removidos || 0), 0);
+    const removidos = serie.reduce((a, p) => a + p.removidos, 0);
     return {
       group_jid: g.group_jid,
       label: g.label,

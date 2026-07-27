@@ -57,6 +57,7 @@ export async function onRequestGet(context) {
   } catch (e) {
     // Timeout ou rede: o card diz "não foi possível consultar" em vez de mentir
     // "desconectado" — são coisas diferentes.
+    console.error('grupos-conexao — falha ao consultar a Evolution:', e?.message || e);
     return json({ estado: 'indefinido', state: null, instancia, motivo: 'timeout_ou_erro' });
   } finally {
     clearTimeout(timer);

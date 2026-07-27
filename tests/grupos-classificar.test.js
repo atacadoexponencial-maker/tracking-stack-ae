@@ -113,3 +113,24 @@ test('o dia do evento acompanha occurredAt', () => {
   cru.date_time = '2026-07-28T02:30:00.000Z';
   assert.equal(classificarEvento(cru, RECEBIDO_MS).dayLocal, '2026-07-27');
 });
+
+test('date_time sem fuso ("YYYY-MM-DD HH:MM:SS") cai no horário de recebimento', () => {
+  const cru = evento();
+  cru.date_time = '2026-07-27 22:00:00';
+  const r = classificarEvento(cru, RECEBIDO_MS);
+  assert.equal(r.occurredAt, new Date(RECEBIDO_MS).toISOString());
+});
+
+test('date_time ISO sem "Z" (sem fuso explícito) cai no horário de recebimento', () => {
+  const cru = evento();
+  cru.date_time = '2026-07-27T22:00:00';
+  const r = classificarEvento(cru, RECEBIDO_MS);
+  assert.equal(r.occurredAt, new Date(RECEBIDO_MS).toISOString());
+});
+
+test('date_time ISO com offset explícito (-03:00) é aceito e convertido para UTC', () => {
+  const cru = evento();
+  cru.date_time = '2026-07-27T22:00:00-03:00';
+  const r = classificarEvento(cru, RECEBIDO_MS);
+  assert.equal(r.occurredAt, '2026-07-28T01:00:00.000Z');
+});

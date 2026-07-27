@@ -701,12 +701,16 @@ R.grupos = async () => {
     );
 
     // Só os dias com movimento: uma tabela com 30 linhas de zero não informa nada.
+    // Removidos entra no filtro porque uma limpeza manual do grupo (só remoções,
+    // sem entrada/saída) não pode desaparecer da tabela. Saldo vem pronto da API
+    // — nunca recalculado aqui.
     tabela($('#' + idDias), [
       { titulo: 'Dia', campo: 'd', render: (r) => dataDia(r.d) },
       { titulo: 'Entradas', num: true, campo: 'entradas', render: (r) => fmtInt(r.entradas) },
       { titulo: 'Saídas', num: true, campo: 'saidas', render: (r) => fmtInt(r.saidas) },
+      { titulo: 'Removidos', num: true, campo: 'removidos', render: (r) => fmtInt(r.removidos) },
       { titulo: 'Saldo', num: true, campo: 'saldo', render: (r) => (r.saldo > 0 ? '+' : '') + fmtInt(r.saldo) },
-    ], g.serie.filter((p) => p.entradas || p.saidas).map((p) => ({ ...p, saldo: p.entradas - p.saidas })));
+    ], g.serie.filter((p) => p.entradas || p.saidas || p.removidos));
   }
 
   if (!(dados.grupos || []).length) {

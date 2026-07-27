@@ -17,18 +17,27 @@ import { classificarEvento } from './_classificar.js';
 export async function onRequestPost(context) {
   const { request, env } = context;
 
+  // Este endpoint é a ÚNICA porta de entrada e a Evolution não reentrega evento
+  // nenhum — falha aqui é perda definitiva. Os console.error abaixo (401, JSON
+  // inválido, evento ignorado) existem para diferenciar "semana parada" de
+  // "ingestão quebrada" nos logs do Pages. Nunca logar o valor do segredo.
   const enviado = request.headers.get('x-grupos-secret') || '';
   if (!env.GRUPOS_WEBHOOK_SECRET || enviado !== env.GRUPOS_WEBHOOK_SECRET) {
+    console.error('whatsapp-grupo — segredo divergente ou ausente (401)');
     return json({ error: 'Unauthorized' }, 401);
   }
 
   let body;
-  try { body = await request.json(); } catch (_) {
+  try { body = await request.json(); } catch (e) {
+    console.error('whatsapp-grupo — JSON inválido no corpo da requisição:', e?.message || e);
     return json({ ok: true, status: 'ignorado', motivo: 'json_invalido' });
   }
 
   const evento = classificarEvento(body, Date.now());
-  if (!evento) return json({ ok: true, status: 'ignorado' });
+  if (!evento) {
+    console.error('whatsapp-grupo — evento ignorado (não é GROUP_PARTICIPANTS_UPDATE de grupo válido):', JSON.stringify(body).slice(0, 500));
+    return json({ ok: true, status: 'ignorado' });
+  }
 
   const agora = Math.floor(Date.now() / 1000);
 

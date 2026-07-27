@@ -239,8 +239,9 @@ means a new JID, and following it must be an INSERT, not a deploy.
 ### `whatsapp_groups_seen`
 
 Every group that emits an event, **without participant data**: `group_jid` (PK),
-`group_name`, `events`, `last_event_at`. Safety net so a new Community shows up
-in the dash instead of vanishing silently.
+`group_name` (always `NULL` — the `GROUP_PARTICIPANTS_UPDATE` payload never
+carries the group's name), `events`, `last_event_at`. Safety net so a new
+Community shows up in the dash instead of vanishing silently.
 
 ## Things NOT in the schema (deliberate)
 

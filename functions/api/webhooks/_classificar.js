@@ -25,6 +25,18 @@ export function diaLocalDeUnix(unixSeconds) {
 }
 
 // A Evolution manda o instante ora como ISO, ora como unix (segundos ou ms).
+//
+// Nunca vimos um payload real da Evolution com string de data — todos os
+// testes usam um payload sintético terminado em "Z". Se algum dia a Evolution
+// mandar uma string SEM fuso explícito (ex.: "2026-07-27 22:00:00" ou
+// "2026-07-27T22:00:00"), `Date.parse` a interpreta como UTC, e `diaLocal`
+// subtrai mais 3h por cima — todo evento entre 00:00 e 03:00 de Brasília
+// cairia no dia anterior, em silêncio, e `day_local` é gravado e imutável.
+// Por isso: string sem fuso explícito é rejeitada (retorna null) e
+// `classificarEvento` cai no fallback do horário de recebimento, que é
+// aproximado mas nunca sistematicamente errado.
+const TEM_FUSO = /(?:Z|[+-]\d{2}:\d{2})$/;
+
 function paraIso(valor) {
   if (valor === undefined || valor === null || valor === '') return null;
   const n = Number(valor);
@@ -32,6 +44,7 @@ function paraIso(valor) {
     const ms = String(Math.trunc(n)).length <= 10 ? n * 1000 : n;
     return new Date(ms).toISOString();
   }
+  if (typeof valor !== 'string' || !TEM_FUSO.test(valor.trim())) return null;
   const ms = Date.parse(valor);
   return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
