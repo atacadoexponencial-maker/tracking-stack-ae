@@ -57,6 +57,37 @@ function numeroDe(jid) {
   return String(jid || '').split('@')[0].split(':')[0];
 }
 
+// A Evolution manda cada item de `participants` de duas formas: string (JID
+// puro — formato assumido no plano original e usado pelos testes antigos) ou
+// objeto `{ id, phoneNumber, admin }` (formato REAL, confirmado com payload de
+// produção em 2026-07-27: `{ id: "...@lid", phoneNumber: "55...@s.whatsapp.net",
+// admin: null }`). Aceitamos as duas.
+//
+// Quando é objeto, `participantJid` grava o TELEFONE (`phoneNumber`) quando
+// existe, caindo para o `id` (que no payload real vem como "@lid", um
+// identificador opaco da Evolution) só na ausência dele — é o telefone que
+// depois cruza com os leads, o "@lid" sozinho não serve pra nada no dashboard.
+//
+// Para decidir "saiu" vs "removido" comparamos o `author` contra TODOS os
+// identificadores da pessoa (id/@lid e phoneNumber), não só o que foi
+// escolhido para gravar: no payload real capturado o `author` veio como
+// "@lid", mas nada garante que a Evolution não mande o `author` em formato de
+// telefone num outro evento — e aí só bateria contra o phoneNumber.
+//
+// `participantsData` é ignorado de propósito: é um campo com bug da própria
+// Evolution, que grava `phoneNumber: "[object Object]"` dentro dele.
+function identificadoresDe(p) {
+  if (p && typeof p === 'object') {
+    const id = p.id ? String(p.id) : '';
+    const telefone = p.phoneNumber ? String(p.phoneNumber) : '';
+    const participantJid = telefone || id;
+    const ids = [id, telefone].filter(Boolean);
+    return { participantJid, ids };
+  }
+  const s = String(p || '');
+  return { participantJid: s, ids: [s] };
+}
+
 export function classificarEvento(raw, recebidoEmMs) {
   if (!raw || typeof raw !== 'object') return null;
 
@@ -79,11 +110,11 @@ export function classificarEvento(raw, recebidoEmMs) {
   const occurredAt = paraIso(raw.date_time) || new Date(recebidoEmMs).toISOString();
 
   const linhas = participantes.map((p) => {
-    const participantJid = String(p);
+    const { participantJid, ids } = identificadoresDe(p);
     let action;
     if (acao === 'add') {
       action = 'entrou';
-    } else if (!autor || numeroDe(autor) === numeroDe(participantJid)) {
+    } else if (!autor || ids.some((id) => numeroDe(autor) === numeroDe(id))) {
       // Sem autor não dá para distinguir; "saiu" é o caso esmagadoramente mais
       // comum num grupo aberto, e é o mais conservador (não acusa remoção).
       action = 'saiu';

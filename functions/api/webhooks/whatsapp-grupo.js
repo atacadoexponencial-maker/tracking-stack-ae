@@ -72,7 +72,12 @@ export async function onRequestPost(context) {
   }
 
   // Payload truncado: serve para depurar um caso estranho, não para virar acervo.
-  const cru = JSON.stringify(body).slice(0, 2000);
+  // Cópia rasa (não muta `body`) removendo campos que não são dados do evento:
+  // `apikey` vem em texto claro no payload real da Evolution (confirmado em
+  // produção em 2026-07-27) e não pode parar no D1; `server_url`, `destination`
+  // e `sender` são metadados de transporte/roteamento, só ruído aqui.
+  const { apikey, server_url, destination, sender, ...semSegredo } = body || {};
+  const cru = JSON.stringify(semSegredo).slice(0, 2000);
   const ins = env.DB.prepare(
     `INSERT OR IGNORE INTO whatsapp_group_events
        (group_jid, participant_jid, action, actor_jid, occurred_at, day_local, received_at, raw_json)
