@@ -151,14 +151,14 @@ test('date_time ISO com "z" minúsculo é aceito e convertido, não cai no horá
 test('saída voluntária real: author bate com o "id" (@lid) do participante → "saiu", participantJid é o telefone', () => {
   const r = classificarEvento(evento({
     action: 'remove',
-    author: '217995729215510@lid',
+    author: '100000000000001@lid',
     participants: [
-      { id: '217995729215510@lid', phoneNumber: '5521993911946@s.whatsapp.net', admin: null },
+      { id: '100000000000001@lid', phoneNumber: '5511900000001@s.whatsapp.net', admin: null },
     ],
   }), RECEBIDO_MS);
   assert.equal(r.linhas.length, 1);
   assert.equal(r.linhas[0].action, 'saiu');
-  assert.equal(r.linhas[0].participantJid, '5521993911946@s.whatsapp.net');
+  assert.equal(r.linhas[0].participantJid, '5511900000001@s.whatsapp.net');
 });
 
 test('remoção por admin real: author diferente de "id" e de "phoneNumber" → "removido"', () => {
@@ -166,7 +166,7 @@ test('remoção por admin real: author diferente de "id" e de "phoneNumber" → 
     action: 'remove',
     author: '5521970692725@s.whatsapp.net',
     participants: [
-      { id: '217995729215510@lid', phoneNumber: '5521993911946@s.whatsapp.net', admin: null },
+      { id: '100000000000001@lid', phoneNumber: '5511900000001@s.whatsapp.net', admin: null },
     ],
   }), RECEBIDO_MS);
   assert.equal(r.linhas[0].action, 'removido');
@@ -177,43 +177,43 @@ test('entrada com participante em objeto → "entrou", participantJid é o telef
   const r = classificarEvento(evento({
     action: 'add',
     participants: [
-      { id: '217995729215510@lid', phoneNumber: '5521993911946@s.whatsapp.net', admin: null },
+      { id: '100000000000001@lid', phoneNumber: '5511900000001@s.whatsapp.net', admin: null },
     ],
   }), RECEBIDO_MS);
   assert.equal(r.linhas[0].action, 'entrou');
-  assert.equal(r.linhas[0].participantJid, '5521993911946@s.whatsapp.net');
+  assert.equal(r.linhas[0].participantJid, '5511900000001@s.whatsapp.net');
 });
 
 test('participante objeto sem phoneNumber cai para o "id" (@lid)', () => {
   const r = classificarEvento(evento({
     action: 'add',
     participants: [
-      { id: '217995729215510@lid', admin: null },
+      { id: '100000000000001@lid', admin: null },
     ],
   }), RECEBIDO_MS);
-  assert.equal(r.linhas[0].participantJid, '217995729215510@lid');
+  assert.equal(r.linhas[0].participantJid, '100000000000001@lid');
 });
 
 test('dois participantes em objetos com telefones distintos viram duas linhas com JIDs distintos (protege dedup)', () => {
   const r = classificarEvento(evento({
     action: 'add',
     participants: [
-      { id: '217995729215510@lid', phoneNumber: '5521993911946@s.whatsapp.net', admin: null },
+      { id: '100000000000001@lid', phoneNumber: '5511900000001@s.whatsapp.net', admin: null },
       { id: '111111111111111@lid', phoneNumber: '5511977777777@s.whatsapp.net', admin: null },
     ],
   }), RECEBIDO_MS);
   assert.equal(r.linhas.length, 2);
   const jids = r.linhas.map((l) => l.participantJid);
-  assert.deepEqual(jids, ['5521993911946@s.whatsapp.net', '5511977777777@s.whatsapp.net']);
+  assert.deepEqual(jids, ['5511900000001@s.whatsapp.net', '5511977777777@s.whatsapp.net']);
   assert.notEqual(jids[0], jids[1]);
 });
 
 test('author em formato telefone bate com o phoneNumber do participante (id é @lid) → "saiu"', () => {
   const r = classificarEvento(evento({
     action: 'remove',
-    author: '5521993911946@s.whatsapp.net',
+    author: '5511900000001@s.whatsapp.net',
     participants: [
-      { id: '217995729215510@lid', phoneNumber: '5521993911946@s.whatsapp.net', admin: null },
+      { id: '100000000000001@lid', phoneNumber: '5511900000001@s.whatsapp.net', admin: null },
     ],
   }), RECEBIDO_MS);
   assert.equal(r.linhas[0].action, 'saiu');
