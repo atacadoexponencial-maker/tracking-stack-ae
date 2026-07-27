@@ -25,6 +25,7 @@ saída.
 | Grupos | 2 fixos, identificados por JID | O nome do grupo da live muda a cada semana; o JID não |
 | Nível de detalhe | Com identificação das pessoas | Responde "quem saiu depois da live", ao mesmo custo de implementação |
 | Gráfico | Duas linhas (entradas e saídas) no mesmo eixo | Saldo líquido sozinho esconde volume: 50 entradas + 50 saídas ficaria igual a um dia parado |
+| Estado da conexão | Consulta ao vivo, em requisição própria | Estado de conexão defasado não serve para nada; requisição separada impede que a Evolution travada trave a aba inteira |
 
 ## Descobertas da investigação
 
@@ -102,6 +103,21 @@ secret encriptado no Cloudflare Pages (Production e Preview). Deliberadamente
 **não** reusa o `SYNC_SECRET`: aquele abre quatro endpoints de sync, e colá-lo no
 n8n daria a quem tem acesso ao n8n poder de escrita em todos eles.
 
+### Variáveis novas no Cloudflare Pages
+
+Além do segredo acima, o card de conexão exige:
+
+| Variável | Valor | Encriptar |
+|---|---|---|
+| `EVOLUTION_BASE_URL` | `https://api.marcellemesquita.com.br` | não |
+| `EVOLUTION_INSTANCE` | `MarcelleProfissional` | não |
+| `EVOLUTION_API_KEY` | a apikey da instância | **sim** |
+
+São variáveis **novas**, não reuso: o `EVOLUTION_API_URL` que já existe no Pages
+é a URL completa de envio de mensagem (`POST` com `{number, text}`), não uma URL
+base — não dá para derivar a rota de estado a partir dela sem gambiarra de
+string.
+
 ## Endpoint de escrita — `POST /api/webhooks/whatsapp-grupo`
 
 Auth: `x-grupos-secret` conferido contra `env.GRUPOS_WEBHOOK_SECRET`. Ausente ou
@@ -164,22 +180,48 @@ e saldo líquido no período; dia recorde de entradas e dia recorde de saídas;
 
 Também retorna os grupos vistos e ainda não classificados.
 
+## Endpoint de conexão — `GET /api/grupos/conexao`
+
+Auth: `DASH_KEY`. Consulta `GET {EVOLUTION_BASE_URL}/instance/connectionState/{EVOLUTION_INSTANCE}`
+com header `apikey`, timeout de 5 s, e traduz o resultado:
+
+| `state` da Evolution | Card mostra |
+|---|---|
+| `open` | **Conectado** |
+| `connecting` | **Reconectando** |
+| `close` | **Desconectado** |
+| erro, timeout ou HTTP ≠ 200 | **Não foi possível consultar** |
+
+A chamada é isolada num endpoint próprio, requisitada em paralelo ao
+`/api/grupos`: Evolution lenta ou fora do ar deixa apenas este card em estado
+indefinido, sem atrasar o resto da aba. A `apikey` nunca chega ao navegador — a
+consulta acontece na Pages Function.
+
+Resposta validada em 27/07/2026:
+`{"instance":{"instanceName":"MarcelleProfissional","state":"open"}}`
+
 ## Aba "Grupos" no dash
 
 Em `public/dash/index.html`, seguindo o padrão das abas existentes e respeitando
 o filtro de datas do topo:
 
-- **KPIs por grupo:** entradas, saídas, removidos, saldo líquido.
+- **Card de conexão do WhatsApp**, no topo da aba: estado da conexão ao vivo
+  (ver endpoint acima), a instância consultada e, ao lado, o **último evento
+  recebido** vindo do D1. Os dois juntos porque contam coisas diferentes:
+  conexão caída explica um gráfico que parou; conexão aberta há dias sem nenhum
+  evento é outro problema, e sem esse par ele passaria por "semana fraca".
+- **KPIs por grupo:** entradas, saídas, removidos, saldo líquido no período.
 - **Gráfico diário** com duas linhas (entradas e saídas). Exige estender o helper
   `grafico()` para aceitar mais de uma série, **mantendo compatibilidade** com as
   chamadas atuais de Visão geral e Vendas.
 - **Cards de recorde:** dia com mais entradas e dia com mais saídas, com data e número.
 - **Tabela dia a dia:** Dia | Entradas | Saídas | Saldo.
 - **Eventos recentes:** quem, grupo, ação, quando.
-- **Nota de saúde:** "último evento recebido há X", no padrão de
-  `workshops-sync-nota`. É isso que denuncia a Evolution ter caído — sem ela, o
-  gráfico vira uma linha reta mentirosa.
 - **Aviso de grupo não monitorado**, quando houver.
+
+O card de conexão ocupa o papel que a "nota de saúde" tem nas outras abas (o
+`workshops-sync-nota`): sem ele, uma Evolution caída vira uma linha reta que se
+confunde com semana fraca.
 
 ## Testes
 
