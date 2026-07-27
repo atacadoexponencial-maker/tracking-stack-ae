@@ -644,8 +644,10 @@ R.grupos = async () => {
   const p = intervalo();
   const dados = await fetchJson(`/api/grupos?${q(p.de, p.ate)}`);
 
-  // Conexão em requisição SEPARADA e sem travar a aba: é a única coisa aqui que
-  // depende da Evolution, e ela pode estar lenta ou fora do ar.
+  const slug = (jid) => String(jid || '').replace(/[^a-z0-9]/gi, '');
+
+  // Conexão e total de membros em requisição SEPARADA e sem travar a aba: são a
+  // única coisa aqui que depende da Evolution, e ela pode estar lenta ou fora do ar.
   $('#grupos-conexao').innerHTML = '<span class="mini">consultando…</span>';
   fetchJson('/api/grupos-conexao').then((c) => {
     const rotulos = { conectado: 'Conectado', reconectando: 'Reconectando', desconectado: 'Desconectado', indefinido: 'Não foi possível consultar' };
@@ -654,6 +656,18 @@ R.grupos = async () => {
     $('#grupos-conexao').innerHTML = `<div class="kpi"><div class="rotulo">Estado</div>` +
       `<div class="valor" style="color:${cores[c.estado] || 'var(--muted)'}">${rotulos[c.estado] || '—'}</div>` +
       `<div class="mini">instância ${esc(c.instancia || '—')}${c.motivo ? ' · ' + esc(c.motivo) : ''}</div></div>`;
+
+    // O total de membros chega depois dos blocos já desenhados, então é
+    // preenchido no lugar reservado. Grupo que a Evolution não soube responder
+    // fica em "—": zero seria uma afirmação falsa.
+    for (const gc of (c.grupos || [])) {
+      const alvo = $('#grupos-membros-' + slug(gc.group_jid));
+      if (alvo) alvo.innerHTML = tile({ rotulo: 'Membros agora', valor: gc.size == null ? null : fmtInt(gc.size) });
+      // Título atual do grupo: ele é renomeado toda semana, e o nome guardado no
+      // banco é só rótulo — o que vale mostrar é como o grupo se chama hoje.
+      const tit = $('#grupos-titulo-' + slug(gc.group_jid));
+      if (tit && gc.subject) tit.textContent = gc.subject;
+    }
   }).catch(() => {
     $('#grupos-conexao').innerHTML = '<div class="kpi"><div class="rotulo">Estado</div><div class="valor" style="color:var(--muted)">Não foi possível consultar</div></div>';
   });
@@ -666,7 +680,7 @@ R.grupos = async () => {
 
   const naoMon = dados.nao_monitorados || [];
   $('#grupos-aviso').innerHTML = naoMon.length
-    ? `<div class="aviso">${naoMon.length} grupo(s) gerando eventos fora da lista monitorada. Se um deles for o ciclo novo das lives, é só cadastrar: ${naoMon.slice(0, 3).map((g) => esc(g.group_jid)).join(', ')}</div>`
+    ? `<div class="aviso">${naoMon.length} grupo(s) gerando eventos fora da lista monitorada — normal, o número participa de muitos grupos de terceiros. Só importa se algum deles for um grupo da operação que deveria estar sendo medido: ${naoMon.slice(0, 3).map((g) => esc(g.group_jid)).join(', ')}</div>`
     : '';
 
   const dataHora = (iso) => { const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); };
@@ -676,12 +690,13 @@ R.grupos = async () => {
   const blocos = $('#grupos-blocos');
   blocos.innerHTML = '';
   for (const g of (dados.grupos || [])) {
-    const idSerie = 'grupos-serie-' + g.group_jid.replace(/[^a-z0-9]/gi, '');
-    const idDias = 'grupos-dias-' + g.group_jid.replace(/[^a-z0-9]/gi, '');
+    const idSerie = 'grupos-serie-' + slug(g.group_jid);
+    const idDias = 'grupos-dias-' + slug(g.group_jid);
     blocos.insertAdjacentHTML('beforeend', `
       <div class="card">
-        <h2>${esc(g.label)}</h2>
+        <h2>${esc(g.label)} <small id="grupos-titulo-${slug(g.group_jid)}"></small></h2>
         <div class="grid-kpi">
+          <div id="grupos-membros-${slug(g.group_jid)}">${tile({ rotulo: 'Membros agora', valor: null })}</div>
           ${tile({ rotulo: 'Entradas', valor: fmtInt(g.entradas) })}
           ${tile({ rotulo: 'Saídas', valor: fmtInt(g.saidas) })}
           ${tile({ rotulo: 'Removidos', valor: fmtInt(g.removidos) })}
