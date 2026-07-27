@@ -134,3 +134,11 @@ test('date_time ISO com offset explícito (-03:00) é aceito e convertido para U
   const r = classificarEvento(cru, RECEBIDO_MS);
   assert.equal(r.occurredAt, '2026-07-28T01:00:00.000Z');
 });
+
+test('date_time ISO com "z" minúsculo é aceito e convertido, não cai no horário de recebimento', () => {
+  const cru = evento();
+  cru.date_time = '2026-07-27T22:00:00z';
+  const r = classificarEvento(cru, RECEBIDO_MS);
+  assert.equal(r.occurredAt, '2026-07-27T22:00:00.000Z');
+  assert.notEqual(r.occurredAt, new Date(RECEBIDO_MS).toISOString());
+});

@@ -35,7 +35,16 @@ export async function onRequestPost(context) {
 
   const evento = classificarEvento(body, Date.now());
   if (!evento) {
-    console.error('whatsapp-grupo — evento ignorado (não é GROUP_PARTICIPANTS_UPDATE de grupo válido):', JSON.stringify(body).slice(0, 500));
+    // Nunca o corpo cru no log: ele carrega os JIDs (telefones) dos
+    // participantes, inclusive de grupos de terceiros que a feature
+    // deliberadamente não persiste no banco (decisão de privacidade da spec).
+    // Só o suficiente para diagnosticar por que o evento foi descartado.
+    console.error('whatsapp-grupo — evento ignorado (não é GROUP_PARTICIPANTS_UPDATE de grupo válido):', {
+      event: body?.event,
+      action: body?.data?.action,
+      groupJid: body?.data?.id,
+      participantes: Array.isArray(body?.data?.participants) ? body.data.participants.length : 0,
+    });
     return json({ ok: true, status: 'ignorado' });
   }
 
