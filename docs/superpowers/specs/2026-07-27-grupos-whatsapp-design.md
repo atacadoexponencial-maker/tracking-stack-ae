@@ -155,7 +155,9 @@ de `functions/webhook/_core.js`), para o "por dia" não escorregar de fuso.
 
 **Escopo de gravação:** eventos de grupos fora da lista monitorada **não** têm
 participantes gravados — o número está em 119 grupos, a maioria de terceiros.
-Deles registra-se apenas nome do grupo e contador, em `whatsapp_groups_seen`.
+Deles registra-se apenas o JID e um contador, em `whatsapp_groups_seen` (o
+payload de `GROUP_PARTICIPANTS_UPDATE` não traz o nome do grupo, então
+`group_name` fica sempre `NULL`).
 
 ## Schema — migration `0026`
 
@@ -173,9 +175,10 @@ não pode duplicar contagem.
 `enabled`. Semeada com os dois grupos de avisos da tabela acima. **Trocar de
 comunidade no futuro é um `INSERT` aqui, sem deploy.**
 
-**`whatsapp_groups_seen`** — `group_jid` (PK), `group_name`, `events`,
-`last_event_at`. Sem dados de pessoas. É a rede de segurança: comunidade nova
-aparece no dash como "grupo não monitorado" em vez de sumir em silêncio.
+**`whatsapp_groups_seen`** — `group_jid` (PK), `group_name` (sempre `NULL` — o
+payload não traz o nome do grupo), `events`, `last_event_at`. Sem dados de
+pessoas. É a rede de segurança: comunidade nova aparece no dash como "grupo não
+monitorado" em vez de sumir em silêncio.
 
 ## Endpoint de leitura — `GET /api/grupos`
 
@@ -188,7 +191,7 @@ e saldo líquido no período; dia recorde de entradas e dia recorde de saídas;
 
 Também retorna os grupos vistos e ainda não classificados.
 
-## Endpoint de conexão — `GET /api/grupos/conexao`
+## Endpoint de conexão — `GET /api/grupos-conexao`
 
 Auth: `DASH_KEY`. Consulta `GET {EVOLUTION_BASE_URL}/instance/connectionState/{EVOLUTION_INSTANCE}`
 com header `apikey: {EVOLUTION_APIKEY_NOTIF}`, timeout de 5 s, e traduz o

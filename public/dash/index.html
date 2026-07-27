@@ -14,7 +14,9 @@
   --font-sans: 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --bg: #1e1e1e; --card: #242424; --card-2: #2a2a2a; --border: #393536;
   --fg: #ffffff; --muted: #a6a6a6; --bege: #f5f0eb;
-  --serie: #f5f0eb; --serie-area: rgba(245,240,235,0.13);
+  /* --serie2: cor da 2ª linha do gráfico de duas séries; reusa o tom de
+     --down ("para baixo") porque a 2ª série normalmente é saída de gente */
+  --serie: #f5f0eb; --serie-area: rgba(245,240,235,0.13); --serie2: #f37f7f;
   --up: #5dc986; --down: #f37f7f; --info: #7fb5f3; --warn: #e0b34c;
   --radius: 0.75rem;
 }
@@ -79,6 +81,14 @@ td .mini, .mini { color: var(--muted); font-size: 0.72rem; }
 .grafico .area { fill: var(--serie-area); }
 .grafico .cursor { stroke: var(--muted); stroke-dasharray: 3 3; stroke-width: 1; }
 .grafico circle { fill: var(--serie); }
+/* segunda linha (sem área — sobrepor duas áreas preenchidas vira borrão) e legenda,
+   usadas só quando grafico() recebe o 4º parâmetro opcional com serie2 */
+.grafico .linha2 { fill: none; stroke: var(--serie2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.grafico circle.p2 { fill: var(--serie2); }
+.legenda { display: flex; gap: 1rem; margin-bottom: 0.4rem; font-size: 0.78rem; color: var(--muted); }
+.legenda span::before { content: '●'; margin-right: 0.3rem; }
+.legenda .s1::before { color: var(--serie); }
+.legenda .s2::before { color: var(--serie2); }
 .tooltip { position: absolute; pointer-events: none; background: var(--card-2); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.4rem 0.6rem; font-size: 0.78rem; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); display: none; z-index: 5; }
 .tooltip b { display: block; font-variant-numeric: tabular-nums; }
 .chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
@@ -123,6 +133,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <a href="#metaads" data-secao="metaads">Meta Ads</a>
       <a href="#email" data-secao="email">Email</a>
       <a href="#workshops" data-secao="workshops">Workshops</a>
+      <a href="#grupos" data-secao="grupos">Grupos</a>
       <a href="#jornada" data-secao="jornada">Jornada</a>
       <a href="#eventos" data-secao="eventos">Eventos</a>
     </nav>
@@ -203,6 +214,13 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <div class="card" id="workshops-detalhe-card" hidden><h2 id="workshops-detalhe-titulo">Detalhe</h2>
         <div><h2 style="margin-top:0.2rem;font-size:0.95rem">Presentes <small>(pelo Meet, equipe já excluída)</small></h2><div class="tabela-wrap" id="workshops-presentes"></div></div>
       </div>
+    </section>
+
+    <section class="secao" id="secao-grupos">
+      <div class="card" id="grupos-conexao-card"><h2>Conexão do WhatsApp <small id="grupos-conexao-nota"></small></h2><div id="grupos-conexao"></div></div>
+      <div id="grupos-aviso"></div>
+      <div id="grupos-blocos"></div>
+      <div class="card"><h2>Eventos recentes <small>quem entrou e quem saiu</small></h2><div class="tabela-wrap" id="grupos-eventos"></div></div>
     </section>
 
     <section class="secao" id="secao-jornada">
@@ -331,22 +349,32 @@ function tabela(el, colunas, linhas, aoClicar) {
   desenhar();
 }
 
-function grafico(el, serie, valorFmt) {
+// `opcoes.serie2` é opcional: sem ele, o desenho é exatamente o de antes (uma
+// linha com área preenchida), que é o que as abas Visão geral e Vendas usam.
+// Com ele, vira duas linhas sem área — área com duas séries sobrepostas vira
+// borrão.
+function grafico(el, serie, valorFmt, opcoes) {
   if (!serie.length) { el.innerHTML = '<div class="aviso">Sem dados no período.</div>'; return; }
+  const serie2 = opcoes && opcoes.serie2 && opcoes.serie2.length === serie.length ? opcoes.serie2 : null;
   const W = 900, H = 240, m = { t: 14, r: 12, b: 26, l: 56 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
-  const max = Math.max(...serie.map((p) => p.v), 1) * 1.08;
+  const todos = serie.map((p) => p.v).concat(serie2 ? serie2.map((p) => p.v) : []);
+  const max = Math.max(...todos, 1) * 1.08;
   const x = (i) => m.l + (serie.length === 1 ? iw / 2 : (i / (serie.length - 1)) * iw);
   const y = (v) => m.t + ih - (v / max) * ih;
-  const pts = serie.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`);
-  const linha = 'M' + pts.join('L');
-  const area = `${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z`;
+  const caminho = (s) => 'M' + s.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('L');
+  const linha = caminho(serie);
+  const area = serie2 ? '' : `<path class="area" d="${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z"/>`;
+  const linha2 = serie2 ? `<path class="linha2" d="${caminho(serie2)}"/>` : '';
   const yt = [0, 0.5, 1].map((f) => { const v = max * f, yy = y(v); return `<line class="eixo" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/><text class="rot-eixo" x="${m.l - 6}" y="${yy + 3}" text-anchor="end">${valorFmt(v, true)}</text>`; }).join('');
   const passo = Math.max(1, Math.ceil(serie.length / 8));
   const xt = serie.map((p, i) => i % passo ? '' : `<text class="rot-eixo" x="${x(i)}" y="${H - 8}" text-anchor="middle">${diaBR(p.d)}</text>`).join('');
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${yt}${xt}<path class="area" d="${area}"/><path class="linha" d="${linha}"/><line class="cursor" y1="${m.t}" y2="${m.t + ih}" x1="-9" x2="-9" style="display:none"/><circle r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/></svg><div class="tooltip"></div>`;
+  const legenda = serie2 ? `<div class="legenda"><span class="s1">${esc(opcoes.rotulo1 || '')}</span><span class="s2">${esc(opcoes.rotulo2 || '')}</span></div>` : '';
+  const pt2 = serie2 ? '<circle class="p2" r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>' : '';
+  el.innerHTML = `${legenda}<svg viewBox="0 0 ${W} ${H}">${yt}${xt}${area}<path class="linha" d="${linha}"/>${linha2}<line class="cursor" y1="${m.t}" y2="${m.t + ih}" x1="-9" x2="-9" style="display:none"/><circle r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>${pt2}</svg><div class="tooltip"></div>`;
   const svg = el.querySelector('svg'), tip = el.querySelector('.tooltip');
-  const cur = el.querySelector('.cursor'), pt = el.querySelector('circle');
+  const cur = el.querySelector('.cursor'), pt = el.querySelector('circle:not(.p2)');
+  const ptB = el.querySelector('circle.p2');
   svg.addEventListener('pointermove', (ev) => {
     const r = svg.getBoundingClientRect();
     const px = ((ev.clientX - r.left) / r.width) * W;
@@ -354,10 +382,17 @@ function grafico(el, serie, valorFmt) {
     const cx = x(i), cy = y(serie[i].v);
     cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.style.display = '';
     pt.setAttribute('cx', cx); pt.setAttribute('cy', cy); pt.style.display = '';
+    if (ptB) { ptB.setAttribute('cx', cx); ptB.setAttribute('cy', y(serie2[i].v)); ptB.style.display = ''; }
     tip.style.display = 'block'; tip.style.left = (cx / W) * r.width + 'px'; tip.style.top = (cy / H) * r.height + 'px';
-    tip.innerHTML = `${diaBR(serie[i].d)}<b>${valorFmt(serie[i].v)}</b>`;
+    tip.innerHTML = serie2
+      ? `${diaBR(serie[i].d)}<b>${esc(opcoes.rotulo1 || '')}: ${valorFmt(serie[i].v)}</b><b>${esc(opcoes.rotulo2 || '')}: ${valorFmt(serie2[i].v)}</b>`
+      : `${diaBR(serie[i].d)}<b>${valorFmt(serie[i].v)}</b>`;
   });
-  svg.addEventListener('pointerleave', () => { cur.style.display = 'none'; pt.style.display = 'none'; tip.style.display = 'none'; });
+  svg.addEventListener('pointerleave', () => {
+    cur.style.display = 'none'; pt.style.display = 'none';
+    if (ptB) ptB.style.display = 'none';
+    tip.style.display = 'none';
+  });
 }
 
 // ---------- seções ----------
@@ -605,6 +640,92 @@ function mostraDetalheWorkshop(r) {
   ], r.presentes || []);
 }
 
+R.grupos = async () => {
+  const p = intervalo();
+  const dados = await fetchJson(`/api/grupos?${q(p.de, p.ate)}`);
+
+  // Conexão em requisição SEPARADA e sem travar a aba: é a única coisa aqui que
+  // depende da Evolution, e ela pode estar lenta ou fora do ar.
+  $('#grupos-conexao').innerHTML = '<span class="mini">consultando…</span>';
+  fetchJson('/api/grupos-conexao').then((c) => {
+    const rotulos = { conectado: 'Conectado', reconectando: 'Reconectando', desconectado: 'Desconectado', indefinido: 'Não foi possível consultar' };
+    const cores = { conectado: 'var(--up)', reconectando: 'var(--warn)', desconectado: 'var(--down)', indefinido: 'var(--muted)' };
+    // Envolto em .kpi porque .valor/.rotulo só ganham estilo dentro dele.
+    $('#grupos-conexao').innerHTML = `<div class="kpi"><div class="rotulo">Estado</div>` +
+      `<div class="valor" style="color:${cores[c.estado] || 'var(--muted)'}">${rotulos[c.estado] || '—'}</div>` +
+      `<div class="mini">instância ${esc(c.instancia || '—')}${c.motivo ? ' · ' + esc(c.motivo) : ''}</div></div>`;
+  }).catch(() => {
+    $('#grupos-conexao').innerHTML = '<div class="kpi"><div class="rotulo">Estado</div><div class="valor" style="color:var(--muted)">Não foi possível consultar</div></div>';
+  });
+
+  // Último evento vem do D1: conexão aberta há dias SEM evento nenhum é um
+  // problema diferente de conexão caída, e sem este par passaria por "semana fraca".
+  $('#grupos-conexao-nota').textContent = dados.ultimo_evento_em
+    ? `último evento recebido em ${new Date(dados.ultimo_evento_em).toLocaleString('pt-BR')}`
+    : 'nenhum evento recebido ainda';
+
+  const naoMon = dados.nao_monitorados || [];
+  $('#grupos-aviso').innerHTML = naoMon.length
+    ? `<div class="aviso">${naoMon.length} grupo(s) gerando eventos fora da lista monitorada. Se um deles for o ciclo novo das lives, é só cadastrar: ${naoMon.slice(0, 3).map((g) => esc(g.group_jid)).join(', ')}</div>`
+    : '';
+
+  const dataHora = (iso) => { const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); };
+  const dataDia = (iso) => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '—';
+  const telefone = (jid) => String(jid || '').split('@')[0].split(':')[0];
+
+  const blocos = $('#grupos-blocos');
+  blocos.innerHTML = '';
+  for (const g of (dados.grupos || [])) {
+    const idSerie = 'grupos-serie-' + g.group_jid.replace(/[^a-z0-9]/gi, '');
+    const idDias = 'grupos-dias-' + g.group_jid.replace(/[^a-z0-9]/gi, '');
+    blocos.insertAdjacentHTML('beforeend', `
+      <div class="card">
+        <h2>${esc(g.label)}</h2>
+        <div class="grid-kpi">
+          ${tile({ rotulo: 'Entradas', valor: fmtInt(g.entradas) })}
+          ${tile({ rotulo: 'Saídas', valor: fmtInt(g.saidas) })}
+          ${tile({ rotulo: 'Removidos', valor: fmtInt(g.removidos) })}
+          ${tile({ rotulo: 'Saldo', valor: (g.saldo > 0 ? '+' : '') + fmtInt(g.saldo) })}
+          ${tile({ rotulo: 'Dia com mais entradas', valor: g.dia_top_entradas ? `${dataDia(g.dia_top_entradas.d)} · ${fmtInt(g.dia_top_entradas.n)}` : null })}
+          ${tile({ rotulo: 'Dia com mais saídas', valor: g.dia_top_saidas ? `${dataDia(g.dia_top_saidas.d)} · ${fmtInt(g.dia_top_saidas.n)}` : null })}
+        </div>
+        <div class="grafico" id="${idSerie}"></div>
+        <div class="tabela-wrap" id="${idDias}" style="margin-top:0.8rem"></div>
+      </div>`);
+
+    grafico(
+      $('#' + idSerie),
+      g.serie.map((p) => ({ d: p.d, v: p.entradas })),
+      (v) => fmtInt(Math.round(v)),
+      { serie2: g.serie.map((p) => ({ d: p.d, v: p.saidas })), rotulo1: 'Entradas', rotulo2: 'Saídas' }
+    );
+
+    // Só os dias com movimento: uma tabela com 30 linhas de zero não informa nada.
+    // Removidos entra no filtro porque uma limpeza manual do grupo (só remoções,
+    // sem entrada/saída) não pode desaparecer da tabela. Saldo vem pronto da API
+    // — nunca recalculado aqui.
+    tabela($('#' + idDias), [
+      { titulo: 'Dia', campo: 'd', render: (r) => dataDia(r.d) },
+      { titulo: 'Entradas', num: true, campo: 'entradas', render: (r) => fmtInt(r.entradas) },
+      { titulo: 'Saídas', num: true, campo: 'saidas', render: (r) => fmtInt(r.saidas) },
+      { titulo: 'Removidos', num: true, campo: 'removidos', render: (r) => fmtInt(r.removidos) },
+      { titulo: 'Saldo', num: true, campo: 'saldo', render: (r) => (r.saldo > 0 ? '+' : '') + fmtInt(r.saldo) },
+    ], g.serie.filter((p) => p.entradas || p.saidas || p.removidos));
+  }
+
+  if (!(dados.grupos || []).length) {
+    blocos.innerHTML = '<div class="card"><div class="aviso">Nenhum grupo monitorado.</div></div>';
+  }
+
+  const acoes = { entrou: 'entrou', saiu: 'saiu', removido: 'removido' };
+  tabela($('#grupos-eventos'), [
+    { titulo: 'Quando', campo: 'occurred_at', render: (r) => `<span class="mini">${dataHora(r.occurred_at)}</span>` },
+    { titulo: 'Grupo', campo: 'label', render: (r) => esc(r.label) },
+    { titulo: 'Telefone', campo: 'participant_jid', render: (r) => esc(telefone(r.participant_jid)) },
+    { titulo: 'O quê', campo: 'action', render: (r) => acoes[r.action] || esc(r.action) },
+  ], dados.recentes || []);
+};
+
 R.jornada = async () => {};
 $('#jornada-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
@@ -731,7 +852,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', jornada: 'Jornada', eventos: 'Eventos' };
 let secao = 'visao';
 async function render() {
   const p = intervalo();
