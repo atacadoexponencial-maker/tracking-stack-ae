@@ -133,6 +133,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <a href="#metaads" data-secao="metaads">Meta Ads</a>
       <a href="#email" data-secao="email">Email</a>
       <a href="#workshops" data-secao="workshops">Workshops</a>
+      <a href="#grupos" data-secao="grupos">Grupos</a>
       <a href="#jornada" data-secao="jornada">Jornada</a>
       <a href="#eventos" data-secao="eventos">Eventos</a>
     </nav>
@@ -213,6 +214,13 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <div class="card" id="workshops-detalhe-card" hidden><h2 id="workshops-detalhe-titulo">Detalhe</h2>
         <div><h2 style="margin-top:0.2rem;font-size:0.95rem">Presentes <small>(pelo Meet, equipe já excluída)</small></h2><div class="tabela-wrap" id="workshops-presentes"></div></div>
       </div>
+    </section>
+
+    <section class="secao" id="secao-grupos">
+      <div class="card" id="grupos-conexao-card"><h2>Conexão do WhatsApp <small id="grupos-conexao-nota"></small></h2><div id="grupos-conexao"></div></div>
+      <div id="grupos-aviso"></div>
+      <div id="grupos-blocos"></div>
+      <div class="card"><h2>Eventos recentes <small>quem entrou e quem saiu</small></h2><div class="tabela-wrap" id="grupos-eventos"></div></div>
     </section>
 
     <section class="secao" id="secao-jornada">
@@ -632,6 +640,88 @@ function mostraDetalheWorkshop(r) {
   ], r.presentes || []);
 }
 
+R.grupos = async () => {
+  const p = intervalo();
+  const dados = await fetchJson(`/api/grupos?${q(p.de, p.ate)}`);
+
+  // Conexão em requisição SEPARADA e sem travar a aba: é a única coisa aqui que
+  // depende da Evolution, e ela pode estar lenta ou fora do ar.
+  $('#grupos-conexao').innerHTML = '<span class="mini">consultando…</span>';
+  fetchJson('/api/grupos-conexao').then((c) => {
+    const rotulos = { conectado: 'Conectado', reconectando: 'Reconectando', desconectado: 'Desconectado', indefinido: 'Não foi possível consultar' };
+    const cores = { conectado: 'var(--up)', reconectando: 'var(--warn)', desconectado: 'var(--down)', indefinido: 'var(--muted)' };
+    // Envolto em .kpi porque .valor/.rotulo só ganham estilo dentro dele.
+    $('#grupos-conexao').innerHTML = `<div class="kpi"><div class="rotulo">Estado</div>` +
+      `<div class="valor" style="color:${cores[c.estado] || 'var(--muted)'}">${rotulos[c.estado] || '—'}</div>` +
+      `<div class="mini">instância ${esc(c.instancia || '—')}${c.motivo ? ' · ' + esc(c.motivo) : ''}</div></div>`;
+  }).catch(() => {
+    $('#grupos-conexao').innerHTML = '<div class="kpi"><div class="rotulo">Estado</div><div class="valor" style="color:var(--muted)">Não foi possível consultar</div></div>';
+  });
+
+  // Último evento vem do D1: conexão aberta há dias SEM evento nenhum é um
+  // problema diferente de conexão caída, e sem este par passaria por "semana fraca".
+  $('#grupos-conexao-nota').textContent = dados.ultimo_evento_em
+    ? `último evento recebido em ${new Date(dados.ultimo_evento_em).toLocaleString('pt-BR')}`
+    : 'nenhum evento recebido ainda';
+
+  const naoMon = dados.nao_monitorados || [];
+  $('#grupos-aviso').innerHTML = naoMon.length
+    ? `<div class="aviso">${naoMon.length} grupo(s) gerando eventos fora da lista monitorada. Se um deles for o ciclo novo das lives, é só cadastrar: ${naoMon.slice(0, 3).map((g) => esc(g.group_jid)).join(', ')}</div>`
+    : '';
+
+  const dataHora = (iso) => { const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); };
+  const dataDia = (iso) => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '—';
+  const telefone = (jid) => String(jid || '').split('@')[0].split(':')[0];
+
+  const blocos = $('#grupos-blocos');
+  blocos.innerHTML = '';
+  for (const g of (dados.grupos || [])) {
+    const idSerie = 'grupos-serie-' + g.group_jid.replace(/[^a-z0-9]/gi, '');
+    const idDias = 'grupos-dias-' + g.group_jid.replace(/[^a-z0-9]/gi, '');
+    blocos.insertAdjacentHTML('beforeend', `
+      <div class="card">
+        <h2>${esc(g.label)}</h2>
+        <div class="grid-kpi">
+          ${tile({ rotulo: 'Entradas', valor: fmtInt(g.entradas) })}
+          ${tile({ rotulo: 'Saídas', valor: fmtInt(g.saidas) })}
+          ${tile({ rotulo: 'Removidos', valor: fmtInt(g.removidos) })}
+          ${tile({ rotulo: 'Saldo', valor: (g.saldo > 0 ? '+' : '') + fmtInt(g.saldo) })}
+          ${tile({ rotulo: 'Dia com mais entradas', valor: g.dia_top_entradas ? `${dataDia(g.dia_top_entradas.d)} · ${fmtInt(g.dia_top_entradas.n)}` : null })}
+          ${tile({ rotulo: 'Dia com mais saídas', valor: g.dia_top_saidas ? `${dataDia(g.dia_top_saidas.d)} · ${fmtInt(g.dia_top_saidas.n)}` : null })}
+        </div>
+        <div class="grafico" id="${idSerie}"></div>
+        <div class="tabela-wrap" id="${idDias}" style="margin-top:0.8rem"></div>
+      </div>`);
+
+    grafico(
+      $('#' + idSerie),
+      g.serie.map((p) => ({ d: p.d, v: p.entradas })),
+      (v) => fmtInt(Math.round(v)),
+      { serie2: g.serie.map((p) => ({ d: p.d, v: p.saidas })), rotulo1: 'Entradas', rotulo2: 'Saídas' }
+    );
+
+    // Só os dias com movimento: uma tabela com 30 linhas de zero não informa nada.
+    tabela($('#' + idDias), [
+      { titulo: 'Dia', campo: 'd', render: (r) => dataDia(r.d) },
+      { titulo: 'Entradas', num: true, campo: 'entradas', render: (r) => fmtInt(r.entradas) },
+      { titulo: 'Saídas', num: true, campo: 'saidas', render: (r) => fmtInt(r.saidas) },
+      { titulo: 'Saldo', num: true, campo: 'saldo', render: (r) => (r.saldo > 0 ? '+' : '') + fmtInt(r.saldo) },
+    ], g.serie.filter((p) => p.entradas || p.saidas).map((p) => ({ ...p, saldo: p.entradas - p.saidas })));
+  }
+
+  if (!(dados.grupos || []).length) {
+    blocos.innerHTML = '<div class="card"><div class="aviso">Nenhum grupo monitorado.</div></div>';
+  }
+
+  const acoes = { entrou: 'entrou', saiu: 'saiu', removido: 'removido' };
+  tabela($('#grupos-eventos'), [
+    { titulo: 'Quando', campo: 'occurred_at', render: (r) => `<span class="mini">${dataHora(r.occurred_at)}</span>` },
+    { titulo: 'Grupo', campo: 'label', render: (r) => esc(r.label) },
+    { titulo: 'Telefone', campo: 'participant_jid', render: (r) => esc(telefone(r.participant_jid)) },
+    { titulo: 'O quê', campo: 'action', render: (r) => acoes[r.action] || esc(r.action) },
+  ], dados.recentes || []);
+};
+
 R.jornada = async () => {};
 $('#jornada-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
@@ -758,7 +848,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', jornada: 'Jornada', eventos: 'Eventos' };
 let secao = 'visao';
 async function render() {
   const p = intervalo();
