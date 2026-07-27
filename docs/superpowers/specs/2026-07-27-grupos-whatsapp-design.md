@@ -103,20 +103,28 @@ secret encriptado no Cloudflare Pages (Production e Preview). Deliberadamente
 **não** reusa o `SYNC_SECRET`: aquele abre quatro endpoints de sync, e colá-lo no
 n8n daria a quem tem acesso ao n8n poder de escrita em todos eles.
 
-### Variáveis novas no Cloudflare Pages
+### Variáveis no Cloudflare Pages
 
-Além do segredo acima, o card de conexão exige:
+Inventário conferido em 27/07/2026 (`wrangler pages secret list`): o projeto já
+tem `EVOLUTION_API_URL`, `EVOLUTION_APIKEY_ALERTA`, `EVOLUTION_APIKEY_NOTIF`,
+`EVOLUTION_NUMERO_ALERTA`, `EVOLUTION_NUMERO_NOTIF`, `SYNC_SECRET` e
+`GRUPOS_WEBHOOK_SECRET` (este já cadastrado pela usuária).
 
-| Variável | Valor | Encriptar |
-|---|---|---|
-| `EVOLUTION_BASE_URL` | `https://api.marcellemesquita.com.br` | não |
-| `EVOLUTION_INSTANCE` | `MarcelleProfissional` | não |
-| `EVOLUTION_API_KEY` | a apikey da instância | **sim** |
+O card de conexão **reusa `EVOLUTION_APIKEY_NOTIF`** como `apikey` — é a mesma
+instância, não faz sentido cadastrar a chave duas vezes.
 
-São variáveis **novas**, não reuso: o `EVOLUTION_API_URL` que já existe no Pages
-é a URL completa de envio de mensagem (`POST` com `{number, text}`), não uma URL
-base — não dá para derivar a rota de estado a partir dela sem gambiarra de
-string.
+Faltam apenas duas variáveis, ambas **sem Encrypt** (não são segredo):
+
+| Variável | Valor |
+|---|---|
+| `EVOLUTION_BASE_URL` | `https://api.marcellemesquita.com.br` |
+| `EVOLUTION_INSTANCE` | `MarcelleProfissional` |
+
+Por que não deduzir da `EVOLUTION_API_URL`: ela é a URL completa de envio de
+mensagem (`POST` com `{number, text}`), e está encriptada — não dá para
+inspecionar o formato para confirmar que o recorte funcionaria. Deduzir errado
+deixaria o card permanentemente em "não foi possível consultar", sem dizer por
+quê. Duas variáveis explícitas custam 30 segundos e eliminam a dúvida.
 
 ## Endpoint de escrita — `POST /api/webhooks/whatsapp-grupo`
 
@@ -183,7 +191,8 @@ Também retorna os grupos vistos e ainda não classificados.
 ## Endpoint de conexão — `GET /api/grupos/conexao`
 
 Auth: `DASH_KEY`. Consulta `GET {EVOLUTION_BASE_URL}/instance/connectionState/{EVOLUTION_INSTANCE}`
-com header `apikey`, timeout de 5 s, e traduz o resultado:
+com header `apikey: {EVOLUTION_APIKEY_NOTIF}`, timeout de 5 s, e traduz o
+resultado:
 
 | `state` da Evolution | Card mostra |
 |---|---|
