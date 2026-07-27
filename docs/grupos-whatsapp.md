@@ -53,12 +53,22 @@ para junto — um problema nosso vira um problema da Evolution.
 (`POST {number, text}`) e fica encriptada — não dá para inspecionar o formato
 com segurança.
 
-## Trocar de Comunidade quando abrir o ciclo novo das lives
+## Trocar de Comunidade (contingência — não é rotina)
 
-A Comunidade da live **não é permanente** — a cada ciclo novo, o WhatsApp cria
-um grupo novo com JID novo. A lista de grupos monitorados vive em tabela
-(`whatsapp_groups_tracked`), não em código, exatamente para isso ser um
-`INSERT`, sem deploy.
+**Os dois grupos são fixos.** O que muda com frequência é o **título** da
+Comunidade da live, renomeada a cada semana para anunciar a próxima ("30/07 às
+12h | O jogo da escala no atacado"). Renomear **não** afeta a coleta: o
+monitoramento é fixado no JID, que não muda, e o `group_name` guardado na
+`whatsapp_groups_tracked` é só rótulo humano — pode ficar desatualizado sem
+consequência.
+
+Esta seção existe para o dia em que a operação decidir criar uma Comunidade
+nova (ou o WhatsApp forçar isso). A lista de grupos monitorados vive em tabela,
+não em código, para esse dia ser um `INSERT` e não um deploy.
+
+Como perceber que aconteceu: o gráfico para de crescer enquanto o card de
+conexão continua verde, e o aviso de "grupo não monitorado" no topo da aba passa
+a mostrar um JID novo.
 
 ### 1. Identificar o grupo certo
 
