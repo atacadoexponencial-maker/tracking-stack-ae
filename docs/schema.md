@@ -207,6 +207,41 @@ by the dashboard's "last synced at" indicator.
 
 **Index**: `idx_sync_log_platform_run_at` on `(platform, run_at DESC)`.
 
+## WhatsApp group events
+
+Fed by `/api/webhooks/whatsapp-grupo` (fan-out of the Evolution webhook that
+already runs in n8n), read by `/api/grupos`.
+
+### `whatsapp_group_events`
+
+One row per person per event.
+
+| Column | Type | Notes |
+|---|---|---|
+| `group_jid` | TEXT NOT NULL | `…@g.us` |
+| `participant_jid` | TEXT NOT NULL | who joined/left |
+| `action` | TEXT NOT NULL | `entrou` / `saiu` / `removido` |
+| `actor_jid` | TEXT | who performed it; NULL when Evolution omits it |
+| `occurred_at` | TEXT NOT NULL | ISO 8601 UTC |
+| `day_local` | TEXT NOT NULL | `YYYY-MM-DD` at `-03:00`, computed on write |
+| `received_at` | INTEGER NOT NULL | Unix seconds |
+
+**Unique index** `idx_wge_dedup` on `(group_jid, participant_jid, action,
+occurred_at)` — the Evolution event has no ID of its own, so this natural key
+plus `INSERT OR IGNORE` makes n8n redelivery harmless.
+
+### `whatsapp_groups_tracked`
+
+Allowlist: `group_jid` (PK), `label`, `group_name`, `enabled`. Lives in a table
+rather than in code because the live Community is not permanent — a new cycle
+means a new JID, and following it must be an INSERT, not a deploy.
+
+### `whatsapp_groups_seen`
+
+Every group that emits an event, **without participant data**: `group_jid` (PK),
+`group_name`, `events`, `last_event_at`. Safety net so a new Community shows up
+in the dash instead of vanishing silently.
+
 ## Things NOT in the schema (deliberate)
 
 - **No `leads` table.** Lead events live in `event_log` and are joined to
