@@ -188,7 +188,7 @@ e saldo líquido no período; dia recorde de entradas e dia recorde de saídas;
 
 Também retorna os grupos vistos e ainda não classificados.
 
-## Endpoint de conexão — `GET /api/grupos/conexao`
+## Endpoint de conexão — `GET /api/grupos-conexao`
 
 Auth: `DASH_KEY`. Consulta `GET {EVOLUTION_BASE_URL}/instance/connectionState/{EVOLUTION_INSTANCE}`
 com header `apikey: {EVOLUTION_APIKEY_NOTIF}`, timeout de 5 s, e traduz o
