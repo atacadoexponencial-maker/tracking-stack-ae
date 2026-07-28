@@ -41,8 +41,8 @@ não dá para comparar iscas.
 
 ## Checklist
 
-- [ ] Agregação por `material` em `functions/api/leads.js`
-- [ ] `is_junk` e bots fora da contagem, como nos demais blocos
-- [ ] Card "Materiais mais baixados" renderizado no `/dash`
-- [ ] Estado vazio tratado
+- [x] Agregação por `material` em `functions/api/leads.js`
+- [x] `is_junk` e bots fora da contagem, como nos demais blocos
+- [x] Card "Materiais mais baixados" renderizado no `/dash`
+- [x] Estado vazio tratado
 - [ ] Números batem com uma consulta manual ao D1

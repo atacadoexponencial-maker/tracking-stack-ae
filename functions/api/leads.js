@@ -141,11 +141,31 @@ export async function onRequestGet(context) {
       ORDER BY count DESC
     `).bind(since, until).all();
 
+    // Contagem de leads por material rico no período, para o bloco "Materiais
+    // mais baixados" (issue 150). Todas as iscas do ManyChat dividem o mesmo
+    // funil, então o que separa uma da outra é event_log.material. Linhas sem
+    // material (todos os demais funis e o histórico anterior à migration 0027)
+    // ficam de fora. Respeita o &funnel= como as demais consultas do endpoint.
+    const materialCounts = await env.DB.prepare(`
+      SELECT e.material as material, COUNT(*) as count
+      FROM event_log e
+      LEFT JOIN sessions s ON e.session_id = s.session_id
+      WHERE e.event_name = 'Lead'
+        AND e.timestamp >= ? AND e.timestamp <= ?
+        AND e.is_bot = 0
+        AND e.is_junk = 0
+        AND e.material IS NOT NULL AND e.material != ''
+        ${funnelClause}
+      GROUP BY e.material
+      ORDER BY count DESC
+    `).bind(since, until, ...funnelBinds).all();
+
     return json({
       days,
       funnel: funnel || null,
       funnels: (funnels.results || []).map(r => r.funnel),
       funnelCounts: (funnelCounts.results || []).map(r => ({ funnel: r.funnel, count: r.count })),
+      materialCounts: (materialCounts.results || []).map(r => ({ material: r.material, count: r.count })),
       leads: rows.results || [],
       summary: summary.results || [],
     });

@@ -174,6 +174,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
         </div>
       </div>
       <div class="card"><h2>Leads por funil</h2><div class="grid-kpi" id="leads-funis"></div></div>
+      <div class="card"><h2>Materiais mais baixados <small>iscas entregues via ManyChat</small></h2><div class="grid-kpi" id="leads-materiais"></div></div>
       <div class="card"><h2>Conversão por LP</h2><div class="tabela-wrap" id="leads-conversao"></div></div>
       <div class="card"><h2>Leads recentes <small>clique para detalhes · Meta/GA4 = envio server-side</small></h2><div class="tabela-wrap" id="leads-tabela"></div></div>
     </section>
@@ -479,6 +480,9 @@ R.leads = async () => {
     $('#crm-kpis').innerHTML = '<div class="aviso">Dados do CRM indisponíveis.</div>';
   }
   $('#leads-funis').innerHTML = (dados.funnelCounts || []).map((c) => tile({ rotulo: c.funnel || '(sem funil)', valor: fmtInt(c.count) })).join('') || '<div class="aviso">Nenhum lead no período.</div>';
+  // Materiais ricos das iscas do ManyChat. O card fica visível mesmo zerado —
+  // sumir daria a impressão de que a métrica não existe.
+  $('#leads-materiais').innerHTML = (dados.materialCounts || []).map((c) => tile({ rotulo: c.material, valor: fmtInt(c.count) })).join('') || '<div class="aviso">Nenhum material baixado no período.</div>';
   tabela($('#leads-conversao'), [
     { titulo: 'LP', campo: 'lp', render: (r) => esc(r.lp) },
     { titulo: 'Visitantes', num: true, campo: 'visitors', render: (r) => fmtInt(r.visitors) },
