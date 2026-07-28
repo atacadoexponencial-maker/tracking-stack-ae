@@ -656,6 +656,7 @@ const CU_FUNIL_LIVES = 'e6893b0b-5a69-4f48-9c99-a3c0a415a118';  // LIVES SEMANAI
 const CU_FUNIL_APLICACAO = '51f77888-2ba1-4f83-9b33-d8ef516b80be'; // APLICAÇÃO
 const CU_FUNIL_WORKSHOP = 'b5e04cdb-f62d-4159-b89b-751726a61831'; // WORKSHOP
 const CU_FUNIL_TRAFEGO = 'f88ef3e2-2928-439b-83ad-c7ff55083f60'; // TRAFEGO PAGO
+const CU_FUNIL_ISCAS = 'b1d0bc63-3d66-41f0-ad31-4a74d7b541ed'; // ISCAS (materiais do ManyChat)
 
 // Funil do site → opção do dropdown 🔻 Funil. Fallback SESSÃO ESTRATÉGICA
 // (preserva o comportamento do n8n, que carimbava tudo como SE).
@@ -664,6 +665,7 @@ function mapFunnelToOption(funnel) {
   if (f === 'lives-semanais-v1') return CU_FUNIL_LIVES;
   if (f === 'trafego-atacado') return CU_FUNIL_TRAFEGO; // APLICAÇÃO ficou exclusiva da mentoria
   if (f === 'workshop') return CU_FUNIL_WORKSHOP;
+  if (f === FUNIL_MATERIAIS) return CU_FUNIL_ISCAS;
   return CU_FUNIL_SESSAO;
 }
 
@@ -852,9 +854,12 @@ async function maybeAlertMetaFailure({ eventName, isBot, metaResponseOk, metaSta
   );
 }
 
-function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento }) {
+function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento, material }) {
   const digits = (phoneE164 || '').replace(/\D/g, '');
-  return `${header}\n\n*Nome:* ${nome}\n*Número:* ${phoneE164}\n*Whatsapp:* https://wa.me/${digits}\n*Email:* ${email}\n*Instagram:* ${instagram}\n*Faturamento:* ${faturamento}`;
+  // *Material* só aparece nas iscas do ManyChat; nos demais funis a mensagem
+  // sai idêntica à de antes.
+  const linhaMaterial = material ? `\n*Material:* ${material}` : '';
+  return `${header}\n\n*Nome:* ${nome}\n*Número:* ${phoneE164}\n*Whatsapp:* https://wa.me/${digits}\n*Email:* ${email}\n*Instagram:* ${instagram}\n*Faturamento:* ${faturamento}${linhaMaterial}`;
 }
 
 export async function sendToClickUp({ leadData, sessionData, env, eventId = '', dispatchId = null, tag = null }) {
@@ -871,6 +876,13 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
   const investimento = (leadData.investimento || '').toString().trim();
   const phoneE164 = toClickUpPhone(leadData.telefone);
   const funnel = (leadData.funnel || '').toString().toLowerCase();
+  // Material rico baixado (issue 149). Só existe no funil das iscas; usa o
+  // título do catálogo para o comercial ler algo legível em vez do slug, e cai
+  // no próprio slug se o material tiver saído do catálogo depois da captura.
+  const materialSlug = (leadData.material || '').toString().toLowerCase().trim();
+  const material = materialSlug
+    ? (materialPorSlug(materialSlug)?.titulo || materialSlug)
+    : '';
 
   const utm = sessionData || {};
   const utmSource = utm.utm_source || '';
@@ -913,7 +925,8 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
       const comentario =
         `Lead Voltou ao CRM:\n\nNovos Dados:\nNome: ${nome}\nTelefone: ${phoneE164}\n` +
         `E-mail: ${email}\nInstagram: ${instagram}\nFaturamento: ${faturamento}\n` +
-        `Cargo: ${cargo}\nInvestimento em Tráfego: ${investimento}\nJustificativa: ${justificativa}\nObjetivo: ${objetivo}\n\n` +
+        `Cargo: ${cargo}\nInvestimento em Tráfego: ${investimento}\nJustificativa: ${justificativa}\nObjetivo: ${objetivo}\n` +
+        (material ? `Material baixado: ${material}\n` : '') + '\n' +
         `${utmSource} - ${utmMedium} - ${utmContent}`;
       await clickupWrite(() => clickupFetch(`/task/${taskId}/comment`, {
         method: 'POST', body: JSON.stringify({ comment_text: comentario }),
@@ -921,7 +934,7 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
       await addClickUpTag(taskId, tag, env); // best-effort; só age se `tag` foi passada
       await atualizarDispatch(env, dispatchId, { resultado: 'comentado', taskId, taskUrl: existing.url || `https://app.clickup.com/t/${taskId}` });
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
-        buildLeadNotif('*Voltou ao CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
+        buildLeadNotif('*Voltou ao CRM 🎉*', { nome, phoneE164, email, instagram, faturamento, material }), env);
     } else {
       // --- Lead inédito: cria a task com os custom fields ---
       const customFields = [];
@@ -943,9 +956,13 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
       push(CU_FIELD.utmCampaign, utmCampaign);
 
       // Link da jornada no /dash (a seção Jornada aceita ?email= pré-preenchido).
-      const linkJornada = email
-        ? `Jornada completa: https://atacadoexponencial.com/dash/?jornada=${encodeURIComponent(email)}#jornada`
-        : '';
+      // Nas iscas, a primeira linha diz qual material trouxe o lead — sem isso o
+      // comercial recebe um card sem contexto nenhum.
+      const linhaMaterial = material ? `Material baixado: ${material}` : '';
+      const linkJornada = [
+        linhaMaterial,
+        email ? `Jornada completa: https://atacadoexponencial.com/dash/?jornada=${encodeURIComponent(email)}#jornada` : '',
+      ].filter(Boolean).join('\n');
 
       const name = nome || email || 'Lead sem nome';
       // Tag opcional (ex.: 'formulario-meta' nos leads do Meta). O ClickUp cria a
@@ -979,7 +996,7 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
         taskId: novaTask && novaTask.id, taskUrl: novaTask && (novaTask.url || `https://app.clickup.com/t/${novaTask.id}`),
       });
       await sendEvolutionMessage(env.EVOLUTION_APIKEY_NOTIF, env.EVOLUTION_NUMERO_NOTIF,
-        buildLeadNotif('*Novo lead no CRM 🎉*', { nome, phoneE164, email, instagram, faturamento }), env);
+        buildLeadNotif('*Novo lead no CRM 🎉*', { nome, phoneE164, email, instagram, faturamento, material }), env);
     }
   } catch (e) {
     // Escrita principal falhou após o retry → não perder o lead.

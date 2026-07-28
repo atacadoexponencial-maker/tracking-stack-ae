@@ -46,7 +46,7 @@ onde veio.
 ## Checklist
 
 - [x] Opção **ISCAS** criada no ClickUp e ID obtido
-- [ ] `CU_FUNIL_ISCAS` + mapeamento em `mapFunnelToOption`
-- [ ] Material na descrição do card e no comentário de repetido
-- [ ] Material no texto da notificação de WhatsApp
+- [x] `CU_FUNIL_ISCAS` + mapeamento em `mapFunnelToOption`
+- [x] Material na descrição do card e no comentário de repetido
+- [x] Material no texto da notificação de WhatsApp
 - [ ] Lead de teste cria card com 🔻 Funil = ISCAS e notifica
