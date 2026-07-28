@@ -1,3 +1,5 @@
+import { FUNIL_MATERIAIS, materialPorSlug } from '../src/data/materiais.js';
+
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -318,8 +320,9 @@ export async function onRequestPost(context) {
     // do time (mensagem própria); as demais faixas vão ao Calendly do serviço,
     // independente do faturamento (issue 70). No diagnóstico, leads de baixo
     // faturamento ("Menos de 20 Mil") vão ao WhatsApp dos especialistas; os
-    // demais ao agendamento (Calendly).
-    // Destinos por env. O front só executa o redirect.
+    // demais ao agendamento (Calendly). O funil das iscas do ManyChat entrega o
+    // próprio material, resolvido pelo slug no catálogo src/data/materiais.js.
+    // Destinos por env (exceto as iscas). O front só executa o redirect.
     let leadRedirect = null;
     const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
     if ((body.event_name || '').toLowerCase() === 'lead') {
@@ -327,6 +330,13 @@ export async function onRequestPost(context) {
         leadRedirect = env.LEAD_REDIRECT_WORKSHOP || '/video-workshop-instagram';
       } else if (leadFunnel === 'lives-semanais-v1') {
         leadRedirect = env.LEAD_REDIRECT_LIVE || '/obrigada';
+      } else if (leadFunnel === FUNIL_MATERIAIS) {
+        // Iscas do ManyChat (issue 147): o destino é o arquivo do material que a
+        // pessoa pediu, resolvido pelo slug no catálogo — o front nunca conhece
+        // o link. Slug ausente ou fora do catálogo cai em /obrigada em vez de
+        // devolver null e deixar o lead numa tela morta.
+        const material = materialPorSlug(body.lead_data?.material);
+        leadRedirect = material ? material.destino : '/obrigada';
       } else if (leadFunnel === 'trafego-atacado') {
         // Roteia pelo texto da faixa (mesmo padrão do faturamento abaixo).
         // Investimento vazio cai no Calendly — não perde lead qualificado.

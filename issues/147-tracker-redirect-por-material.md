@@ -39,9 +39,9 @@ resolvido pelo `material` enviado no `lead_data`.
 
 ## Checklist
 
-- [ ] Ramo `iscas-manychat` no roteamento pós-captação
-- [ ] Destino resolvido pelo catálogo, via `materialPorSlug`
-- [ ] Slug ausente/desconhecido cai em `/obrigada`
-- [ ] Comentário explicando o ramo, no padrão dos vizinhos
-- [ ] `tests/materiais.test.js`: slug válido, slug desconhecido, slugs únicos
-- [ ] `npm test` passando
+- [x] Ramo `iscas-manychat` no roteamento pós-captação
+- [x] Destino resolvido pelo catálogo, via `materialPorSlug`
+- [x] Slug ausente/desconhecido cai em `/obrigada`
+- [x] Comentário explicando o ramo, no padrão dos vizinhos
+- [x] `tests/materiais.test.js`: slug válido, slug desconhecido, slugs únicos
+- [x] `npm test` passando
