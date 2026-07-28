@@ -6,7 +6,7 @@
 // Investimento vem de ad_spend (Meta). Leads vêm de event_log com o mesmo
 // filtro de validade do /api/leads: não-bot, não-junk, funil efetivo.
 
-import { calcularCpl } from './_cpl-calculo.js';
+import { calcularCpl, montarAvisosCpl } from './_cpl-calculo.js';
 import { listarFunisConhecidos } from './_funil-campanha.js';
 
 export async function onRequestGet(context) {
@@ -57,22 +57,11 @@ export async function onRequestGet(context) {
     funisConhecidos,
   });
 
-  // Avisos: o painel diz o que não sabe, em vez de deixar a pessoa concluir
-  // errado a partir de um número vazio.
-  const avisos = [];
-  const semFunil = resultado.por_funil.find((l) => l.funnel === 'sem-funil');
-  if (semFunil && semFunil.spend > 0) {
-    avisos.push(`R$ ${semFunil.spend.toFixed(2)} de investimento sem funil definido — classifique as campanhas na tabela abaixo.`);
-  }
-  const formNativo = (gastos.results || []).find(
-    (g) => (g.campaign_name || '').includes('form-nativo'),
-  );
-  if (formNativo) {
-    const temLeadDeForm = (leads.results || []).some((l) => (l.origin || '') === 'meta-form');
-    if (!temLeadDeForm) {
-      avisos.push('A campanha de formulário nativo tem investimento e nenhum lead no tracking: o sync de leads do Meta depende de um cron que ainda não foi agendado (issue 145). Não é a campanha que está ruim.');
-    }
-  }
+  const avisos = montarAvisosCpl({
+    por_funil: resultado.por_funil,
+    gastos: gastos.results || [],
+    leads: leads.results || [],
+  });
 
   return json({ ...resultado, avisos });
 }

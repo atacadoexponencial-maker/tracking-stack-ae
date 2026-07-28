@@ -51,7 +51,8 @@ select, input[type="date"], input[type="text"], input[type="password"], input[ty
 .kpi.heroi { padding: 1.1rem 1.2rem; }
 .kpi.heroi .rotulo { font-size: 0.84rem; }
 .kpi.heroi .valor { font-size: clamp(1.6rem, 3vw, 2.2rem); }
-.kpi .semdado { color: var(--muted); font-size: 1rem; font-weight: 400; }
+.semdado { color: var(--muted); }
+.kpi .semdado { font-size: 1rem; font-weight: 400; }
 .delta { font-size: 0.76rem; font-variant-numeric: tabular-nums; margin-top: 0.15rem; display: inline-block; }
 .delta.up { color: var(--up); } .delta.down { color: var(--down); } .delta.neutro { color: var(--muted); }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; margin-bottom: 1rem; }
@@ -72,6 +73,9 @@ tbody tr.clicavel:hover td { background: var(--card-2); }
 td .mini, .mini { color: var(--muted); font-size: 0.72rem; }
 .ok { color: var(--up); } .falha { color: var(--down); }
 .aviso { color: var(--muted); font-size: 0.83rem; padding: 1rem; text-align: center; }
+/* .aviso simples é estado vazio (apagado, centralizado); .alerta é aviso
+   acionável do /api/cpl — precisa parecer alerta, não placeholder. */
+.aviso.alerta { color: var(--warn); text-align: left; background: var(--card-2); border-radius: var(--radius); padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; }
 .secao { display: none; } .secao.ativa { display: block; }
 .grafico { position: relative; }
 .grafico svg { display: block; width: 100%; height: auto; }
@@ -204,7 +208,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
     <section class="secao" id="secao-metaads">
       <div class="grid-kpi" id="meta-kpis"></div>
       <div id="cpl-avisos"></div>
-      <div class="card"><h2>CPL por funil</h2><div class="tabela-wrap" id="cpl-funil"></div></div>
+      <div class="card"><h2>CPL por funil <small>denominador inclui leads de todos os canais, não só pago</small></h2><div class="tabela-wrap" id="cpl-funil"></div></div>
       <div class="card"><h2>CPL por canal</h2><div class="tabela-wrap" id="cpl-canal"></div></div>
       <div class="card"><h2>Funil × canal <small>leads por cruzamento</small></h2><div class="tabela-wrap" id="cpl-cruzado"></div></div>
       <div class="card"><h2>Campanhas <small id="meta-sync-nota"></small></h2><div class="tabela-wrap" id="meta-campanhas"></div></div>
@@ -575,13 +579,17 @@ document.querySelectorAll('#utm-abas button').forEach((b) => b.addEventListener(
 
 R.metaads = async () => {
   const p = intervalo();
+  // /api/cpl e /api/campaign-funnel são aditivos desta feature: se a tabela
+  // campaign_funnel_map ainda não existir (ex.: produção antes da migration),
+  // os dois podem falhar — e isso não pode derrubar os KPIs e a tabela de
+  // campanhas que já existiam antes.
   const [atr, atrAnt, camp, leads, cpl, mapa] = await Promise.all([
     fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
     fetchJson(`/api/ad-spend?${q(p.de, p.ate)}`),
     fetchJson(`/api/leads?${q(p.de, p.ate)}&limit=1`),
-    fetchJson(`/api/cpl?${q(p.de, p.ate)}`),
-    fetchJson(`/api/campaign-funnel?${q(p.de, p.ate)}`),
+    fetchJson(`/api/cpl?${q(p.de, p.ate)}`).catch(() => null),
+    fetchJson(`/api/campaign-funnel?${q(p.de, p.ate)}`).catch(() => null),
   ]);
   const totalLeads = (leads.funnelCounts || []).reduce((s, c) => s + Number(c.count || 0), 0);
   const cplKpi = totalLeads && atr.meta_spend > 0 ? atr.meta_spend / totalLeads : null;
@@ -593,12 +601,13 @@ R.metaads = async () => {
   ].map((k) => tile(k)).join('');
   $('#meta-sync-nota').textContent = atr.last_synced_at ? `última sincronização ${new Date(atr.last_synced_at * 1000).toLocaleString('pt-BR')}` : 'sincronização de investimento ainda não configurada';
 
-  $('#cpl-avisos').innerHTML = (cpl.avisos || [])
-    .map((a) => `<div class="aviso">${esc(a)}</div>`).join('');
+  $('#cpl-avisos').innerHTML = ((cpl && cpl.avisos) || [])
+    .map((a) => `<div class="aviso alerta">${esc(a)}</div>`).join('');
 
   const cplCel = (r) => r.cpl == null
     ? `<span class="semdado">—</span>${r.leads === 0 ? '<div class="mini">sem lead no período</div>' : ''}`
     : money(r.cpl);
+  const spendCel = (r) => r.spend == null ? '<span class="semdado">—</span>' : money(r.spend);
 
   tabela($('#cpl-funil'), [
     { titulo: 'Funil', campo: 'funnel', render: (r) => esc(r.funnel === 'sem-funil' ? 'Sem funil' : r.funnel) },
@@ -606,13 +615,13 @@ R.metaads = async () => {
     { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
     { titulo: 'CPL', num: true, campo: 'cpl', render: cplCel },
     { titulo: '% do gasto', num: true, campo: 'share', render: (r) => fmtNum(r.share, 1) + '%' },
-  ], cpl.por_funil || []);
+  ], (cpl && cpl.por_funil) || []);
 
   // A linha de aquisição entra no fim, visualmente separada: o denominador
   // dela vem de outros canais (bio + ManyChat), então somá-la às demais
   // contaria os mesmos leads duas vezes.
-  const linhasCanal = [...(cpl.por_canal || [])];
-  if (cpl.aquisicao_estimativa && (cpl.aquisicao_estimativa.spend > 0 || cpl.aquisicao_estimativa.leads > 0)) {
+  const linhasCanal = [...((cpl && cpl.por_canal) || [])];
+  if (cpl && cpl.aquisicao_estimativa && (cpl.aquisicao_estimativa.spend > 0 || cpl.aquisicao_estimativa.leads > 0)) {
     linhasCanal.push(cpl.aquisicao_estimativa);
   }
   tabela($('#cpl-canal'), [
@@ -626,14 +635,16 @@ R.metaads = async () => {
     { titulo: 'Funil', campo: 'funnel', render: (r) => esc(r.funnel === 'sem-funil' ? 'Sem funil' : r.funnel) },
     { titulo: 'Canal', campo: 'canal', render: (r) => esc(r.canal) },
     { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
-  ], cpl.cruzado || []);
+    { titulo: 'Investimento', num: true, campo: 'spend', render: spendCel },
+    { titulo: 'CPL', num: true, campo: 'cpl', render: cplCel },
+  ], (cpl && cpl.cruzado) || []);
 
-  const funilPorCampanha = new Map((mapa.rows || []).map((r) => [String(r.campaign_id), r]));
-  const opcoesFunil = (mapa.funis || []);
+  const funilPorCampanha = new Map(((mapa && mapa.rows) || []).map((r) => [String(r.campaign_id), r]));
+  const opcoesFunil = (mapa && mapa.funis) || [];
 
   tabela($('#meta-campanhas'), [
     { titulo: 'Campanha', campo: 'campaign_name', render: (r) => esc(r.campaign_name) },
-    { titulo: 'Funil', campo: 'funnel', render: (r) => {
+    { titulo: 'Funil', render: (r) => {
       const m = funilPorCampanha.get(String(r.campaign_id)) || { funnel: 'sem-funil', origem: 'sem-funil' };
       const opcoes = opcoesFunil.map((f) =>
         `<option value="${esc(f)}"${f === m.funnel ? ' selected' : ''}>${esc(f)}</option>`).join('');

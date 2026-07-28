@@ -72,7 +72,10 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
     })
     .sort((a, b) => b.spend - a.spend || b.leads - a.leads);
 
-  const gastoPorCanal = new Map([['meta-ads', centavosMetaAds]]);
+  // A linha 'meta-ads' só existe quando há gasto ou lead de fato — período
+  // vazio não deve renderizar uma linha solitária zerada.
+  const gastoPorCanal = new Map();
+  if (centavosMetaAds > 0) gastoPorCanal.set('meta-ads', centavosMetaAds);
   const canais = new Set([...gastoPorCanal.keys(), ...leadsPorCanal.keys()]);
   const por_canal = [...canais]
     .map((canal) => {
@@ -95,10 +98,32 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
     nota: 'estimativa: leads de bio e ManyChat, ligação por dedução',
   };
 
-  const cruzado = [...leadsCruzado.entries()]
-    .map(([chave, qtd]) => {
+  // Investimento atribuível ao cruzamento: todo gasto do Meta que não é
+  // impulsionamento mapeia 1:1 pro canal 'meta-ads' (mesma regra usada acima
+  // para separar centavosMetaAds), então a célula (funil, 'meta-ads') pode
+  // carregar o gasto daquele funil — vira um CPL pago de verdade por funil.
+  // As demais células (canais orgânicos) não têm investimento atribuível.
+  const gastoMetaAdsPorFunil = new Map(
+    [...gastoPorFunil].filter(([funnel]) => funnel !== CANAL_AQUISICAO),
+  );
+  const chavesCruzado = new Set([
+    ...leadsCruzado.keys(),
+    ...[...gastoMetaAdsPorFunil.keys()].map((funnel) => funnel + '||meta-ads'),
+  ]);
+
+  const cruzado = [...chavesCruzado]
+    .map((chave) => {
       const [funnel, canal] = chave.split('||');
-      return { funnel, canal, leads: qtd };
+      const qtd = leadsCruzado.get(chave) || 0;
+      const atribuivel = canal === 'meta-ads';
+      const centavosFunil = atribuivel ? (gastoMetaAdsPorFunil.get(funnel) || 0) : 0;
+      return {
+        funnel,
+        canal,
+        leads: qtd,
+        spend: atribuivel ? centavosFunil / 100 : null,
+        cpl: atribuivel ? cpl(centavosFunil, qtd) : null,
+      };
     })
     .sort((a, b) => b.leads - a.leads);
 
@@ -110,4 +135,26 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
     total_investimento: totalCentavos / 100,
     total_leads: leads.length,
   };
+}
+
+// Avisos: o painel diz o que não sabe, em vez de deixar a pessoa concluir
+// errado a partir de um número vazio. Função pura para ser testável — cpl.js
+// só chama e devolve no JSON.
+export function montarAvisosCpl({ por_funil = [], gastos = [], leads = [] }) {
+  const avisos = [];
+
+  const semFunil = por_funil.find((l) => l.funnel === FUNIL_SEM_CLASSIFICACAO);
+  if (semFunil && semFunil.spend > 0) {
+    avisos.push(`R$ ${semFunil.spend.toFixed(2)} de investimento sem funil definido — classifique as campanhas na tabela abaixo.`);
+  }
+
+  const formNativo = gastos.find((g) => (g.campaign_name || '').includes('form-nativo'));
+  if (formNativo) {
+    const temLeadDeForm = leads.some((l) => (l.origin || '') === 'meta_form');
+    if (!temLeadDeForm) {
+      avisos.push('A campanha de formulário nativo tem investimento e nenhum lead no tracking: o sync de leads do Meta depende de um cron que ainda não foi agendado (issue 145). Não é a campanha que está ruim.');
+    }
+  }
+
+  return avisos;
 }

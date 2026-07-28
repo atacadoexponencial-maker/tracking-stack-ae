@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcularCpl } from '../functions/api/_cpl-calculo.js';
+import { calcularCpl, montarAvisosCpl } from '../functions/api/_cpl-calculo.js';
 
 const FUNIS = ['lives-semanais-v1', 'sessao-estrategica', 'trafego-atacado', 'aplicacao-mentoria'];
 
@@ -117,7 +117,88 @@ test('lead sem funil cai em sem-funil em vez de sumir', () => {
 test('entradas vazias nao quebram', () => {
   const r = calcularCpl({ leads: [], gastos: [], overrides: [], funisConhecidos: [] });
   assert.deepEqual(r.por_funil, []);
+  assert.deepEqual(r.por_canal, []);
   assert.equal(r.total_investimento, 0);
   assert.equal(r.total_leads, 0);
   assert.equal(r.aquisicao_estimativa.cpl, null);
+});
+
+test('linha meta-ads em por_canal so aparece com gasto ou lead de fato', () => {
+  const semNada = calcularCpl({ leads: [], gastos: [], overrides: [], funisConhecidos: [] });
+  assert.equal(linha(semNada.por_canal, 'canal', 'meta-ads'), undefined);
+
+  const comGasto = calcularCpl(cenario());
+  assert.ok(linha(comGasto.por_canal, 'canal', 'meta-ads'));
+});
+
+test('cruzado carrega investimento atribuivel na celula (funil, meta-ads)', () => {
+  const r = calcularCpl(cenario({
+    leads: [
+      { funnel: 'sessao-estrategica', utm_source: 'facebookads', utm_campaign: 'ae_leads_x' },
+      { funnel: 'sessao-estrategica', utm_source: 'facebookads', utm_campaign: 'ae_leads_x' },
+    ],
+  }));
+  const pago = r.cruzado.find((c) => c.funnel === 'sessao-estrategica' && c.canal === 'meta-ads');
+  assert.equal(pago.spend, 2000);
+  assert.ok(Math.abs(pago.cpl - 1000) < 0.001);
+});
+
+test('cruzado nao atribui investimento a canais organicos', () => {
+  const r = calcularCpl(cenario({
+    leads: [
+      { funnel: 'aplicacao-mentoria', utm_source: 'organico', utm_campaign: 'bioperfil-felipe' },
+    ],
+  }));
+  const bio = r.cruzado.find((c) => c.funnel === 'aplicacao-mentoria' && c.canal === 'bio');
+  assert.equal(bio.spend, null);
+  assert.equal(bio.cpl, null);
+});
+
+test('cruzado mostra a celula (funil, meta-ads) mesmo sem lead ainda, quando ha gasto atribuido ao funil', () => {
+  // Caso motivador da spec: aplicacao-mentoria recebe hoje só lead de bio,
+  // mas já tem override de campanha paga — precisa aparecer com o gasto.
+  const r = calcularCpl(cenario({
+    overrides: [{ campaign_id: '2', funnel: 'aplicacao-mentoria' }],
+    leads: [
+      { funnel: 'aplicacao-mentoria', utm_source: 'organico', utm_campaign: 'bioperfil-felipe' },
+    ],
+  }));
+  const pago = r.cruzado.find((c) => c.funnel === 'aplicacao-mentoria' && c.canal === 'meta-ads');
+  assert.ok(pago);
+  assert.equal(pago.leads, 0);
+  assert.equal(pago.spend, 1000);
+  assert.equal(pago.cpl, null);
+});
+
+test('invariante do cruzado nao quebra a soma de por_funil', () => {
+  const r = calcularCpl(cenario());
+  const soma = r.por_funil.reduce((s, l) => s + l.spend, 0);
+  assert.equal(soma, r.total_investimento);
+});
+
+test('montarAvisosCpl: gasto sem funil gera aviso', () => {
+  const avisos = montarAvisosCpl({
+    por_funil: [{ funnel: 'sem-funil', spend: 150.5, leads: 2 }],
+    gastos: [],
+    leads: [],
+  });
+  assert.ok(avisos.some((a) => a.includes('sem funil definido')));
+});
+
+test('montarAvisosCpl: campanha form-nativo sem lead meta_form gera aviso', () => {
+  const avisos = montarAvisosCpl({
+    por_funil: [],
+    gastos: [{ campaign_id: '9', campaign_name: 'ae_leads_form-nativo_x', spend_cents: 10000 }],
+    leads: [{ origin: 'organico' }],
+  });
+  assert.ok(avisos.some((a) => a.includes('formulário nativo')));
+});
+
+test('montarAvisosCpl: campanha form-nativo COM lead meta_form nao gera aviso', () => {
+  const avisos = montarAvisosCpl({
+    por_funil: [],
+    gastos: [{ campaign_id: '9', campaign_name: 'ae_leads_form-nativo_x', spend_cents: 10000 }],
+    leads: [{ origin: 'meta_form' }],
+  });
+  assert.ok(!avisos.some((a) => a.includes('formulário nativo')));
 });
