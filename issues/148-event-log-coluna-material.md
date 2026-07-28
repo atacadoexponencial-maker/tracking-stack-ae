@@ -40,8 +40,8 @@ compartilham o funil `iscas-manychat`, o `funnel` sozinho não distingue as isca
 
 ## Checklist
 
-- [ ] `migrations/0027_event_log_material.sql` criada
-- [ ] `loggedMaterial` extraído e normalizado
-- [ ] Coluna e bind acrescentados ao `INSERT`, na mesma posição relativa
-- [ ] Migration aplicada em produção via `wrangler d1 execute --remote`
+- [x] `migrations/0027_event_log_material.sql` criada
+- [x] `loggedMaterial` extraído e normalizado
+- [x] Coluna e bind acrescentados ao `INSERT`, na mesma posição relativa
+- [x] Migration aplicada em produção via `wrangler d1 execute --remote`
 - [ ] Lead de teste grava o `material` corretamente

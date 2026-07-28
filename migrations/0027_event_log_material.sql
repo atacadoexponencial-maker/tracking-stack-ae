@@ -1,0 +1,13 @@
+-- Issue 148: qual material rico o lead baixou.
+--
+-- Todos os materiais entregues via ManyChat compartilham o funil
+-- 'iscas-manychat', então event_log.funnel sozinho não distingue uma isca da
+-- outra. Esta coluna guarda o slug do catálogo (src/data/materiais.js) — é o
+-- que alimenta o bloco "Materiais mais baixados" do dashboard.
+--
+-- Linhas históricas ficam NULL: não há backfill possível nem necessário.
+--
+-- ⚠️ Aplicar com `wrangler d1 execute --remote`, NUNCA com
+-- `wrangler d1 migrations apply --remote`: as migrations 0021, 0022 e 0025
+-- quebram ao serem reaplicadas neste banco.
+ALTER TABLE event_log ADD COLUMN material TEXT;

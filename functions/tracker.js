@@ -274,6 +274,11 @@ export async function onRequestPost(context) {
     // do anúncio ou a cookie reaproveitado entre funis. Vazio em eventos sem
     // lead_data (ex.: InitiateCheckout).
     const loggedFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
+    // Slug do material rico baixado (issue 148). Todas as iscas do ManyChat
+    // compartilham o funil 'iscas-manychat', então é esta coluna que distingue
+    // uma da outra no dashboard. Vazio nos demais funis e em eventos sem
+    // lead_data — mesmo tratamento do funil acima.
+    const loggedMaterial = ((body.lead_data && body.lead_data.material) || '').toLowerCase().trim();
     // Testes internos saem das métricas do dash já na entrada (migration 0022).
     // Só afeta CONTAGEM: o lead segue normalmente para ClickUp/CRM/Meta, para o
     // teste continuar exercitando o pipeline inteiro de ponta a ponta.
@@ -292,8 +297,8 @@ export async function onRequestPost(context) {
                 sent_to_meta, meta_status_code, meta_response_ok, meta_response_body, meta_payload_sent,
                 sent_to_ga4, ga4_status_code, ga4_response_ok, ga4_response_body, ga4_payload_sent,
                 has_email, has_phone, has_name,
-                raw_email, funnel, is_junk
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                raw_email, funnel, is_junk, material
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
               sessionId, body.event_name, body.event_id, body.event_time,
               browserInfo.browser, browserInfo.version, browserInfo.os, browserInfo.isMobile ? 1 : 0,
@@ -303,7 +308,7 @@ export async function onRequestPost(context) {
               isBot ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
               isBot ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
               hashedEm ? 1 : 0, hashedPh ? 1 : 0, (hashedFn || hashedLn) ? 1 : 0,
-              rawEmail, loggedFunnel, isJunk
+              rawEmail, loggedFunnel, isJunk, loggedMaterial
             ).run();
           }
         } catch (e) {
