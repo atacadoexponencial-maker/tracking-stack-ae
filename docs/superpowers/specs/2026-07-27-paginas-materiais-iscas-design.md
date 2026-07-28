@@ -85,9 +85,9 @@ apenas executa o redirect.
    `/obrigada` em vez de quebrar o fluxo.
 2. **Log:** grava `material` no `event_log`, ao lado de `funnel`.
 3. **Meta CAPI, GA4 e CRM Supabase:** fluxo normal, sem exceção.
-4. **ClickUp:** card criado como nos demais funis. 🔻 Funil recebe uma opção nova
-   **ISCA** (`mapFunnelToOption`); 🛒 Produto segue no default AE. O nome do
-   material entra na descrição do card.
+4. **ClickUp:** card criado como nos demais funis. 🔻 Funil recebe a opção
+   **ISCAS** (`b1d0bc63-3d66-41f0-ad31-4a74d7b541ed`) via `mapFunnelToOption`;
+   🛒 Produto segue no default AE. O nome do material entra na descrição do card.
 5. **WhatsApp:** notificação interna como nos demais funis, com o nome do
    material na mensagem.
 
@@ -139,8 +139,8 @@ trocar o texto é editar uma linha do catálogo.
 
 ## Passos manuais (dependem da usuária)
 
-1. Criar a opção **ISCA** no dropdown 🔻 Funil do ClickUp e informar o ID da
-   opção, para o mapeamento em `mapFunnelToOption`.
+1. ~~Criar a opção **ISCAS** no dropdown 🔻 Funil do ClickUp~~ — feito em
+   2026-07-27, ID `b1d0bc63-3d66-41f0-ad31-4a74d7b541ed`.
 2. Confirmar que o PDF do ICP está com link público de visualização no Drive.
 3. Aplicar a migration em produção com `wrangler d1 execute --remote`.
 
