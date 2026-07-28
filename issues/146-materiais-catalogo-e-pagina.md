@@ -25,34 +25,66 @@ Esta issue entrega a página e o catálogo. O redirect propriamente dito é a is
 
 ### Edge Cases
 - Campos vazios ou email inválido → validação nativa do HTML barra o submit.
-- `/tracker` falha ou responde sem `redirect` → mensagem de erro na própria
-  página e botão volta ao estado normal (mesmo padrão do `LeadFormModal`).
-- Slug fora do catálogo → 404 do Astro (a rota nem é gerada).
+- Telefone fora do padrão → `telefoneValido` barra e exibe `TELEFONE_ERRO`,
+  mesmo comportamento dos demais formulários.
+- Slug fora do catálogo → 404 do Astro (a rota nem é gerada no build).
+
+### Cenário de Erro
+- `/tracker` indisponível, resposta não-JSON ou sem `redirect` → o `catch` cai no
+  destino padrão `/obrigada`, mesmo padrão do `LeadFormModal`. O lead nunca fica
+  preso numa tela morta.
+- `fbq` ausente (bloqueador) → `try/catch` isolado; o envio ao `/tracker` segue.
+
+## Banco de Dados
+
+Não se aplica. A gravação do lead já é feita pelo `/tracker` (a coluna `material`
+é a issue 148).
+
+## Pesquisa — o que reaproveitar
+
+- `src/layouts/BaseLayout.astro` — já carrega GA4, os dois Meta Pixels e o
+  espelho de `PageView` no `/tracker`. A página só precisa passar `title` e
+  `description`; `showHeader`/`showFooter` ficam `false` (página de captura).
+- `src/scripts/lead-validacao.ts` — `telefoneValido`, `TELEFONE_ERRO`,
+  `aplicarMascaraTelefone`, `aplicarSugestaoEmail`. Importar, não reescrever.
+- `src/components/LeadFormModal.astro` — o bloco de submit (linhas 112–157) é o
+  padrão a seguir: `event_id` `'lead-…'`, espelho `fbq('track','Lead')` com o
+  mesmo `eventID`, `fetch` com `keepalive: true`, `user_data` `{ em, ph, fn }`,
+  redirect vindo da resposta. As classes `.lform__*` são a base do estilo.
+- `src/assets/brand/logo.png` — logo via `<Image />` de `astro:assets`, como nas
+  demais páginas.
+- Precedente de Function importando módulo fora de `functions/`:
+  `functions/webhook/_core.js:38` importa `../../config/products.js`. Por isso o
+  catálogo é `.js` puro (não `.ts`): o `functions/tracker.js` vai consumi-lo na
+  issue 147.
 
 ## Arquivos
 
-- **Criar:** `src/data/materiais.js` — array `MATERIAIS` com `slug`, `titulo`,
-  `subtitulo` e `destino` (URL do Drive). Primeira entrada: `icp` →
-  `https://drive.google.com/file/d/1vxZUBN71vJF7SUbuN7GtkV6TQYL03rMz/view`.
-  Exportar também um helper `materialPorSlug(slug)` — o `functions/tracker.js`
-  vai consumi-lo na issue 147.
-- **Criar:** `src/pages/materiais/[slug].astro` — `getStaticPaths()` a partir de
-  `MATERIAIS`; usa `BaseLayout.astro`; formulário com estilo herdado de
-  `LeadFormModal.astro`.
+- **Criar:** `src/data/materiais.js` — `MATERIAIS` (array) e
+  `materialPorSlug(slug)`. Primeira entrada:
+  `slug: 'icp'`, `titulo: 'Mapeie seu Cliente Ideal (ICP)'`,
+  `subtitulo` tirado do próprio PDF, `destino` = link do Drive.
+- **Criar:** `src/pages/materiais/[slug].astro` — `getStaticPaths()` sobre
+  `MATERIAIS`; markup + estilo do formulário; script de submit.
+
+## Dependências Externas
+
+Nenhuma nova.
 
 ## Restrições
 
 - O `destino` **não** pode ser renderizado no HTML nem usado pelo frontend: quem
   resolve o link é o backend (regra de lógica no backend). A página conhece
   apenas o próprio `slug`.
-- Não alterar nenhuma LP existente.
+- Não alterar nenhuma LP existente nem o `LeadFormModal`.
 
 ## Checklist
 
-- [ ] `src/data/materiais.js` com a entrada do ICP e `materialPorSlug`
-- [ ] `src/pages/materiais/[slug].astro` com `getStaticPaths()`
-- [ ] Form de 3 campos (nome, email, WhatsApp) com validação nativa
-- [ ] Submit envia `funnel: 'iscas-manychat'` e `material: <slug>`
-- [ ] Redirect usa apenas o `redirect` devolvido pelo backend
-- [ ] Estado de erro visível se o `/tracker` falhar
-- [ ] `npm run build` gera `/materiais/icp` sem o link do Drive no HTML
+- [x] `src/data/materiais.js` com a entrada do ICP e `materialPorSlug`
+- [x] `src/pages/materiais/[slug].astro` com `getStaticPaths()`
+- [x] Form de 3 campos (nome, email, WhatsApp) com validação nativa
+- [x] Máscara de telefone e sugestão de email via `lead-validacao`
+- [x] Submit envia `funnel: 'iscas-manychat'` e `material: <slug>`
+- [x] Redirect usa apenas o `redirect` devolvido pelo backend
+- [x] Estado de erro visível se o `/tracker` falhar
+- [x] `npm run build` gera `/materiais/icp` sem o link do Drive no HTML
