@@ -20,23 +20,37 @@ from sheets import build_service, read_rows
 
 CURSOR_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cursor")
 
-# Cabeçalhos exatos da planilha "Leads SE - Formulario Nativo".
+# Cabeçalhos da planilha "Leads SE - Formulario Nativo". Cada campo aceita mais
+# de um cabeçalho porque o Meta troca o nome das colunas sem avisar: em 28/07 as
+# colunas de nome e telefone chegaram como `full_name`/`phone_number` no lugar de
+# `nome_completo`/`telefone`, e o lead entraria sem nome e sem telefone — que é a
+# chave de dedup do ClickUp. Vale a PRIMEIRA que existir na linha.
 COL = {
-    "id": "id",
-    "created_time": "created_time",
-    "nome": "nome_completo",
-    "email": "email",
-    "telefone": "telefone",
-    "instagram": "qual_o_@instagram_da_sua_marca?_",
-    "faturamento": "qual_o_faturamento_mensal_do_seu_negócio?",
-    "justificativa": "qual_o_principal_desafio_do_seu_negócio_atualmente?",
-    "objetivo": "e_qual_o_seu_maior_objetivo_para_2026?",
-    "platform": "platform",
-    "adset_name": "adset_name",
-    "campaign_name": "campaign_name",
-    "ad_name": "ad_name",
-    "form_name": "form_name",
+    "id": ["id"],
+    "created_time": ["created_time"],
+    "nome": ["nome_completo", "full_name"],
+    "email": ["email"],
+    "telefone": ["telefone", "phone_number"],
+    "instagram": ["qual_o_@instagram_da_sua_marca?_"],
+    "faturamento": ["qual_o_faturamento_mensal_do_seu_negócio?"],
+    "justificativa": ["qual_o_principal_desafio_do_seu_negócio_atualmente?"],
+    "objetivo": ["e_qual_o_seu_maior_objetivo_para_2026?"],
+    "platform": ["platform"],
+    "adset_name": ["adset_name"],
+    "campaign_name": ["campaign_name"],
+    "ad_name": ["ad_name"],
+    "form_name": ["form_name"],
 }
+
+
+def campo(r, chave):
+    """Valor do campo lógico `chave` na linha `r`, testando os cabeçalhos
+    conhecidos em ordem. Devolve '' quando nenhum existe."""
+    for cabecalho in COL[chave]:
+        v = r.get(cabecalho)
+        if v:
+            return v
+    return ""
 
 PLATFORM_UTM = {"ig": "instagram", "fb": "facebook"}
 
@@ -84,23 +98,23 @@ def write_cursor(ts):
 
 
 def build_lead(ts, r):
-    plat = (r.get(COL["platform"]) or "").strip().lower()
+    plat = campo(r, "platform").strip().lower()
     return {
-        "meta_id": (r.get(COL["id"]) or "").strip(),
+        "meta_id": campo(r, "id").strip(),
         "created_ts": ts,
-        "nome": (r.get(COL["nome"]) or "").strip(),
-        "email": (r.get(COL["email"]) or "").strip(),
-        "telefone": strip_phone(r.get(COL["telefone"], "")),
-        "instagram": (r.get(COL["instagram"]) or "").strip(),
-        "faturamento": norm_faturamento(r.get(COL["faturamento"], "")),
-        "justificativa": (r.get(COL["justificativa"]) or "").strip(),
-        "objetivo": (r.get(COL["objetivo"]) or "").strip(),
+        "nome": campo(r, "nome").strip(),
+        "email": campo(r, "email").strip(),
+        "telefone": strip_phone(campo(r, "telefone")),
+        "instagram": campo(r, "instagram").strip(),
+        "faturamento": norm_faturamento(campo(r, "faturamento")),
+        "justificativa": campo(r, "justificativa").strip(),
+        "objetivo": campo(r, "objetivo").strip(),
         "platform": plat,
         "utm_source": PLATFORM_UTM.get(plat, plat or "meta"),
-        "utm_medium": (r.get(COL["adset_name"]) or "").strip(),
-        "utm_campaign": (r.get(COL["campaign_name"]) or "").strip(),
-        "utm_content": (r.get(COL["ad_name"]) or "").strip(),
-        "form_name": (r.get(COL["form_name"]) or "").strip(),
+        "utm_medium": campo(r, "adset_name").strip(),
+        "utm_campaign": campo(r, "campaign_name").strip(),
+        "utm_content": campo(r, "ad_name").strip(),
+        "form_name": campo(r, "form_name").strip(),
     }
 
 
@@ -118,7 +132,7 @@ def main():
 
     parsed, max_ts = [], 0
     for r in rows:
-        ts = to_ts(r.get(COL["created_time"]))
+        ts = to_ts(campo(r, "created_time"))
         if ts is None:
             continue
         parsed.append((ts, r))
