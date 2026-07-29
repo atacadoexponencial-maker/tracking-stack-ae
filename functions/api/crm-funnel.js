@@ -10,6 +10,14 @@
 // lista de leads. O event_log entra como LEFT JOIN, então COALESCE(...,0) garante
 // que um lead_dispatch sem evento correspondente não seja descartado: só os
 // testes/bots conhecidos saem da conta.
+//
+// O período é medido pelo `event_log.timestamp` (quando a pessoa virou lead), NÃO
+// pelo `lead_dispatch.criado_em` (quando o card foi tocado no ClickUp). Os dois
+// são o mesmo segundo para leads do site, mas divergem nos leads do formulário
+// nativo do Meta, que chegam pelo coletor até 15 min depois — e chegaram com ~29h
+// de atraso no backfill de 28/07, jogando 2 retornos do dia 27 para o dia 28 e
+// fazendo este card mostrar 7 contra os 5 da lista de leads. `criado_em` fica como
+// fallback do COALESCE para os dispatches sem evento (ex.: workshop direto).
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -26,7 +34,7 @@ export async function onRequestGet(context) {
        SUM(CASE WHEN d.resultado = 'falha' THEN 1 ELSE 0 END) AS falhas
      FROM lead_dispatch d
      LEFT JOIN event_log e ON e.event_id = d.event_id
-     WHERE d.criado_em BETWEEN ? AND ?
+     WHERE COALESCE(e.timestamp, d.criado_em) BETWEEN ? AND ?
        AND COALESCE(e.is_junk, 0) = 0 AND COALESCE(e.is_bot, 0) = 0`
   ).bind(since, until).first();
 
@@ -37,7 +45,7 @@ export async function onRequestGet(context) {
      FROM lead_dispatch d
      LEFT JOIN event_log e ON e.event_id = d.event_id
      LEFT JOIN sessions s ON s.session_id = e.session_id
-     WHERE d.criado_em BETWEEN ? AND ? AND d.resultado != 'falha'
+     WHERE COALESCE(e.timestamp, d.criado_em) BETWEEN ? AND ? AND d.resultado != 'falha'
        AND COALESCE(e.is_junk, 0) = 0 AND COALESCE(e.is_bot, 0) = 0
      GROUP BY origem ORDER BY (novos + retornando) DESC LIMIT 20`
   ).bind(since, until).all();
@@ -49,7 +57,7 @@ export async function onRequestGet(context) {
      JOIN crm_status_log st ON st.task_id = d.task_id
        AND st.id = (SELECT MAX(id) FROM crm_status_log WHERE task_id = d.task_id)
      LEFT JOIN event_log e ON e.event_id = d.event_id
-     WHERE d.criado_em BETWEEN ? AND ? AND d.task_id IS NOT NULL
+     WHERE COALESCE(e.timestamp, d.criado_em) BETWEEN ? AND ? AND d.task_id IS NOT NULL
        AND COALESCE(e.is_junk, 0) = 0 AND COALESCE(e.is_bot, 0) = 0
      GROUP BY st.status ORDER BY leads DESC`
   ).bind(since, until).all();
