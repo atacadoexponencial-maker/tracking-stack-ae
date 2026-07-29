@@ -52,7 +52,13 @@ def campo(r, chave):
             return v
     return ""
 
-PLATFORM_UTM = {"ig": "instagram", "fb": "facebook"}
+# Lead de formulário nativo é SEMPRE tráfego pago do Meta, então `utm_source`
+# é fixo em `facebookads` — o mesmo valor que os anúncios preenchem na URL das
+# LPs. A coluna `platform` da planilha (ig/fb) diz só ONDE o anúncio apareceu,
+# não a origem; ela continua indo no payload e vira o `referrer` (`meta:ig`).
+# Antes `platform` virava o utm_source (`instagram`/`facebook`) e por isso o
+# canal desses leads caía em `outro` em vez de `meta-ads` (ver _canal.js).
+UTM_SOURCE = "facebookads"
 
 
 def to_ts(s):
@@ -110,7 +116,7 @@ def build_lead(ts, r):
         "justificativa": campo(r, "justificativa").strip(),
         "objetivo": campo(r, "objetivo").strip(),
         "platform": plat,
-        "utm_source": PLATFORM_UTM.get(plat, plat or "meta"),
+        "utm_source": UTM_SOURCE,
         "utm_medium": campo(r, "adset_name").strip(),
         "utm_campaign": campo(r, "campaign_name").strip(),
         "utm_content": campo(r, "ad_name").strip(),
