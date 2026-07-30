@@ -64,6 +64,24 @@ export async function onRequestGet(context) {
     `SELECT MAX(occurred_at) AS quando FROM whatsapp_group_events`
   ).first();
 
+  // Conversão "EntrouGrupo" enviada ao Meta (spec 2026-07-29). Números do
+  // PERÍODO pela data da entrada real — não pela do envio, que é quando o cron
+  // rodou. Isto é só leitura: as contagens de entradas/saídas acima não mudam,
+  // e continuam incluindo reentradas que a conversão deduplica.
+  const conv = await env.DB.prepare(
+    `SELECT
+       SUM(CASE WHEN status = 'enviada' THEN 1 ELSE 0 END) AS enviadas,
+       SUM(CASE WHEN status = 'enviada' AND enriquecida = 1 THEN 1 ELSE 0 END) AS enriquecidas,
+       SUM(CASE WHEN status = 'pendente' THEN 1 ELSE 0 END) AS pendentes,
+       SUM(CASE WHEN status = 'falha' THEN 1 ELSE 0 END) AS falhas
+     FROM whatsapp_group_conversions
+     WHERE substr(occurred_at, 1, 10) BETWEEN ? AND ?`
+  ).bind(diaDe, diaAte).first();
+
+  const ultimaConv = await env.DB.prepare(
+    `SELECT MAX(enviado_em) AS quando FROM whatsapp_group_conversions WHERE status = 'enviada'`
+  ).first();
+
   // Dias sem evento precisam existir com zero: buraco na série faria o gráfico
   // ligar dois pontos distantes como se o período no meio não existisse.
   const dias = listarDias(diaDe, diaAte);
@@ -107,6 +125,13 @@ export async function onRequestGet(context) {
     recentes: recentes || [],
     nao_monitorados: naoMonitorados || [],
     ultimo_evento_em: ultimo?.quando || null,
+    conversao: {
+      enviadas: Number(conv?.enviadas || 0),
+      enriquecidas: Number(conv?.enriquecidas || 0),
+      pendentes: Number(conv?.pendentes || 0),
+      falhas: Number(conv?.falhas || 0),
+      ultima_enviada_em: ultimaConv?.quando || null,
+    },
   });
 }
 

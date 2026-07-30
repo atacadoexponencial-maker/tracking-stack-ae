@@ -228,6 +228,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
     <section class="secao" id="secao-grupos">
       <div class="card" id="grupos-conexao-card"><h2>Conexão do WhatsApp <small id="grupos-conexao-nota"></small></h2><div id="grupos-conexao"></div></div>
       <div id="grupos-aviso"></div>
+      <div class="card"><h2>Conversão no Meta <small>entrada no grupo → EntrouGrupo</small></h2><div id="grupos-conversao"></div></div>
       <div id="grupos-blocos"></div>
       <div class="card"><h2>Eventos recentes <small>quem entrou e quem saiu</small></h2><div class="tabela-wrap" id="grupos-eventos"></div></div>
     </section>
@@ -775,6 +776,21 @@ R.grupos = async () => {
   $('#grupos-aviso').innerHTML = naoMon.length
     ? `<div class="aviso">${naoMon.length} grupo(s) gerando eventos fora da lista monitorada — normal, o número participa de muitos grupos de terceiros. Só importa se algum deles for um grupo da operação que deveria estar sendo medido: ${naoMon.slice(0, 3).map((g) => esc(g.group_jid)).join(', ')}</div>`
     : '';
+
+  // Conversão enviada ao Meta. Os números aqui são MENORES que as entradas do
+  // gráfico de propósito: reentrada da mesma pessoa conta como entrada, mas não
+  // vira segunda conversão. Ver spec 2026-07-29.
+  const cv = dados.conversao || {};
+  const pctEnriq = cv.enviadas ? Math.round((cv.enriquecidas / cv.enviadas) * 100) : 0;
+  $('#grupos-conversao').innerHTML = [
+    { rotulo: 'Enviadas ao Meta', valor: fmtInt(cv.enviadas) },
+    { rotulo: 'Com lead casado', valor: `${fmtInt(cv.enriquecidas)} (${pctEnriq}%)`, nota: 'correspondência melhor no Meta' },
+    { rotulo: 'Pendentes', valor: fmtInt(cv.pendentes) },
+    { rotulo: 'Falhas', valor: fmtInt(cv.falhas), nota: cv.falhas ? 'exigem atenção' : '' },
+  ].map((k) => `<div class="kpi"><div class="rotulo">${k.rotulo}</div><div class="valor"${k.rotulo === 'Falhas' && cv.falhas ? ' style="color:var(--down)"' : ''}>${k.valor}</div>${k.nota ? `<div class="mini">${k.nota}</div>` : ''}</div>`).join('')
+    + `<div class="mini" style="margin-top:.5rem">${cv.ultima_enviada_em
+        ? 'última conversão enviada em ' + new Date(cv.ultima_enviada_em * 1000).toLocaleString('pt-BR')
+        : 'nenhuma conversão enviada ainda'}</div>`;
 
   const dataHora = (iso) => { const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); };
   const dataDia = (iso) => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '—';
