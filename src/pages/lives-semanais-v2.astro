@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import ProvaSocialLive from '../components/ProvaSocialLive.astro';
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo.png';
 
@@ -80,6 +81,8 @@ const proofImages = Object.entries(proofModules)
       </div>
     </section>
   </main>
+
+  <ProvaSocialLive />
 </BaseLayout>
 
 <style>

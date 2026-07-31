@@ -1,0 +1,126 @@
+---
+// Balão de prova social da /lives-semanais-v2 (issue 184).
+//
+// Conteúdo 100% fictício e 100% no navegador: sem chamada de rede, sem banco,
+// sem evento de tracking. O componente NÃO é genérico de propósito — é usado só
+// nesta LP, e generalizá-lo antes de existir um segundo caso seria adivinhação.
+import { NOMES_PROVA_SOCIAL } from '../data/prova-social.js';
+---
+
+<div class="ps" id="prova-social" role="status" aria-live="polite" hidden>
+  <span class="ps__ponto" aria-hidden="true"></span>
+  <p class="ps__texto"><strong class="ps__nome"></strong> acabou de entrar no grupo<span class="ps__quando"></span></p>
+</div>
+
+<style>
+  .ps {
+    position: fixed;
+    left: 1rem;
+    /* No celular sobe acima do rodapé: a notificação não pode cobrir o CTA, que
+       é a razão de existir da página. */
+    bottom: 5.5rem;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    /* Estreito de propósito: ocupando quase a largura da tela o balão vira
+       faixa de anúncio, não notificação. */
+    max-width: min(17.5rem, calc(100vw - 2rem));
+    padding: 0.7rem 0.95rem;
+    border: 1px solid rgba(30, 30, 30, 0.1);
+    border-radius: 0.9rem;
+    background: #fff;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+    opacity: 0;
+    transform: translateY(0.6rem);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    /* O balão é decorativo: nunca pode comer um toque destinado à página. Sem
+       isto ele intercepta o clique na área que ocupa, inclusive invisível. */
+    pointer-events: none;
+  }
+  /* PRECISA ser explícito: o `display:flex` acima vence o `display:none` que o
+     atributo `hidden` aplica (regra de autor > regra do navegador), e sem esta
+     linha o balão continua ocupando espaço na tela mesmo "escondido". */
+  .ps[hidden] { display: none; }
+  .ps[data-visivel='1'] { opacity: 1; transform: translateY(0); }
+
+  .ps__ponto {
+    flex: none;
+    width: 0.5rem; height: 0.5rem;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+  .ps__texto {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    color: rgba(30, 30, 30, 0.85);
+  }
+  .ps__nome { color: rgba(30, 30, 30, 1); }
+  /* Linha própria: no meio da frase o "há X minutos" quebrava em lugar
+     arbitrário. Embaixo, menor e mais claro, lê como carimbo de horário —
+     que é como as notificações de verdade se parecem. */
+  .ps__quando {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+    color: rgba(30, 30, 30, 0.5);
+  }
+
+  @media (min-width: 768px) { .ps { bottom: 1.5rem; } }
+
+  /* Quem pediu menos animação no sistema recebe o balão sem o deslize: ele
+     aparece e some, sem movimento. */
+  @media (prefers-reduced-motion: reduce) {
+    .ps { transition: opacity 0.2s ease; transform: none; }
+    .ps[data-visivel='1'] { transform: none; }
+  }
+</style>
+
+<script is:inline define:vars={{ NOMES: NOMES_PROVA_SOCIAL }}>
+  (() => {
+    const caixa = document.getElementById('prova-social');
+    if (!caixa || !NOMES.length) return;
+
+    const elNome = caixa.querySelector('.ps__nome');
+    const elQuando = caixa.querySelector('.ps__quando');
+
+    const entre = (min, max) => min + Math.random() * (max - min);
+
+    // Fila embaralhada, consumida sem repetir: ver o mesmo nome duas vezes em
+    // três minutos é o que mais entrega a encenação. Esgotada, reembaralha.
+    let fila = [];
+    const proximoNome = () => {
+      if (!fila.length) {
+        fila = [...NOMES];
+        for (let i = fila.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [fila[i], fila[j]] = [fila[j], fila[i]];
+        }
+      }
+      return fila.pop();
+    };
+
+    const mostrar = () => {
+      elNome.textContent = proximoNome();
+      // Sem o "·" na frente: o carimbo agora tem linha própria.
+      elQuando.textContent = `há ${Math.floor(entre(2, 16))} minutos`;
+      caixa.hidden = false;
+      // Um quadro entre remover o `hidden` e ligar a transição, senão o
+      // navegador aplica os dois estados de uma vez e o balão surge seco.
+      requestAnimationFrame(() => caixa.setAttribute('data-visivel', '1'));
+
+      setTimeout(() => {
+        caixa.removeAttribute('data-visivel');
+        setTimeout(() => { caixa.hidden = true; }, 400);
+      }, 5000);
+
+      // Intervalo SORTEADO a cada vez. Com intervalo fixo o padrão é percebido
+      // em duas repetições e vira "script rodando"; é a variação que faz
+      // parecer movimento real.
+      setTimeout(mostrar, entre(45000, 90000));
+    };
+
+    setTimeout(mostrar, entre(20000, 30000));
+  })();
+</script>
