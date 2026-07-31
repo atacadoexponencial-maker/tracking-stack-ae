@@ -41,6 +41,7 @@ export async function onRequestPost(context) {
   const started = Date.now();
   const agora = Math.floor(Date.now() / 1000);
   let aceitas = 0, jaConvertidas = 0, enviadas = 0, falhas = 0, semTelefone = 0;
+  let credencialQuebrada = null;
 
   // 1. Grupos que participam. Sem nenhum, não há o que fazer — e isso é estado
   //    normal (ex.: antes da ativação), não erro.
@@ -118,6 +119,16 @@ export async function onRequestPost(context) {
             WHERE id = ?`
         ).bind(lead ? 1 : 0, agora, c.id).run();
         enviadas++;
+      } else if (resultado.credencial) {
+        // Token inválido/ausente é problema NOSSO, não daquela conversão: se
+        // consumisse tentativa, um token quebrado por algumas horas queimaria as
+        // 5 chances de cada entrada da live e as perderia para sempre. Fica
+        // pendente sem gastar crédito, e o alerta chama alguém para consertar.
+        await env.DB.prepare(
+          `UPDATE whatsapp_group_conversions SET erro = ? WHERE id = ?`
+        ).bind(resultado.erro.slice(0, 500), c.id).run();
+        falhas++;
+        credencialQuebrada = resultado.erro;
       } else {
         const tentativas = c.tentativas + 1;
         const definitiva = tentativas >= MAX_TENTATIVAS;
@@ -153,13 +164,16 @@ export async function onRequestPost(context) {
      VALUES ('grupo_conversoes', ?, ?, NULL, NULL, ?, ?, ?)`
   ).bind(
     falhas ? 'error' : 'ok', enviadas,
-    falhas ? `${falhas} envio(s) falharam` : (fonteParada ? `sem eventos de grupo há ${Math.round(horasSemEvento)}h` : null),
+    credencialQuebrada
+      ? `CREDENCIAL do pixel 2 inválida — nada é enviado até corrigir: ${String(credencialQuebrada).slice(0, 200)}`
+      : (falhas ? `${falhas} envio(s) falharam` : (fonteParada ? `sem eventos de grupo há ${Math.round(horasSemEvento)}h` : null)),
     Date.now() - started, agora
   ).run();
 
   return json({
     ok: true, aceitas, ja_convertidas: jaConvertidas, enviadas, falhas,
     sem_telefone: semTelefone,
+    credencial_invalida: credencialQuebrada ? true : false,
     horas_sem_evento: horasSemEvento === null ? null : Math.round(horasSemEvento),
     fonte_parada: fonteParada,
   });
@@ -193,7 +207,7 @@ async function enviarAoMeta(env, conversao, lead) {
   if (!pixelId || !accessToken) {
     // Vars sumidas é o modo de falha silenciosa que já mordeu este projeto:
     // registra o motivo em vez de fingir sucesso.
-    return { ok: false, erro: 'META_PIXEL_ID_2/META_ACCESS_TOKEN_2 ausentes' };
+    return { ok: false, credencial: true, erro: 'META_PIXEL_ID_2/META_ACCESS_TOKEN_2 ausentes' };
   }
 
   const userData = {
@@ -229,7 +243,11 @@ async function enviarAoMeta(env, conversao, lead) {
   );
   if (resp.ok) return { ok: true };
   const corpo = await resp.text().catch(() => '');
-  return { ok: false, erro: `HTTP ${resp.status}: ${corpo}` };
+  // OAuthException (code 190) e 401/403 são credencial, não o evento: token
+  // inválido, expirado ou sem permissão. Distinguir importa porque só o outro
+  // tipo de erro deve consumir tentativa.
+  const credencial = resp.status === 401 || resp.status === 403 || /"code"\s*:\s*190|OAuthException/.test(corpo);
+  return { ok: false, credencial, erro: `HTTP ${resp.status}: ${corpo}` };
 }
 
 function json(data, status = 200) {
