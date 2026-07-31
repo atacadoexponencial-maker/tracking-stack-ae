@@ -24,7 +24,7 @@ Voltar as duas perguntas abertas — desafio (justificativa) e objetivo — ao c
 
 ## Checklist
 
-- [ ] 2 passos no `STEPS` (justificativa, objetivo) após faturamento
-- [ ] Incluir `justificativa`/`objetivo` no `lead_data`
-- [ ] `CU_FIELD.justificativa` + `CU_FIELD.objetivo` e push no create
-- [ ] Justificativa/Objetivo no texto do comentário
+- [x] 2 passos no `STEPS` (justificativa, objetivo) após faturamento
+- [x] Incluir `justificativa`/`objetivo` no `lead_data`
+- [x] `CU_FIELD.justificativa` + `CU_FIELD.objetivo` e push no create
+- [x] Justificativa/Objetivo no texto do comentário
