@@ -13,7 +13,12 @@ export async function onRequest(context) {
     && !url.pathname.startsWith('/webhook/')
     && !url.pathname.startsWith('/checkout-session')
     && !url.pathname.startsWith('/api/')
-    && !url.pathname.startsWith('/dash');
+    && !url.pathname.startsWith('/dash')
+    // /links só redireciona para fora (grupo de WhatsApp, checkout, LP). Criar
+    // sessão e cookies aqui encheria o dashboard de visitas que nunca existiram:
+    // clicar num link de disparo não é visitar o site. A contagem de cliques
+    // vive em short_link_clicks, não nas sessões.
+    && !url.pathname.startsWith('/links');
 
   if (!isPageRequest) {
     return next();

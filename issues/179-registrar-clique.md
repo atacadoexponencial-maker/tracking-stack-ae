@@ -35,8 +35,8 @@ Escreve em `short_link_clicks` (criada na issue 176).
 
 ## Checklist
 
-- [ ] Importar `diaLocalDeUnix` de `./api/webhooks/_classificar.js`
-- [ ] Gravar `link_id`, `occurred_at`, `day_local`, UTMs, `user_agent` e `ip`
-- [ ] Usar `context.waitUntil()` para não atrasar o redirect
-- [ ] Engolir falha de escrita sem afetar a resposta
-- [ ] Gravar o clique mesmo quando não há destino cadastrado (`link_id` NULL)
+- [x] Importar `diaLocalDeUnix` de `./api/webhooks/_classificar.js`
+- [x] Gravar `link_id`, `occurred_at`, `day_local`, UTMs, `user_agent` e `ip`
+- [x] Usar `context.waitUntil()` para não atrasar o redirect
+- [x] Engolir falha de escrita sem afetar a resposta
+- [x] Gravar o clique mesmo quando não há destino cadastrado (`link_id` NULL)

@@ -33,11 +33,11 @@ Abrir `/dash#links` carrega o `GET /api/links`, mostra o destino no ar com o mot
 
 ## Checklist
 
-- [ ] Carregar destinos e destino no ar via `fetchJson('/api/links')`
-- [ ] Renderizar rótulo, URL, janela, situação e cliques
-- [ ] Ligar o formulário de criar ao `POST`
-- [ ] Ligar editar e apagar ao `POST`
-- [ ] Exibir horários em Brasília e enviar unix seconds
-- [ ] Mostrar a mensagem de erro vinda do backend
-- [ ] Escapar com `esc()` tudo que vier do banco
-- [ ] Não replicar no formulário nenhuma regra de negócio validada no backend
+- [x] Carregar destinos e destino no ar via `fetchJson('/api/links')`
+- [x] Renderizar rótulo, URL, janela, situação e cliques
+- [x] Ligar o formulário de criar ao `POST`
+- [x] Ligar editar e apagar ao `POST`
+- [x] Exibir horários em Brasília e enviar unix seconds
+- [x] Mostrar a mensagem de erro vinda do backend
+- [x] Escapar com `esc()` tudo que vier do banco
+- [x] Não replicar no formulário nenhuma regra de negócio validada no backend

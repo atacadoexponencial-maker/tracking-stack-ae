@@ -37,9 +37,9 @@ Lê `short_links` e `short_link_clicks` (issue 176).
 
 ## Checklist
 
-- [ ] Criar `functions/api/links.js` com `onRequestGet`
-- [ ] Guardar com `?key=<DASH_KEY>`, devolvendo 401 quando inválida
-- [ ] Extrair a escolha do destino para `functions/_links-destino.js` e usar nas duas rotas
-- [ ] Agregar cliques por destino em SQL
-- [ ] Devolver a situação de cada linha calculada no backend
-- [ ] Devolver o destino no ar com o motivo (janela ou padrão)
+- [x] Criar `functions/api/links.js` com `onRequestGet`
+- [x] Guardar com `?key=<DASH_KEY>`, devolvendo 401 quando inválida
+- [x] Extrair a escolha do destino para `functions/_links-destino.js` e usar nas duas rotas
+- [x] Agregar cliques por destino em SQL
+- [x] Devolver a situação de cada linha calculada no backend
+- [x] Devolver o destino no ar com o motivo (janela ou padrão)

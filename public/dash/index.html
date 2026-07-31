@@ -138,6 +138,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <a href="#email" data-secao="email">Email</a>
       <a href="#workshops" data-secao="workshops">Workshops</a>
       <a href="#grupos" data-secao="grupos">Grupos</a>
+      <a href="#links" data-secao="links">Links</a>
       <a href="#jornada" data-secao="jornada">Jornada</a>
       <a href="#eventos" data-secao="eventos">Eventos</a>
     </nav>
@@ -231,6 +232,38 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <div class="card"><h2>Conversão no Meta <small>entrada no grupo → EntrouGrupo</small></h2><div id="grupos-conversao"></div></div>
       <div id="grupos-blocos"></div>
       <div class="card"><h2>Eventos recentes <small>quem entrou e quem saiu</small></h2><div class="tabela-wrap" id="grupos-eventos"></div></div>
+    </section>
+
+    <section class="secao" id="secao-links">
+      <div class="card">
+        <h2>No ar agora <small>é para onde /links leva neste momento</small></h2>
+        <div id="links-ativo"></div>
+      </div>
+      <div class="card">
+        <h2>Destinos <small>clique em um para editar</small></h2>
+        <div class="tabela-wrap" id="links-tabela"></div>
+      </div>
+      <div class="card">
+        <h2 id="links-form-titulo">Novo destino</h2>
+        <form id="links-form" style="display:grid; gap:0.6rem; max-width:640px">
+          <input type="hidden" id="links-id">
+          <input type="text" id="links-label" placeholder="Rótulo (ex.: Disparo Live 05/08)" required>
+          <input type="text" id="links-url" placeholder="https://destino-completo.com/pagina" required>
+          <label style="display:flex; gap:0.5rem; align-items:center">
+            <input type="checkbox" id="links-padrao">
+            Destino padrão (vale sempre que nenhum agendamento estiver valendo)
+          </label>
+          <div id="links-janela" style="display:flex; gap:0.5rem; flex-wrap:wrap">
+            <label style="flex:1; min-width:200px">Início <input type="datetime-local" id="links-de" style="width:100%"></label>
+            <label style="flex:1; min-width:200px">Fim <input type="datetime-local" id="links-ate" style="width:100%"></label>
+          </div>
+          <div id="links-erro" class="aviso falha" hidden></div>
+          <div style="display:flex; gap:0.5rem">
+            <button class="btn" type="submit">Salvar</button>
+            <button class="btn" type="button" id="links-cancelar" hidden>Cancelar edição</button>
+          </div>
+        </form>
+      </div>
     </section>
 
     <section class="secao" id="secao-jornada">
@@ -850,6 +883,117 @@ R.grupos = async () => {
   ], dados.recentes || []);
 };
 
+// ---------- links ----------
+// A aba NÃO reimplementa nenhuma regra: situação de cada destino e qual está no
+// ar vêm prontos de /api/links, e a validação do formulário é a do backend. Aqui
+// só coleta e exibe.
+const LINKS_URL_PUBLICA = location.origin + '/links';
+const SITUACOES = { 'no-ar': 'no ar', agendado: 'agendado', encerrado: 'encerrado', padrao: 'padrão' };
+
+// O horário digitado é sempre de Brasília, independentemente do fuso da máquina
+// de quem abre o dash: o disparo é marcado em horário daqui.
+const paraUnixBRT = (v) => (v ? Math.floor(Date.parse(v + ':00-03:00') / 1000) : null);
+const deUnixBRT = (ts) => (ts ? new Date(ts * 1000).toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(0, 16).replace(' ', 'T') : '');
+const quandoBRT = (ts) => (ts ? new Date(ts * 1000).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }) : '—');
+
+R.links = async () => {
+  const dados = await fetchJson('/api/links');
+
+  const ativo = dados.ativo;
+  $('#links-ativo').innerHTML = ativo
+    ? `<p style="margin:0 0 0.5rem"><b>${esc(ativo.label)}</b> <span class="mini">(${ativo.motivo === 'janela' ? 'agendamento em vigor' : 'destino padrão'})</span></p>
+       <p class="mini" style="word-break:break-all;margin:0 0 0.8rem">${esc(ativo.target_url)}</p>
+       <button class="btn" type="button" id="links-copiar">Copiar ${esc(LINKS_URL_PUBLICA)}</button>`
+    : `<div class="aviso falha">Nenhum destino cadastrado — quem clicar em ${esc(LINKS_URL_PUBLICA)} cai na home. Cadastre um destino padrão abaixo.</div>`;
+
+  const btnCopiar = $('#links-copiar');
+  if (btnCopiar) btnCopiar.onclick = async () => {
+    try { await navigator.clipboard.writeText(LINKS_URL_PUBLICA); btnCopiar.textContent = 'Copiado!'; }
+    catch { btnCopiar.textContent = LINKS_URL_PUBLICA; }
+  };
+
+  tabela($('#links-tabela'), [
+    { titulo: 'Rótulo', campo: 'label', render: (r) => esc(r.label) },
+    { titulo: 'Destino', campo: 'target_url', render: (r) => `<span class="mini" style="word-break:break-all">${esc(r.target_url)}</span>` },
+    { titulo: 'Janela', campo: 'starts_at', render: (r) => r.situacao === 'padrao' ? '<span class="mini">sempre</span>' : `<span class="mini">${quandoBRT(r.starts_at)} → ${quandoBRT(r.ends_at)}</span>` },
+    { titulo: 'Situação', campo: 'situacao', render: (r) => SITUACOES[r.situacao] || esc(r.situacao) },
+    { titulo: 'Cliques', num: true, campo: 'cliques', render: (r) => r.cliques },
+    { titulo: '', campo: 'id', render: (r) => `<button class="btn" type="button" data-editar="${r.id}">editar</button> <button class="btn" type="button" data-apagar="${r.id}">apagar</button>` },
+  ], dados.rows || []);
+
+  if (!(dados.rows || []).length) {
+    $('#links-tabela').innerHTML = '<p class="mini">Nenhum destino cadastrado ainda.</p>';
+  }
+
+  // Listener no contêiner porque `tabela()` redesenha a tabela ao ordenar.
+  $('#links-tabela').onclick = async (ev) => {
+    const editar = ev.target.closest('[data-editar]');
+    if (editar) return preencherForm((dados.rows || []).find((r) => String(r.id) === editar.dataset.editar));
+    const apagar = ev.target.closest('[data-apagar]');
+    if (apagar) await salvarLink({ id: apagar.dataset.apagar, acao: 'apagar' });
+  };
+};
+
+function preencherForm(linha) {
+  if (!linha) return;
+  $('#links-id').value = linha.id;
+  $('#links-label').value = linha.label;
+  $('#links-url').value = linha.target_url;
+  $('#links-padrao').checked = linha.situacao === 'padrao';
+  $('#links-de').value = deUnixBRT(linha.starts_at);
+  $('#links-ate').value = deUnixBRT(linha.ends_at);
+  $('#links-form-titulo').textContent = 'Editar destino';
+  $('#links-cancelar').hidden = false;
+  aplicarPadrao();
+}
+
+function limparForm() {
+  $('#links-form').reset();
+  $('#links-id').value = '';
+  $('#links-form-titulo').textContent = 'Novo destino';
+  $('#links-cancelar').hidden = true;
+  $('#links-erro').hidden = true;
+  aplicarPadrao();
+}
+
+// Esconder as datas é conveniência de tela; quem garante "padrão não tem janela"
+// é o backend.
+function aplicarPadrao() { $('#links-janela').hidden = $('#links-padrao').checked; }
+
+async function salvarLink(corpo) {
+  const erro = $('#links-erro');
+  erro.hidden = true;
+  const r = await fetch(`/api/links?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(corpo),
+  });
+  const resposta = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    // A mensagem exibida é a do backend — a tela não inventa validação própria.
+    erro.textContent = resposta.error || 'Não foi possível salvar. Tente de novo.';
+    erro.hidden = false;
+    return false;
+  }
+  limparForm();
+  await R.links();
+  return true;
+}
+
+$('#links-padrao').addEventListener('change', aplicarPadrao);
+$('#links-cancelar').addEventListener('click', limparForm);
+$('#links-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const padrao = $('#links-padrao').checked;
+  await salvarLink({
+    id: $('#links-id').value || undefined,
+    label: $('#links-label').value,
+    target_url: $('#links-url').value,
+    starts_at: padrao ? null : paraUnixBRT($('#links-de').value),
+    ends_at: padrao ? null : paraUnixBRT($('#links-ate').value),
+  });
+});
+
 R.jornada = async () => {};
 $('#jornada-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
@@ -976,7 +1120,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', jornada: 'Jornada', eventos: 'Eventos' };
 let secao = 'visao';
 async function render() {
   const p = intervalo();

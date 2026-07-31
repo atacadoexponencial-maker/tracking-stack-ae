@@ -27,7 +27,7 @@ Destino que não parseia como URL → redireciona para o destino cru, sem tentar
 
 ## Checklist
 
-- [ ] Repassar apenas `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`
-- [ ] Não sobrescrever parâmetro que o destino já define
-- [ ] Preservar query e fragmento existentes no destino
-- [ ] Não quebrar quando o destino não for URL absoluta parseável
+- [x] Repassar apenas `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`
+- [x] Não sobrescrever parâmetro que o destino já define
+- [x] Preservar query e fragmento existentes no destino
+- [x] Não quebrar quando o destino não for URL absoluta parseável

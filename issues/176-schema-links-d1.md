@@ -49,7 +49,7 @@ Nenhum caminho de erro em runtime: é DDL. O risco é operacional (ver observaç
 
 ## Checklist
 
-- [ ] Criar `migrations/0030_short_links.sql` com `short_links` e `short_link_clicks`
-- [ ] Usar `IF NOT EXISTS` em tabelas e índices
-- [ ] Comentar no arquivo por que apagar é marcação e por que `day_local` é gravado
-- [ ] Não alterar nenhuma tabela existente
+- [x] Criar `migrations/0030_short_links.sql` com `short_links` e `short_link_clicks`
+- [x] Usar `IF NOT EXISTS` em tabelas e índices
+- [x] Comentar no arquivo por que apagar é marcação e por que `day_local` é gravado
+- [x] Não alterar nenhuma tabela existente

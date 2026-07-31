@@ -30,9 +30,12 @@ Não se aplica ao protótipo — o tratamento de falha de carga já existe no `r
 
 ## Checklist
 
-- [ ] Acrescentar `<a href="#links" data-secao="links">Links</a>` ao nav
-- [ ] Criar `<section class="secao" id="secao-links">` com o card do destino no ar, a tabela e o formulário
-- [ ] Acrescentar `links: 'Links'` a `TITULOS`
-- [ ] Criar `R.links` com dados fictícios, usando `tabela()` e `esc()`
-- [ ] Cobrir o estado vazio
-- [ ] Não tocar em nenhuma outra seção do dash
+- [x] Acrescentar `<a href="#links" data-secao="links">Links</a>` ao nav
+- [x] Criar `<section class="secao" id="secao-links">` com o card do destino no ar, a tabela e o formulário
+- [x] Acrescentar `links: 'Links'` a `TITULOS`
+- [x] Criar `R.links` usando `tabela()` e `esc()`
+      — feito já com dados reais, sem a etapa de dados fictícios: a marcação foi
+      construída junto com a issue 183 no mesmo arquivo, e um `R.links` de mentira
+      seria escrito e apagado no mesmo dia.
+- [x] Cobrir o estado vazio
+- [x] Não tocar em nenhuma outra seção do dash

@@ -35,11 +35,11 @@ Falha na consulta ao D1 → redireciona para o destino padrão se já conhecido,
 
 ## Checklist
 
-- [ ] Criar `functions/_links-destino.js` com a regra de escolha, como função pura
-- [ ] Criar `functions/links.js` com `onRequestGet`
-- [ ] Selecionar a janela válida no instante do clique, desempatando por `starts_at DESC`
-- [ ] Cair no destino padrão (`starts_at`/`ends_at` nulos) quando não houver janela
-- [ ] Cair em `/` quando não houver nem padrão
-- [ ] Ignorar destinos com `apagado_em` preenchido
-- [ ] Responder 302 com `Cache-Control: no-store`
-- [ ] Tratar falha do D1 sem mostrar erro a quem clicou
+- [x] Criar `functions/_links-destino.js` com a regra de escolha, como função pura
+- [x] Criar `functions/links.js` com `onRequestGet`
+- [x] Selecionar a janela válida no instante do clique, desempatando por `starts_at DESC`
+- [x] Cair no destino padrão (`starts_at`/`ends_at` nulos) quando não houver janela
+- [x] Cair em `/` quando não houver nem padrão
+- [x] Ignorar destinos com `apagado_em` preenchido
+- [x] Responder 302 com `Cache-Control: no-store`
+- [x] Tratar falha do D1 sem mostrar erro a quem clicou

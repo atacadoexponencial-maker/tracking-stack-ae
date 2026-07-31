@@ -24,6 +24,6 @@ Não se aplica.
 
 ## Checklist
 
-- [ ] Acrescentar `/links` à lista de exclusão de `isPageRequest`
-- [ ] Comentar por que (clique que sai do site não é visita ao site)
-- [ ] Não alterar nenhuma outra exclusão existente
+- [x] Acrescentar `/links` à lista de exclusão de `isPageRequest`
+- [x] Comentar por que (clique que sai do site não é visita ao site)
+- [x] Não alterar nenhuma outra exclusão existente

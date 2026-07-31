@@ -40,10 +40,10 @@ Escreve em `short_links` (issue 176).
 
 ## Checklist
 
-- [ ] Acrescentar `onRequestPost` a `functions/api/links.js`
-- [ ] Guardar com `?key=<DASH_KEY>`
-- [ ] Recusar URL fora de `http`/`https`, com comentário explicando o risco
-- [ ] Recusar `ends_at` < `starts_at`, datas pela metade e `label` vazio
-- [ ] Criar, editar (por `id`) e apagar (marcando `apagado_em`)
-- [ ] Ao gravar um novo destino padrão, marcar o padrão anterior como apagado
-- [ ] Toda validação no backend — nenhuma regra de negócio no formulário
+- [x] Acrescentar `onRequestPost` a `functions/api/links.js`
+- [x] Guardar com `?key=<DASH_KEY>`
+- [x] Recusar URL fora de `http`/`https`, com comentário explicando o risco
+- [x] Recusar `ends_at` < `starts_at`, datas pela metade e `label` vazio
+- [x] Criar, editar (por `id`) e apagar (marcando `apagado_em`)
+- [x] Ao gravar um novo destino padrão, marcar o padrão anterior como apagado
+- [x] Toda validação no backend — nenhuma regra de negócio no formulário
