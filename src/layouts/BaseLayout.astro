@@ -50,9 +50,8 @@ const {
       t.src=v;s=b.getElementsByTagName(e)[0];
       s.parentNode.insertBefore(t,s)}(window, document,'script',
       '/scripts/fbevents.js');
-      fbq('init', '915637492681788');
-      // Pixel 2 — conta de anúncios nova (migração). fbq('track') dispara para
-      // todos os pixels inicializados; mesmo event_id → dedup por pixel no Meta.
+      // Pixel único: conta Sete Ads 2. O pixel anterior saiu em 2026-07-30,
+      // quando a conta de anúncios dele foi bloqueada.
       fbq('init', '2800317883678788');
       // event_id único por visualização — mesmo padrão dos pontos de Lead
       var pvEventId = 'pv-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);

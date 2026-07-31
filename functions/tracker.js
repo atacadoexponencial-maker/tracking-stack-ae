@@ -84,18 +84,22 @@ export async function onRequestPost(context) {
     const eventFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
     const effectiveFunnel = eventFunnel || (sessionData.funnel || '');
 
-    // Pixel 2 (conta de anúncios nova, em migração): recebe só PageView e Lead.
-    // Fica ativo apenas enquanto META_PIXEL_ID_2/META_ACCESS_TOKEN_2 existirem
-    // no env — remover as vars desliga sem mexer no código.
-    const eventNameLc = (body.event_name || '').toLowerCase();
-    const pixel2Eligible = eventNameLc === 'pageview' || eventNameLc === 'lead';
+    // Pixel ÚNICO desde 2026-07-30: a conta antiga foi bloqueada, então o pixel
+    // 915637492681788 parou de servir para qualquer coisa e saiu (do browser em
+    // BaseLayout.astro e daqui). As vars `_2` continuam sendo a fonte porque são
+    // as que já apontam para a conta Sete Ads 2; o fallback para as primárias
+    // deixa a renomeação futura ser só troca de secret, sem deploy.
+    //
+    // Efeito colateral bem-vindo: o event_log passa a registrar a resposta do
+    // pixel que realmente importa. Antes ele guardava a do pixel antigo, e foi
+    // por isso que o token quebrado do pixel novo passou semanas invisível.
+    const pixelId = env.META_PIXEL_ID_2 || env.META_PIXEL_ID;
+    const accessToken = env.META_ACCESS_TOKEN_2 || env.META_ACCESS_TOKEN;
 
     const results = isBot ? [] : await Promise.allSettled([
-      sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId: env.META_PIXEL_ID, accessToken: env.META_ACCESS_TOKEN }),
+      sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }),
       sendToGA4({ body, gaClientId, gaSessionId, hashedEm, sessionData, funnel: effectiveFunnel, env }),
-      pixel2Eligible
-        ? sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId: env.META_PIXEL_ID_2, accessToken: env.META_ACCESS_TOKEN_2 })
-        : Promise.resolve({ skipped: 'pixel2: evento fora do escopo', payload: null, response: null }),
+      Promise.resolve({ skipped: 'pixel 2 unificado ao principal', payload: null, response: null }),
     ]);
 
     // --- Parse Meta result ---
