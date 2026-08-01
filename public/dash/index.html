@@ -139,6 +139,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <a href="#workshops" data-secao="workshops">Workshops</a>
       <a href="#grupos" data-secao="grupos">Grupos</a>
       <a href="#links" data-secao="links">Links</a>
+      <a href="#ab" data-secao="ab">Testes A/B</a>
       <a href="#jornada" data-secao="jornada">Jornada</a>
       <a href="#eventos" data-secao="eventos">Eventos</a>
     </nav>
@@ -261,6 +262,37 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
           <div style="display:flex; gap:0.5rem">
             <button class="btn" type="submit">Salvar</button>
             <button class="btn" type="button" id="links-cancelar" hidden>Cancelar edição</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="secao" id="secao-ab">
+      <div class="card">
+        <h2>Testes em andamento <small>a divisão de tráfego muda em até 1 minuto após ativar ou pausar</small></h2>
+        <div id="ab-lista"></div>
+      </div>
+
+      <div class="card">
+        <h2 id="ab-form-titulo">Novo teste</h2>
+        <form id="ab-form" style="display:grid; gap:0.6rem; max-width:640px">
+          <input type="hidden" id="ab-id">
+          <input type="text" id="ab-nome" placeholder="Nome do teste (ex.: Home — oferta nova)" required>
+          <input type="text" id="ab-slug" placeholder="Identificador (ex.: home-oferta-2026-08)" required>
+          <input type="text" id="ab-path" placeholder="Página testada (ex.: /aplicacao-mentoria)" required>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap">
+            <label style="flex:1; min-width:180px">Leads por variante
+              <input type="number" id="ab-leads" min="10" step="1" value="60" style="width:100%"></label>
+            <label style="flex:1; min-width:180px">Dias (semanas inteiras)
+              <input type="number" id="ab-dias" min="14" step="7" value="14" style="width:100%"></label>
+            <label style="flex:1; min-width:180px">Fatia da variante B (%)
+              <input type="number" id="ab-peso" min="1" max="99" step="1" value="50" style="width:100%"></label>
+          </div>
+          <p class="mini">A variante B precisa existir em <code>src/pages/ab/&lt;identificador&gt;/b.astro</code> antes de ativar.</p>
+          <div id="ab-erro" class="aviso falha" hidden></div>
+          <div style="display:flex; gap:0.5rem">
+            <button class="btn" type="submit">Salvar</button>
+            <button class="btn" type="button" id="ab-cancelar" hidden>Cancelar edição</button>
           </div>
         </form>
       </div>
@@ -994,6 +1026,140 @@ $('#links-form').addEventListener('submit', async (ev) => {
   });
 });
 
+// ---------- testes A/B ----------
+// A aba NÃO decide nada: veredito, alerta de divisão torta e progresso vêm
+// prontos de /api/ab-tests. Regra repetida na tela é regra que um dia diverge
+// da real — e aqui a regra existe justamente para conter a vontade de decidir
+// cedo demais.
+const AB_ESTADOS = {
+  rodando: '⏳ Ainda rodando — não decida agora',
+  'sem-diferenca': '➖ Sem diferença detectável entre as versões',
+  conclusivo: '✅ Resultado confiável (95%)',
+};
+const AB_STATUS = { rascunho: 'rascunho', ativo: 'ATIVO', pausado: 'pausado', encerrado: 'encerrado' };
+const pct = (n) => (n * 100).toFixed(2).replace('.', ',') + '%';
+
+R.ab = async () => {
+  const dados = await fetchJson('/api/ab-tests');
+  const linhas = dados.rows || [];
+
+  if (!linhas.length) {
+    $('#ab-lista').innerHTML = '<p class="mini">Nenhum teste cadastrado ainda.</p>';
+    return;
+  }
+
+  $('#ab-lista').innerHTML = linhas.map((t) => {
+    const v = t.veredito;
+    const [a, b] = t.variantes;
+
+    const corpo = [a, b].map((x) => `
+      <tr>
+        <td>${x.chave === 'a' ? 'A (atual)' : 'B (nova)'} <span class="mini">${x.peso}%</span></td>
+        <td style="text-align:right">${x.visitas}</td>
+        <td style="text-align:right">${x.form_starts}</td>
+        <td style="text-align:right">${x.leads}</td>
+        <td style="text-align:right">${pct(x.taxa)}</td>
+      </tr>`).join('');
+
+    const progresso = t.status === 'encerrado'
+      ? `<p class="mini">Encerrado — vencedor declarado: <b>${esc(t.vencedor || 'nenhum')}</b></p>`
+      : `<p class="mini">Progresso: faltam ${v.faltamLeads} leads na variante mais atrasada e ${v.faltamDias} dias · alvo ${v.metaLeads} leads/variante em ${v.metaDias} dias</p>
+         <p>${AB_ESTADOS[v.estado] || ''}${v.estado === 'conclusivo' && v.vencedor ? ` — vence a variante <b>${v.vencedor.toUpperCase()}</b>` : ''}</p>`;
+
+    const srm = v.srm.alerta
+      ? '<div class="aviso falha">⚠️ A divisão do tráfego está torta (bug, bot ou cache). Enquanto isso não for resolvido, o resultado deste teste não vale.</div>'
+      : '';
+
+    const acoes = t.status === 'encerrado' ? '' : `
+      ${t.status !== 'ativo' ? `<button class="btn" type="button" data-ab-ativar="${t.id}">ativar</button>` : ''}
+      ${t.status === 'ativo' ? `<button class="btn" type="button" data-ab-pausar="${t.id}">pausar</button>` : ''}
+      ${t.status === 'rascunho' ? `<button class="btn" type="button" data-ab-editar="${t.id}">editar</button>` : ''}
+      <button class="btn" type="button" data-ab-encerrar="${t.id}">encerrar</button>
+      <a class="btn" href="${esc(t.url_preview)}" target="_blank" rel="noopener">ver variante B</a>`;
+
+    return `
+      <div style="margin-bottom:1.5rem">
+        <h3 style="margin:0 0 0.2rem">${esc(t.nome)} <span class="mini">${AB_STATUS[t.status] || esc(t.status)} · ${esc(t.path)} · dia ${v.diasCorridos} de ${v.metaDias}</span></h3>
+        ${srm}
+        <div class="tabela-wrap"><table>
+          <thead><tr><th>Variante</th><th style="text-align:right">Visitas</th><th style="text-align:right">Form. inic.</th><th style="text-align:right">Leads</th><th style="text-align:right">Conversão</th></tr></thead>
+          <tbody>${corpo}</tbody>
+        </table></div>
+        ${progresso}
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem">${acoes}</div>
+      </div>`;
+  }).join('');
+
+  $('#ab-lista').onclick = async (ev) => {
+    const ativar = ev.target.closest('[data-ab-ativar]');
+    if (ativar) return salvarAb({ id: ativar.dataset.abAtivar, acao: 'ativar' });
+
+    const pausar = ev.target.closest('[data-ab-pausar]');
+    if (pausar) return salvarAb({ id: pausar.dataset.abPausar, acao: 'pausar' });
+
+    const encerrar = ev.target.closest('[data-ab-encerrar]');
+    if (encerrar) {
+      const vencedor = prompt('Quem venceu? Digite a, b ou nenhum.');
+      if (!vencedor) return;
+      return salvarAb({ id: encerrar.dataset.abEncerrar, acao: 'encerrar', vencedor: vencedor.trim().toLowerCase() });
+    }
+
+    const editar = ev.target.closest('[data-ab-editar]');
+    if (editar) {
+      const t = linhas.find((x) => String(x.id) === editar.dataset.abEditar);
+      $('#ab-id').value = t.id;
+      $('#ab-nome').value = t.nome;
+      $('#ab-slug').value = t.slug;
+      $('#ab-path').value = t.path;
+      $('#ab-leads').value = t.meta_leads_variante;
+      $('#ab-dias').value = t.meta_dias;
+      $('#ab-peso').value = (t.variantes.find((x) => x.chave === 'b') || {}).peso ?? 50;
+      $('#ab-form-titulo').textContent = 'Editar teste';
+      $('#ab-cancelar').hidden = false;
+    }
+  };
+};
+
+async function salvarAb(corpo) {
+  const erro = $('#ab-erro');
+  erro.hidden = true;
+  const r = await fetch(`/api/ab-tests?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(corpo),
+  });
+  const dados = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    erro.textContent = dados.error || 'Não deu para salvar.';
+    erro.hidden = false;
+    return;
+  }
+  limparFormAb();
+  await R.ab();
+}
+
+function limparFormAb() {
+  $('#ab-form').reset();
+  $('#ab-id').value = '';
+  $('#ab-form-titulo').textContent = 'Novo teste';
+  $('#ab-cancelar').hidden = true;
+  $('#ab-erro').hidden = true;
+}
+
+$('#ab-cancelar').addEventListener('click', limparFormAb);
+$('#ab-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  await salvarAb({
+    id: $('#ab-id').value || undefined,
+    nome: $('#ab-nome').value,
+    slug: $('#ab-slug').value,
+    path: $('#ab-path').value,
+    meta_leads_variante: $('#ab-leads').value,
+    meta_dias: $('#ab-dias').value,
+    peso_b: $('#ab-peso').value,
+  });
+});
+
 R.jornada = async () => {};
 $('#jornada-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
@@ -1120,7 +1286,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos' };
 let secao = 'visao';
 async function render() {
   const p = intervalo();
