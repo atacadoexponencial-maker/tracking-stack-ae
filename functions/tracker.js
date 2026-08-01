@@ -1,5 +1,6 @@
 import { FUNIL_MATERIAIS, materialPorSlug } from '../src/data/materiais.js';
 import { sha256, normalizePhone, normalizeName } from './api/_hash.js';
+import { detectBot } from './_bots.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -1023,28 +1024,6 @@ function extractGA4SessionId(cookies) {
     }
   }
   return '';
-}
-
-function detectBot(userAgent) {
-  if (!userAgent || userAgent.length < 10) {
-    return { isBot: true, botReason: 'Missing or short user-agent' };
-  }
-  const patterns = [
-    { p: /googlebot|google-inspectiontool/i, r: 'Googlebot' },
-    { p: /bingbot|msnbot/i, r: 'Bingbot' },
-    { p: /facebookexternalhit|facebot/i, r: 'Facebook crawler' },
-    { p: /twitterbot/i, r: 'Twitter crawler' },
-    { p: /linkedinbot/i, r: 'LinkedIn crawler' },
-    { p: /slackbot/i, r: 'Slackbot' },
-    { p: /whatsapp/i, r: 'WhatsApp preview' },
-    { p: /bot|crawler|spider|scraper|headless/i, r: 'Generic bot' },
-    { p: /python-requests|axios|node-fetch|curl|wget|httpie/i, r: 'HTTP library' },
-    { p: /phantomjs|selenium|puppeteer|playwright/i, r: 'Automation tool' },
-  ];
-  for (const { p, r } of patterns) {
-    if (p.test(userAgent)) return { isBot: true, botReason: r };
-  }
-  return { isBot: false, botReason: '' };
 }
 
 function parseBrowser(ua) {
