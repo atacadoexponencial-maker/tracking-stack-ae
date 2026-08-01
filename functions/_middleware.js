@@ -107,14 +107,19 @@ export async function onRequest(context) {
   let abPreviewDoTeste = null;
 
   try {
-    const testes = await carregarTestesAtivos(env);
-
     if (ehPathDeVariante) {
-      // Preview: /ab/<slug>/b?ab_preview=1 → descobre o teste pelo slug para
-      // marcar a sessão como contaminada.
+      // Preview consulta o D1 direto, sem o cache de testes ATIVOS: ele existe
+      // para conferir a variante antes de ligar o teste, quando o teste ainda
+      // está em rascunho e não aparece naquela lista. Sem isto, a sessão que
+      // espiou a variante não seria marcada e voltaria a ser sorteada como
+      // visitante limpo depois — contaminando o denominador em silêncio.
+      // Preview é raro e manual, então a consulta extra não pesa.
       const slug = caminho.split('/')[2] || '';
-      abPreviewDoTeste = testes.find((t) => t.slug === slug) || null;
+      abPreviewDoTeste = slug
+        ? await env.DB.prepare('SELECT id FROM ab_tests WHERE slug = ?').bind(slug).first()
+        : null;
     } else {
+      const testes = await carregarTestesAtivos(env);
       abTeste = testes.find((t) => t.path === caminho) || null;
     }
   } catch (e) {
@@ -140,16 +145,25 @@ export async function onRequest(context) {
   let response;
   if (abTeste && abVariante === 'b') {
     const destino = (abTeste.variantes.find((v) => v.chave === 'b') || {}).page_path || '';
-    const alvo = new URL(url);
-    alvo.pathname = destino;
-    response = await next(new Request(alvo.toString(), request));
-    // Variante apontando para página inexistente (deploy pela metade, slug
-    // renomeado): cai para a original em vez de entregar 404 a metade do
-    // tráfego pago.
-    if (response.status === 404) {
-      console.error('AB: variante B sem página em', destino, '— servindo A');
+    if (!destino.startsWith('/')) {
+      // Destino vazio ou malformado resolveria para a home, que responde 200 —
+      // o fallback de 404 abaixo nunca dispararia e metade do tráfego iria para
+      // a página errada contada como 'b'. Cair para A é a falha segura.
+      console.error('AB: variante B com destino inválido:', JSON.stringify(destino), '— servindo A');
       abVariante = 'a';
       response = await next();
+    } else {
+      const alvo = new URL(url);
+      alvo.pathname = destino;
+      response = await next(new Request(alvo.toString(), request));
+      // Variante apontando para página inexistente (deploy pela metade, slug
+      // renomeado): cai para a original em vez de entregar 404 a metade do
+      // tráfego pago.
+      if (response.status === 404) {
+        console.error('AB: variante B sem página em', destino, '— servindo A');
+        abVariante = 'a';
+        response = await next();
+      }
     }
   } else {
     response = await next();
