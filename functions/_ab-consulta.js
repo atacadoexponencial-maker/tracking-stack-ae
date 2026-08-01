@@ -30,12 +30,25 @@ export async function carregarTestesAtivos(env) {
   const agoraMs = Date.now();
   if (agoraMs - cache.em < TTL_MS) return cache.testes;
 
-  const { results } = await env.DB.prepare(`
-    SELECT t.id, t.slug, t.path, t.status, v.chave, v.page_path, v.peso
-    FROM ab_tests t
-    JOIN ab_variants v ON v.test_id = t.id
-    WHERE t.status = 'ativo'
-  `).all();
+  // Falha também é resposta cacheável. Se a query quebrar (tabela ainda não
+  // migrada em produção, D1 fora do ar), deixar a exceção subir sem gravar o
+  // cache faz TODA requisição HTML do site repetir a query que falha. Guardar
+  // o resultado vazio faz a falha custar uma query por minuto em vez de uma
+  // por pageview. Para o chamador é o mesmo desfecho de antes — o middleware
+  // trata lista vazia e exceção do mesmo jeito: serve a página original.
+  let results;
+  try {
+    ({ results } = await env.DB.prepare(`
+      SELECT t.id, t.slug, t.path, t.status, v.chave, v.page_path, v.peso
+      FROM ab_tests t
+      JOIN ab_variants v ON v.test_id = t.id
+      WHERE t.status = 'ativo'
+    `).all());
+  } catch (e) {
+    console.error('AB: falha ao consultar testes ativos, cacheando vazio por 60s:', e.message);
+    cache = { em: agoraMs, testes: [] };
+    return cache.testes;
+  }
 
   const porId = new Map();
   for (const linha of results || []) {
