@@ -8,6 +8,7 @@ interface Props {
   description?: string;
   showHeader?: boolean;
   showFooter?: boolean;
+  noindex?: boolean;
 }
 
 const {
@@ -15,6 +16,7 @@ const {
   description = 'Atacado Exponencial — método para marcas de atacado venderem mais.',
   showHeader = true,
   showFooter = true,
+  noindex = false,
 } = Astro.props;
 ---
 
@@ -28,6 +30,7 @@ const {
     <!-- Pré-carrega a fonte da primeira dobra para reduzir o LCP -->
     <link rel="preload" href="/fonts/Satoshi-Bold.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/Satoshi-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <!-- GA4 (gtag) via proxy first-party /scripts (anti-adblock). Envia só o
          PageView no client; conversões (Lead/Purchase) continuam server-side no
          /tracker — sem contagem dupla. Measurement ID não é secreto. -->
