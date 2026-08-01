@@ -44,6 +44,13 @@ export async function onRequestGet(context) {
   // Sessões de preview ficam fora, e os bots também — eles são sorteados como
   // qualquer visitante (o middleware não os distingue no instante da
   // requisição), então a filtragem só pode acontecer aqui, na leitura.
+  //
+  // `timestamp >= a.assigned_at` nos dois joins não é preciosismo: o cookie
+  // _krob_sid dura 400 dias, então "sessão" aqui é VISITANTE, não visita. Sem a
+  // amarra, quem converteu meses atrás na mesma página volta por um link de
+  // e-mail, é sorteado hoje e entra como convertido no primeiro dia — e o portão
+  // `faltamLeads`, que é a razão de existir da feature, seria satisfeito por
+  // conversões que não vieram do teste, com uma fração da amostra declarada.
   const { results: contagens } = await env.DB.prepare(`
     SELECT a.test_id,
            a.variante,
@@ -55,9 +62,11 @@ export async function onRequestGet(context) {
     LEFT JOIN event_log l
       ON l.session_id = a.session_id
      AND l.event_name = 'Lead' AND l.is_bot = 0 AND l.is_junk = 0
+     AND l.timestamp >= a.assigned_at
     LEFT JOIN event_log f
       ON f.session_id = a.session_id
      AND f.event_name = 'FormStart' AND f.is_bot = 0 AND f.is_junk = 0
+     AND f.timestamp >= a.assigned_at
     WHERE a.is_preview = 0
       AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
       ${clausulasBotSql('s')}
