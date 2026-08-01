@@ -180,8 +180,16 @@ export async function onRequestPost(context) {
     return json({ error: 'Identificador inválido: use letras minúsculas, números e hífens (ex.: home-oferta-2026-08).' }, 400);
   }
 
-  const caminho = normalizarPath(str(corpo.path));
-  if (!caminho.startsWith('/') || caminho.startsWith('/ab/')) {
+  // Validar ANTES de normalizar: normalizarPath('') devolve '/', então um campo
+  // em branco viraria silenciosamente um teste na home — a página de maior
+  // tráfego do site, e a última em que alguém quer um teste que não pediu.
+  const pathCru = str(corpo.path);
+  if (!pathCru) {
+    return json({ error: 'Informe a página testada começando com / (ex.: /aplicacao-mentoria).' }, 400);
+  }
+
+  const caminho = normalizarPath(pathCru);
+  if (!caminho.startsWith('/') || caminho === '/ab' || caminho.startsWith('/ab/')) {
     return json({ error: 'Informe a página testada começando com / (ex.: /aplicacao-mentoria).' }, 400);
   }
 
