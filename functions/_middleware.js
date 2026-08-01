@@ -154,13 +154,22 @@ export async function onRequest(context) {
       response = await next();
     } else {
       const alvo = new URL(url);
-      alvo.pathname = destino;
+      // O Astro builda com `format: 'directory'`, então cada página vive em
+      // <path>/index.html e o servidor de assets só entrega o path COM barra
+      // final — sem ela responde 308 para a forma canônica. Esse 308 chegava ao
+      // navegador, que então pedia /ab/<slug>/b/ como requisição de primeira
+      // classe, batia na guarda de acesso direto e tomava 404. Resultado: metade
+      // do tráfego via "Not found" enquanto a exposição era gravada como visita.
+      alvo.pathname = destino.endsWith('/') ? destino : destino + '/';
       response = await next(new Request(alvo.toString(), request));
-      // Variante apontando para página inexistente (deploy pela metade, slug
-      // renomeado): cai para a original em vez de entregar 404 a metade do
-      // tráfego pago.
-      if (response.status === 404) {
-        console.error('AB: variante B sem página em', destino, '— servindo A');
+
+      // Cair para A em QUALQUER resposta que não seja entrega normal. A regra
+      // anterior olhava só 404, e foi essa estreiteza que deixou o 308 passar —
+      // o modo de falha que ninguém previu é justamente o que precisa ser
+      // capturado por uma condição larga. O 304 fica de fora porque é entrega
+      // válida (o navegador já tem a página em cache).
+      if (response.status >= 300 && response.status !== 304) {
+        console.error('AB: variante B respondeu', response.status, 'em', alvo.pathname, '— servindo A');
         abVariante = 'a';
         response = await next();
       }
