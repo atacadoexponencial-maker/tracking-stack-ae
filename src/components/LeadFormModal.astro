@@ -88,6 +88,7 @@ import logo from '../assets/brand/logo.png';
 
 <script>
   import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone, aplicarSugestaoEmail } from '../scripts/lead-validacao';
+  import { ativarFormStart } from '../scripts/form-start';
 
   const overlay = document.getElementById('lead-form') as HTMLElement | null;
   const form = document.getElementById('lead-form-el') as HTMLFormElement | null;
@@ -95,6 +96,8 @@ import logo from '../assets/brand/logo.png';
   const submitBtn = document.getElementById('lead-form-submit') as HTMLButtonElement | null;
 
   if (overlay && form && errEl && submitBtn) {
+    ativarFormStart(form, { funnel: 'workshop' });
+
     const telEl = form.querySelector('input[name="telefone"]') as HTMLInputElement | null;
     const emailEl = form.querySelector('input[name="email"]') as HTMLInputElement | null;
     if (telEl) aplicarMascaraTelefone(telEl);

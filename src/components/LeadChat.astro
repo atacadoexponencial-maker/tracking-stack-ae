@@ -180,6 +180,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
 
 <script>
   import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone, sugerirEmail } from '../scripts/lead-validacao';
+  import { ativarFormStart } from '../scripts/form-start';
 
   type Step =
     | { kind: 'messages'; texts: string[] }
@@ -216,6 +217,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
   if (overlay && messagesEl && inputEl) {
     const avatarUrl = overlay.dataset.avatar || '';
     const leadFunnel = overlay.dataset.funnel || 'diagnostico';
+    ativarFormStart(overlay, { funnel: leadFunnel });
     const fullPage = overlay.dataset.fullPage === 'true';
     const answers: Record<string, string> = {};
     let stepIndex = 0;

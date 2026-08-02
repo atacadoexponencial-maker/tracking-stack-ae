@@ -9,6 +9,8 @@
 // Fonte: sessions LEFT JOIN event_log via session_id. Bots ficam fora do
 // denominador (e por consequência do numerador) via NOT LIKE em SQL.
 
+import { clausulasBotSql } from '../_bots.js';
+
 export async function onRequestGet(context) {
   const { request, env } = context;
 
@@ -34,13 +36,9 @@ export async function onRequestGet(context) {
   const numeratorFunnelClause = funnel ? `AND ${EFFECTIVE_FUNNEL} = ?` : '';
   const denominatorFunnelClause = funnel ? 'AND s.funnel = ?' : '';
 
-  // Cláusulas de exclusão de bot geradas a partir de BOT_UA_SUBSTRINGS
-  // (literais estáticos do próprio módulo, nunca input do request — sem risco
-  // de injeção). LIKE do SQLite é case-insensitive para ASCII, preservando a
-  // semântica do flag /i dos regex originais.
-  const botClauses = BOT_UA_SUBSTRINGS
-    .map((s) => `AND s.user_agent NOT LIKE '%${s}%'`)
-    .join('\n          ');
+  // Exclusão de bot: lista única em functions/_bots.js, a mesma que o
+  // tracker.js usa na escrita.
+  const botClauses = clausulasBotSql('s');
 
   // Ordem dos binds é posicional na ordem do texto SQL: o funil efetivo do
   // CASE (SELECT) vem ANTES de since/until; o s.funnel = ? vem por último.
@@ -98,30 +96,6 @@ export async function onRequestGet(context) {
     return json({ error: err.message }, 500);
   }
 }
-
-// Replicado de detectBot() em functions/tracker.js (linha ~702). tracker.js
-// não pode ser alterado nesta feature — manter em sincronia manualmente.
-// Cada substring espelha 1:1 uma alternativa dos regex originais (todos são
-// alternâncias de substrings simples, sem âncoras/classes/quantificadores);
-// a lista fica completa mesmo com 'bot' subsumindo várias, para
-// rastreabilidade com a origem. A regra "UA ausente ou < 10 chars = bot"
-// vira IS NOT NULL + LENGTH >= 10 no SQL.
-const BOT_UA_SUBSTRINGS = [
-  'googlebot', 'google-inspectiontool',
-  'bingbot', 'msnbot',
-  'facebookexternalhit', 'facebot',
-  'twitterbot',
-  'linkedinbot',
-  'slackbot',
-  'whatsapp',
-  'bot', 'crawler', 'spider', 'scraper', 'headless',
-  'python-requests', 'axios', 'node-fetch', 'curl', 'wget', 'httpie',
-  'phantomjs', 'selenium', 'puppeteer', 'playwright',
-  // Adição LOCAL deste módulo (ALÉM da réplica do detectBot de
-  // functions/tracker.js, que não pode ser alterado nesta feature):
-  // cobre os UAs 'TLM-Audit-Scanner/1.0' e 'pathscan/1.0' vistos em produção.
-  'scan',
-];
 
 // Whitelist de paths que são página real do site: rotas Astro atuais
 // (src/pages/), legados que ainda recebem tráfego real via redirect 301

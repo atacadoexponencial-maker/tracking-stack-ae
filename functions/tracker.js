@@ -1,5 +1,6 @@
 import { FUNIL_MATERIAIS, materialPorSlug } from '../src/data/materiais.js';
 import { sha256, normalizePhone, normalizeName } from './api/_hash.js';
+import { detectBot } from './_bots.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -79,6 +80,13 @@ export async function onRequestPost(context) {
     // GA4 fires are suppressed. Without this gate, every link-unfurl
     // crawl (WhatsApp preview, Slackbot, facebookexternalhit, etc.)
     // would burn a Meta CAPI event and pollute the Pixel.
+    // Eventos INTERNOS: existem só para medir o site por dentro. Vão ao
+    // event_log e param aí — mandá-los ao Meta/GA4 poluiria o pixel com
+    // conversões que não são conversões, e ao ClickUp com leads que ainda não
+    // existem (a pessoa apenas começou a digitar).
+    const nomeEvento = (body.event_name || '').toLowerCase();
+    const ehEventoInterno = EVENTOS_INTERNOS.has(nomeEvento);
+
     // Funil efetivo do evento (mesma regra do dashboard): o funil declarado pelo
     // formulário NESTE evento tem prioridade; cai para o funil da sessão.
     const eventFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
@@ -96,7 +104,7 @@ export async function onRequestPost(context) {
     const pixelId = env.META_PIXEL_ID_2 || env.META_PIXEL_ID;
     const accessToken = env.META_ACCESS_TOKEN_2 || env.META_ACCESS_TOKEN;
 
-    const results = isBot ? [] : await Promise.allSettled([
+    const results = (isBot || ehEventoInterno) ? [] : await Promise.allSettled([
       sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }),
       sendToGA4({ body, gaClientId, gaSessionId, hashedEm, sessionData, funnel: effectiveFunnel, env }),
       Promise.resolve({ skipped: 'pixel 2 unificado ao principal', payload: null, response: null }),
@@ -226,7 +234,7 @@ export async function onRequestPost(context) {
     // Skip PageView: conversions fire regardless of this log, and the health
     // dashboard only reports Lead/Purchase. Dropping PageView cuts ~70% of
     // event_log writes so per-instance D1 stays healthy long-term.
-    const loggedEventName = (body.event_name || '').toLowerCase();
+    const loggedEventName = nomeEvento;
     const shouldLogEvent = loggedEventName !== 'pageview' && loggedEventName !== 'page_view';
     const browserInfo = parseBrowser(userAgent);
     // Funil declarado pelo formulário NESTE evento (não o da sessão). É o que o
@@ -265,8 +273,8 @@ export async function onRequestPost(context) {
               pixelWasBlocked, fbpSource, fbcSource, fbclidSource,
               gaCookiePresent, gaClientIdFallback, fbpSource === 'middleware_http' ? 1 : 0,
               isBot ? 1 : 0, botReason, body.consent_status || 'unknown',
-              isBot ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
-              isBot ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
+              (isBot || ehEventoInterno) ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
+              (isBot || ehEventoInterno) ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
               hashedEm ? 1 : 0, hashedPh ? 1 : 0, (hashedFn || hashedLn) ? 1 : 0,
               rawEmail, loggedFunnel, isJunk, loggedMaterial
             ).run();
@@ -348,6 +356,10 @@ export function isInternalTestEmail(email) {
   const at = e.lastIndexOf('@');
   return at !== -1 && INTERNAL_TEST_DOMAINS.includes(e.slice(at + 1));
 }
+
+// Eventos que ficam dentro de casa. Em minúsculas: a comparação é feita sobre
+// o event_name já normalizado.
+const EVENTOS_INTERNOS = new Set(['formstart']);
 
 async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }) {
   if (!pixelId || !accessToken) {
@@ -1023,28 +1035,6 @@ function extractGA4SessionId(cookies) {
     }
   }
   return '';
-}
-
-function detectBot(userAgent) {
-  if (!userAgent || userAgent.length < 10) {
-    return { isBot: true, botReason: 'Missing or short user-agent' };
-  }
-  const patterns = [
-    { p: /googlebot|google-inspectiontool/i, r: 'Googlebot' },
-    { p: /bingbot|msnbot/i, r: 'Bingbot' },
-    { p: /facebookexternalhit|facebot/i, r: 'Facebook crawler' },
-    { p: /twitterbot/i, r: 'Twitter crawler' },
-    { p: /linkedinbot/i, r: 'LinkedIn crawler' },
-    { p: /slackbot/i, r: 'Slackbot' },
-    { p: /whatsapp/i, r: 'WhatsApp preview' },
-    { p: /bot|crawler|spider|scraper|headless/i, r: 'Generic bot' },
-    { p: /python-requests|axios|node-fetch|curl|wget|httpie/i, r: 'HTTP library' },
-    { p: /phantomjs|selenium|puppeteer|playwright/i, r: 'Automation tool' },
-  ];
-  for (const { p, r } of patterns) {
-    if (p.test(userAgent)) return { isBot: true, botReason: r };
-  }
-  return { isBot: false, botReason: '' };
 }
 
 function parseBrowser(ua) {

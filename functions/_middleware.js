@@ -1,3 +1,6 @@
+import { escolherVariante } from './_ab-sorteio.js';
+import { carregarTestesAtivos, normalizarPath } from './_ab-consulta.js';
+
 export async function onRequest(context) {
   const { request, next, env } = context;
   const url = new URL(request.url);
@@ -22,6 +25,22 @@ export async function onRequest(context) {
 
   if (!isPageRequest) {
     return next();
+  }
+
+  const caminho = normalizarPath(url.pathname);
+
+  // As páginas de variante são detalhe interno: quem chega em /aplicacao-mentoria
+  // recebe uma delas por reescrita, sem nunca ver este endereço. Deixá-las
+  // abertas criaria conteúdo duplicado para o Google e, pior, permitiria entrar
+  // na variante por fora do sorteio — visitas que sujariam a medição sem
+  // aparecer como anomalia.
+  //
+  // O preview é a exceção: serve para conferir a variante antes de ligar o
+  // teste, e a sessão que o usa é marcada e excluída da estatística.
+  const ehPathDeVariante = caminho.startsWith('/ab/');
+  const querPreview = url.searchParams.get('ab_preview') === '1';
+  if (ehPathDeVariante && !querPreview) {
+    return new Response('Not found', { status: 404 });
   }
 
   // --- Extract tracking parameters from URL ---
@@ -81,6 +100,41 @@ export async function onRequest(context) {
     fbp = `fb.${SUB_DOMAIN_INDEX}.${Date.now()}.${Math.floor(Math.random() * 9000000000) + 1000000000}`;
   }
 
+  // --- Teste A/B ---
+  // Toda esta seção é inerte quando não há teste ativo para o path.
+  let abTeste = null;
+  let abVariante = 'a';
+  let abPreviewDoTeste = null;
+
+  try {
+    if (ehPathDeVariante) {
+      // Preview consulta o D1 direto, sem o cache de testes ATIVOS: ele existe
+      // para conferir a variante antes de ligar o teste, quando o teste ainda
+      // está em rascunho e não aparece naquela lista. Sem isto, a sessão que
+      // espiou a variante não seria marcada e voltaria a ser sorteada como
+      // visitante limpo depois — contaminando o denominador em silêncio.
+      // Preview é raro e manual, então a consulta extra não pesa.
+      const slug = caminho.split('/')[2] || '';
+      abPreviewDoTeste = slug
+        ? await env.DB.prepare('SELECT id FROM ab_tests WHERE slug = ?').bind(slug).first()
+        : null;
+    } else {
+      const testes = await carregarTestesAtivos(env);
+      abTeste = testes.find((t) => t.path === caminho) || null;
+    }
+  } catch (e) {
+    // D1 indisponível não pode derrubar o site: sem teste, a página original.
+    console.error('AB: falha ao ler testes ativos:', e.message);
+  }
+
+  if (abTeste) {
+    // O cookie vem ANTES do sorteio: quem já foi exposto continua onde estava,
+    // mesmo que os pesos mudem no meio do teste. Trocar alguém de variante em
+    // andamento creditaria a conversão à página errada.
+    const salva = lerCookieAb(cookies['_krob_ab'] || '')[abTeste.slug];
+    abVariante = salva === 'a' || salva === 'b' ? salva : escolherVariante(abTeste, sessionId);
+  }
+
   // --- Capture request metadata ---
   const clientIp = request.headers.get('cf-connecting-ip') || '';
   const userAgent = request.headers.get('user-agent') || '';
@@ -88,7 +142,41 @@ export async function onRequest(context) {
   const now = Math.floor(Date.now() / 1000);
 
   // --- Serve the page FIRST, then write to D1 in background ---
-  const response = await next();
+  let response;
+  if (abTeste && abVariante === 'b') {
+    const destino = (abTeste.variantes.find((v) => v.chave === 'b') || {}).page_path || '';
+    if (!destino.startsWith('/')) {
+      // Destino vazio ou malformado resolveria para a home, que responde 200 —
+      // o fallback de 404 abaixo nunca dispararia e metade do tráfego iria para
+      // a página errada contada como 'b'. Cair para A é a falha segura.
+      console.error('AB: variante B com destino inválido:', JSON.stringify(destino), '— servindo A');
+      abVariante = 'a';
+      response = await next();
+    } else {
+      const alvo = new URL(url);
+      // O Astro builda com `format: 'directory'`, então cada página vive em
+      // <path>/index.html e o servidor de assets só entrega o path COM barra
+      // final — sem ela responde 308 para a forma canônica. Esse 308 chegava ao
+      // navegador, que então pedia /ab/<slug>/b/ como requisição de primeira
+      // classe, batia na guarda de acesso direto e tomava 404. Resultado: metade
+      // do tráfego via "Not found" enquanto a exposição era gravada como visita.
+      alvo.pathname = destino.endsWith('/') ? destino : destino + '/';
+      response = await next(new Request(alvo.toString(), request));
+
+      // Cair para A em QUALQUER resposta que não seja entrega normal. A regra
+      // anterior olhava só 404, e foi essa estreiteza que deixou o 308 passar —
+      // o modo de falha que ninguém previu é justamente o que precisa ser
+      // capturado por uma condição larga. O 304 fica de fora porque é entrega
+      // válida (o navegador já tem a página em cache).
+      if (response.status >= 300 && response.status !== 304) {
+        console.error('AB: variante B respondeu', response.status, 'em', alvo.pathname, '— servindo A');
+        abVariante = 'a';
+        response = await next();
+      }
+    }
+  } else {
+    response = await next();
+  }
 
   // --- Set HTTP cookies ---
   const maxAge = 34560000; // 400 days
@@ -101,6 +189,20 @@ export async function onRequest(context) {
 
   if (fbc) {
     newHeaders.append('Set-Cookie', `_fbc=${fbc}; ${cookieBase}`);
+  }
+
+  if (abTeste) {
+    // 30 dias, e não os 400 dos cookies de atribuição: passado o teste, a
+    // marca não serve mais para nada e só atrapalharia o próximo.
+    const abAtual = lerCookieAb(cookies['_krob_ab'] || '');
+    abAtual[abTeste.slug] = abVariante;
+    newHeaders.append('Set-Cookie', `_krob_ab=${escreverCookieAb(abAtual)}; Path=/; Max-Age=2592000; SameSite=Lax; Secure`);
+
+    // Duas versões da mesma URL: um cache intermediário que guardasse uma
+    // delas serviria a variante errada para o visitante errado. O Set-Cookie
+    // acima já impede o cache de borda da Cloudflare; o cabeçalho explícito
+    // cobre proxies no caminho.
+    newHeaders.set('Cache-Control', 'private, no-store');
   }
 
   const newResponse = new Response(response.body, {
@@ -137,6 +239,27 @@ export async function onRequest(context) {
                 funnel = CASE WHEN excluded.funnel != '' THEN excluded.funnel ELSE sessions.funnel END,
                 updated_at = excluded.updated_at
             `).bind(sessionId, externalId, fbclid, gclid, msclkid, fbc, fbp, clientIp, userAgent, referrer, url.toString(), utmSource, utmMedium, utmCampaign, utmContent, utmTerm, funnel, now, now).run();
+
+            // Exposição ao teste. ON CONFLICT DO NOTHING garante o
+            // first-touch no banco: o visitante entra uma vez e fica.
+            if (abTeste) {
+              await env.DB.prepare(`
+                INSERT INTO ab_assignments (session_id, test_id, variante, assigned_at, is_preview)
+                VALUES (?, ?, ?, ?, 0)
+                ON CONFLICT(session_id, test_id) DO NOTHING
+              `).bind(sessionId, abTeste.id, abVariante, now).run();
+            }
+
+            // Preview marca a sessão como contaminada — inclusive se ela já
+            // tinha sido sorteada antes. Quem espiou a variante não pode
+            // continuar valendo como visitante do teste.
+            if (abPreviewDoTeste) {
+              await env.DB.prepare(`
+                INSERT INTO ab_assignments (session_id, test_id, variante, assigned_at, is_preview)
+                VALUES (?, ?, 'b', ?, 1)
+                ON CONFLICT(session_id, test_id) DO UPDATE SET is_preview = 1
+              `).bind(sessionId, abPreviewDoTeste.id, now).run();
+            }
           }
         } catch (e) {
           console.error('Middleware D1 error:', e.message);
@@ -155,6 +278,24 @@ function parseCookies(cookieHeader) {
     if (name) cookies[name.trim()] = rest.join('=');
   });
   return cookies;
+}
+
+// O cookie guarda VÁRIOS testes ('slug:variante|outro:variante') porque o
+// visitante pode atravessar mais de um teste em páginas diferentes, e um
+// cookie por teste encheria o cabeçalho de toda requisição.
+function lerCookieAb(valor) {
+  const mapa = {};
+  for (const par of (valor || '').split('|')) {
+    const [slug, variante] = par.split(':');
+    if (slug && (variante === 'a' || variante === 'b')) mapa[slug] = variante;
+  }
+  return mapa;
+}
+
+function escreverCookieAb(mapa) {
+  return Object.entries(mapa)
+    .map(([slug, variante]) => `${slug}:${variante}`)
+    .join('|');
 }
 
 function getRawParam(search, name) {

@@ -192,6 +192,7 @@ const investimentoOptions = [
 
 <script>
   import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone, aplicarSugestaoEmail } from '../scripts/lead-validacao';
+  import { ativarFormStart } from '../scripts/form-start';
 
   // Validação client-side de formato (issue 65; regras de telefone/email
   // compartilhadas em scripts/lead-validacao desde a issue 127). Validadores e
@@ -217,6 +218,8 @@ const investimentoOptions = [
   const form = document.getElementById('aplicacao-form-el') as HTMLFormElement | null;
 
   if (form) {
+    ativarFormStart(form, { funnel: form.dataset.funnel ?? '' });
+
     type FieldEl = HTMLInputElement | HTMLSelectElement;
 
     const getEl = (name: string) =>
