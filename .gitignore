@@ -32,3 +32,10 @@ dist/
 
 # o wrangler.toml do painel é config de projeto (sem secrets) e precisa versionar
 !painel/wrangler.toml
+
+# Documento de trabalho da auditoria tracking×ClickUp (não versionar — dados de leads)
+docs/auditoria-tracking-clickup-julho-2026.md
+
+# Aplicação da Google Ads API (não versionar — o repo é público e o doc traz o
+# link secreto do painel de um cliente, que não tem senha)
+docs/google-ads-api-application/

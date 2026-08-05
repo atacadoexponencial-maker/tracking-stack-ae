@@ -1,0 +1,70 @@
+$ORIGIN atacadoexponencial.com.
+$TTL 14400
+
+; ============================================================
+; Zona completa para importar na Cloudflare (Import DNS Records)
+; Baseada no zone file oficial do han8070 (fonte de verdade).
+; NÃO inclui: SOA e os NS do apex (a Cloudflare usa os dela).
+; NÃO inclui: _acme-challenge.* e _cpanel-dcv (validações SSL
+;   efêmeras do cPanel — regeneram sozinhas, não são necessárias).
+; Depois de importar: deixe TUDO como "DNS only" (nuvem CINZA).
+; ============================================================
+
+; ---- Apex / raiz ----
+@                       IN A     185.158.133.1
+@                       IN MX 0  atacadoexponencial.com.
+
+; ---- CNAMEs (sites e serviços) ----
+www                     IN CNAME tracking-ae.pages.dev.
+mail                    IN CNAME atacadoexponencial.com.
+email                   IN CNAME email2.api-mail.com.
+links                   IN CNAME sites.ludicrous.cloud.
+server                  IN CNAME sac.stape.io.
+load.server             IN CNAME lsac.stape.io.
+mentorado               IN CNAME sites.ludicrous.cloud.
+em-3835016              IN CNAME cmd.emsend1.com.
+email.ae                IN CNAME mailgun.org.
+acdkim1._domainkey      IN CNAME dkim.acdkim1.acems1.com.
+acdkim2._domainkey      IN CNAME dkim.acdkim2.acems1.com.
+
+; ---- Serviços cPanel (servidor han8070) ----
+ftp                     IN A 177.154.191.132
+webdisk                 IN A 177.154.191.132
+cpcontacts              IN A 177.154.191.132
+cpcalendars             IN A 177.154.191.132
+cpanel                  IN A 177.154.191.132
+webmail                 IN A 177.154.191.132
+whm                     IN A 177.154.191.132
+
+; ---- Área de membros ----
+membros                 IN A 185.158.133.1
+
+; ---- E-mail: MX ----
+*                       IN MX 10 mxa.api-mail.com.
+*                       IN MX 10 mxb.api-mail.com.
+ae                      IN MX 10 mxa.mailgun.org.
+ae                      IN MX 10 mxb.mailgun.org.
+
+; ---- E-mail: SPF ----
+*                       IN TXT "v=spf1 include:api-mail.com +mx include:spf.han8070.com.br ~all"
+ae                      IN TXT "v=spf1 include:spf.leadconnectorhq.com include:mailgun.org ~all"
+
+; ---- E-mail: DMARC ----
+_dmarc                  IN TXT "v=DMARC1; p=none; sp=none; rua=mailto:suporte@atacadoexponencial.com; ruf=mailto:ruf@atacadoexponencial.com"
+_dmarc.ae               IN TXT "v=DMARC1;p=none;"
+_dmarc.aviso            IN TXT "v=DMARC1; p=none; pct=100; rua=mailto:dmarcreports@lovable.dev"
+
+; ---- E-mail: DKIM ----
+default._domainkey      IN TXT "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxqpSeWjHQhcd8y4R/7+7k3UioyXWxjKizuJG5XIr5w65lw8wdtY3E34iEG4vut7xYCcyDUdI0zaloP2uImjn/ycXJjOTw6Olpty37jP4QfuABPZDcDid4zO//AIWq2aS/eaiGg89nTpU/V7bh/t2FsYQ02fwOUq3aSXEurjR8hLo03WaXtGC1SLNolDp8whhwsRp3R6m1Mu6VJmaRY16XCFzbK124fJ18IqO2PtRMDChUzDsMbRrFMxgaI5BFRxOk35KucYYH/bfDbk9b0j96ut89m+lVqX5ItsigmMDaQtBlLM1cOn/zhfnPhIo6h4vsXiDqf/jebCrNPG7p7aCnQIDAQAB;"
+sfx._domainkey          IN TXT "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCxee9wTK2zGIQamxMFqxbMtrqSsQFovf1b3D9wiRnZz68hALUxmPpeT6cp3TyCbsHhGZQnFw1tZAh21/idRP6+KiPRYWf9JV0wG2IzLOU/QjTjKUOKwl1N4zs917ozvMiJ1Ur8t0A3KJLwP6Y7tOzYHHfCbPW/QXF3k4NTN48bjQIDAQAB"
+2019._domainkey         IN TXT "v=DKIM1;k=rsa;p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDtxUPa+eN7CAvzXvB5zF0ojuCzC+sos7Tfkv9hp5y4ls6JjrWajIkPg8KDNQUOV2LGqc+XASxmc6Rwk130J9qalGnhhWJ2nXs8rxaoV8hkEgVMbC4KmcV/7at4Z+f+Gv85gXEXzTrXiFJ8UhcC3xbNCxUzp+X/XrC5X8t2/gMSyQIDAQAB;"
+k1._domainkey.ae        IN TXT "k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDLfTVHWsw18SLpZSpBLdSbcTRPmmPJV1xYPBwdd3+gcrU64lT+VRsa7RUXh7Wj3bIv67nYEHjTzNm+A4Augj19pswXyOkp1iI2QxCJUsuOr96WQ6ekYBuZuhvrfeqYOngV7wI5iyalNkiYkdUH5HeDngnK+uDSp11/7piYZTq7iwIDAQAB"
+
+; ---- Verificações de domínio (Lovable) ----
+_lovable                IN TXT "lovable_verify=8cd0457d12aebad5b9e48032da727d2fa1d9125252a7fdbab87344415f910690"
+_lovable-email.aviso    IN TXT "lovable_email_verify=ed3e7774fceb99acaccadc443dee319c3b5eeab40ed107a14135a94f30e8f49c"
+_lovable.membros        IN TXT "lovable_verify=fbef5b97e3d0d9351c8492975377efecc42d06ebb53055ae2e1c2cdebae09882"
+
+; ---- Delegação dos e-mails de membros (Lovable) ----
+notify.aviso            IN NS ns5.lovable.cloud.
+notify.aviso            IN NS ns6.lovable.cloud.
