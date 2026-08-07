@@ -897,6 +897,17 @@ const proofImages = Object.entries(proofModules)
   .wbe-cta__titulo {
     font-size: clamp(1.5rem, 3.5vw, 2.25rem);
   }
+  /* O .eyebrow global é 0.7rem (11px) — pequeno demais nesta página. Todos os
+     rótulos daqui sobem juntos, para "Próximo passo" não ficar maior que os
+     rótulos de seção.
+     `:global()` é necessário porque dois rótulos vêm de componentes
+     compartilhados (Faq.astro e FinalCta.astro) e o escopo do Astro não os
+     alcança. O `.wbe` na frente prende a regra a esta página: as demais LPs
+     que usam .eyebrow continuam intactas. Não mexer no global.css. */
+  .wbe :global(.eyebrow) {
+    font-size: clamp(0.875rem, 2vw, 1rem);
+    letter-spacing: 0.12em;
+  }
 
   /* ---- 7. Solução ----------------------------------------------------------- */
   .wbe-solucao__inner {
