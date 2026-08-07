@@ -1,0 +1,1520 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Faq from '../components/sections/Faq.astro';
+import FinalCta from '../components/sections/FinalCta.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+import felipe from '../assets/brand/felipe.webp';
+import { LOTES, textoProximo } from '../data/lotes-workshop.js';
+
+// ---------------------------------------------------------------------------
+// Destino de compra — PONTO ÚNICO de configuração (issue 185, formalizado na 187)
+//
+// TROCAR PELA URL DO CHECKOUT quando ela existir. Enquanto isso, abre o WhatsApp
+// com a mensagem pronta e o seletor de contato — não quebra a navegação.
+// Todos os botões de compra da página leem estas duas constantes: trocar de
+// destino é editar AQUI e em mais lugar nenhum.
+//
+// Regra para CTAs futuros: todo botão de compra leva `href={CHECKOUT_URL}` E
+// `data-checkout`. Sem o atributo o botão continua funcionando, mas some do
+// rastreamento — falha silenciosa.
+//
+// Restrições de CHECKOUT_URL (a issue 188 concatena o parâmetro no fim):
+//   - nunca vazia (href="" recarregaria a própria página);
+//   - não pode terminar em `?` nem em `&` (geraria `?&trk=` / `&&trk=`);
+//   - não pode conter fragmento `#` (o parâmetro cairia depois do hash e o
+//     checkout não o receberia).
+// ---------------------------------------------------------------------------
+const CHECKOUT_URL =
+  'https://wa.me/?text=Quero%20garantir%20minha%20vaga%20no%20Workshop%20Black%20Exponencial';
+
+// Nome do parâmetro que carrega o identificador de compra na URL do checkout.
+// Muda conforme a plataforma (fonte: docs/page-types/sales-page.md):
+//   Eduzz `trk` · Hotmart `xcod` · Kiwify `sck`
+// Trocar de plataforma significa SUBSTITUIR este valor, nunca esvaziá-lo: em
+// branco a 188 montaria `...&=uuid`, que a plataforma descarta, e a venda
+// deixaria de ser atribuída sem nada quebrar visivelmente.
+const CHECKOUT_PARAM = 'trk';
+
+// ---------------------------------------------------------------------------
+// Preço e lote: o HTML NASCE NO PRIMEIRO LOTE, de propósito.
+//
+// O site é estático (output: 'static'), então o frontmatter roda no build e
+// congelaria o valor do dia do deploy — quem decide o lote vigente é o
+// <script> no fim deste arquivo, no acesso do visitante. O que se renderiza
+// aqui é o fallback: se o JavaScript não rodar, a página exibe o Lote 0
+// legível em vez de espaço em branco, `undefined` ou placeholder.
+//
+// Os valores vêm de LOTES[0] (mesma tabela que o script lê) para o HTML
+// inicial e a lógica não poderem divergir.
+// ---------------------------------------------------------------------------
+const VALOR_INICIAL = LOTES[0].valor;
+const LOTE_INICIAL = LOTES[0].rotulo;
+const PROXIMO_VALOR_INICIAL = textoProximo(LOTES[1]?.valor ?? null, LOTES[0].rotulo);
+
+const cronograma = [
+  {
+    hora: '19h00',
+    titulo: 'Por que a Black do atacado não é a Black do varejo',
+    desc: 'O que muda quando o seu cliente é lojista e não consumidor, e por que quem anuncia em novembro chega depois da decisão.',
+  },
+  {
+    hora: '19h15',
+    titulo: 'Suas metas da Black',
+    desc: 'Quantos revendedores novos, quantos reativados, quanto de faturamento e quanto de investimento no período. Sem isso o resto vira palpite.',
+  },
+  {
+    hora: '19h30',
+    titulo: 'A oferta do pico 1, que traz revendedor novo',
+    desc: 'Mínimo reduzido com prazo, desconto progressivo por volume, compre e ganhe. Quais combinar, quais evitar, e como não perder a mão do seu mínimo de primeira compra.',
+  },
+  {
+    hora: '20h00',
+    titulo: 'A oferta do pico 2, que faz a base repor',
+    desc: 'A Reposição Black para quem não se antecipou, o grupo de ativos e a Black VIP, aquele dia exclusivo antes da Black que só quem está no grupo acessa.',
+  },
+  {
+    hora: '20h15',
+    titulo: 'Seu calendário semana a semana',
+    desc: 'Semana 1, 2, 3 e 4, Black Week, Black Friday e Black November. O que anuncia em cada uma e o que você segura para o fim.',
+  },
+  {
+    hora: '20h40',
+    titulo: 'Aquecimento e canais',
+    desc: 'Como preparar a base antes da campanha abrir, incluindo a Live Boom, e quais canais usar em cada fase.',
+  },
+  {
+    hora: '20h50',
+    titulo: 'Fechamento',
+    desc: '',
+  },
+];
+
+const maioriaFaz = [
+  'Anuncia junto com o varejo, em novembro',
+  'Dá desconto para quem já era cliente',
+  'Termina o mês com o mesmo número de revendedores',
+  'Dezembro e janeiro parados',
+];
+
+const duploPico = [
+  'Pico 1 em outubro, quando o lojista ainda está decidindo de quem comprar',
+  'Oferta desenhada para primeira compra, com mínimo reduzido e prazo',
+  'Pico 2 em novembro, para a base repor o que já vendeu',
+  'Entra revendedor novo, e ele volta a comprar em dezembro',
+];
+
+const entregaveisCards = [
+  {
+    titulo: 'Mapa mental do método completo',
+    desc: 'O duplo pico inteiro em um documento: ranqueamento de datas, ofertas dos dois picos, fases do pico e checklists.',
+  },
+  {
+    titulo: 'Calendário Black Atacado 2026',
+    desc: 'Todas as datas do período já posicionadas, com a janela de antecipação calculada para cada uma.',
+  },
+  {
+    titulo: 'Pack de mensagens de WhatsApp',
+    desc: 'Os textos dos quatro momentos: convite para o grupo VIP, abertura do pico 1, urgência da Black Week e reposição do pico 2.',
+  },
+];
+
+const ofertaItens = [
+  '2 horas ao vivo com Felipe Santos',
+  'Planner da Black Atacado',
+  'Mapa mental do método',
+  'Calendário Black Atacado 2026',
+  'Pack de mensagens de WhatsApp',
+  'Os 3 checklists de execução',
+];
+
+const bioFelipe = [
+  '12 anos de Marketing Digital. Em 2019, assumi a direção de marketing de uma marca atacado no Bom Retiro e aprendi na prática que atacado não é varejo com outra embalagem.',
+  'Em 2021, fundei a Sete Aceleradora, especializada em marcas atacado. Desde então, trabalhei com centenas de marcas que queriam estruturar o digital sem copiar o jeito do e-commerce varejo.',
+  'O Atacado Exponencial nasceu dessa vivência: um método criado para o atacado, testado no atacado.',
+];
+
+const faqs = [
+  {
+    q: 'Preciso já vender no atacado?',
+    a: 'Sim. O workshop é para marca que já tem base de revendedores e quer aumentar ela na Black.',
+  },
+  {
+    q: 'E se eu não puder assistir ao vivo?',
+    a: 'A gravação vitalícia está disponível como adicional no checkout, por R$ 27. O planner é preenchido durante a aula, então quem assiste ao vivo sai com ele pronto.',
+  },
+  {
+    q: 'Serve para o meu nicho?',
+    a: 'O método é de atacado, não de produto. Funciona para moda feminina, infantil, íntima, praia, calçados, acessórios, casa e o que mais você vender por atacado.',
+  },
+  {
+    q: 'Já estou atrasada?',
+    a: 'Não. A antecipação recomendada é de 30 a 45 dias antes da data do varejo. Em 09 de setembro você está no prazo.',
+  },
+  {
+    q: 'Quanto tempo dura?',
+    a: '2 horas, das 19h às 21h.',
+  },
+  {
+    q: 'E se eu não gostar?',
+    a: 'Você tem até 16 de setembro, 7 dias depois do workshop, para pedir reembolso integral.',
+  },
+];
+
+// Prints de depoimentos — reaproveita as imagens de src/assets/proof/
+// (mesmo padrão de src/pages/lives-semanais-v2.astro e video-workshop-instagram.astro).
+const proofModules = import.meta.glob('../assets/proof/*.{jpg,png}', { eager: true });
+const proofImages = Object.entries(proofModules)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([, m]) => (m as { default: ImageMetadata }).default);
+---
+
+<BaseLayout
+  title="Workshop Black Exponencial — 09/09 às 19h | Monte a Black Friday da sua marca atacado"
+  description="Workshop ao vivo de Black Friday para marcas de atacado. Dia 09/09, às 19h, em 2 horas você monta metas, oferta e calendário semana a semana da sua campanha."
+  showHeader={false}
+>
+  <!-- Gancho de estado das vendas: nasce em "abertas". Quem muda para
+       "encerradas" (depois de 09/09 às 18h, fuso de Brasília) é a issue 186.
+       `data-checkout-param` publica CHECKOUT_PARAM para o cliente: um <script>
+       do Astro é bundlado à parte e não enxerga o frontmatter, então a 188 lê
+       `document.querySelector('.wbe').dataset.checkoutParam` em vez de repetir
+       o literal. A URL base não precisa ser publicada — cada botão já a carrega
+       no próprio `href`. -->
+  <div class="wbe" data-vendas="abertas" data-checkout-param={CHECKOUT_PARAM}>
+    <!-- 1. Barra fixa ------------------------------------------------------ -->
+    <div class="wbe-barra">
+      <div class="container wbe-barra__inner">
+        <p class="wbe-barra__texto">
+          <span class="wbe-barra__evento">BLACK EXPONENCIAL</span>
+          <span class="wbe-barra__sep" aria-hidden="true">·</span>
+          <span class="wbe-barra__data">09/09 · 19h · ao vivo</span>
+        </p>
+        <a class="wbe-barra__cta" href={CHECKOUT_URL} data-checkout>Garantir vaga</a>
+      </div>
+    </div>
+
+    <!-- Aviso de vendas encerradas — presente no DOM, oculto. A issue 186
+         remove o `hidden` e vira o gancho do wrapper para "encerradas". -->
+    <div class="wbe-encerrado" hidden>
+      <div class="container">
+        <p class="wbe-encerrado__texto">
+          As vendas do Workshop Black Exponencial estão encerradas.
+        </p>
+      </div>
+    </div>
+
+    <!-- 2. Hero ------------------------------------------------------------ -->
+    <header class="wbe-hero">
+      <nav class="wbe-hero__nav container">
+        <Image
+          src={logo}
+          alt="Atacado Exponencial"
+          height={72}
+          style="height:2.25rem;width:auto;filter:brightness(0)"
+        />
+      </nav>
+      <div class="container wbe-hero__body">
+        <div class="wbe-hero__texto">
+          <span class="wbe-hero__selo">Exclusivo para marcas atacado</span>
+          <h1 class="wbe-hero__titulo">
+            Monte a Black Friday da sua marca atacado em <em class="wbe-hero__destaque">2 horas</em>,
+            com metas, oferta e calendário semana a semana definidos.
+          </h1>
+          <p class="wbe-hero__sub">
+            Ao vivo com Felipe Santos em 09/09, às 19h. A estratégia do duplo pico de vendas:
+            outubro traz revendedor novo, novembro faz a base repor. Sua Black Friday montada na
+            própria aula, do início ao fim.
+          </p>
+          <a class="btn-cta wbe-hero__cta" href={CHECKOUT_URL} data-checkout>Garantir minha vaga</a>
+          <p class="wbe-hero__preco wbe-preco-bloco">
+            <strong data-preco="hero">{VALOR_INICIAL}</strong>
+            <span class="wbe-hero__lote" data-lote="hero">{LOTE_INICIAL}</span>
+          </p>
+        </div>
+        <div class="wbe-hero__visual">
+          <Image src={felipe} alt="Felipe Santos" class="wbe-hero__img" loading="eager" />
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- 3. Dor ----------------------------------------------------------- -->
+      <section class="section wbe-dor">
+        <div class="container wbe-dor__inner">
+          <p class="wbe-dor__abre">Lembra da sua última Black?</p>
+          <p>Você deu desconto. Vendeu. O faturamento do mês até que ficou bom.</p>
+          <p>Aí dezembro chegou e a sua base era exatamente a mesma de outubro. Os mesmos lojistas, comprando mais barato.</p>
+          <p>Nenhum revendedor novo entrou.</p>
+          <p>E em janeiro, quando o movimento caiu, não tinha ninguém novo para repor.</p>
+        </div>
+      </section>
+
+      <!-- 4. Problema real -------------------------------------------------- -->
+      <section class="section section--light wbe-problema">
+        <div class="container wbe-problema__grid">
+          <div class="wbe-problema__texto">
+            <span class="eyebrow">O problema real</span>
+            <h2 class="section-title">
+              O lojista não decide na Black. Ele decide quando monta a grade dele, e isso acontece
+              em outubro.
+            </h2>
+            <p class="section-sub">
+              Quando a sua Black sai em novembro, junto com a do varejo, você está oferecendo
+              mercadoria para alguém que já comprou de outro fornecedor 30 dias antes. A verba dele
+              acabou. A grade dele está fechada.
+            </p>
+            <p class="section-sub">
+              Enquanto isso você briga por espaço no mês mais caro do ano para anunciar, contra o
+              Magalu, contra a Shopee, contra todo mundo.
+            </p>
+            <p class="section-sub">
+              A Black Friday do varejo é em novembro. A do atacado precisa acontecer antes, porque
+              quem vende para lojista vende antes do lojista vender.
+            </p>
+            <p class="section-sub">
+              Essa é a diferença que separa a marca que termina a Black maior da marca que termina
+              a Black no mesmo tamanho.
+            </p>
+          </div>
+          <div class="wbe-linha">
+            <div class="wbe-linha__marco wbe-linha__marco--destaque">
+              <span class="wbe-linha__mes">OUT</span>
+              <span class="wbe-linha__desc">decisão do lojista</span>
+            </div>
+            <div class="wbe-linha__marco wbe-linha__marco--apagado">
+              <span class="wbe-linha__mes">NOV</span>
+              <span class="wbe-linha__desc">você anuncia (tarde)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. Antes e depois ------------------------------------------------- -->
+      <section class="section wbe-comparativo">
+        <div class="container">
+          <div class="section-head">
+            <span class="eyebrow">Antes e depois</span>
+            <h2 class="section-title">Duas formas de encarar a Black</h2>
+          </div>
+          <div class="wbe-comparativo__cols">
+            <div class="wbe-comparativo__col wbe-comparativo__col--apagado">
+              <h3 class="wbe-comparativo__h">Como a maioria faz</h3>
+              <ul class="wbe-comparativo__lista">
+                {maioriaFaz.map((item) => (
+                  <li>
+                    <span class="wbe-comparativo__marca wbe-comparativo__marca--nao" aria-hidden="true">✕</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div class="wbe-comparativo__col wbe-comparativo__col--destaque">
+              <h3 class="wbe-comparativo__h">Como funciona o duplo pico</h3>
+              <ul class="wbe-comparativo__lista">
+                {duploPico.map((item) => (
+                  <li>
+                    <span class="wbe-comparativo__marca wbe-comparativo__marca--sim" aria-hidden="true">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <p class="wbe-comparativo__fecho">No dia 09/09 você monta os dois.</p>
+        </div>
+      </section>
+
+      <!-- 6. CTA ------------------------------------------------------------ -->
+      <section class="section wbe-cta">
+        <div class="container wbe-cta__inner">
+          <span class="eyebrow">Próximo passo</span>
+          <h2 class="wbe-cta__titulo">Sua Black de 2026 começa no dia 09/09.</h2>
+          <a class="btn-cta" href={CHECKOUT_URL} data-checkout>Garantir minha vaga</a>
+        </div>
+      </section>
+
+      <!-- 7. Solução -------------------------------------------------------- -->
+      <section class="section section--light wbe-solucao">
+        <div class="container wbe-solucao__inner">
+          <span class="eyebrow">A solução</span>
+          <h2 class="section-title">Workshop Black Exponencial</h2>
+          <p class="wbe-solucao__meta">
+            09 de setembro · 19h · 2 horas ao vivo com Felipe Santos
+          </p>
+          <p class="section-sub">
+            Não é aula para assistir e anotar. Você entra com o planner em branco e sai com ele
+            preenchido: suas metas, sua oferta dos dois picos, seu calendário semana a semana e
+            seus canais definidos.
+          </p>
+          <p class="section-sub">
+            Quem sai do dia 09 tem a Black pronta com quase um mês de folga para executar.
+          </p>
+        </div>
+      </section>
+
+      <!-- 8. Cronograma ----------------------------------------------------- -->
+      <section class="section wbe-cronograma">
+        <div class="container">
+          <div class="section-head">
+            <span class="eyebrow">Cronograma</span>
+            <h2 class="section-title">As 2 horas, minuto a minuto</h2>
+          </div>
+          <ol class="wbe-cronograma__lista">
+            {cronograma.map((linha) => (
+              <li class="wbe-cronograma__linha">
+                <span class="wbe-cronograma__hora">{linha.hora}</span>
+                <span class="wbe-cronograma__corpo">
+                  <strong class="wbe-cronograma__titulo">{linha.titulo}</strong>
+                  <span class="wbe-cronograma__desc">{linha.desc}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <!-- 9. Entregáveis ---------------------------------------------------- -->
+      <section class="section section--light wbe-entregaveis">
+        <div class="container">
+          <div class="section-head">
+            <span class="eyebrow">O que você leva</span>
+            <h2 class="section-title">Você sai da sala com material pronto para executar</h2>
+          </div>
+
+          <!-- Card largo — sem imagem enquanto o mockup do planner não existir
+               (importar asset inexistente quebra o build do astro:assets). -->
+          <article class="wbe-card wbe-card--largo wbe-card--sem-imagem">
+            <div class="wbe-card__corpo">
+              <span class="wbe-card__tag">Principal</span>
+              <h3 class="wbe-card__titulo">Planner da Black Atacado</h3>
+              <p class="wbe-card__desc">
+                Você preenche durante a aula e imprime no fim. Suas metas, sua oferta, seu
+                calendário e seus canais, tudo em um lugar só.
+              </p>
+            </div>
+          </article>
+
+          <div class="wbe-entregaveis__grid">
+            {entregaveisCards.map((card) => (
+              <article class="wbe-card">
+                <div class="wbe-card__corpo">
+                  <h3 class="wbe-card__titulo">{card.titulo}</h3>
+                  <p class="wbe-card__desc">{card.desc}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <article class="wbe-card wbe-card--largo wbe-card--sem-imagem">
+            <div class="wbe-card__corpo">
+              <h3 class="wbe-card__titulo">Os 3 checklists de execução</h3>
+              <p class="wbe-card__desc">
+                Planejamento estratégico, planejamento criativo e execução.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- 10. CTA ----------------------------------------------------------- -->
+      <section class="section wbe-cta">
+        <div class="container wbe-cta__inner">
+          <span class="eyebrow">Próximo passo</span>
+          <h2 class="wbe-cta__titulo">Duas horas agora valem os dois meses inteiros.</h2>
+          <a class="btn-cta" href={CHECKOUT_URL} data-checkout>Garantir minha vaga</a>
+        </div>
+      </section>
+
+      <!-- 11. Autoridade ----------------------------------------------------- -->
+      <section class="section wbe-autoridade">
+        <div class="container wbe-autoridade__grid">
+          <div class="wbe-autoridade__foto">
+            <Image src={felipe} alt="Felipe Santos" class="wbe-autoridade__img" loading="lazy" />
+          </div>
+          <div class="wbe-autoridade__texto">
+            <span class="eyebrow">Quem conduz</span>
+            <h2 class="section-title">Felipe Santos</h2>
+            <p class="wbe-autoridade__papel">Fundador do Atacado Exponencial</p>
+            {bioFelipe.map((frase) => <p class="wbe-autoridade__bio">{frase}</p>)}
+          </div>
+        </div>
+      </section>
+
+      <!-- 12. Prova social --------------------------------------------------- -->
+      {proofImages.length > 0 && (
+        <section class="section section--light wbe-prova">
+          <div class="container">
+            <div class="section-head">
+              <span class="eyebrow">Depoimentos</span>
+              <h2 class="section-title">O que dizem quem já aplicou o método</h2>
+            </div>
+            <div class="wbe-prova__grid">
+              {proofImages.map((img, i) => (
+                <Image src={img} alt={`Depoimento ${i + 1}`} class="wbe-prova__img" loading="lazy" />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <!-- 13. Ancoragem ------------------------------------------------------ -->
+      <section class="section wbe-ancoragem">
+        <div class="container wbe-ancoragem__inner">
+          <h2 class="section-title">Quanto custa uma Black mal planejada?</h2>
+          <p class="section-sub wbe-ancoragem__intro">
+            Some o desconto que você deu no ano passado para clientes que iam comprar de qualquer
+            jeito. Depois some o que você gastou anunciando em novembro, no mês mais caro do ano.
+          </p>
+          <dl class="wbe-ancoragem__conta">
+            <div class="wbe-ancoragem__linha">
+              <dt>Desconto dado para quem ia comprar de qualquer jeito</dt>
+              <dd class="wbe-ancoragem__valor" aria-label="valor em branco">R$ _______</dd>
+            </div>
+            <div class="wbe-ancoragem__linha">
+              <dt>Anúncio no mês mais caro do ano</dt>
+              <dd class="wbe-ancoragem__valor" aria-label="valor em branco">R$ _______</dd>
+            </div>
+          </dl>
+          <p class="wbe-ancoragem__fecho">
+            Esse é o valor que uma tarde de planejamento economiza.<br />
+            O workshop custa menos que um pedido mínimo da sua marca.
+          </p>
+        </div>
+      </section>
+
+      <!-- 14. Caixa de oferta ------------------------------------------------ -->
+      <section class="section wbe-oferta">
+        <div class="container">
+          <div class="wbe-oferta__caixa">
+            <h2 class="wbe-oferta__titulo">
+              WORKSHOP BLACK EXPONENCIAL — 09/09 · 19h · 2 horas ao vivo
+            </h2>
+            <ul class="wbe-oferta__itens">
+              {ofertaItens.map((item) => (
+                <li>
+                  <span class="wbe-oferta__check" aria-hidden="true">✓</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <div class="wbe-oferta__precos wbe-preco-bloco">
+              <span class="wbe-oferta__cheio">R$ 297</span>
+              <strong class="wbe-oferta__valor" data-preco="oferta">{VALOR_INICIAL}</strong>
+              <span class="wbe-oferta__lote" data-lote="oferta">{LOTE_INICIAL}</span>
+            </div>
+            <a class="btn-cta wbe-oferta__cta" href={CHECKOUT_URL} data-checkout>
+              Garantir minha vaga por <span data-preco="botao-oferta">{VALOR_INICIAL}</span>
+            </a>
+            <p class="wbe-oferta__proximo wbe-preco-bloco" data-preco="proximo">
+              {PROXIMO_VALOR_INICIAL}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 15. Garantia -------------------------------------------------------- -->
+      <section class="section section--light wbe-garantia">
+        <div class="container wbe-garantia__faixa">
+          <div class="wbe-garantia__selo" aria-hidden="true">
+            <span class="wbe-garantia__selo-num">7</span>
+            <span class="wbe-garantia__selo-txt">dias</span>
+          </div>
+          <div class="wbe-garantia__texto">
+            <h2 class="wbe-garantia__titulo">
+              Você tem 7 dias depois do workshop para pedir seu dinheiro de volta.
+            </h2>
+            <p>
+              Participe do dia 09, preencha o planner, leve os materiais. Se até o dia 16 de
+              setembro você achar que aquilo não serve para a sua marca, manda uma mensagem e
+              devolvemos o valor integral. Sem formulário, sem pergunta.
+            </p>
+            <p>
+              O risco de montar a sua Black com a gente é zero. O de entrar em outubro sem campanha
+              nenhuma, não.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 16. Urgência --------------------------------------------------------- -->
+      <section class="section wbe-urgencia">
+        <div class="container wbe-urgencia__inner">
+          <span class="eyebrow">Por que existe prazo</span>
+          <h2 class="section-title">O pico 1 acontece na primeira quinzena de outubro</h2>
+          <p class="section-sub">
+            Para rodar em outubro, você precisa ter a campanha montada em setembro. Dia 09 dá
+            tempo. Dia 30 de setembro já é aperto.
+          </p>
+          <p class="section-sub">
+            Cada lote que passa, o valor sobe. O conteúdo e os materiais são os mesmos.
+          </p>
+          <a class="btn-cta" href={CHECKOUT_URL} data-checkout>Quero garantir minha vaga</a>
+        </div>
+      </section>
+
+      <!-- 17. CTA -------------------------------------------------------------- -->
+      <section class="section wbe-cta">
+        <div class="container wbe-cta__inner">
+          <span class="eyebrow">Próximo passo</span>
+          <h2 class="wbe-cta__titulo">Setembro é o mês de montar. Outubro é o mês de colher.</h2>
+          <a class="btn-cta" href={CHECKOUT_URL} data-checkout>Garantir minha vaga</a>
+        </div>
+      </section>
+
+      <!-- 18. FAQ -------------------------------------------------------------- -->
+      <Faq
+        sub="As dúvidas que mais chegam sobre o Workshop Black Exponencial."
+        faqs={faqs}
+      />
+    </main>
+
+    <!-- 19. Fechamento + CTA — reaproveita FinalCta.astro, arquivo COMPARTILHADO
+         (index, se-v1, trafego-atacado, vsl) e por isso NÃO alterado aqui. O
+         botão dele já nasce com o `href` certo, mas sem `data-checkout`: o
+         <script> do fim desta página marca `.wbe-fechamento .btn-cta` em tempo
+         de execução. A partir daí o seletor ÚNICO de botão de compra da página
+         é `[data-checkout]` — 8 de 8.
+         Dependência a vigiar: se o FinalCta perder a classe `.btn-cta`, o
+         seletor deixa de casar e este botão sai do rastreamento sem erro
+         visível. Conferir a contagem 8 ao mexer no componente. -->
+    <div class="wbe-fechamento">
+      <FinalCta
+        title="Duas opções para outubro:"
+        sub="Chegar com a campanha montada em setembro ou improvisar quando o lojista já tiver comprado."
+        ctaLabel="Quero minha vaga"
+        ctaHref={CHECKOUT_URL}
+        notes={['09/09 · 19h · ao vivo', '2 horas de duração', 'Garantia de 7 dias']}
+      />
+    </div>
+  </div>
+  <!-- 20. Rodapé padrão do site: showFooter fica no default (true). -->
+</BaseLayout>
+
+<style>
+  /* Altura da barra fixa — usada para compensar o topo do hero e a rolagem
+     por âncora. Muda junto no breakpoint do celular. */
+  .wbe {
+    --wbe-barra-h: 4.5rem;
+  }
+  :global(html) {
+    scroll-padding-top: 4.5rem;
+  }
+
+  /* ---- 1. Barra fixa ---------------------------------------------------- */
+  .wbe-barra {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: 50;
+    background: hsl(var(--background));
+    border-bottom: 1px solid hsl(var(--border));
+    min-height: var(--wbe-barra-h);
+    display: flex;
+    align-items: center;
+  }
+  .wbe-barra__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-block: 0.6rem;
+  }
+  .wbe-barra__texto {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    line-height: 1.3;
+  }
+  .wbe-barra__sep {
+    color: hsl(var(--muted-foreground));
+    margin-inline: 0.25rem;
+  }
+  .wbe-barra__cta {
+    flex: none;
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.55rem 1.1rem;
+    border-radius: 9999px;
+    white-space: nowrap;
+    transition: opacity 0.2s ease;
+  }
+  .wbe-barra__cta:hover {
+    opacity: 0.85;
+  }
+
+  /* ---- Aviso de vendas encerradas (issue 186 liga o gancho) -------------- */
+  .wbe-encerrado {
+    padding-block: 1rem;
+    background: hsl(var(--secondary));
+    text-align: center;
+  }
+  .wbe-encerrado__texto {
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  /* Quando o gancho virar "encerradas": some o preço e todo botão de compra,
+     e o aviso aparece mesmo com o atributo `hidden`.
+
+     Os DOIS seletores de botão são intencionais. `[data-checkout]` cobre os 7
+     botões do HTML; `.wbe-fechamento .btn-cta` é a rede de proteção do 8º, que
+     só ganha `data-checkout` via JavaScript. Com JS desligado a marcação nunca
+     acontece e, sem esta segunda regra, o botão do fechamento continuaria à
+     mostra numa página de vendas encerradas. Não remover. */
+  .wbe[data-vendas='encerradas'] .wbe-encerrado[hidden] {
+    display: block;
+  }
+  .wbe[data-vendas='encerradas'] .wbe-preco-bloco,
+  .wbe[data-vendas='encerradas'] :global([data-checkout]),
+  .wbe[data-vendas='encerradas'] :global(.wbe-fechamento .btn-cta) {
+    display: none;
+  }
+
+  /* ---- 2. Hero ----------------------------------------------------------- */
+  .wbe-hero {
+    background: hsl(var(--light-bg));
+    color: hsl(var(--light-fg));
+    /* Compensa a barra fixa para ela não comer o topo do hero */
+    padding-top: var(--wbe-barra-h);
+  }
+  .wbe-hero__nav {
+    display: flex;
+    justify-content: center;
+    padding-block: 1.5rem;
+  }
+  .wbe-hero__body {
+    display: grid;
+    gap: 2.5rem;
+    padding-block: 2rem 4rem;
+    align-items: center;
+  }
+  .wbe-hero__texto {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+  .wbe-hero__selo {
+    display: inline-block;
+    border: 1px solid rgba(30, 30, 30, 0.15);
+    border-radius: 9999px;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(30, 30, 30, 0.7);
+  }
+  .wbe-hero__titulo {
+    font-size: clamp(1.75rem, 4.5vw, 3.25rem);
+    line-height: 1.1;
+  }
+  .wbe-hero__destaque {
+    font-style: normal;
+    background: #1e1e1e;
+    color: #f5f0eb;
+    padding: 0 0.35rem;
+    border-radius: 0.25rem;
+  }
+  .wbe-hero__sub {
+    color: rgba(30, 30, 30, 0.7);
+    max-width: 36rem;
+  }
+  .wbe-hero__cta {
+    margin-top: 0.5rem;
+  }
+  .wbe-hero__preco {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    font-size: 1.15rem;
+  }
+  .wbe-hero__lote {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(30, 30, 30, 0.6);
+  }
+  .wbe-hero__img {
+    width: 100%;
+    height: auto;
+    border-radius: 1rem;
+    object-fit: cover;
+  }
+
+  /* ---- 3. Dor ------------------------------------------------------------ */
+  .wbe-dor__inner {
+    max-width: 40rem;
+    margin-inline: auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+    color: hsl(var(--muted-foreground));
+  }
+  .wbe-dor__inner p:last-child {
+    color: hsl(var(--foreground));
+    font-weight: 700;
+  }
+
+  /* ---- 4. Problema real --------------------------------------------------- */
+  .wbe-problema__grid {
+    display: grid;
+    gap: 2.5rem;
+    align-items: center;
+  }
+  .wbe-problema__texto {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  .wbe-problema__texto .section-sub {
+    text-align: left;
+  }
+  .wbe-linha {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: relative;
+  }
+  .wbe-linha::before {
+    content: '';
+    position: absolute;
+    inset-block: 1.5rem;
+    inset-inline-start: 0.5rem;
+    width: 2px;
+    background: rgba(30, 30, 30, 0.15);
+  }
+  .wbe-linha__marco {
+    position: relative;
+    padding: 1rem 1.25rem 1rem 2.25rem;
+    border: 1px solid rgba(30, 30, 30, 0.12);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .wbe-linha__marco::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: -0.25rem;
+    top: 1.5rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    background: #1e1e1e;
+  }
+  .wbe-linha__marco--apagado {
+    opacity: 0.6;
+  }
+  .wbe-linha__marco--apagado::before {
+    background: rgba(30, 30, 30, 0.35);
+  }
+  .wbe-linha__mes {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .wbe-linha__desc {
+    font-size: 0.95rem;
+    color: rgba(30, 30, 30, 0.7);
+  }
+
+  /* ---- 5. Antes e depois --------------------------------------------------- */
+  .wbe-comparativo__cols {
+    margin-top: 2.5rem;
+    display: grid;
+    gap: 1.5rem;
+  }
+  .wbe-comparativo__col {
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.75rem;
+    padding: 1.75rem 1.5rem;
+  }
+  .wbe-comparativo__col--apagado {
+    opacity: 0.65;
+  }
+  .wbe-comparativo__col--destaque {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: hsl(var(--foreground));
+  }
+  .wbe-comparativo__h {
+    font-size: 1.1rem;
+    margin-bottom: 1.25rem;
+  }
+  .wbe-comparativo__lista {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .wbe-comparativo__lista li {
+    display: flex;
+    gap: 0.6rem;
+    font-size: 0.95rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .wbe-comparativo__col--destaque .wbe-comparativo__lista li {
+    color: hsl(var(--foreground));
+  }
+  .wbe-comparativo__marca {
+    flex: none;
+    font-weight: 700;
+  }
+  .wbe-comparativo__marca--sim {
+    color: #4ade80;
+  }
+  .wbe-comparativo__marca--nao {
+    color: #f87171;
+  }
+  .wbe-comparativo__fecho {
+    margin-top: 2rem;
+    text-align: center;
+    font-size: clamp(1.15rem, 3vw, 1.5rem);
+    font-weight: 700;
+  }
+
+  /* ---- 6, 10, 17. CTAs do corpo -------------------------------------------- */
+  .wbe-cta__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.25rem;
+    max-width: 40rem;
+    margin-inline: auto;
+  }
+  .wbe-cta__titulo {
+    font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  }
+
+  /* ---- 7. Solução ----------------------------------------------------------- */
+  .wbe-solucao__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+    max-width: 42rem;
+    margin-inline: auto;
+  }
+  .wbe-solucao__meta {
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  /* ---- 8. Cronograma --------------------------------------------------------- */
+  .wbe-cronograma__lista {
+    margin-top: 2.5rem;
+    max-width: 46rem;
+    margin-inline: auto;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .wbe-cronograma__linha {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.75rem;
+  }
+  .wbe-cronograma__hora {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .wbe-cronograma__corpo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .wbe-cronograma__titulo {
+    font-size: 0.98rem;
+  }
+  .wbe-cronograma__desc {
+    font-size: 0.88rem;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* ---- 9. Entregáveis --------------------------------------------------------- */
+  .wbe-card {
+    border: 1px solid rgba(30, 30, 30, 0.12);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.5);
+    overflow: hidden;
+    /* Ordem do DOM: imagem → texto. No celular fica naturalmente empilhado. */
+    display: grid;
+  }
+  .wbe-card__corpo {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .wbe-card--largo {
+    margin-top: 2.5rem;
+  }
+  .wbe-card__tag {
+    align-self: flex-start;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    border: 1px solid rgba(30, 30, 30, 0.2);
+    border-radius: 9999px;
+    padding: 0.25rem 0.7rem;
+  }
+  .wbe-card__titulo {
+    font-size: 1.15rem;
+  }
+  .wbe-card__desc {
+    font-size: 0.92rem;
+    color: rgba(30, 30, 30, 0.7);
+  }
+  .wbe-entregaveis__grid {
+    margin-top: 1.5rem;
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  /* ---- 11. Autoridade ----------------------------------------------------------- */
+  .wbe-autoridade__grid {
+    display: grid;
+    gap: 2rem;
+    align-items: center;
+  }
+  .wbe-autoridade__img {
+    width: 100%;
+    height: auto;
+    border-radius: 1rem;
+    object-fit: cover;
+  }
+  .wbe-autoridade__texto {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+  .wbe-autoridade__papel {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: hsl(var(--muted-foreground));
+  }
+  .wbe-autoridade__bio {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.98rem;
+  }
+
+  /* ---- 12. Prova social ---------------------------------------------------------- */
+  .wbe-prova__grid {
+    margin-top: 2.5rem;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  .wbe-prova__img {
+    width: 100%;
+    height: auto;
+    border-radius: 1rem;
+    object-fit: cover;
+  }
+
+  /* ---- 13. Ancoragem -------------------------------------------------------------- */
+  .wbe-ancoragem__inner {
+    max-width: 36rem;
+    margin-inline: auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: stretch;
+  }
+  .wbe-ancoragem__conta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .wbe-ancoragem__linha {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    text-align: left;
+    border-bottom: 1px solid hsl(var(--border));
+    padding-bottom: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.95rem;
+  }
+  .wbe-ancoragem__valor {
+    flex: none;
+    text-align: right;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+    letter-spacing: 0.05em;
+  }
+  .wbe-ancoragem__fecho {
+    font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+    font-weight: 700;
+  }
+
+  /* ---- 14. Caixa de oferta ---------------------------------------------------------- */
+  .wbe-oferta__caixa {
+    max-width: 34rem;
+    margin-inline: auto;
+    border: 2px solid hsl(var(--foreground));
+    border-radius: 1rem;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .wbe-oferta__titulo {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    line-height: 1.4;
+  }
+  .wbe-oferta__itens {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    text-align: left;
+    width: 100%;
+    max-width: 24rem;
+  }
+  .wbe-oferta__itens li {
+    display: flex;
+    gap: 0.6rem;
+    font-size: 0.95rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .wbe-oferta__check {
+    flex: none;
+    color: #4ade80;
+    font-weight: 700;
+  }
+  .wbe-oferta__precos {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .wbe-oferta__cheio {
+    font-size: 0.95rem;
+    color: hsl(var(--muted-foreground));
+    text-decoration: line-through;
+  }
+  .wbe-oferta__valor {
+    font-size: clamp(2.5rem, 8vw, 3.5rem);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .wbe-oferta__lote {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: hsl(var(--muted-foreground));
+  }
+  .wbe-oferta__cta {
+    text-align: center;
+  }
+  .wbe-oferta__proximo {
+    font-size: 0.8rem;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* ---- 15. Garantia -------------------------------------------------------------------- */
+  .wbe-garantia__faixa {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .wbe-garantia__selo {
+    flex: none;
+    width: 5rem;
+    height: 5rem;
+    border-radius: 9999px;
+    border: 2px solid rgba(30, 30, 30, 0.25);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .wbe-garantia__selo-num {
+    font-size: 1.75rem;
+    font-weight: 700;
+  }
+  .wbe-garantia__selo-txt {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+  .wbe-garantia__texto {
+    flex: 1 1 18rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .wbe-garantia__titulo {
+    font-size: 1.25rem;
+  }
+  .wbe-garantia__texto p {
+    color: rgba(30, 30, 30, 0.75);
+    font-size: 0.95rem;
+  }
+
+  /* ---- 16. Urgência --------------------------------------------------------------------- */
+  .wbe-urgencia__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+    max-width: 42rem;
+    margin-inline: auto;
+  }
+  .wbe-urgencia__inner .btn-cta {
+    margin-top: 0.75rem;
+  }
+
+  /* ---- Responsivo ------------------------------------------------------------------------ */
+  /* Celular estreito: a barra fixa omite o nome do evento, preservando sempre
+     a data e o botão. */
+  @media (max-width: 480px) {
+    .wbe-barra__evento,
+    .wbe-barra__sep {
+      display: none;
+    }
+    .wbe-barra__texto {
+      font-size: 0.65rem;
+    }
+    .wbe-barra__cta {
+      font-size: 0.6rem;
+      padding: 0.5rem 0.9rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .wbe-prova__grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .wbe-entregaveis__grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .wbe-comparativo__cols {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (min-width: 880px) {
+    .wbe-hero__body {
+      grid-template-columns: 1.15fr 1fr;
+      padding-block: 3rem 5rem;
+    }
+    .wbe-problema__grid {
+      grid-template-columns: 1.2fr 1fr;
+      gap: 3rem;
+    }
+    .wbe-autoridade__grid {
+      grid-template-columns: 20rem 1fr;
+      gap: 3rem;
+    }
+    /* Cards largos viram duas colunas no desktop; a ordem do DOM continua
+       imagem → texto (reposicionamento é por grid, nunca por `order`). */
+    .wbe-card--largo:not(.wbe-card--sem-imagem) {
+      grid-template-columns: 20rem 1fr;
+      align-items: center;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wbe-barra__cta {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  // Lote vigente e estado das vendas (issue 186).
+  //
+  // Roda no NAVEGADOR porque a página é estática: decidir isso no frontmatter
+  // congelaria o valor no dia do deploy. Aqui só se sobrescreve o que mudou em
+  // relação ao HTML inicial (que já nasce no Lote 0).
+  //
+  // Sem `setInterval`, sem contador regressivo, sem `fetch`: o cálculo acontece
+  // uma vez, no carregamento. A spec proíbe relógio na página, e quem abre a
+  // aba atravessando a virada só precisa de um refresh.
+  //
+  // RISCO ACEITO: a hora vem do relógio do visitante (`Date.now()`), então um
+  // aparelho com data errada vê o lote errado. É consciente — não há servidor no
+  // caminho da renderização e o checkout é a fonte da verdade do preço. Detalhes
+  // no cabeçalho de src/data/lotes-workshop.js. Não "consertar" com fetch de
+  // hora do servidor sem discutir antes.
+  import { loteVigente, textoProximo } from '../data/lotes-workshop.js';
+
+  // Todo o bloco em try/catch: se algo explodir, a página fica no estado
+  // inicial do HTML (Lote 0, vendas abertas) — nunca com preço vazio ou
+  // `undefined`. Não há mensagem de erro: a página continua vendável.
+  try {
+    const estado = loteVigente(Date.now());
+    const wrapper = document.querySelector('.wbe') as HTMLElement | null;
+
+    if (estado.estado === 'encerrado') {
+      // O CSS de `data-vendas="encerradas"` some com o preço e com todos os
+      // botões de compra, e reexibe o aviso mesmo com o atributo `hidden`.
+      if (wrapper) wrapper.dataset.vendas = 'encerradas';
+      const aviso = document.querySelector('.wbe-encerrado') as HTMLElement | null;
+      if (aviso) aviso.hidden = false;
+    } else {
+      // Cada escrita é condicional / via querySelectorAll: gancho ausente não
+      // quebra o resto da página.
+      const valor = estado.valor as string;
+      const rotulo = estado.rotulo as string;
+
+      document
+        .querySelectorAll('[data-preco="hero"], [data-preco="oferta"], [data-preco="botao-oferta"]')
+        .forEach((el) => {
+          el.textContent = valor;
+        });
+      document.querySelectorAll('[data-lote="hero"], [data-lote="oferta"]').forEach((el) => {
+        el.textContent = rotulo;
+      });
+
+      const proximo = document.querySelector('[data-preco="proximo"]') as HTMLElement | null;
+      const texto = textoProximo(estado.proximoValor, rotulo);
+      if (proximo) {
+        if (texto) {
+          proximo.textContent = texto;
+          proximo.hidden = false;
+        } else {
+          // Último lote: a página nunca anuncia um valor que não existe.
+          proximo.hidden = true;
+        }
+      }
+    }
+  } catch (e) {
+    /* estado inicial do HTML já é legível e vendável */
+  }
+
+  // -------------------------------------------------------------------------
+  // Normalização dos botões de compra (issue 187).
+  //
+  // Os 7 botões escritos nesta página já nascem com `data-checkout` no HTML. O
+  // 8º vem de FinalCta.astro, componente COMPARTILHADO que não é alterado por
+  // esta página — então ele é marcado aqui, em tempo de execução, pelo seletor
+  // `.wbe-fechamento .btn-cta`. Depois disto o seletor único de "botão de
+  // compra desta página" é `[data-checkout]`, 8 de 8.
+  //
+  // Bloco próprio (fora do try/catch do lote) para que uma falha lá não impeça
+  // a marcação, e vice-versa. Se o bloco de fechamento sumir ou for renomeado,
+  // a lista vem vazia e isto vira no-op — sem exceção, sem quebra. Nada de
+  // estado de venda aqui: quem esconde botão é o CSS.
+  //
+  // CONTRATO COM A ISSUE 188: o handler de clique dela usa DELEGAÇÃO —
+  //   document.addEventListener('click', (e) => {
+  //     const a = (e.target as Element).closest('[data-checkout]');
+  //     ...
+  //   })
+  // Delegação avalia o seletor no momento do clique, o que elimina qualquer
+  // dependência de ordem entre este script e o dela (ambos são módulos do
+  // Astro, `defer`). E, ao montar o destino, a 188 escolhe o separador com
+  // `const sep = url.includes('?') ? '&' : '?'`, porque CHECKOUT_URL já tem
+  // query string hoje. Nada de `trk`, `/checkout-session` ou `InitiateCheckout`
+  // nesta issue.
+  // -------------------------------------------------------------------------
+  document.querySelectorAll('.wbe-fechamento .btn-cta').forEach((el) => {
+    (el as HTMLElement).dataset.checkout = '';
+  });
+
+  // -------------------------------------------------------------------------
+  // Rastreamento de página de vendas (issue 188).
+  //
+  // Três responsabilidades, nesta ordem:
+  //   1. obter/criar o identificador de compra (`trk`) da VISITA;
+  //   2. gravá-lo em `checkout_sessions` (POST /checkout-session) já no
+  //      carregamento, para o webhook da plataforma ter o que consultar horas
+  //      depois;
+  //   3. no clique em qualquer botão de compra, disparar `InitiateCheckout`
+  //      (beacon + pixel com o MESMO event_id, para o Meta deduplicar) e
+  //      navegar para o destino com o `trk` anexado.
+  //
+  // REGRA QUE MANDA EM TUDO: a compra vem antes do rastreamento. Nenhuma falha
+  // aqui — sessionStorage bloqueado, rede fora, pixel derrubado por bloqueador —
+  // pode impedir a ida ao checkout. Por isso todo o bloco está em try/catch,
+  // cada parte frágil tem o seu próprio, e os `href` dos botões continuam
+  // intactos: sem JS a página segue navegável, só perde o `trk`.
+  //
+  // Nada de constantes duplicadas: o nome do parâmetro vem do DOM
+  // (`data-checkout-param`, publicado pela 187) e a URL base vem do `href` do
+  // botão clicado. Trocar de plataforma continua sendo editar só o frontmatter.
+  // -------------------------------------------------------------------------
+  try {
+    // Fallback em memória: vale enquanto a aba viver. Só é usado se o
+    // sessionStorage estiver indisponível (aba anônima com cota zero, extensão
+    // bloqueando, SecurityError em iframe). Consequência aceita: um refresh
+    // gera outro `trk` e uma segunda linha em `checkout_sessions` — a
+    // atribuição segue correta, porque o `trk` que vai ao checkout é sempre o
+    // da aba viva.
+    let trkMemoria: string | null = null;
+
+    // `crypto.randomUUID` só existe em contexto seguro. A página é HTTPS, então
+    // o fallback é praticamente inalcançável — mas existe para nenhum caminho
+    // jogar TypeError e derrubar o clique.
+    const novoId = () => {
+      try {
+        return crypto.randomUUID();
+      } catch (e) {
+        return Date.now() + '-' + Math.random().toString(16).slice(2);
+      }
+    };
+
+    // Leitura E escrita protegidas: no Safari privado quem lança é o `setItem`.
+    const obterTrk = () => {
+      try {
+        const salvo = sessionStorage.getItem('krob_trk');
+        if (salvo) return salvo;
+      } catch (e) {
+        /* storage indisponível — segue para o fallback em memória */
+      }
+      if (trkMemoria) return trkMemoria;
+      const gerado = novoId();
+      trkMemoria = gerado;
+      try {
+        sessionStorage.setItem('krob_trk', gerado);
+      } catch (e) {
+        /* fica só em memória */
+      }
+      return gerado;
+    };
+
+    const trk = obterTrk();
+
+    // POST no carregamento (não no clique): o `fetch` tem tempo de completar, e
+    // se a pessoa voltar do checkout a linha já está lá. `INSERT OR REPLACE`
+    // pela chave `trk` no servidor torna o repost de um refresh idempotente.
+    const params = new URLSearchParams(location.search);
+    fetch('/checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trk,
+        utm_source: params.get('utm_source') || '',
+        utm_medium: params.get('utm_medium') || '',
+        utm_campaign: params.get('utm_campaign') || '',
+        utm_content: params.get('utm_content') || '',
+        utm_term: params.get('utm_term') || '',
+        event_source_url: location.href,
+      }),
+      // `location.href` (e não `pathname`) para a variante A/B, servida de
+      // `/ab/<slug>/b/`, gravar a URL pública que o visitante realmente viu.
+    }).catch(() => {
+      /* Falha muda de propósito: nada na tela, nenhum botão bloqueado, nenhum
+         retry. Vender importa mais que rastrear. */
+    });
+
+    // Um único InitiateCheckout por carregamento de página. Sem esta flag, um
+    // duplo toque viraria dois eventos com event_id diferentes — dupla contagem
+    // real, já que a dedup do Meta é por event_id. Voltar pelo botão "voltar"
+    // recarrega o script e o próximo clique volta a valer (mesma visita, mesmo
+    // `trk` do sessionStorage).
+    let jaDisparou = false;
+
+    // Delegação em `document`: o seletor é avaliado no momento do clique, o que
+    // elimina qualquer dependência de ordem com o bloco acima que marca o 8º
+    // botão (o do FinalCta) com `data-checkout`.
+    document.addEventListener('click', (evento) => {
+      const alvo = evento.target as Element | null;
+      const botao = alvo && alvo.closest ? alvo.closest('[data-checkout]') : null;
+      if (!botao) return;
+
+      // Vendas encerradas: o CSS já esconde todos os botões, mas um alcançado
+      // por teclado ou leitor de tela viraria checkout fantasma. Sai cedo e
+      // deixa o navegador seguir o href, sem disparar evento nenhum.
+      const wrapperVendas = document.querySelector('.wbe') as HTMLElement | null;
+      if (wrapperVendas && wrapperVendas.dataset.vendas === 'encerradas') return;
+
+      const base = botao.getAttribute('href');
+      if (!base) return;
+
+      const nomeParam =
+        (wrapperVendas && wrapperVendas.dataset.checkoutParam) || 'trk';
+      // CHECKOUT_URL já nasce com query string hoje: separador calculado, nunca
+      // fixo.
+      const separador = base.includes('?') ? '&' : '?';
+      const destino = base + separador + nomeParam + '=' + encodeURIComponent(trk);
+
+      evento.preventDefault();
+
+      if (!jaDisparou) {
+        jaDisparou = true;
+        const eventId = novoId();
+
+        // Beacon (não `fetch`): sobrevive à saída da página. O servidor manda
+        // ao Meta CAPI com este event_id e traduz para `begin_checkout` no GA4.
+        try {
+          navigator.sendBeacon(
+            '/tracker',
+            new Blob(
+              [
+                JSON.stringify({
+                  event_name: 'InitiateCheckout',
+                  event_id: eventId,
+                  event_time: Math.floor(Date.now() / 1000),
+                  event_source_url: location.href,
+                  user_data: {},
+                }),
+              ],
+              { type: 'application/json' },
+            ),
+          );
+        } catch (e) {
+          /* sem sendBeacon o evento se perde — a venda, não */
+        }
+
+        // Cópia do navegador com o MESMO event_id: é isso que faz o Meta contar
+        // uma vez só. `fbq` pode não existir se um bloqueador derrubar o proxy
+        // /scripts, daí o try/catch.
+        try {
+          (window as any).fbq('track', 'InitiateCheckout', {}, { eventID: eventId });
+        } catch (e) {
+          /* pixel ausente ou bloqueado */
+        }
+      }
+
+      // 80ms para a fila do beacon esvaziar antes de a aba sair (Chrome Android
+      // descarta beacons pendentes na navegação). Cliques seguintes não
+      // redisparam evento, mas continuam levando o `trk` ao destino.
+      setTimeout(() => {
+        window.location.href = destino;
+      }, 80);
+    });
+  } catch (e) {
+    // Qualquer erro inesperado: os botões continuam sendo <a href> de verdade,
+    // então a navegação segue funcionando — só se perde o `trk` e o evento.
+    console.error('[wbe] rastreamento de checkout indisponível', e);
+  }
+</script>
