@@ -1,203 +1,266 @@
-# Spec: Entrada no grupo de WhatsApp como conversão personalizada no Meta
+# Spec: Página de vendas do Workshop Black Exponencial
 
 ## Visão Geral
 
-Hoje a entrada real de uma pessoa no grupo de WhatsApp da live é registrada e
-aparece na aba **Grupos** do painel, mas morre ali: o Meta não fica sabendo que
-ela aconteceu. A única conversão que o Meta enxerga é o **Lead** (preenchimento
-de formulário) — e a LP `/lives-semanais-v2`, que manda o visitante direto para o
-grupo sem formulário, não gera nenhuma conversão mensurável do lado do anúncio.
+Página de vendas única, no endereço `/workshop-black-exponencial-2026`, para
+vender ingresso do **Workshop Black Exponencial** — evento ao vivo com Felipe
+Santos em **09/09, às 19h, com 2 horas de duração**.
 
-Este projeto fecha esse buraco: **cada entrada nova em grupo monitorado passa a
-ser enviada ao Meta como uma conversão**, com o nome próprio de evento, para que
-a operação possa montar uma conversão personalizada no gerenciador e finalmente
-comparar campanhas pelo resultado real (pessoa dentro do grupo) e não só pela
-intenção (clique ou formulário).
+**Para quem:** dona ou dono de marca de atacado que já tem base de revendedores
+e precisa montar a campanha de Black Friday da marca — com a tese do "duplo
+pico" (outubro traz revendedor novo, novembro faz a base repor).
 
-**Para quem é:** a operação de marketing, que hoje não consegue responder "qual
-anúncio trouxe gente para dentro do grupo da live".
+**Problema que resolve:** hoje não existe página onde essa oferta possa ser
+apresentada e vendida. A marca chega em novembro anunciando junto com o varejo,
+quando o lojista já decidiu de quem comprar em outubro. A página precisa
+explicar essa inversão de calendário, provar autoridade e levar o visitante ao
+checkout do workshop.
 
-**Deduplicação:** a mesma pessoa entrando várias vezes no mesmo grupo vale **uma
-única conversão, para sempre**. Se ela sai e volta, o Meta não recebe de novo. A
-deduplicação vale **somente para o envio ao Meta** — a aba Grupos do painel
-continua contando exatamente como hoje, entradas e saídas, sem nenhuma mudança
-visual ou numérica.
+**Diferença em relação às páginas existentes do projeto:** as landing pages
+atuais são de captura (formulário, chat ou entrada em grupo) e geram *lead*.
+Esta é a primeira **página de vendas** com preço e destino de compra — não tem
+formulário nenhum, e o objetivo do visitante é sair da página em direção ao
+checkout.
 
-**Identificação da pessoa:** o registro de entrada traz apenas o telefone. Quando
-esse telefone corresponder a um lead que o tracking já conhece, a conversão é
-**enriquecida** com os identificadores de navegação daquela pessoa, o que aumenta
-muito a taxa de correspondência no Meta. Quando não houver correspondência, a
-conversão é enviada mesmo assim, apenas com o telefone protegido.
+**Duas particularidades que definem o comportamento da página:**
 
-**Limites conhecidos e aceitos (não são problemas a resolver aqui):**
+1. **O checkout ainda não existe.** Todos os botões apontam para um destino
+   configurável, definido num único lugar da página, que será trocado pela URL
+   real do checkout quando ela existir. Nada além desse único ponto muda quando
+   a URL chegar.
+2. **O preço não é fixo.** A página descobre sozinha, pela data corrente no
+   fuso de Brasília, qual lote está vigente e mostra o valor daquele lote, o
+   rótulo do lote e qual será o próximo valor.
 
-- **Volume baixo.** São cerca de 7 entradas em 3 dias no grupo da live. Isso é
-  suficiente para *medir*, não para o Meta *otimizar* campanha (que pede ordem de
-  50 conversões semanais por conjunto de anúncios). A conversão personalizada vai
-  reportar corretamente, mas não deve ser usada como evento de otimização por
-  enquanto.
-- **Fonte frágil.** O registro de entradas depende da integração de WhatsApp que
-  está em processo de substituição. Se ela cair, o Meta simplesmente para de
-  receber essa conversão. O projeto deve deixar essa parada **visível**, nunca
-  silenciosa.
-- **Sem atribuição própria de campanha.** A conversão informa que a pessoa entrou;
-  quem decide a qual anúncio isso pertence é o Meta, pela correspondência de
-  identidade. As UTMs do site não participam dessa decisão quando não há
-  correspondência com lead conhecido.
-
-**Fora do escopo (não fazer):** medir o clique no botão do grupo; alterar a aba
-Grupos do painel; alterar as landing pages; alterar o redirecionador do grupo;
-criar a conversão personalizada dentro do gerenciador do Meta (é configuração
-manual da operação, feita depois que os eventos começarem a chegar); enviar
-conversão para saídas ou remoções do grupo; enviar as entradas já registradas
-antes da ativação.
-
-## Decisões assumidas (confirmar antes do /break)
-
-1. **Nome do evento:** `EntrouGrupo`, com o grupo identificado dentro do próprio
-   evento — assim a operação cria uma conversão personalizada por grupo (live ou
-   workshop) sem precisar de eventos diferentes.
-2. **Quais grupos entram:** apenas os grupos explicitamente marcados como
-   "manda conversão". Na ativação, só o grupo das **Lives Semanais** fica marcado;
-   Workshops fica registrado no painel como hoje, mas sem enviar nada.
-3. **Marco de corte:** as entradas já registradas antes da ativação **não** são
-   enviadas. Só valem entradas novas, a partir do momento em que o recurso entra
-   no ar.
-4. **Chave de deduplicação:** telefone + grupo, sem prazo de expiração.
-
-**Conversão personalizada já criada no Meta:** ID `1595278292393579`, com o nome
-de evento `EntrouGrupo`. O ID **não** entra no envio — o que o código manda é o
-evento com esse nome, e a conversão personalizada é a regra que casa com ele do
-lado do Meta. O ID serve à operação, para escolher a conversão nos relatórios e
-na configuração de campanha. Fica registrado aqui só para rastreabilidade.
-
-**Pixel de destino: `2800317883678788`** — o pixel da conta de anúncios nova,
-que no projeto é `META_PIXEL_ID_2`/`META_ACCESS_TOKEN_2`. É onde a conversão
-personalizada foi criada, então é o único destino do `EntrouGrupo`. **Não**
-replicar o evento para o pixel antigo (`META_PIXEL_ID`): lá a conversão não
-existe, e o evento só faria ruído. Isso difere do evento de Lead, que hoje vai
-para os dois pixels em paralelo — aqui o envio é deliberadamente único.
-
-Consequência operacional: se um dia a operação promover o pixel novo a único
-(removendo as vars `_2`, como prevê a migração dos pixels), este envio precisa
-migrar junto para `META_PIXEL_ID` — caso contrário para de funcionar em silêncio.
+---
 
 ## Páginas / Módulos
 
-### Módulo 1 — Seleção das entradas que viram conversão
+### Página de vendas `/workshop-black-exponencial-2026`
 
-**Descrição:** decide, entre tudo que é registrado de movimentação nos grupos, o
-que merece virar conversão no Meta. É o filtro que protege o Meta de receber
-ruído e de contar a mesma pessoa duas vezes.
-
-**Componentes:**
-- Marcação de grupo elegível: indicação, por grupo monitorado, de que aquele
-  grupo envia conversão ao Meta. Grupos não marcados são ignorados por completo.
-- Registro de pessoas já convertidas: memória de quais telefones já geraram
-  conversão em quais grupos, para nunca repetir.
-- Marco de corte: momento a partir do qual as entradas passam a valer.
-
-**Comportamentos:**
-- Selecionar somente movimentações do tipo "entrou", descartando saídas e
-  remoções.
-- Descartar entrada em grupo que não está marcado como elegível.
-- Descartar entrada anterior ao marco de corte.
-- Descartar entrada cujo telefone já gerou conversão naquele mesmo grupo.
-- Aceitar como conversão nova a entrada de um telefone que ainda não converteu
-  naquele grupo.
-- Registrar o telefone como já convertido assim que a conversão é aceita, para
-  que uma reentrada posterior não gere outra.
-- Tratar entrada sem telefone identificável como não elegível, sem interromper o
-  processamento das demais.
-
-### Módulo 2 — Enriquecimento pelo lead conhecido
-
-**Descrição:** tenta descobrir se quem entrou no grupo é alguém que o tracking já
-conhece, para mandar ao Meta uma conversão com muito mais chance de ser
-reconhecida.
+**Descrição:** página longa de venda direta, com ordem fixa de blocos, quatro
+chamadas para ação no corpo mais o botão da barra fixa, e preço calculado pela
+data. Não capta dados: o único caminho de saída é o destino de compra.
 
 **Componentes:**
-- Busca por correspondência: procura do telefone da pessoa entre os leads já
-  registrados.
-- Conjunto de identificadores da pessoa: dados de navegação e identificação
-  associados ao lead encontrado.
+
+- **Barra fixa de topo:** texto "BLACK EXPONENCIAL · 09/09 · 19h · ao vivo" e um
+  botão pequeno de compra. Fica visível o tempo todo, sobre o conteúdo.
+- **Hero:** selo "Exclusivo para marcas atacado"; headline "Monte a Black Friday
+  da sua marca atacado em 2 horas, com metas, oferta e calendário semana a
+  semana definidos.", com o trecho "2 horas" em destaque visual; subtítulo com a
+  data, o horário e a tese do duplo pico; botão "Garantir minha vaga"; logo
+  abaixo do botão, uma linha com o valor vigente e o rótulo do lote vigente; um
+  elemento visual (mockup do planner, ou foto do Felipe como alternativa).
+  Sem vídeo.
+- **Bloco de dor:** texto corrido centralizado, frases curtas em linhas
+  separadas, sobre a Black passada que deu faturamento mas não deu revendedor
+  novo. Sem ícone, sem lista, sem card. Fundo diferente do hero.
+- **Bloco do problema real:** texto explicando que o lojista decide em outubro e
+  que a Black do atacado precisa acontecer antes da do varejo; ao lado, uma
+  linha do tempo simples com dois marcos — "OUT: decisão do lojista" e "NOV:
+  você anuncia (tarde)". É o único gráfico da página.
+- **Bloco antes e depois:** duas colunas. À esquerda, "Como a maioria faz", com
+  quatro itens marcados com ✕ e tratamento visual apagado. À direita, "Como
+  funciona o duplo pico", com quatro itens marcados com ✓ e tratamento visual de
+  destaque. Abaixo, a frase de fecho "No dia 09/09 você monta os dois."
+- **Bloco da solução:** nome do workshop, data, horário, duração, e o texto que
+  posiciona a aula como sessão de execução — o visitante entra com o planner em
+  branco e sai com ele preenchido.
+- **Cronograma da aula:** sete linhas, cada uma com horário à esquerda (19h00,
+  19h15, 19h30, 20h00, 20h15, 20h40, 20h50), título do módulo em negrito e
+  descrição em texto secundário abaixo.
+- **Bloco de entregáveis:** um card largo em destaque para o *Planner da Black
+  Atacado* com imagem; abaixo, uma grade de três cards menores (Mapa mental do
+  método completo; Calendário Black Atacado 2026; Pack de mensagens de
+  WhatsApp); abaixo, um segundo card largo para *Os 3 checklists de execução*.
+- **Bloco de autoridade:** foto do Felipe Santos à esquerda, nome, papel
+  ("fundador do Atacado Exponencial") e a biografia de quatro frases à direita.
+- **Bloco de prova social:** os mesmos depoimentos já usados na página das
+  lives, exibidos entre Autoridade e Ancoragem.
+- **Bloco de ancoragem:** texto "Quanto custa uma Black mal planejada?" seguido
+  de uma conta de duas linhas — "desconto dado no ano passado" e "investimento
+  em anúncio em novembro" — com os valores em branco, alinhados à direita, para
+  o visitante preencher mentalmente; fecho com "O workshop custa menos que um
+  pedido mínimo da sua marca."
+- **Caixa de oferta:** caixa fechada com borda destacada e centralizada,
+  contendo: título "WORKSHOP BLACK EXPONENCIAL — 09/09 · 19h · 2 horas ao vivo";
+  lista de seis itens com check (2 horas ao vivo com Felipe Santos; Planner da
+  Black Atacado; Mapa mental do método; Calendário Black Atacado 2026; Pack de
+  mensagens de WhatsApp; Os 3 checklists); valor cheio de R$ 297 riscado, menor
+  e apagado; valor do lote vigente em tamanho grande; rótulo do lote vigente;
+  botão "Garantir minha vaga por R$ [valor do lote]"; linha de aviso do próximo
+  valor.
+- **Faixa de garantia:** faixa horizontal com selo à esquerda e o texto dos 7
+  dias de reembolso à direita, sobre fundo levemente diferente do bloco
+  anterior.
+- **Bloco de urgência:** texto explicando por que existe prazo (o pico 1
+  acontece na primeira quinzena de outubro, a campanha precisa estar montada em
+  setembro) e que cada lote que passa aumenta o valor, sem mudar conteúdo nem
+  materiais. Termina com botão "Quero garantir minha vaga".
+- **FAQ:** sanfona com seis perguntas, todas fechadas por padrão (preciso já
+  vender no atacado; e se eu não puder assistir ao vivo; serve para o meu nicho;
+  já estou atrasada; quanto tempo dura; e se eu não gostar).
+- **Fechamento:** frase "Duas opções para outubro: chegar com a campanha montada
+  em setembro ou improvisar quando o lojista já tiver comprado." e botão "Quero
+  minha vaga".
+- **Rodapé padrão do site.**
 
 **Comportamentos:**
-- Procurar o telefone da pessoa entre os leads conhecidos, tolerando diferenças
-  de formatação de número.
-- Quando houver exatamente uma correspondência, anexar à conversão os
-  identificadores daquele lead.
-- Quando houver mais de uma correspondência, usar a mais recente.
-- Quando não houver correspondência, seguir com a conversão contendo apenas o
-  telefone protegido.
-- Nunca impedir o envio da conversão por causa de falha na busca — sem
-  correspondência, a conversão vai assim mesmo.
-- Registrar, para cada conversão, se ela foi enriquecida ou não, para a operação
-  saber a qualidade do que está sendo enviado.
 
-### Módulo 3 — Envio da conversão ao Meta
+*Estrutura e navegação*
 
-**Descrição:** entrega ao Meta a conversão já filtrada e enriquecida, protegendo
-os dados pessoais e permitindo que o Meta reconheça reenvios como o mesmo evento.
+- Exibir os blocos sempre nesta ordem: Hero → Dor → Problema real → Antes e
+  depois → **CTA** → Solução → Cronograma → Entregáveis → **CTA** →
+  Autoridade → Prova social → Ancoragem → Oferta → Garantia → Urgência →
+  **CTA** → FAQ → Fechamento → **CTA**.
+- Manter no celular exatamente a mesma ordem de blocos do desktop, sem
+  reordenar, esconder ou trocar nada de lugar.
+- Manter a barra fixa visível durante toda a rolagem da página, sobreposta ao
+  conteúdo, sem cobrir o botão de compra de nenhum bloco.
+- No celular, a barra fixa quebra em duas linhas ou omite o nome do evento,
+  preservando sempre a data e o botão.
+- Empilhar em uma coluna, no celular, todos os blocos de duas colunas (problema
+  real, antes e depois, autoridade, entregáveis).
+- No celular, no bloco de entregáveis, exibir a imagem de cada card acima do
+  texto do card.
+- Apresentar a página com a identidade visual do restante do site (mesma fonte,
+  mesma paleta, mesmos formatos de seção, selo, título e botão já usados nas
+  outras páginas).
+- Carregar a página sem vídeo e sem elementos pesados; imagens entram
+  comprimidas e as que estão abaixo da primeira dobra só carregam quando o
+  visitante se aproxima delas.
+- Descrever a página, para buscadores e compartilhamentos, como o workshop de
+  Black Friday para marcas de atacado, com data e horário.
 
-**Componentes:**
-- Conversão montada: o evento com nome próprio, momento em que a entrada
-  aconteceu, identificação do grupo e os identificadores da pessoa.
-- Proteção dos dados pessoais: telefone e demais identificadores nunca trafegam
-  legíveis.
-- Identificador único do evento: permite que uma eventual repetição de envio seja
-  reconhecida pelo Meta como o mesmo acontecimento, não como duas conversões.
+*Preço e lote (calculados pela data)*
 
-**Comportamentos:**
-- Enviar a conversão usando o momento real da entrada no grupo, não o momento do
-  envio.
-- Identificar no evento a qual grupo a entrada pertence.
-- Proteger o telefone e os demais identificadores antes de enviar.
-- Atribuir a cada conversão um identificador único e estável, derivado da própria
-  entrada.
-- Registrar o resultado de cada envio, incluindo a resposta recebida em caso de
-  recusa.
-- Não enviar conversão quando a integração com o Meta não estiver configurada,
-  registrando o motivo.
+- Determinar o lote vigente a partir da data e hora correntes no fuso de
+  Brasília, segundo a tabela: **Lote 0 — R$ 47**, de 10/08 a 20/08; **Lote 1 —
+  R$ 97**, de 20/08 a 30/08; **Lote 2 — R$ 147**, de 30/08 até 09/09 às 18h.
+- Exibir o valor do lote vigente em todos os pontos da página que mostram preço
+  (linha abaixo do botão do hero, caixa de oferta e texto do botão da caixa de
+  oferta), sempre com o mesmo número.
+- Exibir o rótulo do lote vigente ("Lote 0", "Lote 1", "Lote 2") junto ao valor
+  no hero e na caixa de oferta.
+- Exibir sempre o valor cheio de R$ 297 riscado como ancoragem, menor e mais
+  apagado que o valor vigente.
+- Exibir, abaixo da caixa de oferta, a linha "Depois do Lote [N], o valor sobe
+  para R$ [próximo valor]" enquanto existir um lote seguinte.
+- Substituir ou omitir essa linha quando o lote vigente for o último — nunca
+  anunciar um próximo valor que não existe.
+- Definir um comportamento explícito para as datas fora da tabela: antes de
+  10/08 a página apresenta o primeiro lote; depois de 09/09 às 18h a página
+  apresenta o encerramento das vendas, sem preço inventado.
+- Tratar as fronteiras de data sem ambiguidade: em cada dia de virada (20/08 e
+  30/08) apenas um lote pode estar vigente, e o valor exibido em todos os
+  lugares da página é o mesmo.
+- Escrever todos os valores no formato brasileiro, com "R$" e sem centavos.
 
-### Módulo 4 — Falhas e reprocessamento
+*Destino de compra*
 
-**Descrição:** garante que uma indisponibilidade momentânea não faça a conversão
-se perder para sempre, e que a operação saiba quando algo parou.
+- Ler o destino de compra de um único ponto de configuração da página, usado por
+  todos os botões — barra fixa, hero, os quatro CTAs do corpo e o botão da caixa
+  de oferta.
+- Enquanto a URL real do checkout não existir, apontar todos os botões para o
+  destino placeholder configurado, sem quebrar a navegação nem exibir erro ao
+  visitante.
+- Trocar o destino real exige alterar apenas esse ponto de configuração, sem
+  tocar em nenhum bloco da página.
+- Usar exatamente o mesmo texto e a mesma cor em todos os botões do corpo da
+  página.
 
-**Componentes:**
-- Fila de pendências: conversões aceitas que ainda não foram confirmadas pelo
-  Meta.
-- Histórico de tentativas: quantas vezes cada conversão foi tentada e com qual
-  resultado.
-- Aviso de interrupção: sinal para a operação quando as conversões param de
-  chegar.
+*Rastreamento*
 
-**Comportamentos:**
-- Manter como pendente a conversão cujo envio falhou, sem marcá-la como enviada.
-- Tentar novamente as conversões pendentes em execuções posteriores.
-- Parar de tentar após um número máximo de tentativas, deixando a conversão
-  marcada como falha definitiva.
-- Não gerar conversão duplicada ao reprocessar uma pendência.
-- Avisar a operação quando houver falhas repetidas de envio.
-- Avisar a operação quando deixar de chegar qualquer movimentação de grupo por um
-  período anormalmente longo, que é o sintoma de a fonte ter caído.
+- Registrar a visita da página com os mesmos dados de origem já registrados nas
+  demais páginas do site (origem, campanha, conteúdo e identificadores de
+  clique), pelo mesmo mecanismo compartilhado — sem tratamento especial.
+- Criar, na chegada do visitante, um identificador de compra para esta visita e
+  registrá-lo junto com os dados de origem, de modo que uma venda confirmada
+  depois pelo checkout possa ser atribuída a esta visita.
+- Reaproveitar o mesmo identificador de compra enquanto o visitante estiver na
+  mesma visita, mesmo que recarregue a página.
+- Registrar o evento de "início de checkout" quando o visitante aciona qualquer
+  botão de compra, de forma que o registro sobreviva à saída da página.
+- Enviar esse identificador de compra junto com o visitante ao destino de
+  compra, no formato exigido pela plataforma de checkout escolhida.
+- Registrar o mesmo evento de início de checkout uma única vez por clique, sem
+  contagem dupla entre o registro do navegador e o registro do servidor.
+- Fazer a página aparecer, sem configuração extra, na visão de desempenho por
+  landing page já existente no painel.
+- Manter a página compatível com o mecanismo de teste A/B existente: se um dia
+  uma variante desta página for criada, ela entra pelo mesmo caminho das demais,
+  sem alteração nesta página.
 
-### Módulo 5 — Visibilidade para a operação
+*Prova social*
 
-**Descrição:** deixa claro, sem precisar abrir o gerenciador do Meta, quantas
-conversões foram enviadas e se o mecanismo está saudável.
+- Exibir o bloco de prova social usando o mesmo conjunto de depoimentos já
+  publicado na página das lives.
+- Omitir o bloco inteiro caso não haja material de depoimento disponível —
+  nunca exibir um espaço vazio, um placeholder ou um aviso de "em breve".
 
-**Componentes:**
-- Contagem de conversões enviadas no período.
-- Indicação de quantas foram enriquecidas com lead conhecido.
-- Indicação de pendências e falhas.
-- Registro da última execução bem-sucedida.
+*FAQ*
 
-**Comportamentos:**
-- Exibir quantas entradas viraram conversão no período selecionado.
-- Exibir quantas entradas foram descartadas por já terem convertido antes.
-- Exibir a proporção de conversões enriquecidas.
-- Exibir quando foi a última conversão enviada com sucesso.
-- Sinalizar visualmente quando houver falhas definitivas aguardando atenção.
-- Manter a aba Grupos existente exatamente como está, sem alterar suas contagens.
+- Exibir todas as perguntas fechadas quando a página carrega.
+- Abrir a resposta quando o visitante aciona uma pergunta e fechá-la quando
+  aciona de novo.
+- Permitir que mais de uma pergunta fique aberta ao mesmo tempo, sem que abrir
+  uma feche a outra.
+- Responder, na pergunta sobre não assistir ao vivo, que a gravação vitalícia é
+  **adicional no checkout, por R$ 27** — e em nenhum outro lugar da página
+  prometer a gravação como incluída no ingresso.
+
+*Garantia*
+
+- Informar prazo de 7 dias após o workshop, com a data limite explícita de 16 de
+  setembro, e reembolso integral sem formulário e sem pergunta.
+
+---
+
+## Fora de escopo
+
+- **Checkout real:** a criação, configuração ou integração da página de
+  pagamento. A página aponta para um placeholder até a URL existir.
+- **Formulário de captura:** esta página não coleta nome, e-mail, telefone nem
+  qualquer outro dado do visitante; não há modal, chat nem campo de entrada.
+- **Contador de vagas:** nenhuma exibição de vagas restantes, lotadas ou
+  esgotando.
+- **Contador regressivo de horas:** proibido explicitamente. A urgência da
+  página vem do texto e da mudança de lote, nunca de um relógio.
+- **Produção das artes e imagens:** o mockup do planner, a foto do Felipe e
+  qualquer arte dos cards de entregáveis não são produzidos aqui.
+- **Criação dos materiais entregáveis:** o planner, o mapa mental, o calendário,
+  o pack de mensagens e os checklists são produtos do workshop — a página apenas
+  os anuncia.
+- **Configuração do webhook de venda** na plataforma de checkout e a validação
+  ponta a ponta da compra.
+- **Página de obrigado pós-compra** específica do workshop.
+- **Upsell da gravação vitalícia:** vive no checkout, não nesta página.
+- **Criação de uma variante de teste A/B** desta página.
+
+---
+
+## Pendências / Decisões em aberto
+
+1. **URL real do checkout** — depende da usuária. Sem ela, os botões ficam no
+   placeholder. Junto da URL é preciso saber **qual plataforma** de checkout
+   será usada, porque o nome do parâmetro que carrega o identificador de compra
+   muda de plataforma para plataforma.
+2. **Imagem do mockup do planner** — elemento visual preferido do hero e imagem
+   do card largo de entregáveis. Sem ela, o hero cai para a alternativa já
+   decidida (foto do Felipe) e o card do planner fica sem imagem.
+3. **Foto do Felipe** — confirmar se a foto já usada nas outras páginas serve
+   para o bloco de autoridade desta página ou se haverá uma nova.
+4. **Política de reembolso pós-evento** — confirmar a redação final (7 dias
+   após o workshop, com data limite 16 de setembro) e por qual canal o pedido de
+   reembolso é feito, já que o texto promete "manda uma mensagem".
+5. **Comportamento após 09/09 às 18h** — confirmar o que a página deve mostrar
+   quando as vendas encerram: aviso de encerramento, convite para uma lista de
+   espera, ou redirecionamento.
+6. **Comportamento antes de 10/08** — confirmar se a página fica no ar antes da
+   abertura do Lote 0 e, se ficar, se já mostra o preço do Lote 0.
+7. **Depoimentos** — confirmar que os depoimentos da página das lives podem ser
+   reaproveitados nesta oferta paga, já que falam do método e não do workshop.
+8. **Identificador de funil** — definir com qual nome esta página aparece nos
+   relatórios do painel, para não se misturar aos funis de captura já
+   existentes.
