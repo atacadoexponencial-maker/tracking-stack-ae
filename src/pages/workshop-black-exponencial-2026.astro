@@ -442,7 +442,7 @@ const proofImages = Object.entries(proofModules)
           <div class="container">
             <div class="section-head">
               <span class="eyebrow">Depoimentos</span>
-              <h2 class="section-title">O que dizem quem já aplicou o método</h2>
+              <h2 class="section-title">O que diz quem já aplicou o método</h2>
             </div>
             <div class="wbe-prova__grid">
               {proofImages.map((img, i) => (
@@ -904,6 +904,29 @@ const proofImages = Object.entries(proofModules)
      compartilhados (Faq.astro e FinalCta.astro) e o escopo do Astro não os
      alcança. O `.wbe` na frente prende a regra a esta página: as demais LPs
      que usam .eyebrow continuam intactas. Não mexer no global.css. */
+  /* O `.btn-cta` do global.css nasce escuro (fundo --primary-foreground, que é
+     #1e1e1e) porque foi desenhado para as seções BEGE das outras LPs. Esta
+     página é majoritariamente escura, e ali o botão virava preto sobre preto:
+     sobrava só o texto, sem forma de botão. Nas seções escuras daqui ele
+     inverte para pílula clara.
+     `:global()` porque o botão do bloco de fechamento vem do FinalCta.astro,
+     componente compartilhado que não pode ser alterado. Não mexer no
+     global.css: as outras LPs dependem do comportamento atual. */
+  .wbe :global(.section:not(.section--light) .btn-cta) {
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+  }
+
+  /* O botão da oferta carrega o preço num <span>. Como `.btn-cta` é
+     inline-flex com gap, o span virava item de flex e quebrava em coluna
+     separada ("GARANTIR MINHA / VAGA POR    R$ / 47"). Como inline-block o
+     texto volta a fluir e quebrar normalmente. */
+  .wbe-oferta__cta {
+    display: inline-block;
+    text-align: center;
+    line-height: 1.4;
+  }
+
   .wbe :global(.eyebrow) {
     font-size: clamp(0.875rem, 2vw, 1rem);
     letter-spacing: 0.12em;
@@ -1034,10 +1057,12 @@ const proofImages = Object.entries(proofModules)
   }
 
   /* ---- 12. Prova social ---------------------------------------------------------- */
+  /* Uma coluna no celular: os depoimentos são prints de conversa, com texto
+     dentro da imagem. Em duas colunas a fonte fica pequena demais para ler. */
   .wbe-prova__grid {
     margin-top: 2.5rem;
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 1rem;
   }
   .wbe-prova__img {
@@ -1240,7 +1265,7 @@ const proofImages = Object.entries(proofModules)
 
   @media (min-width: 768px) {
     .wbe-prova__grid {
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
     }
     .wbe-entregaveis__grid {
       grid-template-columns: repeat(3, 1fr);
