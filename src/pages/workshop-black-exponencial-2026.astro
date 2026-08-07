@@ -185,10 +185,13 @@ const proofImages = Object.entries(proofModules)
     <!-- 1. Barra fixa ------------------------------------------------------ -->
     <div class="wbe-barra">
       <div class="container wbe-barra__inner">
+        <Image src={logo} alt="Atacado Exponencial" height={72} class="wbe-barra__logo" />
         <p class="wbe-barra__texto">
           <span class="wbe-barra__evento">BLACK EXPONENCIAL</span>
           <span class="wbe-barra__sep" aria-hidden="true">·</span>
-          <span class="wbe-barra__data">09/09 · 19h · ao vivo</span>
+          <span class="wbe-barra__data"
+            >09/09 · 19h<span class="wbe-barra__aovivo"> · ao vivo</span></span
+          >
         </p>
         <a class="wbe-barra__cta" href={CHECKOUT_URL} data-checkout>Garantir vaga</a>
       </div>
@@ -206,14 +209,6 @@ const proofImages = Object.entries(proofModules)
 
     <!-- 2. Hero ------------------------------------------------------------ -->
     <header class="wbe-hero">
-      <nav class="wbe-hero__nav container">
-        <Image
-          src={logo}
-          alt="Atacado Exponencial"
-          height={72}
-          class="wbe-hero__logo"
-        />
-      </nav>
       <div class="container wbe-hero__body">
         <div class="wbe-hero__texto">
           <span class="wbe-hero__selo">Exclusivo para marcas atacado</span>
@@ -595,10 +590,10 @@ const proofImages = Object.entries(proofModules)
   /* Altura da barra fixa — usada para compensar o topo do hero e a rolagem
      por âncora. Muda junto no breakpoint do celular. */
   .wbe {
-    --wbe-barra-h: 4.5rem;
+    --wbe-barra-h: 3.25rem;
   }
   :global(html) {
-    scroll-padding-top: 4.5rem;
+    scroll-padding-top: 3.25rem;
   }
 
   /* ---- 1. Barra fixa ---------------------------------------------------- */
@@ -618,7 +613,17 @@ const proofImages = Object.entries(proofModules)
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    padding-block: 0.6rem;
+    padding-block: 0.4rem;
+  }
+  /* O logo mora aqui, e não numa faixa própria no topo do hero: a faixa
+     empurrava a headline para baixo da dobra e o logo centralizado no meio da
+     página cortava a leitura. O `brightness(0) invert(1)` deixa a marca em
+     branco sobre o fundo escuro da barra. */
+  .wbe-barra__logo {
+    flex: none;
+    height: 1.5rem;
+    width: auto;
+    filter: brightness(0) invert(1);
   }
   .wbe-barra__texto {
     font-size: 0.7rem;
@@ -681,16 +686,6 @@ const proofImages = Object.entries(proofModules)
     color: hsl(var(--light-fg));
     /* Compensa a barra fixa para ela não comer o topo do hero */
     padding-top: var(--wbe-barra-h);
-  }
-  .wbe-hero__nav {
-    display: flex;
-    justify-content: center;
-    padding-block: 1rem;
-  }
-  .wbe-hero__logo {
-    height: 2rem;
-    width: auto;
-    filter: brightness(0);
   }
   .wbe-hero__body {
     display: grid;
@@ -1218,15 +1213,24 @@ const proofImages = Object.entries(proofModules)
   }
 
   /* ---- Responsivo ------------------------------------------------------------------------ */
-  /* Celular estreito: a barra fixa omite o nome do evento, preservando sempre
-     a data e o botão. */
+  /* Celular estreito: a barra fixa omite o nome do evento e o "ao vivo",
+     preservando sempre o logo, a data e o botão. Sem isso a data quebra em
+     duas linhas e a barra volta a engordar. */
   @media (max-width: 480px) {
     .wbe-barra__evento,
-    .wbe-barra__sep {
+    .wbe-barra__sep,
+    .wbe-barra__aovivo {
       display: none;
     }
     .wbe-barra__texto {
       font-size: 0.65rem;
+      white-space: nowrap;
+    }
+    .wbe-barra__logo {
+      height: 1.25rem;
+    }
+    .wbe-barra__inner {
+      gap: 0.5rem;
     }
     .wbe-barra__cta {
       font-size: 0.6rem;
@@ -1276,14 +1280,8 @@ const proofImages = Object.entries(proofModules)
      do topo e os intervalos do hero. Monitores altos não entram aqui e mantêm
      o espaçamento original. */
   @media (min-width: 880px) and (max-height: 820px) {
-    .wbe-hero__nav {
-      padding-block: 0.35rem;
-    }
-    .wbe-hero__logo {
-      height: 1.75rem;
-    }
     .wbe-hero__body {
-      padding-block: 0.25rem 2.5rem;
+      padding-block: 1rem 2.5rem;
     }
     .wbe-hero__texto {
       gap: 0.8rem;
