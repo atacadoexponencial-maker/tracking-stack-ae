@@ -52,44 +52,6 @@ const VALOR_INICIAL = LOTES[0].valor;
 const LOTE_INICIAL = LOTES[0].rotulo;
 const PROXIMO_VALOR_INICIAL = textoProximo(LOTES[1]?.valor ?? null, LOTES[0].rotulo);
 
-const cronograma = [
-  {
-    hora: '19h00',
-    titulo: 'Por que a Black do atacado não é a Black do varejo',
-    desc: 'O que muda quando o seu cliente é lojista e não consumidor, e por que quem anuncia em novembro chega depois da decisão.',
-  },
-  {
-    hora: '19h15',
-    titulo: 'Suas metas da Black',
-    desc: 'Quantos revendedores novos, quantos reativados, quanto de faturamento e quanto de investimento no período. Sem isso o resto vira palpite.',
-  },
-  {
-    hora: '19h30',
-    titulo: 'A oferta do pico 1, que traz revendedor novo',
-    desc: 'Mínimo reduzido com prazo, desconto progressivo por volume, compre e ganhe. Quais combinar, quais evitar, e como não perder a mão do seu mínimo de primeira compra.',
-  },
-  {
-    hora: '20h00',
-    titulo: 'A oferta do pico 2, que faz a base repor',
-    desc: 'A Reposição Black para quem não se antecipou, o grupo de ativos e a Black VIP, aquele dia exclusivo antes da Black que só quem está no grupo acessa.',
-  },
-  {
-    hora: '20h15',
-    titulo: 'Seu calendário semana a semana',
-    desc: 'Semana 1, 2, 3 e 4, Black Week, Black Friday e Black November. O que anuncia em cada uma e o que você segura para o fim.',
-  },
-  {
-    hora: '20h40',
-    titulo: 'Aquecimento e canais',
-    desc: 'Como preparar a base antes da campanha abrir, incluindo a Live Boom, e quais canais usar em cada fase.',
-  },
-  {
-    hora: '20h50',
-    titulo: 'Fechamento',
-    desc: '',
-  },
-];
-
 const maioriaFaz = [
   'Anuncia junto com o varejo, em novembro',
   'Dá desconto para quem já era cliente',
@@ -351,27 +313,6 @@ const proofImages = Object.entries(proofModules)
           <p class="section-sub">
             Quem sai do dia 09 tem a Black pronta com quase um mês de folga para executar.
           </p>
-        </div>
-      </section>
-
-      <!-- 8. Cronograma ----------------------------------------------------- -->
-      <section class="section wbe-cronograma">
-        <div class="container">
-          <div class="section-head">
-            <span class="eyebrow">Cronograma</span>
-            <h2 class="section-title">As 2 horas, minuto a minuto</h2>
-          </div>
-          <ol class="wbe-cronograma__lista">
-            {cronograma.map((linha) => (
-              <li class="wbe-cronograma__linha">
-                <span class="wbe-cronograma__hora">{linha.hora}</span>
-                <span class="wbe-cronograma__corpo">
-                  <strong class="wbe-cronograma__titulo">{linha.titulo}</strong>
-                  <span class="wbe-cronograma__desc">{linha.desc}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
         </div>
       </section>
 
@@ -953,42 +894,6 @@ const proofImages = Object.entries(proofModules)
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-  }
-
-  /* ---- 8. Cronograma --------------------------------------------------------- */
-  .wbe-cronograma__lista {
-    margin-top: 2.5rem;
-    max-width: 46rem;
-    margin-inline: auto;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .wbe-cronograma__linha {
-    display: grid;
-    grid-template-columns: 4.5rem 1fr;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: 0.75rem;
-  }
-  .wbe-cronograma__hora {
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: hsl(var(--muted-foreground));
-  }
-  .wbe-cronograma__corpo {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  .wbe-cronograma__titulo {
-    font-size: 0.98rem;
-  }
-  .wbe-cronograma__desc {
-    font-size: 0.88rem;
-    color: hsl(var(--muted-foreground));
   }
 
   /* ---- 9. Entregáveis --------------------------------------------------------- */
