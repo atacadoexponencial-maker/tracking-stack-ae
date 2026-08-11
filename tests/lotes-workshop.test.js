@@ -10,20 +10,20 @@ test('antes de 10/08 já mostra o Lote 0, não "encerrado" nem vazio', () => {
   const r = loteVigente(em('2026-08-09T23:59:59'));
   assert.equal(r.estado, 'aberto');
   assert.equal(r.rotulo, 'Lote 0');
-  assert.equal(r.valor, 'R$ 47');
+  assert.equal(r.valor, 'R$ 27');
   assert.equal(r.proximoValor, 'R$ 97');
 });
 
 test('10/08 00:00:00 exato continua no Lote 0 — a abertura não é virada visível', () => {
   const r = loteVigente(em('2026-08-10T00:00:00'));
   assert.equal(r.rotulo, 'Lote 0');
-  assert.equal(r.valor, 'R$ 47');
+  assert.equal(r.valor, 'R$ 27');
 });
 
 test('19/08 23:59:59 ainda é Lote 0', () => {
   const r = loteVigente(em('2026-08-19T23:59:59'));
   assert.equal(r.rotulo, 'Lote 0');
-  assert.equal(r.valor, 'R$ 47');
+  assert.equal(r.valor, 'R$ 27');
 });
 
 test('20/08 00:00:00 exato já é Lote 1 — início inclusivo, fim exclusivo', () => {

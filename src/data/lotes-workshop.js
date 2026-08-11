@@ -37,7 +37,7 @@
 export const LOTES = [
   {
     rotulo: 'Lote 0',
-    valor: 'R$ 47',
+    valor: 'R$ 27',
     inicio: '2026-08-10T00:00:00-03:00',
     fim: '2026-08-20T00:00:00-03:00',
   },
