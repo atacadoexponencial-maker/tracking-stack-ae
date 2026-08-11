@@ -32,6 +32,18 @@ export function extrairEvento(body) {
     };
   }
 
+  if (body.event === 'checkoutAbandoned') {
+    return {
+      event: 'checkoutAbandoned',
+      entity_type: 'lead',
+      entity_id: numero(body.lead?.id),
+      current_status: '',
+      product_id: numero(body.product?.id),
+      amount: null,
+      entity_updated: texto(body.lead?.updated_at) || null,
+    };
+  }
+
   return null;
 }
 

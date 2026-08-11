@@ -57,3 +57,36 @@ test('contractUpdated usa contract.id e o valor vem de currentSale', () => {
   assert.equal(r.amount, 49.9);
   assert.equal(r.entity_updated, '2026-06-11T19:10:00.000000Z');
 });
+
+function checkoutAbandonado() {
+  return {
+    type: 'lead',
+    event: 'checkoutAbandoned',
+    lead: {
+      id: 9001,
+      name: 'Beltrana Silva',
+      email: 'beltrana@exemplo.com',
+      updated_at: '2026-06-11T20:02:00.000000Z',
+      step: 2,
+    },
+    link_checkout: 'https://pay.greenn.com.br/77',
+    product: { id: 77, name: 'Curso de Exemplo', amount: 97 },
+    productMetas: { utm_source: 'instagram' },
+    proposalMetas: {},
+  };
+}
+
+test('checkoutAbandoned usa lead.id e não tem status nem valor', () => {
+  const r = extrairEvento(checkoutAbandonado());
+  assert.equal(r.event, 'checkoutAbandoned');
+  assert.equal(r.entity_type, 'lead');
+  assert.equal(r.entity_id, 9001);
+  // String vazia, não null: NULL nunca casa com NULL num índice único do
+  // SQLite, e a dedup precisa valer também para o abandono.
+  assert.equal(r.current_status, '');
+  assert.equal(r.product_id, 77);
+  // product.amount é preço de tabela, não receita — registrar daria a
+  // impressão de uma venda que não aconteceu.
+  assert.equal(r.amount, null);
+  assert.equal(r.entity_updated, '2026-06-11T20:02:00.000000Z');
+});
