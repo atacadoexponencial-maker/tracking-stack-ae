@@ -72,13 +72,18 @@ export async function onRequestPost(context) {
 }
 
 // Comparação em tempo constante. Um `!==` comum interrompe na primeira
-// diferença e vaza o prefixo do token por timing. O comprimento é comparado
-// antes porque timingSafeEqual exige buffers do mesmo tamanho.
+// diferença e vaza o prefixo do token por timing. Por isso também NÃO se
+// retorna cedo quando os comprimentos diferem: um early-return ali vazaria o
+// comprimento do segredo pelo tempo de resposta. Quando os tamanhos não
+// batem, comparamos `a` com ele mesmo (sempre igual) e negamos o resultado —
+// mesmo custo de tempo do caminho "comprimentos batem, conteúdo não".
 function tokenConfere(recebido, esperado) {
   const a = new TextEncoder().encode(recebido);
   const b = new TextEncoder().encode(esperado);
-  if (a.byteLength !== b.byteLength) return false;
-  return crypto.subtle.timingSafeEqual(a, b);
+  const lengthsMatch = a.byteLength === b.byteLength;
+  return lengthsMatch
+    ? crypto.subtle.timingSafeEqual(a, b)
+    : !crypto.subtle.timingSafeEqual(a, a);
 }
 
 function json(data, status = 200) {

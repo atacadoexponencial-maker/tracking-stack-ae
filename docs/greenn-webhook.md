@@ -23,9 +23,14 @@ comparando com a variável `GREENN_WEBHOOK_TOKEN`:
 - produção: Cloudflare Pages → projeto `tracking-ae` → Settings → Environment
   variables → **Secret** (não "plaintext")
 
-Se o token da Greenn não estiver visível no painel dela, cadastre a URL mesmo
-assim: o primeiro POST vai levar 401 e o valor aparece no log do Pages, junto
-da requisição. Configure o secret e a partir daí os eventos passam a gravar.
+O caminho confiável é obter o token no painel da Greenn e cadastrá-lo como
+secret antes de colar a URL no produto. Se a URL for cadastrada antes disso,
+os POSTs vão levar 401 — o log do Pages serve para confirmar que a
+requisição **chegou** (procure por `greenn — token`), não para revelar o
+valor do token: o endpoint nunca loga o token recebido nem o esperado, e o
+Pages não registra headers customizados nos logs padrão sem Logpush
+configurado à parte. Configure o secret e a partir daí os eventos passam a
+gravar.
 
 ## O que é gravado
 
