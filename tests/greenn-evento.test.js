@@ -90,3 +90,51 @@ test('checkoutAbandoned usa lead.id e não tem status nem valor', () => {
   assert.equal(r.amount, null);
   assert.equal(r.entity_updated, '2026-06-11T20:02:00.000000Z');
 });
+
+test('evento desconhecido devolve null', () => {
+  assert.equal(extrairEvento({ type: 'sale', event: 'saleInventado' }), null);
+});
+
+test('corpo vazio, nulo ou sem event devolve null', () => {
+  assert.equal(extrairEvento(null), null);
+  assert.equal(extrairEvento(undefined), null);
+  assert.equal(extrairEvento({}), null);
+  assert.equal(extrairEvento('texto'), null);
+});
+
+test('venda sem produto e sem valor grava null nas colunas, não undefined', () => {
+  const r = extrairEvento({
+    type: 'sale',
+    event: 'saleUpdated',
+    currentStatus: 'refused',
+    sale: { id: 1002, status: 'refused', updated_at: '2026-06-11T18:05:00.000000Z' },
+  });
+  assert.equal(r.entity_id, 1002);
+  assert.equal(r.current_status, 'refused');
+  // O D1 recusa `undefined` num bind — tem que ser null de verdade.
+  assert.equal(r.product_id, null);
+  assert.equal(r.amount, null);
+});
+
+test('as três formas de productMetas não derrubam o extrator', () => {
+  // A doc da Greenn diz `[]` quando vazio e objeto quando preenchido; os
+  // exemplos dela também mostram `{}`. A ingestão não lê esses campos —
+  // este teste existe para garantir que continue assim.
+  for (const metas of [[], {}, { utm_source: 'facebook' }]) {
+    const r = extrairEvento(vendaPaga({ productMetas: metas, proposalMetas: metas }));
+    assert.equal(r.entity_id, 1001);
+  }
+});
+
+test('venda recusada traz sale.refused sem afetar as colunas', () => {
+  const r = extrairEvento(vendaPaga({
+    currentStatus: 'refused',
+    sale: {
+      id: 1002, status: 'refused', amount: 97.0,
+      updated_at: '2026-06-11T18:05:00.000000Z',
+      refused: { event: 'INSUFFICIENT_FUNDS', reason: 'Limite insuficiente' },
+    },
+  }));
+  assert.equal(r.current_status, 'refused');
+  assert.equal(r.entity_id, 1002);
+});
