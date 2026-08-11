@@ -20,6 +20,18 @@ export function extrairEvento(body) {
     };
   }
 
+  if (body.event === 'contractUpdated') {
+    return {
+      event: 'contractUpdated',
+      entity_type: 'contract',
+      entity_id: numero(body.contract?.id),
+      current_status: texto(body.currentStatus),
+      product_id: numero(body.product?.id),
+      amount: numero(body.currentSale?.amount),
+      entity_updated: texto(body.contract?.updated_at) || null,
+    };
+  }
+
   return null;
 }
 
