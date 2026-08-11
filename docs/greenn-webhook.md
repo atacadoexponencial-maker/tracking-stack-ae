@@ -8,6 +8,21 @@ não aparecem em nenhuma aba atual do dashboard — isso é intencional.
 
     https://atacadoexponencial.com/api/webhooks/greenn
 
+## Antes de cadastrar: a tabela precisa existir em produção
+
+O endpoint grava em `greenn_webhook_event`. Se a URL for cadastrada antes da
+tabela existir no D1 remoto, todo POST cai no `catch` do endpoint → 500 → e
+como a Greenn não reentrega, é perda definitiva do dado. Aplique a migration
+antes de colar a URL em qualquer produto:
+
+    npx wrangler d1 execute tracking-ae-db --remote --file=migrations/0032_greenn_webhook.sql
+
+Não se usa `wrangler d1 migrations apply --remote` neste projeto: as
+migrations antigas 0021/0022/0025 quebram ao serem reaplicadas nesse comando.
+Rodar o arquivo da 0032 diretamente com `d1 execute --file` é seguro e
+idempotente porque a migration usa `CREATE TABLE IF NOT EXISTS` — pode ser
+executado de novo sem efeito colateral se houver dúvida se já rodou.
+
 ## Como cadastrar
 
 Na Greenn, a URL de webhook é cadastrada **por produto** (campo `url_callback`).
@@ -47,21 +62,24 @@ Status de venda possíveis: `paid`, `waiting_payment`, `refused`, `refunded`,
 | Situação | HTTP |
 |---|---|
 | Gravado | 200 |
-| Evento desconhecido ou JSON inválido | 200 (registra no log, não grava) |
+| Evento desconhecido | 200 (grava com `entity_type` nulo) |
+| JSON inválido no corpo | 200 (registra no log, não grava) |
 | Token ausente ou divergente | 401 |
 | Falha de escrita no D1 | 500 |
 
-O 200 em evento desconhecido é deliberado: a Greenn não promete reentrega, e um
-erro nosso viraria perda de dado dela.
+O 200 em evento desconhecido é deliberado, e ele **grava** (com `entity_type`
+nulo): a Greenn não promete reentrega, e descartar um tipo de evento novo
+seria perda definitiva do dado.
 
 ## Conferir se está chegando
 
     npx wrangler d1 execute tracking-ae-db --remote \
       --command "SELECT id, event, entity_id, current_status, amount, datetime(received_at,'unixepoch','-3 hours') AS recebido FROM greenn_webhook_event ORDER BY id DESC LIMIT 20;"
 
-Tabela vazia significa uma de três coisas: nenhuma venda aconteceu, a URL não
-foi cadastrada no produto, ou o token está errado (procure `greenn — token`
-nos logs do Pages).
+Tabela vazia significa uma de quatro coisas: nenhuma venda aconteceu, a URL
+não foi cadastrada no produto, o token está errado (procure `greenn — token`
+nos logs do Pages), ou a tabela ainda não existe em produção (veja a seção
+acima — rode a migration 0032 antes de cadastrar a URL).
 
 ## Recuperar o que se perdeu
 

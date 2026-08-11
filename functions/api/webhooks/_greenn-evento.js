@@ -7,6 +7,7 @@
 
 export function extrairEvento(body) {
   if (!body || typeof body !== 'object') return null;
+  if (typeof body.event !== 'string' || body.event === '') return null;
 
   if (body.event === 'saleUpdated') {
     return {
@@ -16,7 +17,10 @@ export function extrairEvento(body) {
       current_status: texto(body.currentStatus),
       product_id: numero(body.product?.id),
       amount: numero(body.sale?.amount),
-      entity_updated: texto(body.sale?.updated_at) || null,
+      // '' em vez de null quando updated_at não vem: entity_updated também
+      // faz parte do índice único de dedup, e no SQLite NULL nunca é igual a
+      // NULL num índice único — mesmo motivo de current_status usar ''.
+      entity_updated: texto(body.sale?.updated_at) || '',
     };
   }
 
@@ -28,7 +32,7 @@ export function extrairEvento(body) {
       current_status: texto(body.currentStatus),
       product_id: numero(body.product?.id),
       amount: numero(body.currentSale?.amount),
-      entity_updated: texto(body.contract?.updated_at) || null,
+      entity_updated: texto(body.contract?.updated_at) || '', // ver comentário acima
     };
   }
 
@@ -40,17 +44,38 @@ export function extrairEvento(body) {
       current_status: '',
       product_id: numero(body.product?.id),
       amount: null,
-      entity_updated: texto(body.lead?.updated_at) || null,
+      entity_updated: texto(body.lead?.updated_at) || '', // ver comentário acima
     };
   }
 
-  return null;
+  // Evento que a Greenn manda mas que a ingestão ainda não conhece. A Greenn
+  // não reentrega webhook, então descartar aqui seria perda definitiva do
+  // dado — grava-se com entity_type nulo (spec, tabela de erros) para não
+  // perder o registro; o console.error no endpoint é o que avisa que surgiu
+  // um tipo novo.
+  return {
+    event: body.event,
+    entity_type: null,
+    entity_id: null,
+    // '' e não NULL: esta coluna é NOT NULL e faz parte do índice único de
+    // dedup — um NULL aqui desligaria a dedup para eventos desconhecidos.
+    current_status: '',
+    product_id: numero(body.product?.id),
+    amount: null,
+    entity_updated: null,
+  };
 }
 
-// A Greenn manda inteiros e floats como números, mas um campo ausente vira
-// undefined e o D1 recusa undefined no bind. Normaliza para null.
+// A Greenn manda inteiros e floats como números, mas às vezes serializa valor
+// monetário como string ("97.00"). Aceita as duas formas; um campo ausente
+// vira undefined e o D1 recusa undefined no bind, então normaliza para null.
 function numero(v) {
-  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
 
 function texto(v) {

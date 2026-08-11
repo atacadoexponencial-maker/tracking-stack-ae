@@ -91,15 +91,29 @@ test('checkoutAbandoned usa lead.id e não tem status nem valor', () => {
   assert.equal(r.entity_updated, '2026-06-11T20:02:00.000000Z');
 });
 
-test('evento desconhecido devolve null', () => {
-  assert.equal(extrairEvento({ type: 'sale', event: 'saleInventado' }), null);
+test('evento desconhecido grava com entity_type nulo, não descarta', () => {
+  // A Greenn não reentrega webhook: descartar um tipo de evento novo seria
+  // perda definitiva. A spec manda gravar com entity_type NULL.
+  const r = extrairEvento({ type: 'sale', event: 'saleInventado', product: { id: 77 } });
+  assert.notEqual(r, null);
+  assert.equal(r.event, 'saleInventado');
+  assert.equal(r.entity_type, null);
+  assert.equal(r.entity_id, null);
+  // '' e não NULL: mesmo motivo do current_status nos eventos conhecidos —
+  // a coluna é NOT NULL e faz parte do índice único de dedup.
+  assert.equal(r.current_status, '');
+  assert.equal(r.product_id, 77);
+  assert.equal(r.amount, null);
+  assert.equal(r.entity_updated, null);
 });
 
-test('corpo vazio, nulo ou sem event devolve null', () => {
+test('corpo vazio, nulo ou sem event string devolve null', () => {
   assert.equal(extrairEvento(null), null);
   assert.equal(extrairEvento(undefined), null);
   assert.equal(extrairEvento({}), null);
   assert.equal(extrairEvento('texto'), null);
+  assert.equal(extrairEvento({ event: '' }), null);
+  assert.equal(extrairEvento({ event: 123 }), null);
 });
 
 test('venda sem produto e sem valor grava null nas colunas, não undefined', () => {
@@ -124,6 +138,46 @@ test('as três formas de productMetas não derrubam o extrator', () => {
     const r = extrairEvento(vendaPaga({ productMetas: metas, proposalMetas: metas }));
     assert.equal(r.entity_id, 1001);
   }
+});
+
+test('sale sem updated_at grava entity_updated como string vazia, não null', () => {
+  // NULL nunca casa com NULL num índice único do SQLite — se entity_updated
+  // fosse null aqui, cada reentrega desse evento viraria linha nova.
+  const r = extrairEvento({
+    type: 'sale',
+    event: 'saleUpdated',
+    currentStatus: 'paid',
+    sale: { id: 1004, amount: 97 },
+  });
+  assert.equal(r.entity_updated, '');
+});
+
+test('contractUpdated sem updated_at grava entity_updated como string vazia', () => {
+  const r = extrairEvento({
+    type: 'contract',
+    event: 'contractUpdated',
+    currentStatus: 'paid',
+    contract: { id: 205 },
+    currentSale: { amount: 49.9 },
+  });
+  assert.equal(r.entity_updated, '');
+});
+
+test('checkoutAbandoned sem updated_at grava entity_updated como string vazia', () => {
+  const r = extrairEvento({
+    type: 'lead',
+    event: 'checkoutAbandoned',
+    lead: { id: 9002 },
+  });
+  assert.equal(r.entity_updated, '');
+});
+
+test('amount aceita número, string numérica, string vazia e texto não numérico', () => {
+  const base = { type: 'sale', event: 'saleUpdated', currentStatus: 'paid' };
+  assert.equal(extrairEvento({ ...base, sale: { id: 1, amount: 97 } }).amount, 97);
+  assert.equal(extrairEvento({ ...base, sale: { id: 1, amount: '97.00' } }).amount, 97);
+  assert.equal(extrairEvento({ ...base, sale: { id: 1, amount: '' } }).amount, null);
+  assert.equal(extrairEvento({ ...base, sale: { id: 1, amount: 'grátis' } }).amount, null);
 });
 
 test('venda recusada traz sale.refused sem afetar as colunas', () => {

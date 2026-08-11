@@ -112,12 +112,15 @@ ausência de garantia de entrega única, reentrega do mesmo estado é esperada.
 Índice único e `INSERT OR IGNORE`:
 
 ```sql
-CREATE UNIQUE INDEX idx_greenn_event_dedup
+CREATE UNIQUE INDEX idx_greenn_dedup
   ON greenn_webhook_event (event, entity_id, current_status, entity_updated);
 ```
 
 Reentrega do mesmo estado é ignorada; mudança real de status entra como linha
 nova. Mesmo padrão já usado em `whatsapp_group_events`.
+
+Há também um índice não-único `idx_greenn_recebido` sobre `received_at`, para
+consultas por período (ex.: "últimas vendas") sem varrer a tabela inteira.
 
 **Por que `current_status` é `NOT NULL` com `''` no abandono:** em SQLite, `NULL`
 nunca é igual a `NULL` num índice único. Se o abandono gravasse `NULL` ali, a

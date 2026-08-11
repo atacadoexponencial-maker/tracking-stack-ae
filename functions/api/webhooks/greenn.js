@@ -38,13 +38,26 @@ export async function onRequestPost(context) {
 
   const evento = extrairEvento(body);
   if (!evento) {
-    // Só o suficiente para diagnosticar: se a Greenn criar um evento novo,
-    // isto é o que vai aparecer no log do Pages.
-    console.error('greenn — evento não reconhecido:', {
+    // Corpo sem forma de evento da Greenn (não é objeto, ou não tem `event`
+    // string) — não há o que gravar. Isso é diferente de "evento desconhecido
+    // mas reconhecível", que extrairEvento já devolve como objeto (com
+    // entity_type nulo) para ser gravado logo abaixo.
+    console.error('greenn — corpo sem formato de evento reconhecível:', {
       type: body?.type,
       event: body?.event,
     });
-    return json({ ok: true, status: 'ignorado', motivo: 'evento_desconhecido' });
+    return json({ ok: true, status: 'ignorado', motivo: 'corpo_invalido' });
+  }
+
+  if (evento.entity_type === null) {
+    // Só o suficiente para diagnosticar: se a Greenn criar um evento novo,
+    // isto é o que vai aparecer no log do Pages. O evento é gravado mesmo
+    // assim (abaixo) — a Greenn não reentrega, então descartar aqui seria
+    // perda definitiva do dado.
+    console.error('greenn — evento desconhecido, gravando com entity_type nulo:', {
+      type: body?.type,
+      event: evento.event,
+    });
   }
 
   // Íntegro, sem truncar: o raw_json é a fonte da verdade desta tabela, e um
