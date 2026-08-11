@@ -491,35 +491,27 @@ const proofImages = Object.entries(proofModules)
           <p class="section-sub">
             Cada lote que passa, o valor sobe. O conteúdo e os materiais são os mesmos.
           </p>
+          <p class="section-sub">Setembro é o mês de montar. Outubro é o mês de colher.</p>
           <a class="btn-cta" href={CHECKOUT_URL} data-checkout>Quero garantir minha vaga</a>
         </div>
       </section>
 
-      <!-- 17. CTA -------------------------------------------------------------- -->
-      <section class="section wbe-cta">
-        <div class="container wbe-cta__inner">
-          <span class="eyebrow">Próximo passo</span>
-          <h2 class="wbe-cta__titulo">Setembro é o mês de montar. Outubro é o mês de colher.</h2>
-          <a class="btn-cta" href={CHECKOUT_URL} data-checkout>Garantir minha vaga</a>
-        </div>
-      </section>
-
-      <!-- 18. FAQ -------------------------------------------------------------- -->
+      <!-- 17. FAQ -------------------------------------------------------------- -->
       <Faq
         sub="As dúvidas que mais chegam sobre o Workshop Black Exponencial."
         faqs={faqs}
       />
     </main>
 
-    <!-- 19. Fechamento + CTA — reaproveita FinalCta.astro, arquivo COMPARTILHADO
+    <!-- 18. Fechamento + CTA — reaproveita FinalCta.astro, arquivo COMPARTILHADO
          (index, se-v1, trafego-atacado, vsl) e por isso NÃO alterado aqui. O
          botão dele já nasce com o `href` certo, mas sem `data-checkout`: o
          <script> do fim desta página marca `.wbe-fechamento .btn-cta` em tempo
          de execução. A partir daí o seletor ÚNICO de botão de compra da página
-         é `[data-checkout]` — 8 de 8.
+         é `[data-checkout]` — 7 de 7.
          Dependência a vigiar: se o FinalCta perder a classe `.btn-cta`, o
          seletor deixa de casar e este botão sai do rastreamento sem erro
-         visível. Conferir a contagem 8 ao mexer no componente. -->
+         visível. Conferir a contagem 7 ao mexer no componente. -->
     <div class="wbe-fechamento">
       <FinalCta
         title="Duas opções para outubro:"
@@ -613,8 +605,8 @@ const proofImages = Object.entries(proofModules)
   /* Quando o gancho virar "encerradas": some o preço e todo botão de compra,
      e o aviso aparece mesmo com o atributo `hidden`.
 
-     Os DOIS seletores de botão são intencionais. `[data-checkout]` cobre os 7
-     botões do HTML; `.wbe-fechamento .btn-cta` é a rede de proteção do 8º, que
+     Os DOIS seletores de botão são intencionais. `[data-checkout]` cobre os 6
+     botões do HTML; `.wbe-fechamento .btn-cta` é a rede de proteção do 7º, que
      só ganha `data-checkout` via JavaScript. Com JS desligado a marcação nunca
      acontece e, sem esta segunda regra, o botão do fechamento continuaria à
      mostra numa página de vendas encerradas. Não remover. */
@@ -1302,11 +1294,11 @@ const proofImages = Object.entries(proofModules)
   // -------------------------------------------------------------------------
   // Normalização dos botões de compra (issue 187).
   //
-  // Os 7 botões escritos nesta página já nascem com `data-checkout` no HTML. O
-  // 8º vem de FinalCta.astro, componente COMPARTILHADO que não é alterado por
+  // Os 6 botões escritos nesta página já nascem com `data-checkout` no HTML. O
+  // 7º vem de FinalCta.astro, componente COMPARTILHADO que não é alterado por
   // esta página — então ele é marcado aqui, em tempo de execução, pelo seletor
   // `.wbe-fechamento .btn-cta`. Depois disto o seletor único de "botão de
-  // compra desta página" é `[data-checkout]`, 8 de 8.
+  // compra desta página" é `[data-checkout]`, 7 de 7.
   //
   // Bloco próprio (fora do try/catch do lote) para que uma falha lá não impeça
   // a marcação, e vice-versa. Se o bloco de fechamento sumir ou for renomeado,
