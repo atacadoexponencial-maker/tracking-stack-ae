@@ -69,15 +69,31 @@ CREATE TABLE greenn_webhook_event (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   event          TEXT    NOT NULL,  -- saleUpdated | contractUpdated | checkoutAbandoned
   entity_type    TEXT,              -- sale | contract | lead
-  entity_id      INTEGER,           -- sale.id / contract.id; NULL em checkoutAbandoned
-  current_status TEXT,              -- paid, refused, ...; NULL em checkoutAbandoned
+  entity_id      INTEGER,           -- sale.id / contract.id / lead.id
+  current_status TEXT    NOT NULL,  -- paid, refused, ...; '' em checkoutAbandoned
   product_id     INTEGER,
-  amount         REAL,              -- sale.amount, em reais
-  entity_updated TEXT,              -- sale.updated_at, ISO 8601 da Greenn
+  amount         REAL,              -- valor da venda em reais; NULL em checkoutAbandoned
+  entity_updated TEXT,              -- updated_at da entidade, ISO 8601 da Greenn
   received_at    INTEGER NOT NULL,  -- unix seconds, relógio nosso
   raw_json       TEXT    NOT NULL   -- payload íntegro
 );
 ```
+
+De onde vem cada campo, por tipo de evento:
+
+| Coluna | `saleUpdated` | `contractUpdated` | `checkoutAbandoned` |
+|---|---|---|---|
+| `entity_type` | `'sale'` | `'contract'` | `'lead'` |
+| `entity_id` | `sale.id` | `contract.id` | `lead.id` |
+| `current_status` | `currentStatus` | `currentStatus` | `''` |
+| `product_id` | `product.id` | `product.id` | `product.id` |
+| `amount` | `sale.amount` | `currentSale.amount` | `NULL` |
+| `entity_updated` | `sale.updated_at` | `contract.updated_at` | `lead.updated_at` |
+
+Nota: em `contractUpdated` o objeto da venda chama-se **`currentSale`**, não
+`sale`. Em `checkoutAbandoned` não há venda — o `amount` fica nulo de propósito,
+porque `product.amount` é o preço de tabela e registrá-lo como valor daria a
+impressão de receita que não existe.
 
 Migration: `0032_greenn_webhook.sql`.
 
@@ -103,12 +119,12 @@ CREATE UNIQUE INDEX idx_greenn_event_dedup
 Reentrega do mesmo estado é ignorada; mudança real de status entra como linha
 nova. Mesmo padrão já usado em `whatsapp_group_events`.
 
-**Limite conhecido:** `checkoutAbandoned` não tem `entity_id` nem
-`current_status`. Em SQLite, `NULL` nunca é igual a `NULL` num índice único, então
-abandonos **não são deduplicados** — cada POST vira uma linha. É aceitável na
-ingestão: são poucos, e a deduplicação de abandono depende de uma regra de
-negócio (por e-mail? por janela de tempo?) que só faz sentido definir quando a
-visão do dashboard for desenhada.
+**Por que `current_status` é `NOT NULL` com `''` no abandono:** em SQLite, `NULL`
+nunca é igual a `NULL` num índice único. Se o abandono gravasse `NULL` ali, a
+dedup não valeria para ele e cada reentrega viraria linha nova. A string vazia
+compara normalmente, então os três tipos de evento são deduplicados pela mesma
+regra. `checkoutAbandoned` tem `lead.id` e `lead.updated_at`, o que completa a
+chave.
 
 ## Segurança
 
@@ -153,11 +169,15 @@ venda" de "ingestão quebrada" nos logs do Pages.
 ### Armadilha de formato
 
 `productMetas` e `proposalMetas` são serializados como `[]` (array) quando
-vazios e como `{"chave": "valor"}` (objeto) quando preenchidos. Código que
-assume objeto quebra na primeira venda sem metas. O extrator trata os dois.
+vazios e como `{"chave": "valor"}` quando preenchidos — e os exemplos da própria
+documentação mostram também `{}` para vazio, ou seja, os três formatos ocorrem.
+A ingestão **não lê esses campos**, então a armadilha não a atinge; eles chegam
+íntegros no `raw_json` e serão interpretados no ciclo do dashboard. Há teste
+garantindo que nenhum dos formatos derruba o extrator.
 
-O mesmo vale para `sale.refused`, que **só existe** quando `status == "refused"`,
-e para `charge`, que só existe em venda de assinatura.
+O mesmo cuidado vale para `sale.refused`, que **só existe** quando
+`status == "refused"`, e para `charge`, que só existe em venda de assinatura.
+Nenhum dos dois é lido na ingestão.
 
 ## Componentes
 
