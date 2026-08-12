@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LOTES, VALOR_CHEIO, loteVigente, textoProximo } from '../src/data/lotes-workshop.js';
+import {
+  LOTES,
+  VALOR_CHEIO,
+  loteVigente,
+  textoProximo,
+  formatarRestante,
+  textoContador,
+} from '../src/data/lotes-workshop.js';
 
 // Instantes de Brasília escritos com deslocamento explícito: viram epoch em ms,
 // que é fuso-agnóstico por construção.
@@ -164,4 +171,61 @@ test('o resultado independe do fuso do processo — só o epoch importa', () => 
   }
   if (original === undefined) delete process.env.TZ;
   else process.env.TZ = original;
+});
+
+// ---------------------------------------------------------------------------
+// Contador de virada de lote (a spec proibia contador até 2026-08-12, quando a
+// usuária revogou a regra — ver "Fora de escopo" em spec.md).
+// ---------------------------------------------------------------------------
+
+test('o estado aberto carrega o instante do fim e se é o último lote', () => {
+  const r = loteVigente(em('2026-08-12T10:00:00'));
+  assert.equal(r.fimMs, em('2026-08-17T23:59:00'));
+  assert.equal(r.ultimo, false);
+
+  const ultimo = loteVigente(em('2026-09-01T10:00:00'));
+  assert.equal(ultimo.rotulo, 'Lote 4');
+  assert.equal(ultimo.fimMs, em('2026-09-09T20:00:00'));
+  assert.equal(ultimo.ultimo, true);
+});
+
+test('formata o restante escondendo as unidades que não importam mais', () => {
+  const seg = (n) => n * 1000;
+  assert.equal(formatarRestante(seg(5 * 86400 + 12 * 3600 + 47 * 60 + 9)), '05d 12h 47m 09s');
+  assert.equal(formatarRestante(seg(12 * 3600 + 47 * 60 + 9)), '12h 47m 09s');
+  assert.equal(formatarRestante(seg(47 * 60 + 9)), '47m 09s');
+  assert.equal(formatarRestante(seg(9)), '09s');
+});
+
+test('prazo vencido ou valor inválido não vira contador', () => {
+  assert.equal(formatarRestante(0), null);
+  assert.equal(formatarRestante(-1), null);
+  assert.equal(formatarRestante(NaN), null);
+  assert.equal(formatarRestante(undefined), null);
+  assert.equal(formatarRestante(Number.POSITIVE_INFINITY), null);
+});
+
+test('o contador conta segundo a segundo — 1000ms muda o texto', () => {
+  const base = 3 * 3600 * 1000;
+  assert.notEqual(formatarRestante(base), formatarRestante(base - 1000));
+});
+
+test('rótulo do contador anuncia o próximo preço, menos no último lote', () => {
+  assert.equal(textoContador(loteVigente(em('2026-08-12T10:00:00'))), 'Sobe para R$ 47 em');
+  assert.equal(textoContador(loteVigente(em('2026-08-20T10:00:00'))), 'Sobe para R$ 67 em');
+  // Último lote: o prazo leva ao fim das vendas, não a um preço maior.
+  assert.equal(textoContador(loteVigente(em('2026-09-01T10:00:00'))), 'Vendas encerram em');
+});
+
+test('vendas encerradas não têm contador', () => {
+  assert.equal(textoContador(loteVigente(em('2026-09-09T20:00:00'))), null);
+  assert.equal(textoContador(null), null);
+  assert.equal(textoContador(undefined), null);
+});
+
+test('o alvo do contador é sempre a fronteira do lote vigente', () => {
+  for (const l of LOTES) {
+    const meio = (Date.parse(l.inicio) + Date.parse(l.fim)) / 2;
+    assert.equal(loteVigente(meio).fimMs, Date.parse(l.fim));
+  }
 });

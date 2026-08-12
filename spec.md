@@ -225,8 +225,15 @@ data. Não capta dados: o único caminho de saída é o destino de compra.
   qualquer outro dado do visitante; não há modal, chat nem campo de entrada.
 - **Contador de vagas:** nenhuma exibição de vagas restantes, lotadas ou
   esgotando.
-- **Contador regressivo de horas:** proibido explicitamente. A urgência da
-  página vem do texto e da mudança de lote, nunca de um relógio.
+- ~~**Contador regressivo de horas:** proibido explicitamente.~~ **REVOGADO em
+  2026-08-12 pela usuária.** A proibição original era decisão de copy (commit
+  4a7bb78), não restrição técnica. A página passou a ter um contador de uma
+  linha no hero, abaixo do preço, marcando a virada do lote vigente — e, no
+  último lote, o encerramento das vendas. Duas consequências que vieram junto:
+  a hora agora vem do servidor (`GET /api/hora`) em vez do relógio do aparelho,
+  e o preço se atualiza sozinho quando a virada acontece com a aba aberta. O
+  contador de **vagas** segue proibido: não existe limite de vagas num workshop
+  online, então exibi-lo seria mentira.
 - **Produção das artes e imagens:** o mockup do planner, a foto do Felipe e
   qualquer arte dos cards de entregáveis não são produzidos aqui.
 - **Criação dos materiais entregáveis:** o planner, o mapa mental, o calendário,

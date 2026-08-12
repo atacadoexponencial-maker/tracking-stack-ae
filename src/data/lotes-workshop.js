@@ -78,9 +78,16 @@ function aberto(indice) {
   const seguinte = LOTES[indice + 1];
   return {
     estado: 'aberto',
+    // Posição na escada de lotes. A régua do hero pinta os anteriores como
+    // vencidos e os seguintes como pendentes, então precisa saber onde estamos.
+    indice,
     rotulo: lote.rotulo,
     valor: lote.valor,
     proximoValor: seguinte ? seguinte.valor : null,
+    // Instante em que ESTE lote acaba — é o alvo do contador. No último lote
+    // não é uma troca de preço: é o encerramento das vendas.
+    fimMs: Date.parse(lote.fim),
+    ultimo: !seguinte,
   };
 }
 
@@ -121,4 +128,43 @@ export function loteVigente(agoraMs) {
 export function textoProximo(proximoValor, rotulo) {
   if (!proximoValor || !rotulo) return null;
   return `Depois do ${rotulo}, o valor sobe para ${proximoValor}`;
+}
+
+/**
+ * Tempo restante formatado, para o contador do hero.
+ *
+ * Unidades some conforme ficam irrelevantes: com dias mostra `05d 12h 47m 09s`,
+ * no último dia `12h 47m 09s`, na última hora `47m 09s`, no último minuto
+ * `09s`. Assim a linha não cresce nem encolhe de largura toda hora, e o número
+ * que importa fica sempre à esquerda.
+ *
+ * Devolve `null` quando o prazo já passou (ou o valor não é finito): quem chama
+ * deve, nesse caso, recalcular o lote — o contador não anuncia tempo negativo
+ * nem fica zerado na tela.
+ */
+export function formatarRestante(restanteMs) {
+  if (!Number.isFinite(restanteMs) || restanteMs <= 0) return null;
+
+  const totalSeg = Math.floor(restanteMs / 1000);
+  const dias = Math.floor(totalSeg / 86400);
+  const horas = Math.floor((totalSeg % 86400) / 3600);
+  const minutos = Math.floor((totalSeg % 3600) / 60);
+  const segundos = totalSeg % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+
+  if (dias > 0) return `${pad(dias)}d ${pad(horas)}h ${pad(minutos)}m ${pad(segundos)}s`;
+  if (horas > 0) return `${pad(horas)}h ${pad(minutos)}m ${pad(segundos)}s`;
+  if (minutos > 0) return `${pad(minutos)}m ${pad(segundos)}s`;
+  return `${pad(segundos)}s`;
+}
+
+/**
+ * Rótulo que antecede o contador. Muda no último lote: ali o prazo não leva a
+ * um preço maior, leva ao fim das vendas — anunciar "sobe para" seria mentira.
+ *
+ * Devolve `null` quando as vendas já encerraram: sem alvo, sem contador.
+ */
+export function textoContador(estado) {
+  if (!estado || estado.estado !== 'aberto') return null;
+  return estado.ultimo ? 'Vendas encerram em' : `Sobe para ${estado.proximoValor} em`;
 }

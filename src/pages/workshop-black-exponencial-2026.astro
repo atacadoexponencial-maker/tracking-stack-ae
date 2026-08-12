@@ -162,6 +162,17 @@ const proofImages = Object.entries(proofModules)
           <span class="wbe-barra__data"
             >09/09 · 19h<span class="wbe-barra__aovivo"> · ao vivo</span></span
           >
+          <!-- Contador da barra: o do hero some na primeira rolagem, justo
+               quando a pessoa está lendo a oferta e a garantia. Aqui ele
+               acompanha a página inteira sem custar nada da primeira dobra.
+               Vive DENTRO deste <p> de propósito: `.wbe-barra__inner` é um flex
+               com `space-between`, e um quarto filho ficaria boiando no meio em
+               vez de seguir a data. Nasce oculto — sem hora, sem contador. -->
+          <span class="wbe-barra__prazo" data-barra hidden aria-live="off">
+            <span class="wbe-barra__sep" aria-hidden="true">·</span>
+            <span class="wbe-barra__prazo-lote" data-barra-lote></span>
+            <span class="wbe-barra__prazo-tempo" data-barra-tempo></span>
+          </span>
         </p>
         <a class="wbe-barra__cta" href={CHECKOUT_URL} data-checkout>Garantir vaga</a>
       </div>
@@ -192,10 +203,40 @@ const proofImages = Object.entries(proofModules)
             própria aula, do início ao fim.
           </p>
           <a class="btn-cta wbe-hero__cta" href={CHECKOUT_URL} data-checkout>Garantir minha vaga</a>
-          <p class="wbe-hero__preco wbe-preco-bloco">
-            <strong data-preco="hero">{VALOR_INICIAL}</strong>
-            <span class="wbe-hero__lote" data-lote="hero">{LOTE_INICIAL}</span>
-          </p>
+          <!-- Régua de lotes: a escada de preços inteira, com o vigente
+               marcado. Mostra o que um contador sozinho não mostra — que o
+               preço não sobe uma vez, sobe quatro.
+
+               A LISTA nasce do build (marcando LOTES[0], mesmo fallback do
+               preço), então sem JavaScript a escada continua legível. Só a
+               LEGENDA nasce oculta: ela carrega o tempo, e tempo renderizado no
+               build congelaria no instante do deploy e mentiria.
+
+               <ol> porque a ordem é informação de verdade: os lotes são uma
+               sequência, e a posição de cada preço nela é o argumento.
+               `aria-live="off"`: o tempo muda a cada segundo e anunciar isso em
+               leitor de tela seria insuportável — o prazo já está por escrito na
+               caixa de oferta. -->
+          <div class="wbe-regua wbe-preco-bloco" data-regua>
+            <ol class="wbe-regua__trilha">
+              {LOTES.map((lote, i) => (
+                <li
+                  class:list={[
+                    'wbe-regua__passo',
+                    i === 0 ? 'wbe-regua__passo--atual' : 'wbe-regua__passo--futuro',
+                  ]}
+                  data-regua-passo
+                >
+                  <span class="wbe-regua__barra" aria-hidden="true"></span>
+                  <span class="wbe-regua__valor">{lote.valor}</span>
+                </li>
+              ))}
+            </ol>
+            <p class="wbe-regua__legenda" data-regua-legenda hidden aria-live="off">
+              <span data-regua-rotulo></span>
+              <span class="wbe-regua__tempo" data-regua-tempo></span>
+            </p>
+          </div>
         </div>
         <div class="wbe-hero__visual">
           <Image src={felipe} alt="Felipe Santos" class="wbe-hero__img" loading="eager" />
@@ -585,6 +626,20 @@ const proofImages = Object.entries(proofModules)
     color: hsl(var(--muted-foreground));
     margin-inline: 0.25rem;
   }
+  .wbe-barra__prazo-lote {
+    color: hsl(var(--muted-foreground));
+  }
+  /* Branco cheio contra o cinza do resto da barra. A cor de destaque vive na
+     régua do hero, não aqui: dois vermelhos na mesma tela dividiriam a atenção
+     em vez de dirigi-la.
+     Tabular pelo mesmo motivo da régua — sem isso a barra treme a cada segundo,
+     e uma barra fixa tremendo no topo é insuportável. */
+  .wbe-barra__prazo-tempo {
+    color: hsl(var(--foreground));
+    font-variant-numeric: tabular-nums;
+    margin-inline-start: 0.35rem;
+    letter-spacing: 0.04em;
+  }
   .wbe-barra__cta {
     flex: none;
     background: hsl(var(--foreground));
@@ -677,18 +732,97 @@ const proofImages = Object.entries(proofModules)
   .wbe-hero__cta {
     margin-top: 0.5rem;
   }
-  .wbe-hero__preco {
+  /* ---- Régua de lotes (hero) ---------------------------------------------
+     A escada de preços com o lote vigente marcado. Quatro colunas de largura
+     igual: os lotes têm durações diferentes, mas a régua conta a POSIÇÃO na
+     escada, não o tempo — larguras proporcionais à duração fariam a barra
+     mentir sobre progresso.
+     Sem caixas e sem números gigantes: o hero foi ajustado para caber na
+     primeira dobra (commit d9ba3f5) e o peso visual aqui vem do contraste
+     escuro/apagado, não de altura. */
+  .wbe-regua {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 100%;
+    max-width: 26rem;
+  }
+  .wbe-regua__trilha {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.35rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .wbe-regua__passo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .wbe-regua__barra {
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(30, 30, 30, 0.12);
+  }
+  .wbe-regua__valor {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    color: rgba(30, 30, 30, 0.45);
+  }
+  /* Lote vencido: riscado. Mostra o preço que já passou — é o argumento da
+     escada em uma marca tipográfica, sem precisar de texto extra. */
+  .wbe-regua__passo--passado .wbe-regua__barra {
+    background: rgba(30, 30, 30, 0.3);
+  }
+  .wbe-regua__passo--passado .wbe-regua__valor {
+    text-decoration: line-through;
+    color: rgba(30, 30, 30, 0.35);
+  }
+  /* ÚNICO ponto de cor da página inteira — o resto é preto, bege e branco.
+     Justamente por ser único é que funciona: numa régua onde tudo mais está
+     apagado ou riscado, o vermelho responde "você está aqui" antes de a pessoa
+     ler qualquer número. Gastar essa cor em outro lugar a transformaria em
+     decoração e ela pararia de sinalizar.
+
+     #c41d13 e não o `--destructive` do projeto: aquele é o vermelho de erro de
+     formulário, e um preço vigente não é um erro. Este tom dá 5.25:1 sobre o
+     bege #f5f0eb, acima do mínimo de 4.5:1 para texto pequeno — um vermelho
+     mais vivo (o #ff5247 que a barra chegou a usar) cai para 2.8:1 aqui e fica
+     ilegível sobre fundo claro. */
+  .wbe-regua__passo--atual .wbe-regua__barra {
+    background: #c41d13;
+  }
+  .wbe-regua__passo--atual .wbe-regua__valor {
+    color: #c41d13;
+  }
+  .wbe-regua__passo--atual .wbe-regua__valor::after {
+    /* Marca de posição: o vermelho sozinho depende de enxergar cor. Este ponto
+       diz a mesma coisa por forma, para daltônicos e para telas ruins. */
+    content: ' ●';
+    font-size: 0.5em;
+    vertical-align: 0.35em;
+  }
+  .wbe-regua__legenda {
     display: flex;
     align-items: baseline;
-    gap: 0.6rem;
-    font-size: 1.15rem;
-  }
-  .wbe-hero__lote {
+    gap: 0.45rem;
+    flex-wrap: wrap;
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: rgba(30, 30, 30, 0.6);
+  }
+  /* Tabular: sem isso cada dígito tem largura própria e a linha treme a cada
+     segundo, porque `1` é mais estreito que `8`. */
+  .wbe-regua__tempo {
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    color: hsl(var(--light-fg));
   }
   .wbe-hero__img {
     width: 100%;
@@ -1195,6 +1329,23 @@ const proofImages = Object.entries(proofModules)
       font-size: 0.6rem;
       padding: 0.5rem 0.9rem;
     }
+    /* No celular a barra tem espaço para uma coisa só além da data. O rótulo do
+       lote sai e fica o tempo, que é o único dado da barra que a página não
+       repete em outro lugar. */
+    .wbe-barra__prazo-lote {
+      display: none;
+    }
+    .wbe-barra__prazo-tempo {
+      margin-inline-start: 0;
+    }
+  }
+
+  /* Abaixo de 360px não sobra largura para data + contador + botão sem o texto
+     encavalar no botão. O contador sai: o botão de compra tem prioridade. */
+  @media (max-width: 359px) {
+    .wbe-barra__prazo {
+      display: none;
+    }
   }
 
   @media (min-width: 768px) {
@@ -1251,6 +1402,17 @@ const proofImages = Object.entries(proofModules)
     .wbe-hero__titulo {
       line-height: 1.05;
     }
+    /* Tela baixa: a régua encolhe em vez de empurrar a headline para fora da
+       dobra. A escada continua legível — só perde folga. */
+    .wbe-regua {
+      gap: 0.4rem;
+    }
+    .wbe-regua__passo {
+      gap: 0.3rem;
+    }
+    .wbe-regua__tempo {
+      font-size: 0.9rem;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1267,42 +1429,86 @@ const proofImages = Object.entries(proofModules)
   // congelaria o valor no dia do deploy. Aqui só se sobrescreve o que mudou em
   // relação ao HTML inicial (que já nasce no Lote 1).
   //
-  // Sem `setInterval`, sem contador regressivo, sem `fetch`: o cálculo acontece
-  // uma vez, no carregamento. A spec proíbe relógio na página, e quem abre a
-  // aba atravessando a virada só precisa de um refresh.
+  // A HORA VEM DO SERVIDOR (/api/hora), não do relógio do visitante.
   //
-  // RISCO ACEITO: a hora vem do relógio do visitante (`Date.now()`), então um
-  // aparelho com data errada vê o lote errado. É consciente — não há servidor no
-  // caminho da renderização e o checkout é a fonte da verdade do preço. Detalhes
-  // no cabeçalho de src/data/lotes-workshop.js. Não "consertar" com fetch de
-  // hora do servidor sem discutir antes.
-  import { loteVigente, textoProximo } from '../data/lotes-workshop.js';
+  // Até 2026-08-12 vinha do aparelho, e isso era um risco aceito: quem tivesse a
+  // data errada via o preço errado, e ponto. O contador regressivo (pedido pela
+  // usuária no mesmo dia, revogando a proibição que estava na spec) torna o erro
+  // escancarado — celular adiantado anuncia "faltam 3 horas" para quem tem dois
+  // dias. Então agora se busca a hora e se guarda o DESVIO entre os dois
+  // relógios.
+  //
+  // Ordem de propósito: pinta primeiro com o relógio do aparelho (instantâneo,
+  // sem tela vazia esperando rede) e repinta quando a hora do servidor chega. Se
+  // a requisição falhar, o desvio fica em zero e tudo se comporta como antes —
+  // a rede não é caminho crítico para a página vender.
+  import {
+    LOTES as LOTES_CLIENTE,
+    loteVigente,
+    textoProximo,
+    formatarRestante,
+    textoContador,
+  } from '../data/lotes-workshop.js';
 
   // Todo o bloco em try/catch: se algo explodir, a página fica no estado
   // inicial do HTML (Lote 1, vendas abertas) — nunca com preço vazio ou
   // `undefined`. Não há mensagem de erro: a página continua vendável.
   try {
-    const estado = loteVigente(Date.now());
-    const wrapper = document.querySelector('.wbe') as HTMLElement | null;
+    let desvioMs = 0;
+    const agora = () => Date.now() + desvioMs;
 
-    if (estado.estado === 'encerrado') {
-      // O CSS de `data-vendas="encerradas"` some com o preço e com todos os
-      // botões de compra, e reexibe o aviso mesmo com o atributo `hidden`.
-      if (wrapper) wrapper.dataset.vendas = 'encerradas';
-      const aviso = document.querySelector('.wbe-encerrado') as HTMLElement | null;
-      if (aviso) aviso.hidden = false;
-    } else {
+    const passos = Array.from(
+      document.querySelectorAll('[data-regua-passo]')
+    ) as HTMLElement[];
+    const legenda = document.querySelector('[data-regua-legenda]') as HTMLElement | null;
+    const reguaRotulo = document.querySelector('[data-regua-rotulo]') as HTMLElement | null;
+    const reguaTempo = document.querySelector('[data-regua-tempo]') as HTMLElement | null;
+
+    const barra = document.querySelector('[data-barra]') as HTMLElement | null;
+    const barraTempo = document.querySelector('[data-barra-tempo]') as HTMLElement | null;
+
+    // Pinta a escada: vencidos riscados, o vigente cheio, os seguintes
+    // apagados. Encerrado marca todos como vencidos — não há mais "atual".
+    function pintarRegua(indice: number | null) {
+      passos.forEach((passo, i) => {
+        const estadoPasso =
+          indice === null || i < indice ? 'passado' : i === indice ? 'atual' : 'futuro';
+        passo.classList.toggle('wbe-regua__passo--passado', estadoPasso === 'passado');
+        passo.classList.toggle('wbe-regua__passo--atual', estadoPasso === 'atual');
+        passo.classList.toggle('wbe-regua__passo--futuro', estadoPasso === 'futuro');
+      });
+    }
+
+    // Escreve preço, lote e estado de venda. Só é chamada quando o lote MUDA —
+    // não a cada segundo — para o tique não ficar reescrevendo o DOM inteiro.
+    function aplicar(estado: ReturnType<typeof loteVigente>) {
+      const wrapper = document.querySelector('.wbe') as HTMLElement | null;
+
+      if (estado.estado === 'encerrado') {
+        // O CSS de `data-vendas="encerradas"` some com o preço e com todos os
+        // botões de compra, e reexibe o aviso mesmo com o atributo `hidden`.
+        if (wrapper) wrapper.dataset.vendas = 'encerradas';
+        const aviso = document.querySelector('.wbe-encerrado') as HTMLElement | null;
+        if (aviso) aviso.hidden = false;
+        pintarRegua(null);
+        return;
+      }
+
+      pintarRegua(estado.indice as number);
+
       // Cada escrita é condicional / via querySelectorAll: gancho ausente não
       // quebra o resto da página.
       const valor = estado.valor as string;
       const rotulo = estado.rotulo as string;
 
       document
-        .querySelectorAll('[data-preco="hero"], [data-preco="oferta"], [data-preco="botao-oferta"]')
+        // Sem `data-preco="hero"`: o hero deixou de exibir o preço solto — a
+        // régua logo abaixo do botão já mostra o valor vigente na escada.
+        .querySelectorAll('[data-preco="oferta"], [data-preco="botao-oferta"]')
         .forEach((el) => {
           el.textContent = valor;
         });
-      document.querySelectorAll('[data-lote="hero"], [data-lote="oferta"]').forEach((el) => {
+      document.querySelectorAll('[data-lote="oferta"]').forEach((el) => {
         el.textContent = rotulo;
       });
 
@@ -1318,6 +1524,73 @@ const proofImages = Object.entries(proofModules)
         }
       }
     }
+
+    // Qual lote está pintado na tela agora. Começa no que o HTML trouxe do
+    // build (sempre LOTES[0], o fallback sem JavaScript), para o primeiro tique
+    // não repintar à toa.
+    let pintado: string | null = LOTES_CLIENTE[0].rotulo;
+    let timer = 0;
+
+    function tique() {
+      const estado = loteVigente(agora());
+      const chave = estado.estado === 'aberto' ? (estado.rotulo as string) : 'encerrado';
+
+      // A virada acontece com a aba aberta: quando o contador zera, o preço
+      // troca sozinho. Antes disso exigia refresh (issue 186, item 15).
+      if (chave !== pintado) {
+        pintado = chave;
+        aplicar(estado);
+      }
+
+      const rotulo = textoContador(estado);
+      const restante =
+        estado.estado === 'aberto' ? formatarRestante((estado.fimMs as number) - agora()) : null;
+
+      // Vendas encerradas, ou o prazo virou entre um tique e outro: os dois
+      // contadores somem, em vez de mostrar zero ou tempo negativo.
+      if (!rotulo || !restante) {
+        if (legenda) legenda.hidden = true;
+        if (barra) barra.hidden = true;
+        if (estado.estado === 'encerrado' && timer) {
+          window.clearInterval(timer);
+          timer = 0;
+        }
+        return;
+      }
+
+      if (legenda && reguaRotulo && reguaTempo) {
+        reguaRotulo.textContent = rotulo;
+        reguaTempo.textContent = restante;
+        legenda.hidden = false;
+      }
+
+      // A barra repete o MESMO relógio da régua — nunca dessincronizam, porque
+      // vêm da mesma chamada. Só o tempo, sem lote nem preço: a barra já
+      // carrega logo, data e botão, e o preço vive no hero e na oferta.
+      if (barra && barraTempo) {
+        barraTempo.textContent = restante;
+        barra.hidden = false;
+      }
+    }
+
+    // Hora do servidor. Falha em silêncio de propósito: sem ela o desvio fica
+    // zero e a página volta a se comportar como antes, com o relógio do
+    // aparelho — nunca sem preço.
+    async function sincronizarHora() {
+      try {
+        const r = await fetch('/api/hora', { cache: 'no-store' });
+        if (!r.ok) return;
+        const dados = (await r.json()) as { agora?: unknown };
+        if (typeof dados.agora !== 'number' || !Number.isFinite(dados.agora)) return;
+        desvioMs = dados.agora - Date.now();
+      } catch (e) {
+        /* fica no relógio do aparelho */
+      }
+    }
+
+    tique();
+    sincronizarHora().then(tique);
+    timer = window.setInterval(tique, 1000);
   } catch (e) {
     /* estado inicial do HTML já é legível e vendável */
   }
