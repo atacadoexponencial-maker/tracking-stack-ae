@@ -66,20 +66,26 @@ test('no minuto final do dia da virada o preço já é o do lote seguinte', () =
   assert.equal(loteVigente(em('2026-08-31T23:59:59')).rotulo, 'Lote 4');
 });
 
-test('09/09 17:59:59 ainda vende: Lote 4 aberto', () => {
-  const r = loteVigente(em('2026-09-09T17:59:59'));
+test('09/09 19:59:59 ainda vende: Lote 4 aberto', () => {
+  const r = loteVigente(em('2026-09-09T19:59:59'));
   assert.equal(r.estado, 'aberto');
   assert.equal(r.valor, 'R$ 97');
 });
 
-test('09/09 18:00:00 exato encerra as vendas, sem preço', () => {
-  const r = loteVigente(em('2026-09-09T18:00:00'));
+// O workshop começa às 19h e as vendas só fecham às 20h: a primeira hora da
+// aula ainda vende, de propósito.
+test('19h05, com a aula já rolando, a página continua vendendo', () => {
+  assert.equal(loteVigente(em('2026-09-09T19:05:00')).estado, 'aberto');
+});
+
+test('09/09 20:00:00 exato encerra as vendas, sem preço', () => {
+  const r = loteVigente(em('2026-09-09T20:00:00'));
   assert.equal(r.estado, 'encerrado');
   assert.equal(r.valor, undefined);
   assert.equal(r.rotulo, undefined);
 });
 
-test('qualquer instante depois de 09/09 18:00 continua encerrado', () => {
+test('qualquer instante depois de 09/09 20:00 continua encerrado', () => {
   assert.equal(loteVigente(em('2026-12-25T10:00:00')).estado, 'encerrado');
 });
 

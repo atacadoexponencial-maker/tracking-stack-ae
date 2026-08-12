@@ -62,7 +62,9 @@ export const LOTES = [
     rotulo: 'Lote 4',
     valor: 'R$ 97',
     inicio: '2026-08-31T23:59:00-03:00',
-    fim: '2026-09-09T18:00:00-03:00',
+    // As vendas encerram às 20h do dia do workshop — que começa às 19h. Ou
+    // seja, a primeira hora da aula ainda vende, de propósito.
+    fim: '2026-09-09T20:00:00-03:00',
   },
 ];
 
