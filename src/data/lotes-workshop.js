@@ -28,29 +28,40 @@
 // é o checkout — o valor final é sempre o configurado lá. Ninguém deve
 // "consertar" isto depois com um fetch de hora do servidor sem discutir antes.
 
-// Valores são strings fixas: são quatro ao todo, e escrevê-los prontos é mais
+// Valores são strings fixas: são cinco ao todo, e escrevê-los prontos é mais
 // simples e mais determinístico que chamar Intl.NumberFormat e depois arrancar
 // os centavos. Formato brasileiro, com R$ e sem centavos.
 
 // O `fim` de um lote é LITERALMENTE o `inicio` do seguinte: é o que torna
 // impossível existir buraco ou sobreposição entre eles.
+//
+// A VIRADA É ÀS 23:59 DO ÚLTIMO DIA, não à meia-noite do dia seguinte (decisão
+// da usuária em 2026-08-12). Consequência a conhecer: no minuto final do dia da
+// virada — 23:59:00 a 23:59:59 — o preço exibido já é o do lote seguinte. É o
+// comportamento pedido, não um erro de borda.
 export const LOTES = [
   {
-    rotulo: 'Lote 0',
+    rotulo: 'Lote 1',
     valor: 'R$ 27',
     inicio: '2026-08-10T00:00:00-03:00',
-    fim: '2026-08-20T00:00:00-03:00',
-  },
-  {
-    rotulo: 'Lote 1',
-    valor: 'R$ 97',
-    inicio: '2026-08-20T00:00:00-03:00',
-    fim: '2026-08-30T00:00:00-03:00',
+    fim: '2026-08-17T23:59:00-03:00',
   },
   {
     rotulo: 'Lote 2',
-    valor: 'R$ 147',
-    inicio: '2026-08-30T00:00:00-03:00',
+    valor: 'R$ 47',
+    inicio: '2026-08-17T23:59:00-03:00',
+    fim: '2026-08-24T23:59:00-03:00',
+  },
+  {
+    rotulo: 'Lote 3',
+    valor: 'R$ 67',
+    inicio: '2026-08-24T23:59:00-03:00',
+    fim: '2026-08-31T23:59:00-03:00',
+  },
+  {
+    rotulo: 'Lote 4',
+    valor: 'R$ 97',
+    inicio: '2026-08-31T23:59:00-03:00',
     fim: '2026-09-09T18:00:00-03:00',
   },
 ];

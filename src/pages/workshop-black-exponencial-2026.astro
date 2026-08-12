@@ -50,7 +50,7 @@ const CHECKOUT_PARAM = 'sf_trk';
 // O site é estático (output: 'static'), então o frontmatter roda no build e
 // congelaria o valor do dia do deploy — quem decide o lote vigente é o
 // <script> no fim deste arquivo, no acesso do visitante. O que se renderiza
-// aqui é o fallback: se o JavaScript não rodar, a página exibe o Lote 0
+// aqui é o fallback: se o JavaScript não rodar, a página exibe o Lote 1
 // legível em vez de espaço em branco, `undefined` ou placeholder.
 //
 // Os valores vêm de LOTES[0] (mesma tabela que o script lê) para o HTML
@@ -1265,7 +1265,7 @@ const proofImages = Object.entries(proofModules)
   //
   // Roda no NAVEGADOR porque a página é estática: decidir isso no frontmatter
   // congelaria o valor no dia do deploy. Aqui só se sobrescreve o que mudou em
-  // relação ao HTML inicial (que já nasce no Lote 0).
+  // relação ao HTML inicial (que já nasce no Lote 1).
   //
   // Sem `setInterval`, sem contador regressivo, sem `fetch`: o cálculo acontece
   // uma vez, no carregamento. A spec proíbe relógio na página, e quem abre a
@@ -1279,7 +1279,7 @@ const proofImages = Object.entries(proofModules)
   import { loteVigente, textoProximo } from '../data/lotes-workshop.js';
 
   // Todo o bloco em try/catch: se algo explodir, a página fica no estado
-  // inicial do HTML (Lote 0, vendas abertas) — nunca com preço vazio ou
+  // inicial do HTML (Lote 1, vendas abertas) — nunca com preço vazio ou
   // `undefined`. Não há mensagem de erro: a página continua vendável.
   try {
     const estado = loteVigente(Date.now());

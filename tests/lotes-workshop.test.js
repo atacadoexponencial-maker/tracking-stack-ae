@@ -6,48 +6,70 @@ import { LOTES, VALOR_CHEIO, loteVigente, textoProximo } from '../src/data/lotes
 // que é fuso-agnóstico por construção.
 const em = (iso) => Date.parse(`${iso}-03:00`);
 
-test('antes de 10/08 já mostra o Lote 0, não "encerrado" nem vazio', () => {
+test('antes de 10/08 já mostra o Lote 1, não "encerrado" nem vazio', () => {
   const r = loteVigente(em('2026-08-09T23:59:59'));
   assert.equal(r.estado, 'aberto');
-  assert.equal(r.rotulo, 'Lote 0');
+  assert.equal(r.rotulo, 'Lote 1');
   assert.equal(r.valor, 'R$ 27');
+  assert.equal(r.proximoValor, 'R$ 47');
+});
+
+test('10/08 00:00:00 exato continua no Lote 1 — a abertura não é virada visível', () => {
+  const r = loteVigente(em('2026-08-10T00:00:00'));
+  assert.equal(r.rotulo, 'Lote 1');
+  assert.equal(r.valor, 'R$ 27');
+});
+
+// A virada é às 23:59 do último dia, não à meia-noite do dia seguinte. Os três
+// pares abaixo travam o minuto exato de cada troca: um segundo antes ainda é o
+// lote velho, no segundo cheio já é o novo.
+test('17/08 23:58:59 ainda é Lote 1', () => {
+  const r = loteVigente(em('2026-08-17T23:58:59'));
+  assert.equal(r.rotulo, 'Lote 1');
+  assert.equal(r.valor, 'R$ 27');
+});
+
+test('17/08 23:59:00 exato já é Lote 2 — início inclusivo, fim exclusivo', () => {
+  const r = loteVigente(em('2026-08-17T23:59:00'));
+  assert.equal(r.rotulo, 'Lote 2');
+  assert.equal(r.valor, 'R$ 47');
+  assert.equal(r.proximoValor, 'R$ 67');
+});
+
+test('24/08 23:58:59 ainda é Lote 2', () => {
+  assert.equal(loteVigente(em('2026-08-24T23:58:59')).rotulo, 'Lote 2');
+});
+
+test('24/08 23:59:00 exato já é Lote 3', () => {
+  const r = loteVigente(em('2026-08-24T23:59:00'));
+  assert.equal(r.rotulo, 'Lote 3');
+  assert.equal(r.valor, 'R$ 67');
   assert.equal(r.proximoValor, 'R$ 97');
 });
 
-test('10/08 00:00:00 exato continua no Lote 0 — a abertura não é virada visível', () => {
-  const r = loteVigente(em('2026-08-10T00:00:00'));
-  assert.equal(r.rotulo, 'Lote 0');
-  assert.equal(r.valor, 'R$ 27');
+test('31/08 23:58:59 ainda é Lote 3', () => {
+  assert.equal(loteVigente(em('2026-08-31T23:58:59')).rotulo, 'Lote 3');
 });
 
-test('19/08 23:59:59 ainda é Lote 0', () => {
-  const r = loteVigente(em('2026-08-19T23:59:59'));
-  assert.equal(r.rotulo, 'Lote 0');
-  assert.equal(r.valor, 'R$ 27');
-});
-
-test('20/08 00:00:00 exato já é Lote 1 — início inclusivo, fim exclusivo', () => {
-  const r = loteVigente(em('2026-08-20T00:00:00'));
-  assert.equal(r.rotulo, 'Lote 1');
+test('31/08 23:59:00 exato já é Lote 4 e não há próximo valor', () => {
+  const r = loteVigente(em('2026-08-31T23:59:00'));
+  assert.equal(r.rotulo, 'Lote 4');
   assert.equal(r.valor, 'R$ 97');
-  assert.equal(r.proximoValor, 'R$ 147');
-});
-
-test('29/08 23:59:59 ainda é Lote 1', () => {
-  assert.equal(loteVigente(em('2026-08-29T23:59:59')).rotulo, 'Lote 1');
-});
-
-test('30/08 00:00:00 exato já é Lote 2 e não há próximo valor', () => {
-  const r = loteVigente(em('2026-08-30T00:00:00'));
-  assert.equal(r.rotulo, 'Lote 2');
-  assert.equal(r.valor, 'R$ 147');
   assert.equal(r.proximoValor, null);
 });
 
-test('09/09 17:59:59 ainda vende: Lote 2 aberto', () => {
+// O último minuto do dia da virada pertence ao lote NOVO. É consequência direta
+// de virar às 23:59 e está aqui para ninguém "consertar" achando que é bug.
+test('no minuto final do dia da virada o preço já é o do lote seguinte', () => {
+  assert.equal(loteVigente(em('2026-08-17T23:59:59')).rotulo, 'Lote 2');
+  assert.equal(loteVigente(em('2026-08-24T23:59:59')).rotulo, 'Lote 3');
+  assert.equal(loteVigente(em('2026-08-31T23:59:59')).rotulo, 'Lote 4');
+});
+
+test('09/09 17:59:59 ainda vende: Lote 4 aberto', () => {
   const r = loteVigente(em('2026-09-09T17:59:59'));
   assert.equal(r.estado, 'aberto');
-  assert.equal(r.valor, 'R$ 147');
+  assert.equal(r.valor, 'R$ 97');
 });
 
 test('09/09 18:00:00 exato encerra as vendas, sem preço', () => {
@@ -71,23 +93,41 @@ test('cada lote começa exatamente onde o anterior termina — sem buraco nem so
   }
 });
 
+test('são quatro lotes, com preços estritamente crescentes', () => {
+  assert.equal(LOTES.length, 4);
+  const numero = (v) => Number(v.replace(/\D/g, ''));
+  for (let i = 1; i < LOTES.length; i += 1) {
+    assert.ok(
+      numero(LOTES[i].valor) > numero(LOTES[i - 1].valor),
+      `${LOTES[i].rotulo} (${LOTES[i].valor}) deveria custar mais que ${LOTES[i - 1].rotulo} (${LOTES[i - 1].valor})`
+    );
+  }
+});
+
+test('os rótulos são Lote 1 a Lote 4, na ordem', () => {
+  assert.deepEqual(
+    LOTES.map((l) => l.rotulo),
+    ['Lote 1', 'Lote 2', 'Lote 3', 'Lote 4']
+  );
+});
+
 test('um e só um lote vigente por instante, varrendo as fronteiras', () => {
   const instantes = LOTES.flatMap((l) => [Date.parse(l.inicio) - 1, Date.parse(l.inicio), Date.parse(l.fim) - 1]);
   for (const ms of instantes) {
     const r = loteVigente(ms);
     assert.equal(r.estado, 'aberto');
     const casam = LOTES.filter((l) => Date.parse(l.inicio) <= ms && ms < Date.parse(l.fim));
-    // Antes do primeiro início nenhum lote casa e a função devolve o Lote 0.
+    // Antes do primeiro início nenhum lote casa e a função devolve o Lote 1.
     if (casam.length === 1) assert.equal(r.rotulo, casam[0].rotulo);
-    else assert.equal(r.rotulo, 'Lote 0');
+    else assert.equal(r.rotulo, 'Lote 1');
     assert.ok(casam.length <= 1);
   }
 });
 
 test('agora inválido (NaN) cai no primeiro lote, nunca em encerrado', () => {
-  assert.equal(loteVigente(NaN).rotulo, 'Lote 0');
+  assert.equal(loteVigente(NaN).rotulo, 'Lote 1');
   assert.equal(loteVigente(undefined).estado, 'aberto');
-  assert.equal(loteVigente(Number.POSITIVE_INFINITY).rotulo, 'Lote 0');
+  assert.equal(loteVigente(Number.POSITIVE_INFINITY).rotulo, 'Lote 1');
 });
 
 test('o valor cheio é a ancoragem fixa e não é nenhum dos lotes', () => {
@@ -101,20 +141,20 @@ test('valores em formato brasileiro, com R$ e sem centavos', () => {
 });
 
 test('texto do próximo lote sai pronto e some quando não há próximo', () => {
-  assert.equal(textoProximo('R$ 97', 'Lote 0'), 'Depois do Lote 0, o valor sobe para R$ 97');
-  assert.equal(textoProximo('R$ 147', 'Lote 1'), 'Depois do Lote 1, o valor sobe para R$ 147');
-  assert.equal(textoProximo(null, 'Lote 2'), null);
+  assert.equal(textoProximo('R$ 47', 'Lote 1'), 'Depois do Lote 1, o valor sobe para R$ 47');
+  assert.equal(textoProximo('R$ 97', 'Lote 3'), 'Depois do Lote 3, o valor sobe para R$ 97');
+  assert.equal(textoProximo(null, 'Lote 4'), null);
 });
 
 test('o resultado independe do fuso do processo — só o epoch importa', () => {
-  const alvo = em('2026-08-20T00:00:00');
+  const alvo = em('2026-08-17T23:59:00');
   const original = process.env.TZ;
   const esperado = loteVigente(alvo);
   for (const tz of ['UTC', 'Europe/Lisbon', 'Pacific/Kiritimati', 'America/Sao_Paulo']) {
     process.env.TZ = tz;
     const r = loteVigente(alvo);
     assert.deepEqual(r, esperado);
-    assert.equal(r.rotulo, 'Lote 1');
+    assert.equal(r.rotulo, 'Lote 2');
   }
   if (original === undefined) delete process.env.TZ;
   else process.env.TZ = original;
