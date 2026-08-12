@@ -34,14 +34,12 @@ const CHECKOUT_URL = 'https://payfast.greenn.com.br/ecx6tpu';
 // branco a 188 montaria `...&=uuid`, que a plataforma descarta, e a venda
 // deixaria de ser atribuída sem nada quebrar visivelmente.
 //
-// ATENÇÃO — `sf_trk` é INFERIDO, não confirmado. A doc da Greenn não documenta
-// os parâmetros que o checkout aceita; ela só mostra, no webhook de venda, um
-// campo `sf_trk` descrito como "valor da meta sf_trk da venda (rastreamento)",
-// e um `saleMetas` que recebe as UTMs da URL. Procurei o nome nos 21 chunks JS
-// do checkout em 2026-08-12 e não achei — a captura acontece no servidor deles.
-// COMO CONFIRMAR: na primeira venda real, procurar o valor em
-// `greenn_webhook_event.raw_json` (campo `sf_trk` ou dentro de `saleMetas`).
-// Se não estiver lá, o parâmetro é outro — e o raw_json mostra qual chegou.
+// ✅ `sf_trk` CONFIRMADO com venda real em 2026-08-12 (venda 9606659): o valor
+// enviado aqui volta no webhook em DOIS lugares — no campo `sf_trk` do topo do
+// payload e como uma entrada de `saleMetas`. É o que fecha a atribuição:
+// `checkout_sessions.trk` (gravado na visita) === `sf_trk` (devolvido na venda).
+// A doc da Greenn não lista os parâmetros aceitos pelo checkout, então isto foi
+// descoberto empiricamente — não mexer sem repetir o teste.
 const CHECKOUT_PARAM = 'sf_trk';
 
 // ---------------------------------------------------------------------------
