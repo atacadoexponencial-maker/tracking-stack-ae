@@ -10,10 +10,10 @@ import { LOTES, textoProximo } from '../data/lotes-workshop.js';
 // ---------------------------------------------------------------------------
 // Destino de compra — PONTO ÚNICO de configuração (issue 185, formalizado na 187)
 //
-// TROCAR PELA URL DO CHECKOUT quando ela existir. Enquanto isso, abre o WhatsApp
-// com a mensagem pronta e o seletor de contato — não quebra a navegação.
-// Todos os botões de compra da página leem estas duas constantes: trocar de
-// destino é editar AQUI e em mais lugar nenhum.
+// Checkout da Greenn (produto "Workshop Black Exponencial Atacado 2026").
+// Substituiu o link de WhatsApp que servia de fallback enquanto o checkout não
+// existia. Todos os botões de compra da página leem estas duas constantes:
+// trocar de destino é editar AQUI e em mais lugar nenhum.
 //
 // Regra para CTAs futuros: todo botão de compra leva `href={CHECKOUT_URL}` E
 // `data-checkout`. Sem o atributo o botão continua funcionando, mas some do
@@ -25,16 +25,24 @@ import { LOTES, textoProximo } from '../data/lotes-workshop.js';
 //   - não pode conter fragmento `#` (o parâmetro cairia depois do hash e o
 //     checkout não o receberia).
 // ---------------------------------------------------------------------------
-const CHECKOUT_URL =
-  'https://wa.me/?text=Quero%20garantir%20minha%20vaga%20no%20Workshop%20Black%20Exponencial';
+const CHECKOUT_URL = 'https://payfast.greenn.com.br/ecx6tpu';
 
 // Nome do parâmetro que carrega o identificador de compra na URL do checkout.
 // Muda conforme a plataforma (fonte: docs/page-types/sales-page.md):
-//   Eduzz `trk` · Hotmart `xcod` · Kiwify `sck`
+//   Eduzz `trk` · Hotmart `xcod` · Kiwify `sck` · Greenn `sf_trk`
 // Trocar de plataforma significa SUBSTITUIR este valor, nunca esvaziá-lo: em
 // branco a 188 montaria `...&=uuid`, que a plataforma descarta, e a venda
 // deixaria de ser atribuída sem nada quebrar visivelmente.
-const CHECKOUT_PARAM = 'trk';
+//
+// ATENÇÃO — `sf_trk` é INFERIDO, não confirmado. A doc da Greenn não documenta
+// os parâmetros que o checkout aceita; ela só mostra, no webhook de venda, um
+// campo `sf_trk` descrito como "valor da meta sf_trk da venda (rastreamento)",
+// e um `saleMetas` que recebe as UTMs da URL. Procurei o nome nos 21 chunks JS
+// do checkout em 2026-08-12 e não achei — a captura acontece no servidor deles.
+// COMO CONFIRMAR: na primeira venda real, procurar o valor em
+// `greenn_webhook_event.raw_json` (campo `sf_trk` ou dentro de `saleMetas`).
+// Se não estiver lá, o parâmetro é outro — e o raw_json mostra qual chegou.
+const CHECKOUT_PARAM = 'sf_trk';
 
 // ---------------------------------------------------------------------------
 // Preço e lote: o HTML NASCE NO PRIMEIRO LOTE, de propósito.
@@ -1336,9 +1344,9 @@ const proofImages = Object.entries(proofModules)
   // Delegação avalia o seletor no momento do clique, o que elimina qualquer
   // dependência de ordem entre este script e o dela (ambos são módulos do
   // Astro, `defer`). E, ao montar o destino, a 188 escolhe o separador com
-  // `const sep = url.includes('?') ? '&' : '?'`, porque CHECKOUT_URL já tem
-  // query string hoje. Nada de `trk`, `/checkout-session` ou `InitiateCheckout`
-  // nesta issue.
+  // `const sep = url.includes('?') ? '&' : '?'`, que funciona com ou sem query
+  // string na CHECKOUT_URL. Nada de `trk`, `/checkout-session` ou
+  // `InitiateCheckout` nesta issue.
   // -------------------------------------------------------------------------
   document.querySelectorAll('.wbe-fechamento .btn-cta').forEach((el) => {
     (el as HTMLElement).dataset.checkout = '';
@@ -1456,8 +1464,8 @@ const proofImages = Object.entries(proofModules)
 
       const nomeParam =
         (wrapperVendas && wrapperVendas.dataset.checkoutParam) || 'trk';
-      // CHECKOUT_URL já nasce com query string hoje: separador calculado, nunca
-      // fixo.
+      // Separador calculado, nunca fixo: a CHECKOUT_URL da Greenn não tem query
+      // string, mas já teve (o fallback de WhatsApp tinha) e pode voltar a ter.
       const separador = base.includes('?') ? '&' : '?';
       const destino = base + separador + nomeParam + '=' + encodeURIComponent(trk);
 
