@@ -457,21 +457,23 @@ const proofImages = Object.entries(proofModules)
 
       <!-- 15. Garantia -------------------------------------------------------- -->
       <section class="section section--light wbe-garantia">
-        <div class="container wbe-garantia__faixa">
-          <div class="wbe-garantia__selo" aria-hidden="true">
-            <span class="wbe-garantia__selo-num">7</span>
-            <span class="wbe-garantia__selo-txt">dias</span>
-          </div>
-          <div class="wbe-garantia__texto">
-            <h2 class="wbe-garantia__titulo">
-              Você tem 7 dias depois do workshop para pedir seu dinheiro de volta.
-            </h2>
-            <p>
+        <div class="container">
+          <div class="wbe-garantia__bloco">
+            <div class="wbe-garantia__topo">
+              <div class="wbe-garantia__selo" aria-hidden="true">
+                <span class="wbe-garantia__selo-num">7</span>
+                <span class="wbe-garantia__selo-txt">dias</span>
+              </div>
+              <h2 class="wbe-garantia__titulo">
+                Você tem 7 dias depois do workshop para pedir seu dinheiro de volta.
+              </h2>
+            </div>
+            <p class="wbe-garantia__corpo">
               Participe do dia 09, preencha o planner, leve os materiais. Se até o dia 16 de
               setembro você achar que aquilo não serve para a sua marca, manda uma mensagem e
               devolvemos o valor integral. Sem formulário, sem pergunta.
             </p>
-            <p>
+            <p class="wbe-garantia__fecho">
               O risco de montar a sua Black com a gente é zero. O de entrar em outubro sem campanha
               nenhuma, não.
             </p>
@@ -1084,18 +1086,32 @@ const proofImages = Object.entries(proofModules)
   }
 
   /* ---- 15. Garantia -------------------------------------------------------------------- */
-  .wbe-garantia__faixa {
+  /* Bloco escuro dentro da seção bege. É o momento em que a página quebra a
+     objeção do dinheiro, e antes ele passava batido: círculo e texto soltos
+     sobre o bege, sem moldura nem hierarquia. O contraste sai da paleta que a
+     página já usa — nada de dourado de "selo de garantia", que destoaria de
+     todo o resto. */
+  .wbe-garantia__bloco {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    border-radius: 1rem;
+    padding: clamp(1.75rem, 5vw, 3rem);
     display: flex;
-    gap: 1.5rem;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .wbe-garantia__topo {
+    display: flex;
     align-items: center;
+    gap: 1.5rem;
     flex-wrap: wrap;
   }
   .wbe-garantia__selo {
     flex: none;
-    width: 5rem;
-    height: 5rem;
+    width: 5.5rem;
+    height: 5.5rem;
     border-radius: 9999px;
-    border: 2px solid rgba(30, 30, 30, 0.25);
+    border: 2px solid rgba(255, 255, 255, 0.35);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1103,7 +1119,7 @@ const proofImages = Object.entries(proofModules)
     line-height: 1;
   }
   .wbe-garantia__selo-num {
-    font-size: 1.75rem;
+    font-size: 2rem;
     font-weight: 700;
   }
   .wbe-garantia__selo-txt {
@@ -1111,19 +1127,26 @@ const proofImages = Object.entries(proofModules)
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.15em;
+    color: rgba(255, 255, 255, 0.7);
   }
-  .wbe-garantia__texto {
-    flex: 1 1 18rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
+  /* `flex: 1 1 16rem` deixa o título dividir a linha com o selo no desktop e
+     cair para baixo dele no celular, sem media query. */
   .wbe-garantia__titulo {
-    font-size: 1.25rem;
+    flex: 1 1 16rem;
+    font-size: clamp(1.25rem, 3.2vw, 1.75rem);
+    line-height: 1.25;
   }
-  .wbe-garantia__texto p {
-    color: rgba(30, 30, 30, 0.75);
-    font-size: 0.95rem;
+  .wbe-garantia__corpo {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.98rem;
+  }
+  /* O fecho é a frase que fica. Separado por um fio e em branco cheio, ele
+     encerra a objeção em vez de se diluir como um segundo parágrafo. */
+  .wbe-garantia__fecho {
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    padding-top: 1.25rem;
+    font-size: clamp(1rem, 2.5vw, 1.15rem);
+    font-weight: 700;
   }
 
   /* ---- 16. Urgência --------------------------------------------------------------------- */
