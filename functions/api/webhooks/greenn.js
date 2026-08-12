@@ -1,4 +1,4 @@
-// POST /api/webhooks/greenn
+// POST /api/webhooks/greenn  (GET/HEAD respondem 200 — ver abaixo)
 //
 // Recebe os webhooks da Greenn, a plataforma de checkout de um produto
 // SEPARADO do restante do tracking. A URL é cadastrada no campo `url_callback`
@@ -17,6 +17,24 @@
 // raw_json em log, nunca.
 
 import { extrairEvento } from './_greenn-evento.js';
+
+// GET/HEAD respondem 200 só para dizer "esta URL existe".
+//
+// Motivo concreto (2026-08-12): o botão de evento de teste do painel da Greenn
+// falhava com "Falha no envio" e SEM código HTTP — sinal de que a requisição
+// nem completava. O endpoint só exportava onRequestPost, então qualquer GET
+// batia no 404 do Pages. Plataformas de webhook comumente validam a URL com um
+// GET antes de entregar, e uma validação que 404 derruba a entrega inteira.
+//
+// Não expõe nada: sem dados, sem contagem, sem estado. E NÃO é um caminho de
+// autenticação alternativo — gravar continua sendo só via POST com o token.
+export async function onRequestGet() {
+  return json({ ok: true, endpoint: 'greenn', metodo: 'use POST para entregar eventos' });
+}
+
+export async function onRequestHead() {
+  return new Response(null, { status: 200 });
+}
 
 export async function onRequestPost(context) {
   const { request, env } = context;
