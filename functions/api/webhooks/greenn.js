@@ -41,8 +41,19 @@ export async function onRequestPost(context) {
 
   const enviado = request.headers.get('x-webhook-token') || '';
   if (!env.GREENN_WEBHOOK_TOKEN || !tokenConfere(enviado, env.GREENN_WEBHOOK_TOKEN)) {
-    // Sem o valor recebido no log: ele é um segredo mesmo quando está errado.
-    console.error('greenn — token divergente ou ausente (401)');
+    // NUNCA o valor recebido nem o esperado: são segredos mesmo quando estão
+    // errados. O que vai para o log são três booleanos que separam as causas de
+    // um 401 sem revelar nada — sem eles, "401" é um beco sem saída:
+    //   configurado=false          → falta o secret GREENN_WEBHOOK_TOKEN no Pages
+    //   recebido=false             → a plataforma não mandou o header
+    //   mesmoTamanho=false         → é outro token
+    //   mesmoTamanho=true          → mesmo tamanho, conteúdo diferente
+    //                                (espaço colado junto, quebra de linha)
+    console.error('greenn — 401:', {
+      configurado: !!env.GREENN_WEBHOOK_TOKEN,
+      recebido: enviado.length > 0,
+      mesmoTamanho: enviado.length === (env.GREENN_WEBHOOK_TOKEN || '').length,
+    });
     return json({ error: 'Unauthorized' }, 401);
   }
 
