@@ -113,3 +113,55 @@ test('o card nasce em "leads de entrada", nunca em "contrato assinado"', () => {
   assert.notEqual(card.status, 'contrato assinado');
   assert.equal(STATUS_INICIAL, 'leads de entrada');
 });
+
+test('sem sessão o card sai sem UTMs, com o resto igual', () => {
+  const card = montarCard(vendaPaga({ sf_trk: null }), null);
+
+  assert.equal(campo(card, CU_FIELD.nome), 'Marcelle Mesquita');
+  assert.equal(campo(card, CU_FIELD.funil), CU_FUNIL_WO_PAGO);
+  assert.equal(campo(card, CU_FIELD.valor), 27);
+
+  for (const id of [CU_FIELD.utmSource, CU_FIELD.utmMedium, CU_FIELD.utmCampaign, CU_FIELD.utmContent]) {
+    assert.equal(campo(card, id), undefined);
+  }
+});
+
+test('sessão com UTMs vazias não cria campo vazio', () => {
+  // O checkout_sessions grava '' quando a visita chegou sem UTM. Mandar isso ao
+  // ClickUp deixaria o campo "preenchido" com nada.
+  const card = montarCard(vendaPaga(), { utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '' });
+  for (const id of [CU_FIELD.utmSource, CU_FIELD.utmMedium, CU_FIELD.utmCampaign, CU_FIELD.utmContent]) {
+    assert.equal(campo(card, id), undefined);
+  }
+});
+
+test('telefone é normalizado para o formato do ClickUp', () => {
+  const semDDI = montarCard(vendaPaga({
+    client: { name: 'Fulana', email: 'f@ex.com', cellphone: '(21) 99391-1946' },
+  }), null);
+  assert.equal(campo(semDDI, CU_FIELD.whatsapp), '+5521993911946');
+});
+
+test('comprador sem nome não gera card sem título', () => {
+  const card = montarCard(vendaPaga({
+    client: { email: 'sem.nome@ex.com', cellphone: '' },
+  }), null);
+  assert.equal(card.name, 'Venda Greenn 9606659');
+  assert.equal(campo(card, CU_FIELD.whatsapp), '');
+});
+
+test('o comentário registra venda, método, taxa e líquido', () => {
+  const c = montarCard(vendaPaga(), sessao).comentario;
+  assert.match(c, /9606659/);
+  assert.match(c, /PIX/);
+  assert.match(c, /R\$ 27,00/);
+  assert.match(c, /R\$ 2,35/);   // taxa
+  assert.match(c, /R\$ 24,65/);  // líquido
+  assert.match(c, /9c1a011e-f15c-45d8-a886-9022b395f3bf/);
+  assert.match(c, /Workshop Black Exponencial Atacado 2026/);
+});
+
+test('sem sessão o comentário diz por quê, em vez de calar', () => {
+  const c = montarCard(vendaPaga({ sf_trk: null }), null).comentario;
+  assert.match(c, /não passou pela LP/);
+});
