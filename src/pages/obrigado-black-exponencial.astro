@@ -29,6 +29,7 @@ const GRUPO_URL = '/grupo-workshop';
   title="Compra confirmada — Workshop Black Exponencial"
   description="Sua vaga no Workshop Black Exponencial está garantida. Entre no grupo para receber o link da aula."
   showHeader={false}
+  showFooter={false}
 >
   <section class="obg">
     <div class="container obg__inner">
@@ -139,9 +140,14 @@ const GRUPO_URL = '/grupo-workshop';
     color: hsl(var(--muted-foreground));
   }
 
+  /* Verde do WhatsApp: a cor já diz para onde o botão leva, antes de ler.
+     Texto ESCURO, não branco — o #25D366 é claro demais, e branco sobre ele dá
+     2:1 de contraste (ilegível). Com o #1e1e1e da paleta dá 8.5:1. */
   .obg__cta {
     width: 100%;
     justify-content: center;
+    background: #25d366;
+    color: hsl(var(--light-fg));
   }
 
   .obg__aviso {
