@@ -256,8 +256,8 @@ async function handleEncharge({ parsed, env }) {
 // HANDLER: ManyChat — create subscriber + add tag
 // -----------------------------------------------------------------------------
 async function handleManyChat({ parsed, env }) {
-  if (!env.MANYCHAT_KEY) {
-    return { statusCode: 0, responseOk: 0, responseBody: 'Missing MANYCHAT_KEY' };
+  if (!env.MANYCHAT_API) {
+    return { statusCode: 0, responseOk: 0, responseBody: 'Missing MANYCHAT_API' };
   }
 
   const { name, phone, productConfig } = parsed;
@@ -272,7 +272,7 @@ async function handleManyChat({ parsed, env }) {
   }
 
   const authHeaders = {
-    'Authorization': `Bearer ${env.MANYCHAT_KEY}`,
+    'Authorization': `Bearer ${env.MANYCHAT_API}`,
     'Content-Type': 'application/json',
   };
 

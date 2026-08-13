@@ -19,6 +19,19 @@
 import { extrairEvento } from './_greenn-evento.js';
 import { deveCriarCard, montarCard, TAG_EDICAO } from './_greenn-clickup.js';
 import { sendToGHL } from '../../tracker.js';
+import { inscreverComTag } from '../_manychat.js';
+import { normalizePhone } from '../_hash.js';
+
+// ID da tag do ManyChat que marca o comprador desta EDIÇÃO — a tag
+// `compradores_wopago-0909`, conferida na conta em 2026-08-13. É ela que dispara
+// o fluxo de WhatsApp lá dentro.
+//
+// A API exige o ID numérico; o nome não serve. Para descobrir o de uma tag nova:
+//   GET https://api.manychat.com/fb/page/getTags  (header Authorization: Bearer)
+//
+// Muda JUNTO com TAG_EDICAO quando a turma virar: as duas nomeiam a mesma
+// edição em sistemas diferentes.
+const MANYCHAT_TAG_ID = 94144582;
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -136,6 +149,7 @@ export async function onRequestPost(context) {
   if (linhaId && deveCriarCard(body)) {
     context.waitUntil(pontearParaClickUp(env, body, linhaId));
     context.waitUntil(pontearParaGHL(env, body));
+    context.waitUntil(pontearParaManyChat(env, body));
   }
 
   return json({ ok: true, status: 'gravado', event: evento.event });
@@ -302,6 +316,43 @@ async function pontearParaGHL(env, payload) {
   } catch (e) {
     // Só o id da venda: o payload carrega nome, e-mail, telefone e CPF.
     console.error('greenn — ponte GHL falhou na venda', vendaId, e?.message || e);
+  }
+}
+
+// PONTE GREENN → MANYCHAT (WhatsApp pela API oficial)
+//
+// Mesmo gatilho das outras duas, waitUntil próprio. Inscreve o comprador e
+// aplica a tag da edição — é a tag que dispara o fluxo de WhatsApp no ManyChat.
+//
+// O telefone é normalizado com o MESMO `normalizePhone` do resto do projeto
+// (dígitos com DDI, sem `+`). Formato confirmado contra a API deles em
+// 2026-08-13.
+//
+// O desfecho `ja_existia` é registrado à parte de propósito: a API do ManyChat
+// não permite encontrar um inscrito pelo WhatsApp, então quem já estava na conta
+// não recebe a tag e não entra no fluxo. Em 2026-08-13 a base foi zerada pela
+// usuária, então isso deveria ser raro — e o log é o que vai dizer se voltou a
+// acontecer, em vez de a pessoa sumir calada.
+async function pontearParaManyChat(env, payload) {
+  const cliente = payload.client || {};
+  const vendaId = payload.sale && payload.sale.id;
+  try {
+    const r = await inscreverComTag({
+      nome: cliente.name || '',
+      telefone: normalizePhone(cliente.cellphone, env.DEFAULT_COUNTRY_CODE || '55'),
+      tagId: MANYCHAT_TAG_ID,
+      env,
+    });
+
+    if (!r.ok) {
+      // Sem dados do comprador no log: só o id da venda e o motivo.
+      console.error('greenn — ManyChat não inscreveu a venda', vendaId, {
+        motivo: r.motivo,
+        detalhe: r.detalhe || '',
+      });
+    }
+  } catch (e) {
+    console.error('greenn — ponte ManyChat falhou na venda', vendaId, e?.message || e);
   }
 }
 
