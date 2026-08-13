@@ -92,6 +92,41 @@ ser recuperadas pela API:
 Não há limite de janela nesse filtro. O que não se recupera é o evento no
 instante em que aconteceu.
 
+## Comprador vira card no ClickUp
+
+Quando uma venda é **paga**, o comprador vira card na lista 🤑 CRM:
+
+- 🔻 Funil `WO PAGO`, 🛒 Produto `AE`, status `leads de entrada`
+- tag **`wo-pago-09-09`** — ela nomeia a EDIÇÃO do workshop; a próxima turma
+  precisa de tag nova, trocada em `functions/api/webhooks/_greenn-clickup.js`
+- as UTMs da visita que gerou a compra, casadas pelo `sf_trk`
+- um comentário com venda, método, taxa e líquido
+
+Só venda paga. Reembolso, recusa e abandono não criam card.
+
+**Se o comprador já era lead**, o card dele NÃO tem o funil trocado — só ganha a
+tag e o comentário. A origem original dele continua valendo.
+
+**O campo 💰 Arrecadado nunca é preenchido.** Ele é lido por
+`functions/webhook/clickup.js` quando um card entra em `contrato assinado`, e
+registraria a venda da Greenn na Receita e no ROAS do negócio antigo. O valor vai
+para 💵 Valor.
+
+### Vendas que não viraram card
+
+    npx wrangler d1 execute tracking-ae-db --remote \
+      --command "SELECT id, entity_id, datetime(received_at,'unixepoch','-3 hours') AS recebido FROM greenn_webhook_event WHERE event='saleUpdated' AND current_status='paid' AND clickup_task_id IS NULL;"
+
+Lista vazia significa que todas as vendas pagas viraram card. Não há retry
+automático: o `raw_json` guardado permite recriar qualquer uma à mão.
+
+**Cuidado com falso negativo:** se o `UPDATE` final falhar depois do card já
+ter sido criado no ClickUp, a linha fica com `clickup_task_id` NULL mesmo com
+o card existindo. Antes de recriar à mão, confira no ClickUp (busca por
+telefone ou e-mail) se o card já existe — senão duplica. Reprocessar pela
+própria ponte (reenviar o evento) NÃO duplica: a dedup por telefone/e-mail
+encontra o card existente e só acrescenta tag e comentário.
+
 ## Limites conhecidos
 
 - **Sem HMAC.** O `X-Webhook-Token` é o único fator de autenticação. Quem
