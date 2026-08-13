@@ -17,6 +17,15 @@
 // raw_json em log, nunca.
 
 import { extrairEvento } from './_greenn-evento.js';
+import { deveCriarCard, montarCard, TAG_EDICAO } from './_greenn-clickup.js';
+import {
+  CU_FIELD,
+  CU_DEFAULT_LIST,
+  clickupFetch,
+  searchClickUpTask,
+  clickupWrite,
+  addClickUpTag,
+} from '../_clickup.js';
 
 // GET/HEAD respondem 200 só para dizer "esta URL existe".
 //
@@ -93,8 +102,9 @@ export async function onRequestPost(context) {
   // corte no meio produziria JSON inválido.
   const cru = JSON.stringify(body);
 
+  let linhaId = null;
   try {
-    await env.DB.prepare(
+    const gravou = await env.DB.prepare(
       `INSERT OR IGNORE INTO greenn_webhook_event
          (event, entity_type, entity_id, current_status, product_id, amount,
           entity_updated, received_at, raw_json)
@@ -104,10 +114,20 @@ export async function onRequestPost(context) {
       evento.product_id, evento.amount, evento.entity_updated,
       Math.floor(Date.now() / 1000), cru
     ).run();
+    // `meta.last_row_id` só vale quando a linha realmente entrou. Numa reentrega
+    // o INSERT OR IGNORE não insere nada, e aí não há ponte a fazer — o card já
+    // foi criado na primeira vez.
+    linhaId = gravou?.meta?.changes ? gravou.meta.last_row_id : null;
   } catch (e) {
     // Único 5xx do endpoint, e é honesto: o dado não entrou.
     console.error('greenn — falha ao gravar no D1:', e?.message || e);
     return json({ error: 'Erro ao gravar' }, 500);
+  }
+
+  // A ponte é o ÚLTIMO passo e roda fora do caminho da resposta. Só venda paga
+  // que acabou de entrar (linhaId não-nulo) vira card: reentrega não duplica.
+  if (linhaId && deveCriarCard(body)) {
+    context.waitUntil(pontearParaClickUp(env, body, linhaId));
   }
 
   return json({ ok: true, status: 'gravado', event: evento.event });
@@ -126,6 +146,103 @@ function tokenConfere(recebido, esperado) {
   return lengthsMatch
     ? crypto.subtle.timingSafeEqual(a, b)
     : !crypto.subtle.timingSafeEqual(a, a);
+}
+
+// PONTE GREENN → CLICKUP
+//
+// Roda em waitUntil: a resposta 200 para a Greenn já saiu quando isto executa.
+// Nada aqui pode alterar, atrasar ou derrubar aquela resposta — a Greenn não
+// reentrega, e um erro nosso viraria perda de dado dela.
+//
+// Falha deixa `clickup_task_id` NULL na linha já gravada. Como o raw_json está
+// guardado, a venda é recuperável: nada se perde, só fica pendente. Não há
+// retry automático de propósito (ver spec 2026-08-13).
+async function pontearParaClickUp(env, payload, linhaId) {
+  if (!env.CLICKUP_API_TOKEN) {
+    console.error('greenn — ponte ClickUp ignorada: falta CLICKUP_API_TOKEN');
+    return;
+  }
+
+  const cliente = payload.client || {};
+  const vendaId = payload.sale && payload.sale.id;
+
+  try {
+    // Origem da visita: o sf_trk é o mesmo UUID gravado em checkout_sessions
+    // quando a pessoa entrou na LP (confirmado com a venda 9606659). Sem ele, ou
+    // sem linha casada, o card sai sem UTMs — não se inventa origem.
+    let sessao = null;
+    if (payload.sf_trk) {
+      try {
+        sessao = await env.DB.prepare(
+          `SELECT utm_source, utm_medium, utm_campaign, utm_content
+             FROM checkout_sessions WHERE trk = ?`
+        ).bind(payload.sf_trk).first();
+      } catch (e) {
+        console.error('greenn — falha ao buscar a sessão do sf_trk:', e?.message || e);
+      }
+    }
+
+    const card = montarCard(payload, sessao);
+
+    // Dedup: mesma busca do /tracker. Erro na busca é tratado como "não achou" —
+    // criar um card duplicado é menos ruim do que perder o comprador.
+    let existente = null;
+    try {
+      existente =
+        (await searchClickUpTask(CU_FIELD.email, cliente.email || '', env)) ||
+        (await searchClickUpTask(CU_FIELD.whatsapp, card.custom_fields.find(
+          (c) => c.id === CU_FIELD.whatsapp)?.value || '', env));
+    } catch (e) {
+      console.error('greenn — busca no ClickUp falhou, seguindo como novo:', e?.message || e);
+    }
+
+    let taskId;
+    if (existente) {
+      // NÃO sobrescreve Funil nem Produto: se a pessoa veio de LIVES SEMANAIS,
+      // ela continua vindo de lá. Carimbar WO PAGO por cima apagaria a origem
+      // verdadeira. A tag e o comentário são aditivos.
+      taskId = existente.id;
+    } else {
+      const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
+      const res = await clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: card.name,
+          status: card.status,
+          custom_fields: card.custom_fields,
+        }),
+      }, env));
+      const criada = await res.json();
+      taskId = criada.id;
+    }
+
+    if (!taskId) {
+      console.error('greenn — ClickUp não devolveu id da task; venda', vendaId);
+      return;
+    }
+
+    await addClickUpTag(taskId, TAG_EDICAO, env);
+
+    // Comentário best-effort: o card já existe e já está tagueado, então falhar
+    // aqui não justifica marcar a ponte como perdida.
+    try {
+      await clickupWrite(() => clickupFetch(`/task/${taskId}/comment`, {
+        method: 'POST',
+        body: JSON.stringify({ comment_text: card.comentario, notify_all: false }),
+      }, env));
+    } catch (e) {
+      console.error('greenn — comentário falhou na venda', vendaId, e?.message || e);
+    }
+
+    if (linhaId) {
+      await env.DB.prepare(
+        `UPDATE greenn_webhook_event SET clickup_task_id = ? WHERE id = ?`
+      ).bind(taskId, linhaId).run();
+    }
+  } catch (e) {
+    // Só o id da venda: o payload carrega nome, e-mail, telefone e CPF.
+    console.error('greenn — ponte ClickUp falhou na venda', vendaId, e?.message || e);
+  }
 }
 
 function json(data, status = 200) {
