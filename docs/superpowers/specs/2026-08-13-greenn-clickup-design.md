@@ -30,7 +30,7 @@ Decisões tomadas com a usuária em 2026-08-13:
 | 🔻 Funil | `WO PAGO` | Opção que já existia na lista; evita criar dropdown novo |
 | 🛒 Produto | `AE` | Coerente com o resto do CRM |
 | Status inicial | `leads de entrada` | Quem comprou o workshop de R$ 27 não é cliente da mentoria: entra por cima da esteira |
-| Tag | `greenn` | É o que separa na busca e nos filtros |
+| Tag | `wo-pago-09-09` | Separa na busca e nos filtros, e amarra à EDIÇÃO do workshop (09/09) |
 
 ## 🚨 A armadilha da receita
 
@@ -49,6 +49,16 @@ entra na contabilidade antiga em silêncio. Duas defesas, aplicadas juntas:
 Risco residual aceito: alguém arrastar o card para `contrato assinado` à mão.
 Com o Arrecadado vazio, o webhook registraria receita zero — ruído, não
 contaminação.
+
+## A tag é por EDIÇÃO do workshop
+
+`wo-pago-09-09` não é uma tag genérica da Greenn: ela nomeia o workshop de
+**09/09/2026**. A próxima edição precisa de uma tag nova, senão duas turmas
+diferentes ficam indistinguíveis no CRM.
+
+Consequência prática: a tag é uma constante do código e **muda a cada edição**.
+Ela vive em um lugar só, no topo de `_greenn-clickup.js`, com um comentário
+dizendo isso — trocar de turma é editar uma linha.
 
 ## Gatilho
 
@@ -98,7 +108,7 @@ A busca é a mesma que o `/tracker` já faz: por **e-mail OU telefone** na lista
 | 💵 Valor | `sale.amount` |
 | utm_source / utm_medium / utm_campaign / utm_content | da `checkout_sessions` |
 | Status | `leads de entrada` |
-| Tag | `greenn` |
+| Tag | `wo-pago-09-09` |
 
 Mais um comentário com os dados da venda.
 
@@ -107,7 +117,7 @@ Mais um comentário com os dados da venda.
 a origem verdadeira e mentiria sobre como ela entrou. O card existente recebe
 apenas:
 
-- a **tag `greenn`**
+- a **tag `wo-pago-09-09`**
 - um **comentário** com os dados da compra
 
 Essa assimetria é deliberada. O comentário e a tag são aditivos; os campos de
