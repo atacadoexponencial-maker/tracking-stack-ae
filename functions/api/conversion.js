@@ -125,6 +125,7 @@ const KNOWN_PAGE_PATHS = new Set([
   '/ae-video-workshop',
   '/grupo-da-live',
   '/workshop-black-exponencial-2026',
+  '/obrigado-black-exponencial',
 ]);
 
 // '(sem página)' passa direto (não começa com '/'); paths reais só

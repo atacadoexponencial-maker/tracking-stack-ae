@@ -1,0 +1,132 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+
+// Página de obrigado da COMPRA do Workshop Black Exponencial. Cadastrada no
+// campo de página de obrigado do produto, no painel da Greenn.
+//
+// NÃO se chama /obrigado-workshop: aquele slug é um redirect 301 legado para
+// /video-workshop-instagram (ver public/_redirects), da era do workshop
+// GRATUITO. Reaproveitá-lo mandaria quem se inscreveu no vídeo grátis para uma
+// página dizendo que a compra foi aprovada.
+//
+// Sem rastreamento próprio: quem dispara o evento de compra é o pixel
+// configurado no painel da Greenn (decisão da usuária em 2026-08-13). Esta
+// página não envia Purchase, não tem formulário e não vende nada.
+//
+// Um CTA só, de propósito. A pessoa acabou de pagar; a única coisa que ela
+// precisa fazer agora é entrar no grupo, porque é lá que o link da aula chega.
+// Qualquer segundo botão competiria com isso.
+const GRUPO_URL = '/grupo-workshop';
+---
+
+<BaseLayout
+  title="Compra confirmada — Workshop Black Exponencial"
+  description="Sua vaga no Workshop Black Exponencial está garantida. Entre no grupo para receber o link da aula."
+  showHeader={false}
+>
+  <section class="section section--light obg">
+    <div class="container obg__inner">
+      <Image src={logo} alt="Atacado Exponencial" height={72} class="obg__logo" />
+
+      <span class="eyebrow">Compra confirmada</span>
+
+      <h1 class="section-title obg__titulo">Sua vaga está garantida.</h1>
+
+      <p class="section-sub obg__sub">
+        Agora falta um passo, e ele é o que garante que você não perca a aula.
+      </p>
+
+      <!-- O bloco escuro é o mesmo recurso visual da garantia na LP: numa página
+           clara, ele para o olho sem precisar de cor nova. -->
+      <div class="obg__quando">
+        <span class="obg__quando-rotulo">Quando</span>
+        <strong class="obg__quando-data">09 de setembro, 19h</strong>
+        <span class="obg__quando-nota">Ao vivo · 2 horas · com Felipe Santos</span>
+      </div>
+
+      <a class="btn-cta obg__cta" href={GRUPO_URL}>Entrar no grupo do workshop</a>
+
+      <p class="obg__aviso">
+        O link da aula é enviado <strong>no grupo</strong>, junto com os materiais e os
+        avisos. Quem não entra corre o risco de perder o começo.
+      </p>
+
+      <p class="obg__rodape">
+        Você tem 7 dias depois do workshop para pedir reembolso integral. Qualquer dúvida,
+        é só falar no grupo.
+      </p>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .obg__inner {
+    max-width: 40rem;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.25rem;
+  }
+  .obg__logo {
+    height: 2.25rem;
+    width: auto;
+    margin-bottom: 0.5rem;
+  }
+  .obg__titulo {
+    margin: 0;
+  }
+  .obg__sub {
+    margin: 0;
+  }
+
+  /* Data e hora num bloco escuro: é a informação que a pessoa vai querer
+     reencontrar depois, então precisa ser a coisa mais achável da página
+     depois do botão. Mesmo idioma da faixa de garantia da LP. */
+  .obg__quando {
+    width: 100%;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    border-radius: 1rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
+  .obg__quando-rotulo {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: hsl(var(--muted-foreground));
+  }
+  .obg__quando-data {
+    font-size: clamp(1.35rem, 4vw, 1.85rem);
+    line-height: 1.15;
+  }
+  .obg__quando-nota {
+    font-size: 0.9rem;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .obg__cta {
+    margin-top: 0.25rem;
+  }
+  .obg__aviso {
+    font-size: 0.95rem;
+    color: rgba(30, 30, 30, 0.75);
+    margin: 0;
+  }
+  .obg__rodape {
+    font-size: 0.85rem;
+    color: rgba(30, 30, 30, 0.55);
+    margin: 0;
+    border-top: 1px solid rgba(30, 30, 30, 0.12);
+    padding-top: 1.25rem;
+    width: 100%;
+  }
+</style>
