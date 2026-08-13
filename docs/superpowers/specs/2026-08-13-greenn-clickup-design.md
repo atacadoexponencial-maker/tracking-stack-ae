@@ -165,8 +165,12 @@ taguear) vive aqui, junto do resto do endpoint.
 **Reuso:** as constantes de custom field, `toClickUpPhone`, `clickupFetch`,
 `searchClickUpTask`, `clickupWrite` e `addClickUpTag` já existem em
 `functions/tracker.js`. Serão extraídas para um módulo compartilhado
-(`functions/api/webhooks/_clickup-api.js`) e importadas nos dois lugares, em vez
-de duplicadas — duplicar IDs de custom field é como eles divergem em silêncio.
+(**`functions/api/_clickup.js`**) e importadas nos dois lugares, em vez de
+duplicadas — duplicar IDs de custom field é como eles divergem em silêncio.
+
+O caminho é `functions/api/_clickup.js`, e não `functions/api/webhooks/`, porque
+o módulo é usado pelo `tracker.js` E pelo webhook: não pertence à pasta de um
+só. Segue o precedente de `functions/api/_hash.js`, que o tracker já importa.
 
 ## Testes
 
