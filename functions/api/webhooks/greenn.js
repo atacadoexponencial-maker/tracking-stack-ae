@@ -18,6 +18,7 @@
 
 import { extrairEvento } from './_greenn-evento.js';
 import { deveCriarCard, montarCard, TAG_EDICAO } from './_greenn-clickup.js';
+import { sendToGHL } from '../../tracker.js';
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -125,10 +126,16 @@ export async function onRequestPost(context) {
     return json({ error: 'Erro ao gravar' }, 500);
   }
 
-  // A ponte é o ÚLTIMO passo e roda fora do caminho da resposta. Só venda paga
-  // que acabou de entrar (linhaId não-nulo) vira card: reentrega não duplica.
+  // As pontes são o ÚLTIMO passo e rodam fora do caminho da resposta. Só venda
+  // paga que acabou de entrar (linhaId não-nulo) vira contato: reentrega não
+  // duplica.
+  //
+  // Dois `waitUntil` separados, e não um só encadeado: o ClickUp e o
+  // GoHighLevel são destinos independentes. Se o CRM estiver fora do ar, o
+  // contato ainda entra no e-mail marketing, e vice-versa.
   if (linhaId && deveCriarCard(body)) {
     context.waitUntil(pontearParaClickUp(env, body, linhaId));
+    context.waitUntil(pontearParaGHL(env, body));
   }
 
   return json({ ok: true, status: 'gravado', event: evento.event });
@@ -262,6 +269,39 @@ async function pontearParaClickUp(env, payload, linhaId) {
   } catch (e) {
     // Só o id da venda: o payload carrega nome, e-mail, telefone e CPF.
     console.error('greenn — ponte ClickUp falhou na venda', vendaId, e?.message || e);
+  }
+}
+
+// PONTE GREENN → GOHIGHLEVEL (e-mail marketing)
+//
+// Mesmo gatilho do ClickUp — venda paga, uma vez só — mas destino independente:
+// roda no próprio waitUntil para que a queda de um não leve o outro junto.
+//
+// `sendToGHL` já faz upsert (dedup por e-mail OU telefone) e aplica a tag de
+// forma ADITIVA, então um comprador que já era lead mantém as tags antigas e
+// ganha esta. Ele também é best-effort por dentro: sem TOKEN_GHL/LOCAL_ID, ou
+// sem e-mail e telefone, apenas desiste com log.
+//
+// A tag sai de `TAG_EDICAO` de propósito — a mesma constante que nomeia a tag do
+// ClickUp. `ghlFunnelTag` prefixa `funil-`, então a tag lá vira
+// `funil-wo-pago-09-09`. Ler as duas do mesmo lugar é o que impede os dois
+// destinos de divergirem quando a próxima turma trocar a edição.
+async function pontearParaGHL(env, payload) {
+  const cliente = payload.client || {};
+  const vendaId = payload.sale && payload.sale.id;
+  try {
+    await sendToGHL({
+      leadData: {
+        nome: cliente.name || '',
+        email: cliente.email || '',
+        telefone: cliente.cellphone || '',
+        funnel: TAG_EDICAO,
+      },
+      env,
+    });
+  } catch (e) {
+    // Só o id da venda: o payload carrega nome, e-mail, telefone e CPF.
+    console.error('greenn — ponte GHL falhou na venda', vendaId, e?.message || e);
   }
 }
 
