@@ -76,3 +76,40 @@ test('venda paga com sessão vira card com nome, contato e UTMs da visita', () =
   assert.equal(campo(card, CU_FIELD.utmCampaign), 'ae_workshop_black');
   assert.equal(campo(card, CU_FIELD.utmContent), 'ad06_planner');
 });
+
+test('só venda paga vira card', () => {
+  assert.equal(deveCriarCard(vendaPaga()), true);
+
+  for (const status of ['refused', 'refunded', 'chargedback', 'waiting_payment', 'unpaid']) {
+    assert.equal(deveCriarCard(vendaPaga({ currentStatus: status })), false, status);
+  }
+});
+
+test('contrato, abandono e corpo inválido não viram card', () => {
+  assert.equal(deveCriarCard({ event: 'contractUpdated', currentStatus: 'paid' }), false);
+  assert.equal(deveCriarCard({ event: 'checkoutAbandoned' }), false);
+  assert.equal(deveCriarCard({}), false);
+  assert.equal(deveCriarCard(null), false);
+  assert.equal(deveCriarCard('texto'), false);
+});
+
+// ESTE TESTE TRAVA A ARMADILHA. O campo 💰 Arrecadado é lido por
+// functions/webhook/clickup.js quando um card entra em "contrato assinado", e
+// registra a venda no purchase_log/ROAS do negócio antigo. A Greenn é produto
+// separado (decisão da usuária) e não pode entrar ali.
+test('o card NUNCA carrega o campo 💰 Arrecadado', () => {
+  const ARRECADADO = '85ef1a33-01f7-4ea4-9f24-f742b660a04e';
+  const card = montarCard(vendaPaga(), sessao);
+  assert.equal(
+    card.custom_fields.some((c) => c.id === ARRECADADO),
+    false,
+    'Arrecadado preencheria a receita do negocio antigo com uma venda da Greenn'
+  );
+});
+
+test('o card nasce em "leads de entrada", nunca em "contrato assinado"', () => {
+  const card = montarCard(vendaPaga(), sessao);
+  assert.equal(card.status, 'leads de entrada');
+  assert.notEqual(card.status, 'contrato assinado');
+  assert.equal(STATUS_INICIAL, 'leads de entrada');
+});
