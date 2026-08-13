@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
-import logo from '../assets/brand/logo.png';
+import logo from '../assets/brand/logo-horizontal-preto.png';
 
 // Página de obrigado da COMPRA do Workshop Black Exponencial. Cadastrada no
 // campo de página de obrigado do produto, no painel da Greenn.
@@ -15,9 +15,13 @@ import logo from '../assets/brand/logo.png';
 // configurado no painel da Greenn (decisão da usuária em 2026-08-13). Esta
 // página não envia Purchase, não tem formulário e não vende nada.
 //
-// Um CTA só, de propósito. A pessoa acabou de pagar; a única coisa que ela
-// precisa fazer agora é entrar no grupo, porque é lá que o link da aula chega.
-// Qualquer segundo botão competiria com isso.
+// CABE NA TELA SEM ROLAR, de propósito (pedido da usuária). Toda a copy foi
+// dimensionada para isso: um CTA só, nenhuma seção extra, e espaçamentos que
+// encolhem em tela baixa. Acrescentar qualquer bloco aqui provavelmente quebra
+// essa promessa — medir antes.
+//
+// Logo PRETO horizontal: o fundo é bege claro, e o logo.png padrão é claro
+// (as outras páginas o usam sobre fundo escuro, ou aplicam invert).
 const GRUPO_URL = '/grupo-workshop';
 ---
 
@@ -26,20 +30,26 @@ const GRUPO_URL = '/grupo-workshop';
   description="Sua vaga no Workshop Black Exponencial está garantida. Entre no grupo para receber o link da aula."
   showHeader={false}
 >
-  <section class="section section--light obg">
+  <section class="obg">
     <div class="container obg__inner">
-      <Image src={logo} alt="Atacado Exponencial" height={72} class="obg__logo" />
+      <!-- `eager`: o logo é o primeiro elemento visível da página. O padrão do
+           Astro é `lazy`, que faria a marca aparecer depois de tudo o mais. -->
+      <Image
+        src={logo}
+        alt="Atacado Exponencial"
+        width={939}
+        height={253}
+        loading="eager"
+        class="obg__logo"
+      />
 
-      <span class="eyebrow">Compra confirmada</span>
+      <span class="obg__selo">Compra confirmada</span>
 
-      <h1 class="section-title obg__titulo">Sua vaga está garantida.</h1>
+      <h1 class="obg__titulo">Sua vaga está garantida.</h1>
 
-      <p class="section-sub obg__sub">
-        Agora falta um passo, e ele é o que garante que você não perca a aula.
-      </p>
-
-      <!-- O bloco escuro é o mesmo recurso visual da garantia na LP: numa página
-           clara, ele para o olho sem precisar de cor nova. -->
+      <!-- Data e hora num bloco escuro: é a informação que a pessoa vai voltar
+           para reencontrar, então precisa ser a coisa mais achável depois do
+           botão. Mesmo recurso visual da faixa de garantia da LP. -->
       <div class="obg__quando">
         <span class="obg__quando-rotulo">Quando</span>
         <strong class="obg__quando-data">09 de setembro, 19h</strong>
@@ -49,84 +59,111 @@ const GRUPO_URL = '/grupo-workshop';
       <a class="btn-cta obg__cta" href={GRUPO_URL}>Entrar no grupo do workshop</a>
 
       <p class="obg__aviso">
-        O link da aula é enviado <strong>no grupo</strong>, junto com os materiais e os
-        avisos. Quem não entra corre o risco de perder o começo.
+        O link da aula é enviado <strong>no grupo</strong>, junto com os materiais.
       </p>
 
-      <p class="obg__rodape">
-        Você tem 7 dias depois do workshop para pedir reembolso integral. Qualquer dúvida,
-        é só falar no grupo.
-      </p>
+      <p class="obg__rodape">7 dias de garantia após o workshop.</p>
     </div>
   </section>
 </BaseLayout>
 
 <style>
+  /* `100dvh` e não `100vh`: no celular a barra do navegador aparece e some, e o
+     `vh` ignora isso — a página "cabia" no teste e vazava no aparelho real. */
+  .obg {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    background: hsl(var(--light-bg));
+    color: hsl(var(--light-fg));
+    padding-block: clamp(1.5rem, 5vh, 3rem);
+  }
   .obg__inner {
-    max-width: 40rem;
+    max-width: 34rem;
     margin-inline: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 1.25rem;
-  }
-  .obg__logo {
-    height: 2.25rem;
-    width: auto;
-    margin-bottom: 0.5rem;
-  }
-  .obg__titulo {
-    margin: 0;
-  }
-  .obg__sub {
-    margin: 0;
+    /* O gap é a variável que faz a página caber: encolhe com a altura da tela. */
+    gap: clamp(0.75rem, 2.2vh, 1.35rem);
   }
 
-  /* Data e hora num bloco escuro: é a informação que a pessoa vai querer
-     reencontrar depois, então precisa ser a coisa mais achável da página
-     depois do botão. Mesmo idioma da faixa de garantia da LP. */
+  .obg__logo {
+    height: auto;
+    width: clamp(9rem, 42vw, 13rem);
+    margin-bottom: clamp(0.25rem, 1vh, 0.75rem);
+  }
+
+  .obg__selo {
+    display: inline-block;
+    border: 1px solid rgba(30, 30, 30, 0.2);
+    border-radius: 9999px;
+    padding: 0.4rem 1rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(30, 30, 30, 0.7);
+  }
+
+  .obg__titulo {
+    margin: 0;
+    font-size: clamp(1.6rem, 5.5vw, 2.4rem);
+    line-height: 1.1;
+  }
+
   .obg__quando {
     width: 100%;
     background: hsl(var(--background));
     color: hsl(var(--foreground));
     border-radius: 1rem;
-    padding: 1.5rem;
+    padding: clamp(1rem, 3vh, 1.5rem);
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    margin-top: 0.5rem;
+    gap: 0.35rem;
   }
   .obg__quando-rotulo {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.15em;
     color: hsl(var(--muted-foreground));
   }
   .obg__quando-data {
-    font-size: clamp(1.35rem, 4vw, 1.85rem);
+    font-size: clamp(1.25rem, 4.5vw, 1.75rem);
     line-height: 1.15;
   }
   .obg__quando-nota {
-    font-size: 0.9rem;
+    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
     color: hsl(var(--muted-foreground));
   }
 
   .obg__cta {
-    margin-top: 0.25rem;
-  }
-  .obg__aviso {
-    font-size: 0.95rem;
-    color: rgba(30, 30, 30, 0.75);
-    margin: 0;
-  }
-  .obg__rodape {
-    font-size: 0.85rem;
-    color: rgba(30, 30, 30, 0.55);
-    margin: 0;
-    border-top: 1px solid rgba(30, 30, 30, 0.12);
-    padding-top: 1.25rem;
     width: 100%;
+    justify-content: center;
+  }
+
+  .obg__aviso {
+    margin: 0;
+    font-size: clamp(0.85rem, 2.6vw, 0.95rem);
+    color: rgba(30, 30, 30, 0.75);
+  }
+
+  .obg__rodape {
+    margin: 0;
+    font-size: 0.75rem;
+    color: rgba(30, 30, 30, 0.5);
+  }
+
+  /* Tela muito baixa (celular pequeno na horizontal, ou janela espremida):
+     o selo é o primeiro a sair — ele é decoração, o resto é informação. */
+  @media (max-height: 600px) {
+    .obg__selo {
+      display: none;
+    }
+    .obg__rodape {
+      display: none;
+    }
   }
 </style>
