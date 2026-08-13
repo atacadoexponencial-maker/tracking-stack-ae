@@ -120,6 +120,13 @@ para 💵 Valor.
 Lista vazia significa que todas as vendas pagas viraram card. Não há retry
 automático: o `raw_json` guardado permite recriar qualquer uma à mão.
 
+**Cuidado com falso negativo:** se o `UPDATE` final falhar depois do card já
+ter sido criado no ClickUp, a linha fica com `clickup_task_id` NULL mesmo com
+o card existindo. Antes de recriar à mão, confira no ClickUp (busca por
+telefone ou e-mail) se o card já existe — senão duplica. Reprocessar pela
+própria ponte (reenviar o evento) NÃO duplica: a dedup por telefone/e-mail
+encontra o card existente e só acrescenta tag e comentário.
+
 ## Limites conhecidos
 
 - **Sem HMAC.** O `X-Webhook-Token` é o único fator de autenticação. Quem

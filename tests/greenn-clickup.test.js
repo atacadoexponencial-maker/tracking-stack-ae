@@ -147,7 +147,10 @@ test('comprador sem nome não gera card sem título', () => {
     client: { email: 'sem.nome@ex.com', cellphone: '' },
   }), null);
   assert.equal(card.name, 'Venda Greenn 9606659');
-  assert.equal(campo(card, CU_FIELD.whatsapp), '');
+  // Telefone vazio/fora do padrão faz a API do ClickUp responder 400 e
+  // derrubar a task inteira (campo type: phone) — por isso o campo é OMITIDO
+  // em vez de ir como string vazia, mesmo raciocínio das UTMs vazias.
+  assert.equal(campo(card, CU_FIELD.whatsapp), undefined);
 });
 
 test('o comentário registra venda, método, taxa e líquido', () => {

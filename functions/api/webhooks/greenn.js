@@ -25,6 +25,7 @@ import {
   searchClickUpTask,
   clickupWrite,
   addClickUpTag,
+  toClickUpPhone,
 } from '../_clickup.js';
 
 // GET/HEAD respondem 200 só para dizer "esta URL existe".
@@ -184,14 +185,18 @@ async function pontearParaClickUp(env, payload, linhaId) {
 
     const card = montarCard(payload, sessao);
 
-    // Dedup: mesma busca do /tracker. Erro na busca é tratado como "não achou" —
-    // criar um card duplicado é menos ruim do que perder o comprador.
+    // Dedup: telefone primeiro, depois e-mail — DELIBERADAMENTE a mesma ordem
+    // de functions/tracker.js (linha ~806). Com dados divergentes no CRM, uma
+    // ordem diferente entre os dois fluxos pode casar a mesma pessoa em cards
+    // diferentes. A busca chama toClickUpPhone diretamente em vez de escavar
+    // card.custom_fields: depois da correção do campo de telefone omitido
+    // quando vazio, o campo pode nem existir no array, e cavar ali faria a
+    // busca por telefone parar de acontecer em silêncio.
     let existente = null;
     try {
       existente =
-        (await searchClickUpTask(CU_FIELD.email, cliente.email || '', env)) ||
-        (await searchClickUpTask(CU_FIELD.whatsapp, card.custom_fields.find(
-          (c) => c.id === CU_FIELD.whatsapp)?.value || '', env));
+        (await searchClickUpTask(CU_FIELD.whatsapp, toClickUpPhone(cliente.cellphone), env)) ||
+        (await searchClickUpTask(CU_FIELD.email, cliente.email || '', env));
     } catch (e) {
       console.error('greenn — busca no ClickUp falhou, seguindo como novo:', e?.message || e);
     }
@@ -204,14 +209,29 @@ async function pontearParaClickUp(env, payload, linhaId) {
       taskId = existente.id;
     } else {
       const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
-      const res = await clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
+      const createTask = (customFields) => clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
         method: 'POST',
         body: JSON.stringify({
           name: card.name,
           status: card.status,
-          custom_fields: card.custom_fields,
+          custom_fields: customFields,
         }),
       }, env));
+      let res;
+      try {
+        res = await createTask(card.custom_fields);
+      } catch (e) {
+        // Mesmo comportamento documentado em functions/tracker.js (~linha 876):
+        // um telefone fora do padrão do campo type: phone faz a API do ClickUp
+        // responder 400 e derrubar a criação da task inteira. clickupWrite não
+        // repete em 400 (só 429/5xx/rede) e anexa o status no erro, então dá
+        // pra detectar aqui e tentar de novo sem o campo de telefone. Se a
+        // segunda tentativa também falhar, propaga pro catch geral.
+        const temWhatsapp = card.custom_fields.some((f) => f.id === CU_FIELD.whatsapp);
+        if (e.status !== 400 || !temWhatsapp) throw e;
+        console.error('greenn — ClickUp create 400 com whatsapp — repetindo sem o campo phone');
+        res = await createTask(card.custom_fields.filter((f) => f.id !== CU_FIELD.whatsapp));
+      }
       const criada = await res.json();
       taskId = criada.id;
     }

@@ -39,12 +39,20 @@ export function montarCard(payload, sessao) {
   const campos = [
     { id: CU_FIELD.nome, value: cliente.name || '' },
     { id: CU_FIELD.email, value: cliente.email || '' },
-    { id: CU_FIELD.whatsapp, value: toClickUpPhone(cliente.cellphone) },
     { id: CU_FIELD.funil, value: CU_FUNIL_WO_PAGO },
     { id: CU_FIELD.produto, value: CU_PRODUTO_AE },
     // 💵 Valor, NUNCA 💰 Arrecadado — ver o comentário em _clickup.js.
     { id: CU_FIELD.valor, value: numero(venda.amount) },
   ];
+
+  // Mesmo raciocínio das UTMs vazias, aplicado ao telefone: um valor fora do
+  // padrão do campo `type: phone` do ClickUp faz a API responder 400 e
+  // derrubar a criação da task inteira (é o mesmo comportamento documentado em
+  // functions/tracker.js). Omitir o campo quando não há telefone normalizável
+  // é mais seguro do que mandar string vazia — e evita o 400 na origem, sem
+  // depender só do fallback em greenn.js.
+  const whatsapp = toClickUpPhone(cliente.cellphone);
+  if (whatsapp) campos.push({ id: CU_FIELD.whatsapp, value: whatsapp });
 
   if (sessao) {
     // Só entram os que têm valor: um custom field com string vazia aparece
