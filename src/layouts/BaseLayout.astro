@@ -89,5 +89,14 @@ const {
     {showHeader && <Header />}
     <slot />
     {showFooter && <Footer />}
+    <!-- Degrau "clicou no CTA" do funil de micro-conversões (spec 2026-08-31).
+         Vive aqui, no layout, para toda página existente e futura entrar no
+         funil sem instrumentação própria. Evento INTERNO: fica no event_log e
+         não vai a Meta, GA4 nem CRM. Script bundlado (sem `is:inline`) porque
+         usa `import`. -->
+    <script>
+      import { ativarCtaClick } from '../scripts/funil';
+      ativarCtaClick();
+    </script>
   </body>
 </html>

@@ -193,6 +193,7 @@ const investimentoOptions = [
 <script>
   import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone, aplicarSugestaoEmail } from '../scripts/lead-validacao';
   import { ativarFormStart } from '../scripts/form-start';
+  import { enviarFormStep } from '../scripts/funil';
 
   // Validação client-side de formato (issue 65; regras de telefone/email
   // compartilhadas em scripts/lead-validacao desde a issue 127). Validadores e
@@ -304,6 +305,10 @@ const investimentoOptions = [
     function avancar() {
       const invalid = validateStep(currentStep);
       if (invalid) { invalid.focus(); return; }
+      // Degrau do funil (spec 2026-08-31): a etapa foi CONCLUÍDA — validada,
+      // não apenas vista. A última etapa nunca passa por aqui (ela envia o
+      // formulário), e é assim que deve ser: concluí-la já é o `Lead`.
+      enviarFormStep(currentStep, { funnel: form.dataset.funnel ?? '' });
       showStep(currentStep + 1);
     }
 

@@ -12,3 +12,12 @@ Chamar `enviarFormStep(n)` a cada pergunta respondida do chat, na ordem do `STEP
 ## Por que assim
 
 Mesmo comportamento do formulário de aplicação, com outra roupa: no chat, cada pergunta é uma etapa.
+
+## Checklist
+
+- [x] `anunciarEtapa()` no `LeadChat`, chamado nas perguntas de texto E nas de escolha
+- [x] Etapas derivadas do proprio `STEPS` (`input` + `choice`) — acrescentar uma
+      pergunta renumera tudo sozinho, sem tocar aqui
+- [x] `messages` e `start` nao contam como etapa
+- [x] Ultima pergunta nao emite (e o `Lead`)
+- [x] Build passa

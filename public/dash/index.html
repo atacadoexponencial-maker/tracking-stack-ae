@@ -76,6 +76,21 @@ td .mini, .mini { color: var(--muted); font-size: 0.72rem; }
 /* .aviso simples é estado vazio (apagado, centralizado); .alerta é aviso
    acionável do /api/cpl — precisa parecer alerta, não placeholder. */
 .aviso.alerta { color: var(--warn); text-align: left; background: var(--card-2); border-radius: var(--radius); padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; }
+/* Funil de micro-conversões: os degraus de uma LP, abertos ao clicar na linha
+   da tabela Conversão por LP. A barra é proporcional ao PRIMEIRO degrau, então
+   o afunilamento é visível de relance — sem eixo, sem legenda. */
+.funil-lp { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
+.funil-lp h3 { font-size: 0.82rem; font-weight: 500; color: var(--muted); margin: 0 0 0.5rem; }
+.funil-lp h3 code { color: var(--fg); }
+.funil-tabela td { border-bottom: none; padding: 0.3rem 0.55rem; }
+.funil-tabela td.funil-barra { width: 45%; padding-left: 0.9rem; }
+.funil-barra span { display: block; height: 9px; border-radius: 3px; background: var(--info); opacity: 0.55; }
+/* A maior queda é o degrau onde mais gente desiste — é a única informação
+   acionável do funil, então é a única destacada. */
+.funil-queda td { color: var(--down); font-weight: 500; }
+.funil-queda .funil-barra span { background: var(--down); opacity: 0.75; }
+.funil-aviso { color: var(--muted); }
+.funil-nota { color: var(--muted); font-size: 0.72rem; margin: 0.6rem 0 0; }
 .secao { display: none; } .secao.ativa { display: block; }
 .grafico { position: relative; }
 .grafico svg { display: block; width: 100%; height: auto; }
@@ -181,7 +196,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       </div>
       <div class="card"><h2>Leads por funil</h2><div class="grid-kpi" id="leads-funis"></div></div>
       <div class="card"><h2>Materiais mais baixados <small>iscas entregues via ManyChat</small></h2><div class="grid-kpi" id="leads-materiais"></div></div>
-      <div class="card"><h2>Conversão por LP</h2><div class="tabela-wrap" id="leads-conversao"></div></div>
+      <div class="card"><h2>Conversão por LP <small>clique numa linha para ver o funil</small></h2><div class="tabela-wrap" id="leads-conversao"></div><div id="leads-funil"></div></div>
       <div class="card"><h2>Leads recentes <small>clique para detalhes · Meta/GA4 = envio server-side</small></h2><div class="tabela-wrap" id="leads-tabela"></div></div>
     </section>
 
@@ -470,6 +485,50 @@ function grafico(el, serie, valorFmt, opcoes) {
   });
 }
 
+// ---------- funil de micro-conversões (spec 2026-08-31) ----------
+//
+// Desenha os degraus de UMA landing page: o absoluto de cada degrau e a
+// passagem em relação ao degrau ANTERIOR — é a passagem que localiza a perda.
+// A aritmética inteira vem pronta do backend (functions/api/_funil-etapas.js);
+// aqui só se desenha.
+let funilAberto = null;
+
+function desenharFunilLp(linha) {
+  const el = $('#leads-funil');
+  // Clicar de novo na mesma LP fecha — a linha funciona como um acordeão.
+  if (funilAberto === linha.lp) { funilAberto = null; el.innerHTML = ''; return; }
+  funilAberto = linha.lp;
+
+  const degraus = linha.funil || [];
+  if (!degraus.length) { el.innerHTML = '<div class="aviso">Sem funil para esta página.</div>'; return; }
+
+  const topo = degraus[0].sessoes || 0;
+  const linhas = degraus.map((d) => {
+    const largura = topo > 0 ? Math.max((d.sessoes / topo) * 100, 0.5) : 0;
+    const passagem = d.passagem == null ? '' : fmtPct(d.passagem * 100, 1);
+    return `<tr${d.maiorQueda ? ' class="funil-queda"' : ''}>
+      <td>${esc(d.rotulo)}${d.novo && linha.avisoInicioColetaMs ? ' <span class="funil-aviso">*</span>' : ''}</td>
+      <td class="num">${fmtInt(d.sessoes)}</td>
+      <td class="num">${passagem}</td>
+      <td class="funil-barra"><span style="width:${largura}%"></span></td>
+    </tr>`;
+  }).join('');
+
+  // O asterisco só existe quando o período consultado começa antes da coleta —
+  // que é quando os degraus novos enganam. Fora disso ele some sozinho.
+  const aviso = linha.avisoInicioColetaMs
+    ? `<p class="funil-nota">* Cliques e etapas passaram a ser medidos em
+        ${new Date(linha.avisoInicioColetaMs).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.
+        Períodos anteriores a essa data mostram esses degraus incompletos.</p>`
+    : '';
+
+  el.innerHTML = `<div class="funil-lp">
+    <h3>Funil de <code>${esc(linha.lp)}</code></h3>
+    <table class="funil-tabela"><tbody>${linhas}</tbody></table>
+    ${aviso}
+  </div>`;
+}
+
 // ---------- seções ----------
 const R = {};
 
@@ -557,12 +616,15 @@ R.leads = async () => {
   // Materiais ricos das iscas do ManyChat. O card fica visível mesmo zerado —
   // sumir daria a impressão de que a métrica não existe.
   $('#leads-materiais').innerHTML = (dados.materialCounts || []).map((c) => tile({ rotulo: c.material, valor: fmtInt(c.count) })).join('') || '<div class="aviso">Nenhum material baixado no período.</div>';
+  // Clicar na linha abre o funil daquela LP: onde a página perde a pessoa
+  // entre chegar e converter (spec 2026-08-31). Fechada, a tabela é a mesma
+  // de sempre — quem só quer a taxa não vê nada de novo.
   tabela($('#leads-conversao'), [
     { titulo: 'LP', campo: 'lp', render: (r) => esc(r.lp) },
     { titulo: 'Visitantes', num: true, campo: 'visitors', render: (r) => fmtInt(r.visitors) },
     { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
     { titulo: 'Conversão', num: true, campo: 'rate', render: (r) => fmtPct(r.rate * 100, 1) },
-  ], conv.rows || []);
+  ], conv.rows || [], (linha) => desenharFunilLp(linha));
   tabela($('#leads-tabela'), [
     { titulo: 'Quando', campo: 'timestamp', render: (l) => `<span class="mini">${fmtData(l.timestamp)}</span>` },
     { titulo: 'Email', campo: 'raw_email', render: (l) => esc(l.raw_email || '—')
