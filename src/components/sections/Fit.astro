@@ -1,0 +1,118 @@
+---
+/**
+ * Seção de qualificação: para quem a oferta serve e para quem não serve.
+ *
+ * Existe para desqualificar cedo. A sessão é individual e feita na mão, então
+ * cada agendamento de quem não é público custa 35 minutos do time. Dizer o
+ * "não é pra você" na página é mais barato do que descobrir na call.
+ */
+interface Props {
+  eyebrow?: string;
+  title: string;
+  sub?: string;
+  yesTitle?: string;
+  yes: string[];
+  noTitle?: string;
+  no: string[];
+}
+const {
+  eyebrow = 'Antes de agendar',
+  title,
+  sub,
+  yesTitle = 'Faz sentido pra você se:',
+  yes,
+  noTitle = 'Não faz sentido se:',
+  no,
+} = Astro.props;
+---
+
+<section class="section fit">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">{eyebrow}</span>
+      <h2 class="section-title">{title}</h2>
+      {sub && <p class="section-sub">{sub}</p>}
+    </div>
+
+    <div class="fit__grid">
+      <div class="fit__col fit__col--yes">
+        <h3 class="fit__col-title">{yesTitle}</h3>
+        <ul class="fit__list">
+          {yes.map((item) => (
+            <li class="fit__item">
+              <span class="fit__mark fit__mark--yes" aria-hidden="true">✓</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="fit__col fit__col--no">
+        <h3 class="fit__col-title">{noTitle}</h3>
+        <ul class="fit__list">
+          {no.map((item) => (
+            <li class="fit__item">
+              <span class="fit__mark fit__mark--no" aria-hidden="true">✕</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .fit__grid {
+    margin-top: 3rem;
+    display: grid;
+    gap: 1.5rem;
+    max-width: 60rem;
+    margin-inline: auto;
+  }
+  .fit__col {
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .fit__col--yes { border-top: 3px solid #4ade80; }
+  .fit__col--no { border-top: 3px solid #f87171; }
+  .fit__col-title {
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .fit__list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .fit__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+  .fit__mark {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    margin-top: 0.1rem;
+  }
+  .fit__mark--yes { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+  .fit__mark--no { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+  @media (min-width: 768px) {
+    .fit__grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>

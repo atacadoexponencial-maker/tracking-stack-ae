@@ -2,11 +2,18 @@
 interface Props {
   title?: string;
   sub?: string;
+  /** Caixa em destaque abaixo dos passos: o que o visitante leva da sessão. */
+  highlight?: string;
+  ctaLabel?: string;
+  ctaNote?: string;
   steps?: { number: string; duration?: string; title: string; description: string }[];
 }
 const {
   title,
   sub = 'Uma sessão individual por videochamada, estruturada em quatro momentos.',
+  highlight,
+  ctaLabel,
+  ctaNote,
   steps = [
     { number: '01', duration: '10 min', title: 'Diagnóstico completo', description: 'Mapeamos estratégia, marketing, vendas e tudo o que impacta seus resultados hoje.' },
     { number: '02', duration: '8 min', title: 'Áreas de oportunidade', description: 'Identificamos o gargalo principal que está travando sua conversão e sua escala.' },
@@ -39,6 +46,15 @@ const {
         </div>
       ))}
     </div>
+    {highlight && <p class="how__highlight">{highlight}</p>}
+    {ctaLabel && (
+      <div class="how__cta-wrap">
+        <button type="button" class="btn-cta" data-open-chat>
+          {ctaLabel} <span aria-hidden="true">→</span>
+        </button>
+        {ctaNote && <p class="how__cta-note">{ctaNote}</p>}
+      </div>
+    )}
   </div>
 </section>
 
@@ -71,6 +87,30 @@ const {
   }
   .how__title { font-size: 1.15rem; }
   .how__desc { color: hsl(var(--muted-foreground)); font-size: 0.9rem; }
+  .how__highlight {
+    margin-top: 2rem;
+    margin-inline: auto;
+    max-width: 46rem;
+    border: 1px solid hsl(var(--border));
+    border-left: 3px solid hsl(var(--foreground));
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+  .how__cta-wrap {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+  }
+  .how__cta-note {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.8rem;
+    max-width: 32rem;
+  }
   @media (min-width: 768px) {
     .how__grid { grid-template-columns: repeat(4, 1fr); }
   }

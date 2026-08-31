@@ -1,10 +1,12 @@
 ---
 interface Props {
+  eyebrow?: string;
   title?: string;
   sub?: string;
   points?: string[];
 }
 const {
+  eyebrow = 'O Problema',
   title,
   sub,
   points = [
@@ -19,7 +21,7 @@ const {
 <section class="section pain">
   <div class="container">
     <div class="section-head">
-      <span class="eyebrow">O Problema</span>
+      <span class="eyebrow">{eyebrow}</span>
       {title ? (
         <h2 class="section-title">{title}</h2>
       ) : (

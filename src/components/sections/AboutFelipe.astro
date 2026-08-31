@@ -2,18 +2,25 @@
 import { Image } from 'astro:assets';
 import felipe from '../../assets/brand/felipe.webp';
 
-const stats = [
+interface Props {
+  bio?: string[];
+  stats?: { value: string; label: string }[];
+}
+
+const defaultStats = [
   { value: '+100', label: 'marcas atendidas' },
   { value: '2013', label: 'desde quando está no digital' },
   { value: '1º', label: 'método próprio para atacado' },
 ];
-const bio = [
+const defaultBio = [
   'Comecei no varejo commerce, em 2013. Mas em 2018, conheci e me apaixonei pelo universo atacado.',
   'A convite de uma grande influenciadora de moda do país, morei no coração do atacado em São Paulo (Bom Retiro) e me associei às suas marcas. Gerenciei uma marca atacado de moda feminina com o objetivo de escalar suas vendas pela internet.',
   'Por quase 2 anos, transformei a internet em um laboratório de estratégias focadas exclusivamente em vendas no atacado.',
   'Desde então, entrego consultorias e assessorias especializadas para marcas atacado, com foco em escala digital, vendas previsíveis, geração de demanda e alta recompra.',
   'Depois de ajudar mais de 100 marcas, criei o Atacado Exponencial, o primeiro e único método próprio para o mercado atacado.',
 ];
+
+const { bio = defaultBio, stats = defaultStats } = Astro.props;
 ---
 
 <section class="section about">
