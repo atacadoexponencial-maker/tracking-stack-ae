@@ -104,6 +104,18 @@ No `LeadChat` (chat de captura), cada pergunta respondida é uma etapa, na ordem
 
 Nomes-com-número transformariam o `event_name` em depósito e exigiriam a lista de nomes escrita à mão na query do dashboard. No dia em que o formulário de aplicação virasse de 3 para 4 etapas, a etapa nova simplesmente não apareceria — falha silenciosa, a pior categoria. Com o número em coluna, o dashboard descobre as etapas existentes a partir do próprio dado.
 
+### 7. O painel avisa desde quando os degraus novos existem
+
+Os degraus `CTAClick` e `FormStep` nascem no dia do deploy. Um período que comece antes disso mostra `PageView` e `Lead` com o histórico inteiro e os degraus novos zerados ou pela metade — um funil que parece ter desabado, quando na verdade a medição é que não existia.
+
+Ao lado dos degraus fica um asterisco com a nota:
+
+> \* Cliques e etapas passaram a ser medidos em DD/MM/AAAA. Períodos anteriores a essa data mostram esses degraus incompletos.
+
+**A data vem do dado, não do código:** é o `MIN(timestamp)` do primeiro `CTAClick` ou `FormStep` da tabela, devolvido pelo endpoint. Escrever a data à mão no HTML criaria uma segunda verdade para alguém esquecer de atualizar — e ela já nasceria errada se o deploy escorregasse um dia.
+
+**Quando aparece:** só quando o período consultado começa antes dessa data — que é exatamente quando o número engana. Passado o primeiro mês de coleta, o aviso some sozinho das consultas normais e volta a aparecer se alguém pedir um período histórico longo.
+
 ## Arquitetura
 
 ### Fluxo de um evento interno
@@ -176,6 +188,8 @@ O período e o filtro de funil vigentes no dashboard valem para os degraus, e o 
 
 Cada degrau exibe o número absoluto e a passagem em relação ao degrau anterior. A maior queda recebe destaque visual.
 
+Os degraus `CTAClick` e `FormStep` levam um asterisco quando o período consultado começa antes do início da coleta (decisão 7), com a nota logo abaixo do funil informando a data em que passaram a ser medidos. Os degraus `PageView`, `FormStart` e `Lead` não levam asterisco — esses já existiam.
+
 ## Tratamento de erro
 
 **O envio falha em silêncio.** `.catch()` vazio, como no `form-start.ts`. Um evento de medição jamais pode travar quem está preenchendo o formulário nem atrasar a ida ao checkout.
@@ -196,13 +210,15 @@ Consequência aceita: quem perde a conexão no meio some do funil. Já é verdad
 - funil que "sobe" (etapa perdida) é normalizado, nunca exibido crescendo;
 - página sem etapas devolve funil sem a seção de etapas, não uma lista vazia;
 - clique lido como `CTAClick` **ou** `InitiateCheckout`, sem contar a sessão duas vezes quando existem os dois;
-- número de etapas descoberto a partir do dado (um formulário de 4 etapas aparece inteiro, sem mudar código).
+- número de etapas descoberto a partir do dado (um formulário de 4 etapas aparece inteiro, sem mudar código);
+- início da coleta = data do primeiro `CTAClick`/`FormStep`, e o aviso aparece **apenas** quando o período pedido começa antes dela;
+- sem nenhum evento novo gravado ainda, o funil não quebra: os degraus novos ficam em zero e o aviso é omitido (não há data de início para anunciar).
 
 Validação manual após o deploy: preencher o formulário de aplicação até a etapa 2 e abandonar; confirmar na `event_log` que existem `CTAClick`, `FormStart` e `FormStep` com `step = 1`, que **não** existe `Lead`, e que `sent_to_meta = 0` e `sent_to_ga4 = 0` nos três.
 
 ## Fora de escopo
 
-- **Retroatividade.** O funil começa vazio e enche a partir do deploy. Não há como reconstruir cliques que ninguém gravou.
+- **Retroatividade.** O funil começa vazio e enche a partir do deploy. Não há como reconstruir cliques que ninguém gravou — o que existe é o aviso da decisão 7, que declara a data de início em vez de deixar o vazio passar por queda.
 - **Nome do botão clicado.** Decisão da usuária. Sem coluna reservada "para o futuro".
 - **Rolagem, tempo na página, mapa de calor.** Outra classe de medição, outra spec.
 - **Qual campo travou a pessoa dentro de uma etapa.** O degrau é a etapa; medir campo a campo multiplica o volume de eventos por pouco ganho.
