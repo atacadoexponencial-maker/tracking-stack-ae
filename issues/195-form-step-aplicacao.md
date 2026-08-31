@@ -12,3 +12,12 @@ Acrescentar `enviarFormStep(n)` ao `funil.ts` e chamá-lo dentro do `avancar()`,
 ## Por que assim
 
 O evento marca a CONCLUSÃO da etapa, não a chegada nela: é o que faz a desistência no campo "Faturamento mensal" aparecer como queda entre a etapa 1 e a etapa 2. Não reenviar a mesma etapa no mesmo carregamento (quem volta e avança de novo conta uma vez).
+
+## Checklist
+
+- [x] `enviarFormStep(n)` em `src/scripts/funil.ts`
+- [x] Chamado no `avancar()`, DEPOIS de a validacao da etapa passar
+- [x] Ultima etapa nao emite (concluí-la e o `Lead`)
+- [x] Nao reenvia a mesma etapa no mesmo carregamento (voltar e avancar de novo conta uma vez)
+- [x] Funil do formulario propagado no `lead_data`
+- [x] Build passa

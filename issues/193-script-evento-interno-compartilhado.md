@@ -64,10 +64,10 @@ tambem o `sendBeacon`, que lanca `TypeError` em alguns navegadores quando o
 
 ## Checklist
 
-- [ ] `src/scripts/funil.ts` criado com `enviarEventoInterno`
-- [ ] `event_id` no formato existente: `<prefixo> + Date.now() + '-' + random`
-- [ ] `sendBeacon` primeiro, `fetch({keepalive:true})` de reserva, tudo em `try/catch`
-- [ ] `form-start.ts` usa a funcao nova; `ativarFormStart` com assinatura intacta
-- [ ] Os 4 arquivos que importam `form-start` **nao** sao tocados
-- [ ] `npm run build` passa
-- [ ] Comportamento do `FormStart` inalterado (mesmo nome, mesmo `fs-`, mesmos campos)
+- [x] `src/scripts/funil.ts` criado com `enviarEventoInterno`
+- [x] `event_id` no formato existente: `<prefixo> + Date.now() + '-' + random`
+- [x] `sendBeacon` primeiro, `fetch({keepalive:true})` de reserva, tudo em `try/catch`
+- [x] `form-start.ts` usa a funcao nova; `ativarFormStart` com assinatura intacta
+- [x] Os 4 arquivos que importam `form-start` **nao** sao tocados
+- [x] `npm run build` passa
+- [x] Comportamento do `FormStart` inalterado (mesmo nome, mesmo `fs-`, mesmos campos)

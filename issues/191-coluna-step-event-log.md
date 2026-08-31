@@ -65,8 +65,8 @@ corrigir e repetir.
 
 ## Checklist
 
-- [ ] `migrations/0034_event_log_step.sql` criado com `ALTER TABLE event_log ADD COLUMN step INTEGER`
-- [ ] Cabecalho explica: para que serve, por que linhas antigas ficam `NULL`, e o aviso do `--remote`
-- [ ] Sem indice e sem backfill (justificados no comentario)
-- [ ] Aplicada no banco local
+- [x] `migrations/0034_event_log_step.sql` criado com `ALTER TABLE event_log ADD COLUMN step INTEGER`
+- [x] Cabecalho explica: para que serve, por que linhas antigas ficam `NULL`, e o aviso do `--remote`
+- [x] Sem indice e sem backfill (justificados no comentario)
+- [x] Aplicada no banco local
 - [ ] Aplicada em producao por `wrangler d1 execute --remote --command`, **antes** do deploy da issue 192

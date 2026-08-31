@@ -89,15 +89,15 @@ falhar.
 
 ## Checklist
 
-- [ ] `montarFunil()` sem `env`, sem `fetch`, sem `Date.now()` interno
-- [ ] Degraus na ordem visita -> clique -> formStart -> etapas (por `step`) -> lead
-- [ ] `passagem` sobre o degrau anterior; primeiro degrau `null`
-- [ ] Divisao por zero devolve `null`
-- [ ] Funil normalizado: nunca crescente
-- [ ] `maiorQueda` na menor passagem
-- [ ] `novo: true` nos degraus de clique e etapa
-- [ ] `avisoInicioColetaMs` so quando o periodo comeca antes da coleta
-- [ ] Sem etapas -> sem degraus de etapa
-- [ ] Etapas fora de ordem e com buraco tratadas
-- [ ] `tests/funil-etapas.test.js` cobrindo todos os itens acima
-- [ ] `npm test` passa
+- [x] `montarFunil()` sem `env`, sem `fetch`, sem `Date.now()` interno
+- [x] Degraus na ordem visita -> clique -> formStart -> etapas (por `step`) -> lead
+- [x] `passagem` sobre o degrau anterior; primeiro degrau `null`
+- [x] Divisao por zero devolve `null`
+- [x] Funil normalizado: nunca crescente
+- [x] `maiorQueda` na menor passagem
+- [x] `novo: true` nos degraus de clique e etapa
+- [x] `avisoInicioColetaMs` so quando o periodo comeca antes da coleta
+- [x] Sem etapas -> sem degraus de etapa
+- [x] Etapas fora de ordem e com buraco tratadas
+- [x] `tests/funil-etapas.test.js` cobrindo todos os itens acima
+- [x] `npm test` passa
