@@ -10,6 +10,7 @@
 // denominador (e por consequência do numerador) via NOT LIKE em SQL.
 
 import { clausulasBotSql } from '../_bots.js';
+import { montarFunil } from './_funil-etapas.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -80,12 +81,107 @@ export async function onRequestGet(context) {
       byPath.set(lp, acc);
     }
 
-    const rows = [...byPath].map(([lp, v]) => ({
-      lp,
-      visitors: v.visitors,
-      leads: v.leads,
-      rate: v.visitors > 0 ? v.leads / v.visitors : 0,
-    }));
+    // --- Degraus do funil (spec 2026-08-31) --------------------------------
+    //
+    // Três consultas a mais, todas com o MESMO recorte de sessões da tabela
+    // acima (mesma janela, mesmos filtros de bot e de funil), para os números
+    // do funil baterem com a linha que ele expande.
+    //
+    // Os degraus novos usam o funil do DENOMINADOR (`s.funnel`, first-touch da
+    // sessão) e não o funil efetivo do evento: `CTAClick` e `FormStep` não
+    // carregam `lead_data`, então filtrar pelo funil do evento zeraria todos
+    // eles. O recorte certo aqui é "sessões que chegaram nesta LP".
+    const bindsSessao = funnel ? [since, until, funnel] : [since, until];
+
+    const degrausQuery = await env.DB.prepare(`
+      SELECT
+        s.landing_url,
+        COUNT(DISTINCT CASE WHEN e.event_name IN ('CTAClick', 'InitiateCheckout') THEN s.session_id END) AS cliques,
+        COUNT(DISTINCT CASE WHEN e.event_name = 'FormStart' THEN s.session_id END) AS form_starts
+      FROM sessions s
+      LEFT JOIN event_log e
+        ON e.session_id = s.session_id
+       AND e.is_bot = 0
+       AND e.is_junk = 0
+      WHERE s.created_at >= ? AND s.created_at <= ?
+        AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
+        ${botClauses}
+        ${denominatorFunnelClause}
+      GROUP BY s.landing_url
+    `).bind(...bindsSessao).all();
+
+    const etapasQuery = await env.DB.prepare(`
+      SELECT
+        s.landing_url,
+        e.step AS step,
+        COUNT(DISTINCT s.session_id) AS sessoes
+      FROM sessions s
+      JOIN event_log e
+        ON e.session_id = s.session_id
+       AND e.event_name = 'FormStep'
+       AND e.is_bot = 0
+       AND e.is_junk = 0
+       AND e.step IS NOT NULL
+      WHERE s.created_at >= ? AND s.created_at <= ?
+        AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
+        ${botClauses}
+        ${denominatorFunnelClause}
+      GROUP BY s.landing_url, e.step
+    `).bind(...bindsSessao).all();
+
+    // Início da coleta: primeiro evento novo do SITE INTEIRO. Sem filtro de
+    // página, de funil nem de período — é o que mantém a data FIXA. Calculada
+    // dentro do filtro, ela mudaria conforme o que o usuário escolhesse na
+    // tela, virando um número sem significado.
+    const coleta = await env.DB.prepare(`
+      SELECT MIN(timestamp) AS inicio
+        FROM event_log
+       WHERE event_name IN ('CTAClick', 'FormStep')
+    `).first();
+    // `timestamp` e `created_at` são segundos no D1; o funil trabalha em ms.
+    const inicioColetaMs = Number.isFinite(Number(coleta?.inicio))
+      ? Number(coleta.inicio) * 1000
+      : null;
+
+    // Merge pelo path normalizado, igual ao byPath acima e pelo mesmo motivo:
+    // grupos crus distintos que normalizam para o mesmo path são disjuntos.
+    const degrausPorPath = new Map();
+    for (const row of degrausQuery.results || []) {
+      const lp = normalizePath(row.landing_url);
+      if (!isKnownPage(lp)) continue;
+      const acc = degrausPorPath.get(lp) || { cliques: 0, formStarts: 0, etapas: new Map() };
+      acc.cliques += row.cliques;
+      acc.formStarts += row.form_starts;
+      degrausPorPath.set(lp, acc);
+    }
+    for (const row of etapasQuery.results || []) {
+      const lp = normalizePath(row.landing_url);
+      if (!isKnownPage(lp)) continue;
+      const acc = degrausPorPath.get(lp) || { cliques: 0, formStarts: 0, etapas: new Map() };
+      acc.etapas.set(row.step, (acc.etapas.get(row.step) || 0) + row.sessoes);
+      degrausPorPath.set(lp, acc);
+    }
+
+    const rows = [...byPath].map(([lp, v]) => {
+      const d = degrausPorPath.get(lp) || { cliques: 0, formStarts: 0, etapas: new Map() };
+      const funil = montarFunil({
+        visitantes: v.visitors,
+        cliques: d.cliques,
+        formStarts: d.formStarts,
+        etapas: [...d.etapas].map(([step, sessoes]) => ({ step, sessoes })),
+        leads: v.leads,
+        inicioColetaMs,
+        periodoInicioMs: since * 1000,
+      });
+      return {
+        lp,
+        visitors: v.visitors,
+        leads: v.leads,
+        rate: v.visitors > 0 ? v.leads / v.visitors : 0,
+        funil: funil.degraus,
+        avisoInicioColetaMs: funil.avisoInicioColetaMs,
+      };
+    });
 
     // Ordenação depois do merge (o merge muda os totais): visitors desc,
     // empate por lp alfabético.
