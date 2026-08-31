@@ -114,6 +114,12 @@ Ao lado dos degraus fica um asterisco com a nota:
 
 **A data vem do dado, não do código:** é o `MIN(timestamp)` do primeiro `CTAClick` ou `FormStep` da tabela, devolvido pelo endpoint. Escrever a data à mão no HTML criaria uma segunda verdade para alguém esquecer de atualizar — e ela já nasceria errada se o deploy escorregasse um dia.
 
+**A data é FIXA, e é isso que o `MIN` global garante.** A consulta que a calcula não leva filtro de página, de funil nem de período: é o instante do primeiro evento novo que já existiu no site inteiro. Como eventos só entram no futuro, esse mínimo fica congelado a partir do primeiro clique depois do deploy — é a data do deploy, descoberta sozinha em vez de digitada.
+
+Calcular esse mínimo **dentro** do filtro da consulta seria o erro a evitar: a data passaria a mudar conforme a página e o período escolhidos, virando um número sem significado. Tem teste para isso.
+
+A única coisa capaz de mudá-la seria apagar os eventos mais antigos da `event_log`. Nada purga essa tabela hoje; se um dia alguém criar essa rotina, este aviso passa a mentir e precisa virar data fixa.
+
 **Quando aparece:** só quando o período consultado começa antes dessa data — que é exatamente quando o número engana. Passado o primeiro mês de coleta, o aviso some sozinho das consultas normais e volta a aparecer se alguém pedir um período histórico longo.
 
 ## Arquitetura
@@ -212,6 +218,7 @@ Consequência aceita: quem perde a conexão no meio some do funil. Já é verdad
 - clique lido como `CTAClick` **ou** `InitiateCheckout`, sem contar a sessão duas vezes quando existem os dois;
 - número de etapas descoberto a partir do dado (um formulário de 4 etapas aparece inteiro, sem mudar código);
 - início da coleta = data do primeiro `CTAClick`/`FormStep`, e o aviso aparece **apenas** quando o período pedido começa antes dela;
+- a data de início **não muda** com o filtro: mesma resposta consultando uma página ou outra, um período ou outro (trava o `MIN` global contra um `MIN` acidentalmente filtrado);
 - sem nenhum evento novo gravado ainda, o funil não quebra: os degraus novos ficam em zero e o aviso é omitido (não há data de início para anunciar).
 
 Validação manual após o deploy: preencher o formulário de aplicação até a etapa 2 e abandonar; confirmar na `event_log` que existem `CTAClick`, `FormStart` e `FormStep` com `step = 1`, que **não** existe `Lead`, e que `sent_to_meta = 0` e `sent_to_ga4 = 0` nos três.
