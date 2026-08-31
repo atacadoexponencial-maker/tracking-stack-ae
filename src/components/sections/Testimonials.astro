@@ -2,11 +2,15 @@
 interface Props {
   title?: string;
   sub?: string;
+  ctaLabel?: string;
+  ctaNote?: string;
   testimonials?: { initials: string; name: string; role: string; quote: string }[];
 }
 const {
   title,
   sub = '+100 marcas atendidas',
+  ctaLabel,
+  ctaNote,
   testimonials = [
     { initials: 'MR', name: 'M. Ribeiro', role: 'Marca de moda feminina · São Paulo', quote: 'Aplicamos o plano e em 3 meses dobramos nossa base de revendedores ativos. O diagnóstico mostrou exatamente onde estávamos errando na captação.' },
     { initials: 'AL', name: 'A. Lima', role: 'Atacado de acessórios · Rio de Janeiro', quote: 'Finalmente entendi por que minha recompra era tão baixa. Parecia simples depois que o Felipe mostrou, mas a gente fica tão dentro do dia a dia que não enxerga.' },
@@ -41,11 +45,32 @@ const {
         </figure>
       ))}
     </div>
+    {ctaLabel && (
+      <div class="testi__cta-wrap">
+        <button type="button" class="btn-cta" data-open-chat>
+          {ctaLabel} <span aria-hidden="true">→</span>
+        </button>
+        {ctaNote && <p class="testi__cta-note">{ctaNote}</p>}
+      </div>
+    )}
   </div>
 </section>
 
 <style>
   .testi__hl { color: rgba(30, 30, 30, 0.55); }
+  .testi__cta-wrap {
+    margin-top: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+  }
+  .testi__cta-note {
+    color: rgba(30, 30, 30, 0.65);
+    font-size: 0.8rem;
+    max-width: 32rem;
+  }
   .testi__track {
     margin-top: 3rem;
     display: grid;

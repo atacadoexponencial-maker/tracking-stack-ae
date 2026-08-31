@@ -1,0 +1,90 @@
+---
+/**
+ * Barra fixa no rodapé com o CTA, só no celular.
+ *
+ * Aparece quando o hero sai da tela e some quando ele volta: enquanto o botão
+ * grande da primeira dobra está visível, uma segunda cópia dele em cima da
+ * página só rouba espaço de leitura.
+ *
+ * Carrega a classe `btn-cta`, então o clique entra no degrau "clicou" do funil
+ * interno pela delegação global do BaseLayout (src/scripts/funil.ts). O visual
+ * vem do estilo com escopo abaixo, que vence o `.btn-cta` do global.css.
+ */
+interface Props {
+  label: string;
+  note?: string;
+  /** Elemento observado. Quando ele sai da viewport, a barra entra. */
+  watch?: string;
+}
+const { label, note, watch = '.hero' } = Astro.props;
+---
+
+<div class="sticky" data-sticky-cta data-watch={watch} hidden>
+  <button type="button" class="btn-cta sticky__btn" data-open-chat>
+    <span class="sticky__label">{label} <span aria-hidden="true">→</span></span>
+    {note && <span class="sticky__note">{note}</span>}
+  </button>
+</div>
+
+<style>
+  .sticky {
+    display: none;
+  }
+  @media (max-width: 767px) {
+    .sticky {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      display: block;
+      padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+      background: hsl(var(--background) / 0.92);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid hsl(var(--border));
+      transform: translateY(110%);
+      transition: transform 0.25s ease;
+    }
+    .sticky[data-visivel] {
+      transform: translateY(0);
+    }
+    .sticky__btn {
+      width: 100%;
+      flex-direction: column;
+      gap: 0.2rem;
+      padding: 0.9rem 1.25rem;
+      background: hsl(var(--primary-foreground));
+      color: hsl(var(--primary));
+    }
+    .sticky__label {
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+    }
+    .sticky__note {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      opacity: 0.7;
+    }
+  }
+</style>
+
+<script>
+  const barra = document.querySelector<HTMLElement>('[data-sticky-cta]');
+  const alvo = barra ? document.querySelector(barra.dataset.watch || '.hero') : null;
+
+  // Sem alvo não há gatilho, e uma barra que nunca some seria pior do que
+  // nenhuma barra: deixa escondida.
+  if (barra && alvo) {
+    barra.removeAttribute('hidden');
+    const observador = new IntersectionObserver(
+      ([entrada]) => {
+        if (entrada.isIntersecting) barra.removeAttribute('data-visivel');
+        else barra.setAttribute('data-visivel', '');
+      },
+      { threshold: 0 }
+    );
+    observador.observe(alvo);
+  }
+</script>

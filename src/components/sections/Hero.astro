@@ -38,7 +38,7 @@ const {
       </a>
     ) : (
       <button type="button" class="hero__nav-cta" data-open-chat>
-        Agendar diagnóstico <span aria-hidden="true">→</span>
+        {navCtaLabel} <span aria-hidden="true">→</span>
       </button>
     )}
   </nav>
@@ -61,13 +61,13 @@ const {
       </p>
     )}
     {ctaHref ? (
-      <a class="hero__cta" href={ctaHref}>
+      <a class="btn-cta hero__cta" href={ctaHref}>
         {ctaLabel}
         <span class="hero__cta-arrow" aria-hidden="true">→</span>
       </a>
     ) : (
-      <button type="button" class="hero__cta" data-open-chat>
-        Quero meu diagnóstico gratuito
+      <button type="button" class="btn-cta hero__cta" data-open-chat>
+        {ctaLabel}
         <span class="hero__cta-arrow" aria-hidden="true">→</span>
       </button>
     )}
@@ -162,7 +162,10 @@ const {
     border-radius: 9999px;
     transition: transform 0.2s ease;
   }
-  .hero__cta:hover { transform: scale(1.02); }
+  /* `btn-cta` entra só para o funil interno contar o clique (src/scripts/funil.ts).
+     O `opacity: 1` cancela o fade que `.btn-cta:hover` traz do global.css, para o
+     hover do hero continuar sendo só a escala. */
+  .hero__cta:hover { transform: scale(1.02); opacity: 1; }
   .hero__cta-arrow {
     width: 2.25rem;
     height: 2.25rem;

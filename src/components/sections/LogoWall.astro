@@ -1,6 +1,15 @@
 ---
 import { Image } from 'astro:assets';
 
+interface Props {
+  title?: string;
+  sub?: string;
+}
+const {
+  title = 'Marcas de atacado reais já constroem seus resultados com a gente',
+  sub = 'Mais de 100 marcas, de moda festa a infantil, já passaram pelo método.',
+} = Astro.props;
+
 // Importa as 19 logos tratadas (círculo/miolo recortado, quadrado branco 440x440)
 const modules = import.meta.glob('../../assets/clientes/*.webp', { eager: true });
 const logos = Object.keys(modules)
@@ -15,12 +24,8 @@ const track = [...logos, ...logos];
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">Quem confia</span>
-      <h2 class="section-title">
-        Marcas de atacado reais já constroem seus resultados com a gente
-      </h2>
-      <p class="section-sub">
-        Mais de 100 marcas, de moda festa a infantil, já passaram pelo método.
-      </p>
+      <h2 class="section-title">{title}</h2>
+      <p class="section-sub">{sub}</p>
     </div>
   </div>
 

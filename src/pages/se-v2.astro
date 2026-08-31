@@ -1,0 +1,192 @@
+---
+/**
+ * LP Sessão Estratégica v2.
+ *
+ * Variação da /se-v1 para teste A/B. O ângulo muda: no lugar da promessa de
+ * faturamento no hero, a página nomeia o gargalo (entrada de revendedor novo
+ * versus recompra) e vende o diagnóstico como o jeito de descobrir qual dos
+ * dois é o seu. O número grande só aparece na seção de resultados, com o
+ * contexto ao redor.
+ *
+ * Escopo desta versão: copy e estrutura. O chat de qualificação, a oferta e os
+ * depoimentos continuam iguais aos da v1 de propósito, para o teste medir a
+ * página e não três mudanças ao mesmo tempo.
+ *
+ * O teste A/B em si é cadastrado pela aba Testes A/B do dashboard, não aqui.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/sections/Hero.astro';
+import Fit from '../components/sections/Fit.astro';
+import HowItWorks from '../components/sections/HowItWorks.astro';
+import Pillars from '../components/sections/Pillars.astro';
+import Pain from '../components/sections/Pain.astro';
+import LogoWall from '../components/sections/LogoWall.astro';
+import Testimonials from '../components/sections/Testimonials.astro';
+import AboutFelipe from '../components/sections/AboutFelipe.astro';
+import Faq from '../components/sections/Faq.astro';
+import FinalCta from '../components/sections/FinalCta.astro';
+import StickyCta from '../components/StickyCta.astro';
+import LeadChat from '../components/LeadChat.astro';
+---
+
+<BaseLayout
+  title="Atacado Exponencial | Descubra o gargalo que trava o seu atacado"
+  description="Sessão individual e gratuita de 35 minutos para marcas de atacado. A gente aponta se o seu gargalo é a entrada de revendedores ou a recompra, e você sai com o plano das próximas 4 semanas."
+  showHeader={false}
+>
+  <Hero
+    badge="Para marcas de atacado que já faturam acima de R$ 20 mil por mês"
+    headline="Descubra em 35 minutos qual dos 2 gargalos está travando o seu atacado"
+    subheadline="Numa sessão individual e gratuita, a gente olha sua entrada de revendedores novos e sua recompra, aponta exatamente onde está o vazamento e você sai com as ações para executar já nas próximas semanas."
+    ctaLabel="Quero descobrir meu gargalo"
+    trust={['Individual', '35 min', 'Sem custo', 'Sem cartão']}
+  />
+
+  <main>
+    <Fit
+      eyebrow="Antes de agendar"
+      title="Essa sessão é para marca de atacado. Só isso mesmo."
+      sub="A gente prefere te poupar 35 minutos agora do que decepcionar você depois."
+      yes={[
+        'Você vende para lojista, sacoleira ou revendedor, com pedido mínimo e grade',
+        'Já fatura acima de R$ 20 mil por mês e quer previsibilidade no lugar de mês bom e mês ruim',
+        'Manda o catálogo, o contato responde "vou ver com calma" e nunca mais aparece',
+        'Cansou de aplicar estratégia de varejo e e-commerce que não encaixa no seu jogo',
+      ]}
+      no={[
+        'Sua marca vende peça avulsa para consumidor final',
+        'Você está começando agora e ainda não tem produto e operação rodando',
+        'Procura fórmula pronta para copiar e colar sem olhar a sua operação',
+        'Quer resultado sem mexer em nada. Plano de ação só serve se alguém executar',
+      ]}
+    />
+
+    <HowItWorks
+      sub="Videochamada individual, com hora marcada, dividida em quatro momentos."
+      steps={[
+        {
+          number: '01',
+          duration: '10 min',
+          title: 'Raio-X da operação',
+          description: 'Mapeamos como os revendedores entram na sua marca hoje e o que acontece depois do primeiro pedido.',
+        },
+        {
+          number: '02',
+          duration: '8 min',
+          title: 'O gargalo',
+          description: 'Apontamos qual dos dois gargalos está travando você, e por quê.',
+        },
+        {
+          number: '03',
+          duration: '12 min',
+          title: 'O plano das próximas 4 semanas',
+          description: 'Ações concretas, na ordem, montadas para o seu cenário.',
+        },
+        {
+          number: '04',
+          duration: '5 min',
+          title: 'Próximos passos',
+          description: 'Se fizer sentido, apresentamos como o Atacado Exponencial pode acelerar isso. Se não fizer, você sai com o plano do mesmo jeito.',
+        },
+      ]}
+      highlight="Você sai da sessão com três coisas: o mapa dos seus 2 gargalos, qual deles atacar primeiro, e as ações das próximas 4 semanas."
+      ctaLabel="Quero minha sessão"
+      ctaNote="Gratuita, individual, e o plano é seu mesmo que não role parceria nenhuma."
+    />
+
+    <Pillars
+      eyebrow="O que a gente vai olhar"
+      title="Todo atacado trava em um destes dois pontos"
+      pillars={[
+        {
+          number: '01',
+          title: 'Não entra revendedor novo de forma previsível',
+          description: 'Você cresce por indicação e por sorte de algoritmo. Mês bom, mês ruim, e nenhum controle sobre qual dos dois vem.',
+        },
+        {
+          number: '02',
+          title: 'Entra revendedor novo e ele não volta',
+          description: 'No atacado, o cliente só vira seu cliente quando compra a segunda vez. Se a primeira compra é a única, você está pagando caro demais por cada pedido.',
+        },
+      ]}
+      footer="A sessão existe para descobrir qual dos dois é o seu. Porque a ação certa para um é exatamente a ação errada para o outro, e é aí que a maioria das marcas perde seis meses."
+    >
+      <p slot="sub" class="section-sub">
+        Depois de mais de 100 marcas, dá pra afirmar com alguma tranquilidade: quando o faturamento
+        empaca, o problema está na entrada ou está na recompra. Quase nunca está no produto.
+      </p>
+    </Pillars>
+
+    <Pain
+      eyebrow="Reconhece?"
+      title="Seu atacado cresceu no braço até aqui. Escalar exige outra coisa."
+      sub="Marque quantos você reconhece na sua operação hoje."
+      points={[
+        'Seu faturamento oscila todo mês e você não sabe dizer exatamente por quê',
+        'Você manda o catálogo, a pessoa responde "vou ver com calma" e some',
+        'O revendedor faz o primeiro pedido e nunca mais volta',
+        'Você aplica estratégia de varejo e e-commerce que não funciona para atacado',
+      ]}
+    />
+
+    <LogoWall
+      title="Marcas de atacado de verdade, com operação de verdade"
+      sub="Mais de 100 marcas já passaram pelo método. Moda festa, praia, infantil, lingerie, calçados, acessórios."
+    />
+
+    <Testimonials
+      title="O que acontece quando a marca descobre onde está o vazamento"
+      sub="Tem marca que chegou faturando dezenas de milhares por mês e hoje passa dos R$ 400 mil. Não foi rápido e não foi sorte. Foi arrumar a entrada e a recompra, nessa ordem."
+      ctaLabel="Quero descobrir meu gargalo"
+      ctaNote="35 minutos que podem economizar seis meses de tentativa e erro."
+    />
+
+    <AboutFelipe
+      bio={[
+        'Comecei no varejo em 2013. Em 2018 me mudei para o Bom Retiro, no coração do atacado de São Paulo, a convite de uma grande influenciadora de moda do país, e passei quase dois anos gerenciando uma marca de atacado de moda feminina com uma missão só: fazer ela vender pela internet.',
+        'Aquilo virou laboratório. Quase tudo que funcionava no varejo não funcionava ali, e eu tive que descobrir na prática o que funcionava.',
+        'De lá pra cá foram mais de 100 marcas atendidas e um método construído do zero para o mercado atacado, que é o Atacado Exponencial.',
+      ]}
+    />
+
+    <Faq
+      sub="Ficou alguma dúvida de fora? Agenda a sessão e pergunta direto para o nosso time."
+      faqs={[
+        {
+          q: 'Vou receber uma proposta de venda?',
+          a: 'Nos últimos 5 minutos, e só se fizer sentido para o seu momento. A gente prefere avisar isso agora do que te surpreender na call. Os outros 30 minutos são diagnóstico e plano, e o plano é seu de qualquer jeito.',
+        },
+        {
+          q: 'O diagnóstico é realmente gratuito?',
+          a: 'É. Sem custo, sem cartão, sem pegadinha. A sessão é individual e feita na mão pelo nosso time, por isso o número de vagas por semana é limitado.',
+        },
+        {
+          q: 'Quem pode participar?',
+          a: 'Marcas de atacado que já vendem para lojista, sacoleira ou revendedor e faturam acima de R$ 20 mil por mês. Se você vende peça avulsa para consumidor final, essa sessão não vai te ajudar.',
+        },
+        {
+          q: 'Quanto tempo dura?',
+          a: '35 minutos, por videochamada, com hora marcada.',
+        },
+        {
+          q: 'Preciso preparar alguma coisa?',
+          a: 'Não precisa montar apresentação. Ajuda muito se você souber de cabeça quantos revendedores novos entraram no último mês e quantos compraram mais de uma vez. Se não souber, a gente descobre junto na call.',
+        },
+        {
+          q: 'E se eu não puder aplicar agora?',
+          a: 'Então talvez não seja a hora. O plano das 4 semanas assume que alguém vai executar. Se sua operação está no meio de uma mudança grande, vale remarcar para quando você puder colocar em prática.',
+        },
+      ]}
+    />
+
+    <FinalCta
+      title="Você já tem a marca. Falta saber onde está o vazamento."
+      sub="35 minutos, individual, com hora marcada. Você sai sabendo qual dos dois gargalos está te travando e o que fazer nas próximas quatro semanas."
+      ctaLabel="Quero descobrir meu gargalo"
+      notes={['Sem custo, sem cartão', 'Vagas limitadas por semana, porque cada sessão é feita na mão']}
+    />
+  </main>
+
+  <StickyCta label="Descobrir meu gargalo" note="35 min · grátis" />
+  <LeadChat funnel="sessao-estrategica" />
+</BaseLayout>

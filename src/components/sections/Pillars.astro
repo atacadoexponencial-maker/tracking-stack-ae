@@ -1,10 +1,14 @@
 ---
 interface Props {
+  eyebrow?: string;
   title?: string;
+  footer?: string;
   pillars?: { number: string; title: string; description: string }[];
 }
 const {
+  eyebrow = 'Metodologia',
   title,
+  footer,
   pillars = [
     {
       number: '01',
@@ -23,7 +27,7 @@ const {
 <section class="section section--light pillars">
   <div class="container">
     <div class="section-head">
-      <span class="eyebrow">Metodologia</span>
+      <span class="eyebrow">{eyebrow}</span>
       {title ? (
         <h2 class="section-title">{title}</h2>
       ) : (
@@ -40,6 +44,7 @@ const {
         </div>
       ))}
     </div>
+    {footer && <p class="pillars__footer">{footer}</p>}
   </div>
 </section>
 
@@ -68,6 +73,15 @@ const {
   }
   .pillars__title { font-size: 1.25rem; }
   .pillars__desc { color: rgba(30, 30, 30, 0.7); font-size: 0.95rem; }
+  .pillars__footer {
+    margin-top: 2rem;
+    max-width: 46rem;
+    margin-inline: auto;
+    text-align: center;
+    color: rgba(30, 30, 30, 0.7);
+    font-size: 0.95rem;
+    line-height: 1.65;
+  }
   @media (min-width: 768px) {
     .pillars__grid { grid-template-columns: 1fr 1fr; }
   }
