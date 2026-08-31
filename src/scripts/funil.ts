@@ -63,3 +63,69 @@ export function enviarEventoInterno(
     /* idem — inclui o TypeError que alguns navegadores lançam no sendBeacon */
   }
 }
+
+// Etapas já anunciadas neste carregamento. Quem volta da etapa 2 para a 1 e
+// avança de novo passa pela mesma etapa duas vezes — e o funil conta sessões,
+// não idas e vindas. A dedup definitiva vive na LEITURA (COUNT DISTINCT no
+// dashboard); esta aqui só evita engordar a event_log à toa.
+const etapasEnviadas = new Set<number>();
+
+/**
+ * Dispara `FormStep` quando o visitante CONCLUI uma etapa de um formulário
+ * multi-etapas — no avanço, depois de a validação passar, nunca na chegada.
+ *
+ * A diferença é o que torna o dado acionável: medindo a chegada saberíamos
+ * quantos VIRAM a pergunta do faturamento; medindo a conclusão sabemos quantos
+ * PASSARAM dela, e a desistência aparece como queda entre duas etapas.
+ *
+ * A última etapa não deve chamar esta função: concluí-la é enviar o
+ * formulário, o que já é o `Lead`.
+ */
+export function enviarFormStep(etapa: number, dados: { funnel: string } = { funnel: '' }) {
+  if (!Number.isFinite(etapa) || etapa < 1) return;
+  if (etapasEnviadas.has(etapa)) return;
+  etapasEnviadas.add(etapa);
+
+  enviarEventoInterno('FormStep', 'stp-', {
+    step: Math.trunc(etapa),
+    lead_data: { funnel: dados.funnel || '' },
+  });
+}
+
+/**
+ * Dispara `CTAClick` no primeiro clique do visitante num botão de ação.
+ *
+ * Ligado UMA vez no BaseLayout, por delegação no `document`: assim toda LP
+ * existente e toda LP futura entram no funil sem instrumentação própria —
+ * não há o que esquecer de ligar numa página nova.
+ *
+ * O seletor exclui `[data-checkout]` de propósito. Na LP do workshop esses
+ * botões já disparam `InitiateCheckout` (que vai ao Meta, porque ali é
+ * conversão de verdade); emitir `CTAClick` no mesmo dedo daria dois eventos
+ * para um clique só, e o número de cliques da página passaria a depender de
+ * qual dos dois o leitor escolhesse. O dashboard lê o degrau como
+ * "`CTAClick` OU `InitiateCheckout`".
+ */
+export function ativarCtaClick() {
+  // Um evento por carregamento de página: o funil conta SESSÕES, não dedos.
+  // Quem clica em três botões é uma pessoa só, e gravar os três só engordaria
+  // a event_log sem mudar nenhum número na tela.
+  let jaDisparou = false;
+
+  document.addEventListener(
+    'click',
+    (evento) => {
+      if (jaDisparou) return;
+
+      const alvo = evento.target as Element | null;
+      if (!alvo || typeof alvo.closest !== 'function') return;
+      if (!alvo.closest('.btn-cta:not([data-checkout])')) return;
+
+      jaDisparou = true;
+      enviarEventoInterno('CTAClick', 'cta-');
+    },
+    // Captura: o clique costuma navegar, e um handler da página pode chamar
+    // stopPropagation antes de o evento chegar ao document na fase de bolha.
+    true
+  );
+}

@@ -181,6 +181,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
 <script>
   import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone, sugerirEmail } from '../scripts/lead-validacao';
   import { ativarFormStart } from '../scripts/form-start';
+  import { enviarFormStep } from '../scripts/funil';
 
   type Step =
     | { kind: 'messages'; texts: string[] }
@@ -218,6 +219,23 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
     const avatarUrl = overlay.dataset.avatar || '';
     const leadFunnel = overlay.dataset.funnel || 'diagnostico';
     ativarFormStart(overlay, { funnel: leadFunnel });
+
+    // Degraus do funil (spec 2026-08-31). No chat, cada PERGUNTA respondida é
+    // uma etapa — `messages` e `start` não são perguntas e não contam. A lista
+    // sai do próprio STEPS: acrescentar ou remover uma pergunta renumera tudo
+    // sozinho, sem ninguém lembrar de mexer aqui.
+    const PERGUNTAS = STEPS
+      .map((s, i) => ({ kind: s.kind, i }))
+      .filter((x) => x.kind === 'input' || x.kind === 'choice')
+      .map((x) => x.i);
+
+    function anunciarEtapa(indiceDoStep: number) {
+      const posicao = PERGUNTAS.indexOf(indiceDoStep);
+      // A última pergunta não vira `FormStep`: respondê-la dispara o envio, e
+      // isso já é o `Lead`.
+      if (posicao === -1 || posicao === PERGUNTAS.length - 1) return;
+      enviarFormStep(posicao + 1, { funnel: leadFunnel });
+    }
     const fullPage = overlay.dataset.fullPage === 'true';
     const answers: Record<string, string> = {};
     let stepIndex = 0;
@@ -339,6 +357,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
           }
           answers[step.key] = v;
           addUserBubble(v);
+          anunciarEtapa(stepIndex);
           stepIndex++;
           renderStep();
         };
@@ -360,7 +379,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
           const c = document.createElement('button');
           c.className = 'lead-chat__choice';
           c.textContent = opt;
-          c.onclick = () => { answers[step.key] = opt; addUserBubble(opt); stepIndex++; renderStep(); };
+          c.onclick = () => { answers[step.key] = opt; addUserBubble(opt); anunciarEtapa(stepIndex); stepIndex++; renderStep(); };
           grid.appendChild(c);
         });
         inputEl!.appendChild(grid);

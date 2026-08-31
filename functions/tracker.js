@@ -264,6 +264,13 @@ export async function onRequestPost(context) {
     // uma da outra no dashboard. Vazio nos demais funis e em eventos sem
     // lead_data — mesmo tratamento do funil acima.
     const loggedMaterial = ((body.lead_data && body.lead_data.material) || '').toLowerCase().trim();
+    // Etapa concluída num formulário multi-etapas (migration 0034). Só o
+    // `FormStep` carrega isso; em todo o resto fica NULL — inclusive no
+    // histórico anterior à coluna, que é o correto: não havia etapa a registrar.
+    const loggedStep =
+      loggedEventName === 'formstep' && Number.isFinite(Number(body.step))
+        ? Math.trunc(Number(body.step))
+        : null;
     // Testes internos saem das métricas do dash já na entrada (migration 0022).
     // Só afeta CONTAGEM: o lead segue normalmente para ClickUp/CRM/Meta, para o
     // teste continuar exercitando o pipeline inteiro de ponta a ponta.
@@ -282,8 +289,8 @@ export async function onRequestPost(context) {
                 sent_to_meta, meta_status_code, meta_response_ok, meta_response_body, meta_payload_sent,
                 sent_to_ga4, ga4_status_code, ga4_response_ok, ga4_response_body, ga4_payload_sent,
                 has_email, has_phone, has_name,
-                raw_email, funnel, is_junk, material
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                raw_email, funnel, is_junk, material, step
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
               sessionId, body.event_name, body.event_id, body.event_time,
               browserInfo.browser, browserInfo.version, browserInfo.os, browserInfo.isMobile ? 1 : 0,
@@ -293,7 +300,7 @@ export async function onRequestPost(context) {
               (isBot || ehEventoInterno) ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
               (isBot || ehEventoInterno) ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
               hashedEm ? 1 : 0, hashedPh ? 1 : 0, (hashedFn || hashedLn) ? 1 : 0,
-              rawEmail, loggedFunnel, isJunk, loggedMaterial
+              rawEmail, loggedFunnel, isJunk, loggedMaterial, loggedStep
             ).run();
           }
         } catch (e) {
@@ -376,7 +383,13 @@ export function isInternalTestEmail(email) {
 
 // Eventos que ficam dentro de casa. Em minúsculas: a comparação é feita sobre
 // o event_name já normalizado.
-const EVENTOS_INTERNOS = new Set(['formstart']);
+//
+// `ctaclick` e `formstep` são os degraus do funil de micro-conversões (spec
+// 2026-08-31): medem por onde a pessoa passou dentro da página. Clicar num
+// botão ou concluir a etapa 1 de um formulário NÃO é conversão — mandar isso
+// ao pixel poluiria a otimização das campanhas, e ao CRM criaria lead de quem
+// ainda nem terminou de digitar.
+const EVENTOS_INTERNOS = new Set(['formstart', 'ctaclick', 'formstep']);
 
 async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }) {
   if (!pixelId || !accessToken) {
