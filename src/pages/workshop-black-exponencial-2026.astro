@@ -117,7 +117,7 @@ const faqs = [
   },
   {
     q: 'Já estou atrasada?',
-    a: 'Não. A antecipação recomendada é de 30 a 45 dias antes da data do varejo. Em 09 de setembro você está no prazo.',
+    a: 'Não. A antecipação recomendada é de 30 a 45 dias antes da data do varejo. Em 23 de setembro você está no prazo.',
   },
   {
     q: 'Quanto tempo dura?',
@@ -125,7 +125,7 @@ const faqs = [
   },
   {
     q: 'E se eu não gostar?',
-    a: 'Você tem até 16 de setembro, 7 dias depois do workshop, para pedir reembolso integral.',
+    a: 'Você tem até 30 de setembro, 7 dias depois do workshop, para pedir reembolso integral.',
   },
 ];
 
@@ -138,12 +138,12 @@ const proofImages = Object.entries(proofModules)
 ---
 
 <BaseLayout
-  title="Workshop Black Exponencial — 09/09 às 19h | Monte a Black Friday da sua marca atacado"
-  description="Workshop ao vivo de Black Friday para marcas de atacado. Dia 09/09, às 19h, em 2 horas você monta metas, oferta e calendário semana a semana da sua campanha."
+  title="Workshop Black Exponencial — 23/09 às 19h | Monte a Black Friday da sua marca atacado"
+  description="Workshop ao vivo de Black Friday para marcas de atacado. Dia 23/09, às 19h, em 2 horas você monta metas, oferta e calendário semana a semana da sua campanha."
   showHeader={false}
 >
   <!-- Gancho de estado das vendas: nasce em "abertas". Quem muda para
-       "encerradas" (depois de 09/09 às 20h, fuso de Brasília) é a issue 186.
+       "encerradas" (depois de 23/09 às 20h, fuso de Brasília) é a issue 186.
        `data-checkout-param` publica CHECKOUT_PARAM para o cliente: um <script>
        do Astro é bundlado à parte e não enxerga o frontmatter, então a 188 lê
        `document.querySelector('.wbe').dataset.checkoutParam` em vez de repetir
@@ -158,7 +158,7 @@ const proofImages = Object.entries(proofModules)
           <span class="wbe-barra__evento">BLACK EXPONENCIAL</span>
           <span class="wbe-barra__sep" aria-hidden="true">·</span>
           <span class="wbe-barra__data"
-            >09/09 · 19h<span class="wbe-barra__aovivo"> · ao vivo</span></span
+            >23/09 · 19h<span class="wbe-barra__aovivo"> · ao vivo</span></span
           >
           <!-- Contador da barra: o do hero some na primeira rolagem, justo
                quando a pessoa está lendo a oferta e a garantia. Aqui ele
@@ -196,7 +196,7 @@ const proofImages = Object.entries(proofModules)
             com metas, oferta e calendário semana a semana definidos.
           </h1>
           <p class="wbe-hero__sub">
-            Ao vivo com Felipe Santos em 09/09, às 19h. A estratégia do duplo pico de vendas:
+            Ao vivo com Felipe Santos em 23/09, às 19h. A estratégia do duplo pico de vendas:
             outubro traz revendedor novo, novembro faz a base repor. Sua Black Friday montada na
             própria aula, do início ao fim.
           </p>
@@ -331,7 +331,7 @@ const proofImages = Object.entries(proofModules)
               </ul>
             </div>
           </div>
-          <p class="wbe-comparativo__fecho">No dia 09/09 você monta os dois.</p>
+          <p class="wbe-comparativo__fecho">No dia 23/09 você monta os dois.</p>
         </div>
       </section>
 
@@ -339,7 +339,7 @@ const proofImages = Object.entries(proofModules)
       <section class="section wbe-cta">
         <div class="container wbe-cta__inner">
           <span class="eyebrow">Próximo passo</span>
-          <h2 class="wbe-cta__titulo">Sua Black de 2026 começa no dia 09/09.</h2>
+          <h2 class="wbe-cta__titulo">Sua Black de 2026 começa no dia 23/09.</h2>
           <a class="btn-cta" href={CHECKOUT_URL} data-checkout>Garantir minha vaga</a>
         </div>
       </section>
@@ -350,7 +350,7 @@ const proofImages = Object.entries(proofModules)
           <span class="eyebrow">A solução</span>
           <h2 class="section-title">Workshop Black Exponencial</h2>
           <p class="wbe-solucao__meta">
-            09 de setembro · 19h · 2 horas ao vivo com Felipe Santos
+            23 de setembro · 19h · 2 horas ao vivo com Felipe Santos
           </p>
           <p class="section-sub">
             Não é aula para assistir e anotar. Você entra com o planner em branco e sai com ele
@@ -358,7 +358,7 @@ const proofImages = Object.entries(proofModules)
             seus canais definidos.
           </p>
           <p class="section-sub">
-            Quem sai do dia 09 tem a Black pronta com quase um mês de folga para executar.
+            Quem sai do dia 23 tem a Black pronta antes de outubro começar.
           </p>
         </div>
       </section>
@@ -477,7 +477,7 @@ const proofImages = Object.entries(proofModules)
         <div class="container">
           <div class="wbe-oferta__caixa">
             <h2 class="wbe-oferta__titulo">
-              WORKSHOP BLACK EXPONENCIAL — 09/09 · 19h · 2 horas ao vivo
+              WORKSHOP BLACK EXPONENCIAL — 23/09 · 19h · 2 horas ao vivo
             </h2>
             <ul class="wbe-oferta__itens">
               {ofertaItens.map((item) => (
@@ -516,7 +516,7 @@ const proofImages = Object.entries(proofModules)
               </h2>
             </div>
             <p class="wbe-garantia__corpo">
-              Participe do dia 09, preencha o planner, leve os materiais. Se até o dia 16 de
+              Participe do dia 23, preencha o planner, leve os materiais. Se até o dia 30 de
               setembro você achar que aquilo não serve para a sua marca, manda uma mensagem e
               devolvemos o valor integral. Sem formulário, sem pergunta.
             </p>
@@ -534,8 +534,8 @@ const proofImages = Object.entries(proofModules)
           <span class="eyebrow">Por que existe prazo</span>
           <h2 class="section-title">O pico 1 acontece na primeira quinzena de outubro</h2>
           <p class="section-sub">
-            Para rodar em outubro, você precisa ter a campanha montada em setembro. Dia 09 dá
-            tempo. Dia 30 de setembro já é aperto.
+            Para rodar em outubro, você precisa ter a campanha montada em setembro. Dia 23 dá
+            tempo. Deixar para outubro já é tarde.
           </p>
           <p class="section-sub">
             Cada lote que passa, o valor sobe. O conteúdo e os materiais são os mesmos.
@@ -567,7 +567,7 @@ const proofImages = Object.entries(proofModules)
         sub="Chegar com a campanha montada em setembro ou improvisar quando o lojista já tiver comprado."
         ctaLabel="Quero minha vaga"
         ctaHref={CHECKOUT_URL}
-        notes={['09/09 · 19h · ao vivo', '2 horas de duração', 'Garantia de 7 dias']}
+        notes={['23/09 · 19h · ao vivo', '2 horas de duração', 'Garantia de 7 dias']}
       />
     </div>
   </div>

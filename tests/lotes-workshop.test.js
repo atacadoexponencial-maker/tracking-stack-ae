@@ -30,36 +30,36 @@ test('10/08 00:00:00 exato continua no Lote 1 — a abertura não é virada vis�
 // A virada é às 23:59 do último dia, não à meia-noite do dia seguinte. Os três
 // pares abaixo travam o minuto exato de cada troca: um segundo antes ainda é o
 // lote velho, no segundo cheio já é o novo.
-test('17/08 23:58:59 ainda é Lote 1', () => {
-  const r = loteVigente(em('2026-08-17T23:58:59'));
+test('02/09 23:58:59 ainda é Lote 1', () => {
+  const r = loteVigente(em('2026-09-02T23:58:59'));
   assert.equal(r.rotulo, 'Lote 1');
   assert.equal(r.valor, 'R$ 27');
 });
 
-test('17/08 23:59:00 exato já é Lote 2 — início inclusivo, fim exclusivo', () => {
-  const r = loteVigente(em('2026-08-17T23:59:00'));
+test('02/09 23:59:00 exato já é Lote 2 — início inclusivo, fim exclusivo', () => {
+  const r = loteVigente(em('2026-09-02T23:59:00'));
   assert.equal(r.rotulo, 'Lote 2');
   assert.equal(r.valor, 'R$ 47');
   assert.equal(r.proximoValor, 'R$ 67');
 });
 
-test('24/08 23:58:59 ainda é Lote 2', () => {
-  assert.equal(loteVigente(em('2026-08-24T23:58:59')).rotulo, 'Lote 2');
+test('09/09 23:58:59 ainda é Lote 2', () => {
+  assert.equal(loteVigente(em('2026-09-09T23:58:59')).rotulo, 'Lote 2');
 });
 
-test('24/08 23:59:00 exato já é Lote 3', () => {
-  const r = loteVigente(em('2026-08-24T23:59:00'));
+test('09/09 23:59:00 exato já é Lote 3', () => {
+  const r = loteVigente(em('2026-09-09T23:59:00'));
   assert.equal(r.rotulo, 'Lote 3');
   assert.equal(r.valor, 'R$ 67');
   assert.equal(r.proximoValor, 'R$ 97');
 });
 
-test('31/08 23:58:59 ainda é Lote 3', () => {
-  assert.equal(loteVigente(em('2026-08-31T23:58:59')).rotulo, 'Lote 3');
+test('16/09 23:58:59 ainda é Lote 3', () => {
+  assert.equal(loteVigente(em('2026-09-16T23:58:59')).rotulo, 'Lote 3');
 });
 
-test('31/08 23:59:00 exato já é Lote 4 e não há próximo valor', () => {
-  const r = loteVigente(em('2026-08-31T23:59:00'));
+test('16/09 23:59:00 exato já é Lote 4 e não há próximo valor', () => {
+  const r = loteVigente(em('2026-09-16T23:59:00'));
   assert.equal(r.rotulo, 'Lote 4');
   assert.equal(r.valor, 'R$ 97');
   assert.equal(r.proximoValor, null);
@@ -68,13 +68,13 @@ test('31/08 23:59:00 exato já é Lote 4 e não há próximo valor', () => {
 // O último minuto do dia da virada pertence ao lote NOVO. É consequência direta
 // de virar às 23:59 e está aqui para ninguém "consertar" achando que é bug.
 test('no minuto final do dia da virada o preço já é o do lote seguinte', () => {
-  assert.equal(loteVigente(em('2026-08-17T23:59:59')).rotulo, 'Lote 2');
-  assert.equal(loteVigente(em('2026-08-24T23:59:59')).rotulo, 'Lote 3');
-  assert.equal(loteVigente(em('2026-08-31T23:59:59')).rotulo, 'Lote 4');
+  assert.equal(loteVigente(em('2026-09-02T23:59:59')).rotulo, 'Lote 2');
+  assert.equal(loteVigente(em('2026-09-09T23:59:59')).rotulo, 'Lote 3');
+  assert.equal(loteVigente(em('2026-09-16T23:59:59')).rotulo, 'Lote 4');
 });
 
-test('09/09 19:59:59 ainda vende: Lote 4 aberto', () => {
-  const r = loteVigente(em('2026-09-09T19:59:59'));
+test('23/09 19:59:59 ainda vende: Lote 4 aberto', () => {
+  const r = loteVigente(em('2026-09-23T19:59:59'));
   assert.equal(r.estado, 'aberto');
   assert.equal(r.valor, 'R$ 97');
 });
@@ -82,17 +82,17 @@ test('09/09 19:59:59 ainda vende: Lote 4 aberto', () => {
 // O workshop começa às 19h e as vendas só fecham às 20h: a primeira hora da
 // aula ainda vende, de propósito.
 test('19h05, com a aula já rolando, a página continua vendendo', () => {
-  assert.equal(loteVigente(em('2026-09-09T19:05:00')).estado, 'aberto');
+  assert.equal(loteVigente(em('2026-09-23T19:05:00')).estado, 'aberto');
 });
 
-test('09/09 20:00:00 exato encerra as vendas, sem preço', () => {
-  const r = loteVigente(em('2026-09-09T20:00:00'));
+test('23/09 20:00:00 exato encerra as vendas, sem preço', () => {
+  const r = loteVigente(em('2026-09-23T20:00:00'));
   assert.equal(r.estado, 'encerrado');
   assert.equal(r.valor, undefined);
   assert.equal(r.rotulo, undefined);
 });
 
-test('qualquer instante depois de 09/09 20:00 continua encerrado', () => {
+test('qualquer instante depois de 23/09 20:00 continua encerrado', () => {
   assert.equal(loteVigente(em('2026-12-25T10:00:00')).estado, 'encerrado');
 });
 
@@ -160,7 +160,7 @@ test('texto do próximo lote sai pronto e some quando não há próximo', () => 
 });
 
 test('o resultado independe do fuso do processo — só o epoch importa', () => {
-  const alvo = em('2026-08-17T23:59:00');
+  const alvo = em('2026-09-02T23:59:00');
   const original = process.env.TZ;
   const esperado = loteVigente(alvo);
   for (const tz of ['UTC', 'Europe/Lisbon', 'Pacific/Kiritimati', 'America/Sao_Paulo']) {
@@ -180,12 +180,12 @@ test('o resultado independe do fuso do processo — só o epoch importa', () => 
 
 test('o estado aberto carrega o instante do fim e se é o último lote', () => {
   const r = loteVigente(em('2026-08-12T10:00:00'));
-  assert.equal(r.fimMs, em('2026-08-17T23:59:00'));
+  assert.equal(r.fimMs, em('2026-09-02T23:59:00'));
   assert.equal(r.ultimo, false);
 
-  const ultimo = loteVigente(em('2026-09-01T10:00:00'));
+  const ultimo = loteVigente(em('2026-09-20T10:00:00'));
   assert.equal(ultimo.rotulo, 'Lote 4');
-  assert.equal(ultimo.fimMs, em('2026-09-09T20:00:00'));
+  assert.equal(ultimo.fimMs, em('2026-09-23T20:00:00'));
   assert.equal(ultimo.ultimo, true);
 });
 
@@ -212,13 +212,13 @@ test('o contador conta segundo a segundo — 1000ms muda o texto', () => {
 
 test('rótulo do contador anuncia o próximo preço, menos no último lote', () => {
   assert.equal(textoContador(loteVigente(em('2026-08-12T10:00:00'))), 'Sobe para R$ 47 em');
-  assert.equal(textoContador(loteVigente(em('2026-08-20T10:00:00'))), 'Sobe para R$ 67 em');
+  assert.equal(textoContador(loteVigente(em('2026-09-05T10:00:00'))), 'Sobe para R$ 67 em');
   // Último lote: o prazo leva ao fim das vendas, não a um preço maior.
-  assert.equal(textoContador(loteVigente(em('2026-09-01T10:00:00'))), 'Vendas encerram em');
+  assert.equal(textoContador(loteVigente(em('2026-09-20T10:00:00'))), 'Vendas encerram em');
 });
 
 test('vendas encerradas não têm contador', () => {
-  assert.equal(textoContador(loteVigente(em('2026-09-09T20:00:00'))), null);
+  assert.equal(textoContador(loteVigente(em('2026-09-23T20:00:00'))), null);
   assert.equal(textoContador(null), null);
   assert.equal(textoContador(undefined), null);
 });

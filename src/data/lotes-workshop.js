@@ -44,27 +44,27 @@ export const LOTES = [
     rotulo: 'Lote 1',
     valor: 'R$ 27',
     inicio: '2026-08-10T00:00:00-03:00',
-    fim: '2026-08-17T23:59:00-03:00',
+    fim: '2026-09-02T23:59:00-03:00',
   },
   {
     rotulo: 'Lote 2',
     valor: 'R$ 47',
-    inicio: '2026-08-17T23:59:00-03:00',
-    fim: '2026-08-24T23:59:00-03:00',
+    inicio: '2026-09-02T23:59:00-03:00',
+    fim: '2026-09-09T23:59:00-03:00',
   },
   {
     rotulo: 'Lote 3',
     valor: 'R$ 67',
-    inicio: '2026-08-24T23:59:00-03:00',
-    fim: '2026-08-31T23:59:00-03:00',
+    inicio: '2026-09-09T23:59:00-03:00',
+    fim: '2026-09-16T23:59:00-03:00',
   },
   {
     rotulo: 'Lote 4',
     valor: 'R$ 97',
-    inicio: '2026-08-31T23:59:00-03:00',
+    inicio: '2026-09-16T23:59:00-03:00',
     // As vendas encerram às 20h do dia do workshop — que começa às 19h. Ou
     // seja, a primeira hora da aula ainda vende, de propósito.
-    fim: '2026-09-09T20:00:00-03:00',
+    fim: '2026-09-23T20:00:00-03:00',
   },
 ];
 
