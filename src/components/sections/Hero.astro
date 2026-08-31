@@ -4,6 +4,12 @@ import logo from '../../assets/brand/logo.png';
 
 interface Props {
   headline?: string;
+  /**
+   * Trecho do `headline` que recebe o marca-texto. É uma prop, e não HTML
+   * dentro da string, porque conteúdo vindo de fora (slot ou set:html) não
+   * recebe o CSS com escopo deste componente e o destaque sairia sem estilo.
+   */
+  highlight?: string;
   subheadline?: string;
   badge?: string;
   navCtaLabel?: string;
@@ -14,6 +20,7 @@ interface Props {
 }
 const {
   headline,
+  highlight,
   subheadline,
   badge = 'Para atacadistas com faturamento acima de R$ 20 mil/mês',
   navCtaLabel = 'Agendar diagnóstico',
@@ -27,6 +34,18 @@ const {
     { value: '1º', label: 'método próprio para atacado' },
   ],
 } = Astro.props;
+
+// Parte o título na primeira ocorrência do trecho destacado. Sem ocorrência,
+// o título sai inteiro e sem marca-texto: destaque é enfeite, nunca requisito.
+const corte = headline && highlight ? headline.indexOf(highlight) : -1;
+const titulo =
+  corte >= 0
+    ? {
+        antes: headline.slice(0, corte),
+        alvo: headline.slice(corte, corte + highlight.length),
+        depois: headline.slice(corte + highlight.length),
+      }
+    : null;
 ---
 
 <header class="hero">
@@ -45,7 +64,11 @@ const {
 
   <div class="hero__body">
     <span class="hero__badge">{badge}</span>
-    {headline ? (
+    {headline && titulo ? (
+      <h1 class="hero__title">
+        {titulo.antes}<mark class="hero__hl">{titulo.alvo}</mark>{titulo.depois}
+      </h1>
+    ) : headline ? (
       <h1 class="hero__title">{headline}</h1>
     ) : (
       <h1 class="hero__title">
@@ -141,6 +164,16 @@ const {
   .hero__title {
     font-size: clamp(2.25rem, 5vw, 3.75rem);
     line-height: 1.08;
+  }
+  /* Marca-texto: sobre o bege do hero, o preto translúcido destaca sem
+     inventar uma cor que não existe na marca. */
+  .hero__hl {
+    background: rgba(30, 30, 30, 0.1);
+    color: inherit;
+    border-radius: 0.2em;
+    padding: 0 0.12em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
   .hero__sub {
     color: rgba(30, 30, 30, 0.8);

@@ -21,12 +21,23 @@ import HowItWorks from '../components/sections/HowItWorks.astro';
 import Pillars from '../components/sections/Pillars.astro';
 import Pain from '../components/sections/Pain.astro';
 import LogoWall from '../components/sections/LogoWall.astro';
-import Testimonials from '../components/sections/Testimonials.astro';
+import VideoTestimonials from '../components/sections/VideoTestimonials.astro';
 import AboutFelipe from '../components/sections/AboutFelipe.astro';
 import Faq from '../components/sections/Faq.astro';
 import FinalCta from '../components/sections/FinalCta.astro';
 import StickyCta from '../components/StickyCta.astro';
 import LeadChat from '../components/LeadChat.astro';
+
+// Depoimentos em vídeo, os mesmos da /trafego-atacado (Panda Video, library
+// vz-718ea161-967). Substituem os três depoimentos de texto anônimos que a
+// /se-v1 usa: gente real, com rosto e voz, é a prova mais forte que a marca
+// tem hoje.
+const depoimentos = [
+  { name: 'Jaque', videoId: '101c1525-fa13-4fe6-a61e-fe38600dec12' },
+  { name: 'Barraca do Willinha', videoId: 'a7d5602a-4f1e-4d28-9b83-9cfc53fde08a' },
+  { name: 'Adriana', videoId: '03f4e18a-1f52-40f5-844a-3f900f705126' },
+  { name: 'Jossanclê', videoId: 'd8d67535-9b07-4713-a21f-14eb4cd70f6b' },
+];
 ---
 
 <BaseLayout
@@ -37,6 +48,7 @@ import LeadChat from '../components/LeadChat.astro';
   <Hero
     badge="Para marcas de atacado que já faturam acima de R$ 20 mil por mês"
     headline="Descubra em 35 minutos qual dos 2 gargalos está travando o seu atacado"
+    highlight="atacado"
     subheadline="Numa sessão individual e gratuita, a gente olha sua entrada de revendedores novos e sua recompra, aponta exatamente onde está o vazamento e você sai com as ações para executar já nas próximas semanas."
     ctaLabel="Quero descobrir meu gargalo"
     trust={['Individual', '35 min', 'Sem custo', 'Sem cartão']}
@@ -134,9 +146,10 @@ import LeadChat from '../components/LeadChat.astro';
       sub="Mais de 100 marcas já passaram pelo método. Moda festa, praia, infantil, lingerie, calçados, acessórios."
     />
 
-    <Testimonials
+    <VideoTestimonials
       title="O que acontece quando a marca descobre onde está o vazamento"
       sub="Tem marca que chegou faturando dezenas de milhares por mês e hoje passa dos R$ 400 mil. Não foi rápido e não foi sorte. Foi arrumar a entrada e a recompra, nessa ordem."
+      videos={depoimentos}
       ctaLabel="Quero descobrir meu gargalo"
       ctaNote="35 minutos que podem economizar seis meses de tentativa e erro."
     />
