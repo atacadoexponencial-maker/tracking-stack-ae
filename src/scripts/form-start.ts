@@ -8,7 +8,13 @@
  *
  * O evento é interno: o /tracker grava no event_log e não repassa a Meta,
  * GA4, ClickUp nem GoHighLevel.
+ *
+ * O envio em si mora em src/scripts/funil.ts, compartilhado com o `CTAClick` e
+ * o `FormStep` — este módulo continua com uma responsabilidade só: decidir
+ * QUANDO o primeiro toque aconteceu.
  */
+import { enviarEventoInterno } from './funil';
+
 export function ativarFormStart(elemento: HTMLElement, dados: { funnel: string; material?: string }) {
   if (!elemento) return;
 
@@ -17,19 +23,8 @@ export function ativarFormStart(elemento: HTMLElement, dados: { funnel: string; 
   elemento.addEventListener(
     'input',
     () => {
-      fetch('/tracker', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_name: 'FormStart',
-          // Mesmo padrão de event_id dos demais pontos (pv-, fs-).
-          event_id: 'fs-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
-          event_time: Math.floor(Date.now() / 1000),
-          event_source_url: window.location.href,
-          lead_data: { funnel: dados.funnel, material: dados.material || '' },
-        }),
-      }).catch(function () {
-        /* silencioso: sinal de apoio nunca pode atrapalhar quem está preenchendo */
+      enviarEventoInterno('FormStart', 'fs-', {
+        lead_data: { funnel: dados.funnel, material: dados.material || '' },
       });
     },
     { once: true }

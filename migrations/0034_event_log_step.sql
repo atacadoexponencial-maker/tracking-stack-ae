@@ -1,0 +1,24 @@
+-- Issue 191: qual etapa do formulário o visitante concluiu.
+--
+-- O evento `FormStep` (issues 195 e 196) marca a CONCLUSÃO de uma etapa de um
+-- formulário multi-etapas — não a chegada nela. Esta coluna guarda o número da
+-- etapa concluída, e é o que permite ao funil da tabela "Conversão por LP"
+-- mostrar onde a pessoa desistiu.
+--
+-- O número mora aqui, e não no nome do evento (`FormStep2`), de propósito: com
+-- nomes-numerados o dashboard precisaria da lista escrita à mão, e no dia em
+-- que um formulário ganhasse uma etapa ela simplesmente não apareceria —
+-- falha silenciosa. Com o número em coluna, o dashboard descobre as etapas
+-- existentes a partir do próprio dado.
+--
+-- Fica NULL em todo evento que não seja `FormStep` — inclusive em todo o
+-- histórico anterior, que é o correto: não havia etapa a registrar. Sem
+-- backfill possível nem necessário.
+--
+-- Sem índice: `step` só é lido junto de `event_name = 'FormStep'`, que já tem
+-- o `idx_event_log_event_name`. Um índice a mais só encareceria a escrita.
+--
+-- ⚠️ Aplicar com `wrangler d1 execute --remote`, NUNCA com
+-- `wrangler d1 migrations apply --remote`: as migrations 0021, 0022 e 0025
+-- quebram ao serem reaplicadas neste banco.
+ALTER TABLE event_log ADD COLUMN step INTEGER;
