@@ -17,7 +17,7 @@ Quando a atribuição de uma venda não for encontrada, a venda ainda entra na r
 
 ## Checklist
 
-- [ ] Venda sem `sf_trk` entra na receita
-- [ ] `sf_trk` órfão (sem sessão) entra na receita
-- [ ] Nenhuma exceção lançada nesses casos
-- [ ] Teste para os dois cenários
+- [x] Venda sem `sf_trk` entra na receita
+- [x] `sf_trk` órfão (sem sessão) entra na receita
+- [x] Nenhuma exceção lançada nesses casos
+- [x] Teste para os dois cenários

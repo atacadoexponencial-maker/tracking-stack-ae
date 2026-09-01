@@ -17,5 +17,5 @@ Exibir, em cada linha de venda, a campanha e o criativo de origem.
 
 ## Checklist
 
-- [ ] Campanha e criativo visíveis em cada linha
-- [ ] Criativo como subtexto (`.mini`), padrão já usado na aba Workshops
+- [x] Campanha e criativo visíveis em cada linha
+- [x] Criativo como subtexto (`.mini`), padrão já usado na aba Workshops

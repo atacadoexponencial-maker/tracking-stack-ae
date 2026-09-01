@@ -17,5 +17,5 @@ Indicador com o número de vendas pagas.
 
 ## Checklist
 
-- [ ] Usa `tile` e `fmtInt`
-- [ ] Conta apenas vendas pagas
+- [x] Usa `tile` e `fmtInt`
+- [x] Conta apenas vendas pagas

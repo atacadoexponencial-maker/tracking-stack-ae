@@ -17,6 +17,6 @@ Campanha com investimento e nenhuma venda continua aparecendo na tela. É o caso
 
 ## Checklist
 
-- [ ] Campanha com gasto e zero venda continua na lista
-- [ ] Receita 0 e ROAS 0 para ela
-- [ ] Teste específico — é o caso que mais importa ver
+- [x] Campanha com gasto e zero venda continua na lista
+- [x] Receita 0 e ROAS 0 para ela
+- [x] Teste específico — é o caso que mais importa ver

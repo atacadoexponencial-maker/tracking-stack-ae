@@ -17,5 +17,5 @@ Permitir ordenar as campanhas por investimento, receita, vendas, retorno ou cust
 
 ## Checklist
 
-- [ ] `campo` definido em todas as colunas numéricas
-- [ ] Ordenação herdada do helper `tabela`, sem código novo
+- [x] `campo` definido em todas as colunas numéricas
+- [x] Ordenação herdada do helper `tabela`, sem código novo

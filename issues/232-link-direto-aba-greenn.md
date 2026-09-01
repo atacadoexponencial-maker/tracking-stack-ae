@@ -17,6 +17,6 @@ Abrir a aba diretamente pelo endereço, preservando qual aba está aberta.
 
 ## Checklist
 
-- [ ] `/dash/#greenn` abre na aba certa
-- [ ] Recarregar a página preserva a aba
-- [ ] Funciona via `hashchange` já existente
+- [x] `/dash/#greenn` abre na aba certa
+- [x] Recarregar a página preserva a aba
+- [x] Funciona via `hashchange` já existente

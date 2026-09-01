@@ -17,6 +17,6 @@ Ligar cada venda à campanha, criativo, origem e mídia gravados na visita que a
 
 ## Checklist
 
-- [ ] Índice das sessões por `trk` para o casamento
-- [ ] Campanha, criativo, origem e mídia anexados à venda
-- [ ] Teste com venda atribuída
+- [x] Índice das sessões por `trk` para o casamento
+- [x] Campanha, criativo, origem e mídia anexados à venda
+- [x] Teste com venda atribuída

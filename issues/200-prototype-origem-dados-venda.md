@@ -67,9 +67,9 @@ Importar / usar o que já existe, sem recriar:
 
 ## Checklist
 
-- [ ] `_greenn-metricas.js` recebe `{ vendas, sessoes, gastos }` e não toca em I/O
-- [ ] Casamento `sf_trk` → `trk` implementado no módulo puro
-- [ ] `raw_json` parseado com try/catch por linha
-- [ ] Venda sem atribuição entra como `sem-campanha`
-- [ ] Vendas não pagas separadas da receita
-- [ ] Teste cobrindo venda com UTM, venda sem `sf_trk` e `sf_trk` órfão
+- [x] `_greenn-metricas.js` recebe `{ vendas, sessoes, gastos }` e não toca em I/O
+- [x] Casamento `sf_trk` → `trk` implementado no módulo puro
+- [x] `raw_json` parseado com try/catch por linha
+- [x] Venda sem atribuição entra como `sem-campanha`
+- [x] Vendas não pagas separadas da receita
+- [x] Teste cobrindo venda com UTM, venda sem `sf_trk` e `sf_trk` órfão

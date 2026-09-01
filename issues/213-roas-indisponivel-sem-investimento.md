@@ -18,6 +18,6 @@ Quando a campanha não tiver investimento registrado, o retorno aparece como ind
 
 ## Checklist
 
-- [ ] Nunca devolve `Infinity` nem `NaN`
-- [ ] Dashboard desenha `—` para `null`
-- [ ] Teste cobrindo investimento zero
+- [x] Nunca devolve `Infinity` nem `NaN`
+- [x] Dashboard desenha `—` para `null`
+- [x] Teste cobrindo investimento zero

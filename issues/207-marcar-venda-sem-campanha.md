@@ -17,6 +17,6 @@ Rotular como "sem campanha" a venda cuja origem não foi identificada — acesso
 
 ## Checklist
 
-- [ ] Rótulo único e constante para 'sem campanha'
-- [ ] UTMs vazias tratadas como sem campanha (não como campanha de nome vazio)
-- [ ] Não é erro: aparece normalmente na tela
+- [x] Rótulo único e constante para 'sem campanha'
+- [x] UTMs vazias tratadas como sem campanha (não como campanha de nome vazio)
+- [x] Não é erro: aparece normalmente na tela

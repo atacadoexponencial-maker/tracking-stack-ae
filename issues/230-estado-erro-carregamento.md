@@ -17,6 +17,6 @@ Estado de erro que não deixa a tela em branco nem exibe números falsos.
 
 ## Checklist
 
-- [ ] Seção tem um `.card` como primeiro filho (exigência de `index.html:1360`)
-- [ ] Aviso de falha aparece sem tela em branco
-- [ ] Nenhum número falso exibido
+- [x] Seção tem um `.card` como primeiro filho (exigência de `index.html:1360`)
+- [x] Aviso de falha aparece sem tela em branco
+- [x] Nenhum número falso exibido

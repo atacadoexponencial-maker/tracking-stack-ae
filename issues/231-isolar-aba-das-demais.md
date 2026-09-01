@@ -17,6 +17,6 @@ Garantir que a aba Greenn não altera os números das outras abas do dashboard.
 
 ## Checklist
 
-- [ ] Nenhuma variável global compartilhada com outras seções
-- [ ] `purchase_log` e demais endpoints não são tocados
-- [ ] Conferir Visão geral, Vendas e Meta Ads antes e depois
+- [x] Nenhuma variável global compartilhada com outras seções
+- [x] `purchase_log` e demais endpoints não são tocados
+- [x] Conferir Visão geral, Vendas e Meta Ads antes e depois

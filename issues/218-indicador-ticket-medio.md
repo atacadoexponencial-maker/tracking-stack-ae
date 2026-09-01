@@ -18,5 +18,5 @@ Indicador com o valor médio por venda paga.
 
 ## Checklist
 
-- [ ] Ticket = receita ÷ vendas pagas
-- [ ] `null` quando não há venda (sem divisão por zero)
+- [x] Ticket = receita ÷ vendas pagas
+- [x] `null` quando não há venda (sem divisão por zero)

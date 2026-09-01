@@ -17,5 +17,5 @@ Indicador com o total arrecadado em vendas pagas.
 
 ## Checklist
 
-- [ ] Usa `tile` e `money`
-- [ ] Soma apenas vendas pagas
+- [x] Usa `tile` e `money`
+- [x] Soma apenas vendas pagas

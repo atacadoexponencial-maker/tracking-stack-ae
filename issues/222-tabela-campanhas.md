@@ -17,6 +17,6 @@ Tabela com uma linha por campanha: nome, investimento, receita, número de venda
 
 ## Checklist
 
-- [ ] Colunas: campanha, investimento, receita, vendas, ROAS, custo/venda
-- [ ] Usa o helper `tabela`
-- [ ] Valores ausentes como `—`
+- [x] Colunas: campanha, investimento, receita, vendas, ROAS, custo/venda
+- [x] Usa o helper `tabela`
+- [x] Valores ausentes como `—`

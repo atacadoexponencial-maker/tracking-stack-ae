@@ -17,6 +17,6 @@ Tabela com uma linha por venda paga: data, nome do comprador, valor, forma de pa
 
 ## Checklist
 
-- [ ] Colunas: data, comprador, valor, método, campanha, criativo
-- [ ] Apenas vendas pagas
-- [ ] Data em pt-BR
+- [x] Colunas: data, comprador, valor, método, campanha, criativo
+- [x] Apenas vendas pagas
+- [x] Data em pt-BR

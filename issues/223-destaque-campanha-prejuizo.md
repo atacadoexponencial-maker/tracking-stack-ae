@@ -17,6 +17,6 @@ Sinal visual na linha cujo retorno é menor que 1, isto é, que gastou mais do q
 
 ## Checklist
 
-- [ ] Sinal visual quando ROAS < 1
-- [ ] Não aplicar quando o ROAS é indisponível
-- [ ] Não depender só de cor (acessibilidade)
+- [x] Sinal visual quando ROAS < 1
+- [x] Não aplicar quando o ROAS é indisponível
+- [x] Não depender só de cor (acessibilidade)

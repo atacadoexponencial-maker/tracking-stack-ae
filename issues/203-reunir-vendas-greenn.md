@@ -18,7 +18,7 @@ Ler todas as vendas registradas do produto da Greenn, com data, valor, forma de 
 
 ## Checklist
 
-- [ ] Consulta filtra `event = 'saleUpdated'`
-- [ ] `raw_json` parseado com try/catch por linha
-- [ ] Campos extraídos: nome, e-mail, método, produto, `sf_trk`
-- [ ] Linha ilegível não derruba as demais
+- [x] Consulta filtra `event = 'saleUpdated'`
+- [x] `raw_json` parseado com try/catch por linha
+- [x] Campos extraídos: nome, e-mail, método, produto, `sf_trk`
+- [x] Linha ilegível não derruba as demais

@@ -18,6 +18,6 @@ Indicador com a receita total dividida pelo investimento total.
 
 ## Checklist
 
-- [ ] Receita total ÷ investimento total
-- [ ] `—` quando não há investimento
-- [ ] Formatado com 2 casas
+- [x] Receita total ÷ investimento total
+- [x] `—` quando não há investimento
+- [x] Formatado com 2 casas

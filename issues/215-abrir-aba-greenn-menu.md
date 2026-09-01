@@ -17,7 +17,7 @@ Adicionar a entrada da aba no menu lateral do dashboard e exibir a seção corre
 
 ## Checklist
 
-- [ ] Link no menu lateral
-- [ ] Verbete em `TITULOS` (valida o hash)
-- [ ] Seção exibida ao clicar
-- [ ] Marcação de item ativo funcionando
+- [x] Link no menu lateral
+- [x] Verbete em `TITULOS` (valida o hash)
+- [x] Seção exibida ao clicar
+- [x] Marcação de item ativo funcionando

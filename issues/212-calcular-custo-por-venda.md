@@ -17,5 +17,5 @@ Dividir o investimento da campanha pelo número de vendas que ela trouxe.
 
 ## Checklist
 
-- [ ] Custo por venda = investimento ÷ vendas
-- [ ] Devolve `null` quando não houve venda
+- [x] Custo por venda = investimento ÷ vendas
+- [x] Devolve `null` quando não houve venda

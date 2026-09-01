@@ -18,6 +18,6 @@ Totalizar o gasto em anúncios de cada campanha do produto ao longo de todo o se
 
 ## Checklist
 
-- [ ] Soma `spend_cents` agrupando por `campaign_name`
-- [ ] Sem recorte de data: ciclo inteiro
-- [ ] Conversão de centavos para reais num só lugar
+- [x] Soma `spend_cents` agrupando por `campaign_name`
+- [x] Sem recorte de data: ciclo inteiro
+- [x] Conversão de centavos para reais num só lugar

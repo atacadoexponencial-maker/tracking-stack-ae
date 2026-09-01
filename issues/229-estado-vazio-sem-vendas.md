@@ -17,6 +17,6 @@ Estado vazio com mensagem clara, distinguindo "nenhuma venda ainda" de "falha ao
 
 ## Checklist
 
-- [ ] Mensagem de 'nenhuma venda ainda'
-- [ ] Texto distinto do estado de erro
-- [ ] Indicadores mostram `—`, não zero fabricado
+- [x] Mensagem de 'nenhuma venda ainda'
+- [x] Texto distinto do estado de erro
+- [x] Indicadores mostram `—`, não zero fabricado

@@ -17,5 +17,5 @@ Permitir ordenar as vendas pelas colunas de data e de valor.
 
 ## Checklist
 
-- [ ] `campo` nas colunas de data e valor
-- [ ] Ordenação por data usa o timestamp, não o texto formatado
+- [x] `campo` nas colunas de data e valor
+- [x] Ordenação por data usa o timestamp, não o texto formatado

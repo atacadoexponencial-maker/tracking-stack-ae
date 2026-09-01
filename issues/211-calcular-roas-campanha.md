@@ -17,5 +17,5 @@ Dividir a receita da campanha pelo investimento dela para obter o retorno.
 
 ## Checklist
 
-- [ ] ROAS = receita ÷ investimento
-- [ ] Devolve `null` quando o investimento é zero ou ausente
+- [x] ROAS = receita ÷ investimento
+- [x] Devolve `null` quando o investimento é zero ou ausente

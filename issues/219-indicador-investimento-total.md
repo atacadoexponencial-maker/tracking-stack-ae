@@ -17,5 +17,5 @@ Indicador com a soma do investimento de todas as campanhas do produto.
 
 ## Checklist
 
-- [ ] Soma o investimento de todas as campanhas do produto
-- [ ] Usa `money`
+- [x] Soma o investimento de todas as campanhas do produto
+- [x] Usa `money`

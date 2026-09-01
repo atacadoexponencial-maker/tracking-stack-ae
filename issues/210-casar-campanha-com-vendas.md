@@ -17,6 +17,6 @@ Juntar, por campanha, o investimento e as vendas que vieram dela.
 
 ## Checklist
 
-- [ ] Casamento por igualdade exata de string
-- [ ] União: campanhas que venderam + campanhas que gastaram
-- [ ] Constante única com o padrão de nome das campanhas do produto
+- [x] Casamento por igualdade exata de string
+- [x] União: campanhas que venderam + campanhas que gastaram
+- [x] Constante única com o padrão de nome das campanhas do produto

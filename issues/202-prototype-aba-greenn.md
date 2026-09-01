@@ -51,10 +51,10 @@ Importar / usar o que já existe, sem recriar:
 
 ## Checklist
 
-- [ ] `<a href="#greenn" data-secao="greenn">Greenn</a>` no `#nav`
-- [ ] `<section class="secao" id="secao-greenn">` com um `.card` como primeiro filho
-- [ ] Verbete `greenn: 'Greenn'` em `TITULOS` (é ele que valida o hash no roteador)
-- [ ] `R.greenn` registrado
-- [ ] Aviso de período visível no topo da seção
-- [ ] Reuso de `tile`, `tabela`, `money`, `fmtInt` — nada de helper novo
-- [ ] Conferido que as outras abas continuam com os mesmos números
+- [x] `<a href="#greenn" data-secao="greenn">Greenn</a>` no `#nav`
+- [x] `<section class="secao" id="secao-greenn">` com um `.card` como primeiro filho
+- [x] Verbete `greenn: 'Greenn'` em `TITULOS` (é ele que valida o hash no roteador)
+- [x] `R.greenn` registrado
+- [x] Aviso de período visível no topo da seção
+- [x] Reuso de `tile`, `tabela`, `money`, `fmtInt` — nada de helper novo
+- [x] Conferido que as outras abas continuam com os mesmos números

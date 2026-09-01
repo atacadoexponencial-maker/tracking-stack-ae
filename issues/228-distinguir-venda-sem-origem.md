@@ -17,5 +17,5 @@ Deixar visualmente claro quais vendas vieram de campanha e quais não têm orige
 
 ## Checklist
 
-- [ ] Venda sem origem marcada de forma clara
-- [ ] Rótulo textual, não só ausência de valor
+- [x] Venda sem origem marcada de forma clara
+- [x] Rótulo textual, não só ausência de valor

@@ -17,9 +17,9 @@ Remover do conjunto toda venda feita pela própria equipe, identificada por uma 
 
 ## Checklist
 
-- [ ] Lista explícita de endereços, num único lugar, comentada
-- [ ] Comparação normalizada (minúsculas, sem espaços)
-- [ ] Regra é por ENDEREÇO, não por domínio — comentário explicando por quê
-- [ ] Comentário apontando a regra irmã em `functions/tracker.js:378`
-- [ ] Vendas de teste somem de todos os números e de todas as listas
-- [ ] Teste garantindo que um Gmail de cliente real NÃO é excluído
+- [x] Lista explícita de endereços, num único lugar, comentada
+- [x] Comparação normalizada (minúsculas, sem espaços)
+- [x] Regra é por ENDEREÇO, não por domínio — comentário explicando por quê
+- [x] Comentário apontando a regra irmã em `functions/tracker.js:378`
+- [x] Vendas de teste somem de todos os números e de todas as listas
+- [x] Teste garantindo que um Gmail de cliente real NÃO é excluído

@@ -75,9 +75,9 @@ Importar / usar o que já existe, sem recriar:
 
 ## Checklist
 
-- [ ] Soma de `spend_cents` por `campaign_name` sem filtro de data
-- [ ] Constante única e comentada com o padrão de nome das campanhas do produto
-- [ ] União entre campanhas que venderam e campanhas que gastaram
-- [ ] ROAS e custo por venda devolvem `null` em vez de dividir por zero
-- [ ] Campanha com gasto e sem venda permanece na lista
-- [ ] Teste cobrindo: campanha normal, campanha sem venda, venda sem campanha, gasto zero
+- [x] Soma de `spend_cents` por `campaign_name` sem filtro de data
+- [x] Constante única e comentada com o padrão de nome das campanhas do produto
+- [x] União entre campanhas que venderam e campanhas que gastaram
+- [x] ROAS e custo por venda devolvem `null` em vez de dividir por zero
+- [x] Campanha com gasto e sem venda permanece na lista
+- [x] Teste cobrindo: campanha normal, campanha sem venda, venda sem campanha, gasto zero

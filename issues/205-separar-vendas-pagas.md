@@ -17,6 +17,6 @@ Somar como receita apenas as vendas pagas. Reembolsos e recusas ficam contados �
 
 ## Checklist
 
-- [ ] Só `paid` soma receita
-- [ ] Não pagas contadas à parte
-- [ ] Nenhum status desconhecido some em silêncio
+- [x] Só `paid` soma receita
+- [x] Não pagas contadas à parte
+- [x] Nenhum status desconhecido some em silêncio

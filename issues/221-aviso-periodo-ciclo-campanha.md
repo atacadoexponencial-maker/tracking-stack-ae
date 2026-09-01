@@ -17,6 +17,6 @@ Texto curto e visível explicando que os números desta aba consideram o ciclo i
 
 ## Checklist
 
-- [ ] Texto curto no topo da seção
-- [ ] Diz explicitamente que ignora o filtro de datas do topo
-- [ ] Visível sem rolar a página
+- [x] Texto curto no topo da seção
+- [x] Diz explicitamente que ignora o filtro de datas do topo
+- [x] Visível sem rolar a página
