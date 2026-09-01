@@ -148,6 +148,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <a href="#visao" data-secao="visao">Visão geral</a>
       <a href="#leads" data-secao="leads">Leads</a>
       <a href="#vendas" data-secao="vendas">Vendas</a>
+      <a href="#greenn" data-secao="greenn">Greenn</a>
       <a href="#atribuicao" data-secao="atribuicao">Atribuição</a>
       <a href="#metaads" data-secao="metaads">Meta Ads</a>
       <a href="#email" data-secao="email">Email</a>
@@ -205,6 +206,18 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <div class="card"><h2>Receita por dia</h2><div class="grafico" id="vendas-grafico"></div></div>
       <div class="card"><h2>Produtos</h2><div class="tabela-wrap" id="vendas-produtos"></div></div>
       <div class="card"><h2>Compras registradas <small>clique para detalhes</small></h2><div class="tabela-wrap" id="vendas-compras"></div></div>
+    </section>
+
+    <!-- Aba Greenn: o produto pago roda num checkout separado e é contabilizado
+         à parte do resto (migration 0032). Ela ignora o filtro de datas do topo
+         de propósito — ver o aviso dentro do primeiro card. -->
+    <section class="secao" id="secao-greenn">
+      <div class="card">
+        <div class="aviso alerta">Esta aba soma o <strong>ciclo inteiro</strong> de cada campanha, do primeiro dia até hoje. Ela não segue o filtro de datas do topo: investimento e vendas caem em dias diferentes, e recortar o período daria um retorno falso.</div>
+        <div class="grid-kpi" id="greenn-kpis"></div>
+      </div>
+      <div class="card"><h2>Campanhas <small>retorno por campanha do produto pago</small></h2><div class="tabela-wrap" id="greenn-campanhas"></div></div>
+      <div class="card"><h2>Vendas <small>compras pagas, da mais recente para a mais antiga</small></h2><div class="tabela-wrap" id="greenn-vendas"></div></div>
     </section>
 
     <section class="secao" id="secao-atribuicao">
@@ -704,6 +717,65 @@ document.querySelectorAll('#utm-abas button').forEach((b) => b.addEventListener(
   document.querySelectorAll('#utm-abas button').forEach((x) => x.classList.remove('ativo'));
   b.classList.add('ativo'); utmDim = b.dataset.dim; utmFiltros = {}; carregarUtm();
 }));
+
+// Produto pago da Greenn. Sem período na chamada: o endpoint devolve o ciclo
+// inteiro de cada campanha (mesmo padrão de /api/workshops).
+R.greenn = async () => {
+  const d = await fetchJson('/api/greenn');
+  const r = d.resumo || {};
+  const campanhas = d.por_campanha || [];
+  const vendas = d.vendas || [];
+  const houve = vendas.length > 0;
+
+  // O cabeçalho anuncia o intervalo escolhido lá em cima, que aqui não vale.
+  $('#subtitulo').textContent = 'ciclo inteiro de cada campanha · não segue o filtro de datas';
+
+  const roasTxt = (v) => (v === null || v === undefined ? null : fmtNum(v, 2) + '×');
+
+  $('#greenn-kpis').innerHTML = [
+    { rotulo: 'Receita', valor: houve ? money(r.receita) : null, nota: houve ? '' : 'nenhuma venda ainda' },
+    { rotulo: 'Vendas pagas', valor: houve ? fmtInt(r.vendas) : null, nota: r.nao_pagas ? `${fmtInt(r.nao_pagas)} não pagas, fora da receita` : '' },
+    { rotulo: 'Ticket médio', valor: r.ticket_medio == null ? null : money(r.ticket_medio) },
+    { rotulo: 'Investido', valor: r.investimento ? money(r.investimento) : null, nota: r.investimento ? '' : 'sem investimento registrado' },
+    { rotulo: 'Retorno', valor: roasTxt(r.roas), invertido: false,
+      nota: r.roas == null ? 'precisa de investimento para calcular' : `cada R$ 1 volta como ${money(r.roas)}` },
+  ].map((k) => tile(k)).join('');
+
+  // Retorno abaixo de 1 é prejuízo. O rótulo textual vai junto da cor de
+  // propósito: cor sozinha não é sinal acessível.
+  const prejuizo = (c) => c.roas !== null && c.roas !== undefined && c.roas < 1;
+
+  if (campanhas.length) {
+    tabela($('#greenn-campanhas'), [
+      { titulo: 'Campanha', campo: 'campanha', render: (c) => c.sem_campanha
+          ? '<span class="mini">sem campanha — acesso direto ou indicação</span>'
+          : esc(c.campanha) },
+      { titulo: 'Investido', num: true, campo: 'investimento', render: (c) => c.investimento == null ? '<span class="semdado">—</span>' : money(c.investimento) },
+      { titulo: 'Receita', num: true, campo: 'receita', render: (c) => money(c.receita) },
+      { titulo: 'Vendas', num: true, campo: 'vendas', render: (c) => fmtInt(c.vendas) },
+      { titulo: 'Retorno', num: true, campo: 'roas', render: (c) => c.roas == null
+          ? '<span class="semdado">—</span>'
+          : `<span class="${prejuizo(c) ? 'falha' : 'ok'}">${roasTxt(c.roas)}</span>${prejuizo(c) ? '<br><span class="mini falha">prejuízo</span>' : ''}` },
+      { titulo: 'Custo/venda', num: true, campo: 'custo_por_venda', render: (c) => c.custo_por_venda == null ? '<span class="semdado">—</span>' : money(c.custo_por_venda) },
+    ], campanhas);
+  } else {
+    $('#greenn-campanhas').innerHTML = '<div class="aviso">Nenhuma campanha com venda ou investimento até agora.</div>';
+  }
+
+  if (houve) {
+    tabela($('#greenn-vendas'), [
+      { titulo: 'Data', campo: 'data', render: (v) => new Date(v.data * 1000).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) },
+      { titulo: 'Comprador', campo: 'nome', render: (v) => esc(v.nome || '—') },
+      { titulo: 'Valor', num: true, campo: 'valor', render: (v) => money(v.valor) },
+      { titulo: 'Método', campo: 'metodo', render: (v) => esc(v.metodo || '—') },
+      { titulo: 'Origem', campo: 'campanha', render: (v) => v.sem_origem
+          ? '<span class="mini">sem origem identificada</span>'
+          : `${esc(v.campanha)}${v.criativo ? `<br><span class="mini">${esc(v.criativo)}</span>` : ''}` },
+    ], vendas);
+  } else {
+    $('#greenn-vendas').innerHTML = '<div class="aviso">Nenhuma venda registrada ainda.</div>';
+  }
+};
 
 R.metaads = async () => {
   const p = intervalo();
@@ -1348,7 +1420,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos' };
 let secao = 'visao';
 async function render() {
   const p = intervalo();
