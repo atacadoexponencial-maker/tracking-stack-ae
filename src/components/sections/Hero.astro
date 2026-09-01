@@ -165,13 +165,21 @@ const titulo =
     font-size: clamp(2.25rem, 5vw, 3.75rem);
     line-height: 1.08;
   }
-  /* Marca-texto: sobre o bege do hero, o preto translúcido destaca sem
-     inventar uma cor que não existe na marca. */
+  /* Marca-texto amarelo. O gradiente deixa uma faixa limpa em cima e embaixo
+     para a cor não virar um retângulo cheio: o traço fica com cara de caneta
+     passada por cima da palavra, e não de fundo colorido. */
   .hero__hl {
-    background: rgba(30, 30, 30, 0.1);
+    background: linear-gradient(
+      180deg,
+      transparent 14%,
+      #ffe94d 14%,
+      #ffe94d 92%,
+      transparent 92%
+    );
     color: inherit;
-    border-radius: 0.2em;
-    padding: 0 0.12em;
+    padding: 0 0.1em;
+    /* Sem isto, uma palavra que quebrasse em duas linhas ganharia um único
+       traço esticado atrás das duas metades. */
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
