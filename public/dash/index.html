@@ -155,6 +155,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <a href="#workshops" data-secao="workshops">Workshops</a>
       <a href="#grupos" data-secao="grupos">Grupos</a>
       <a href="#links" data-secao="links">Links</a>
+      <a href="#bloqueios" data-secao="bloqueios">Bloqueios</a>
       <a href="#ab" data-secao="ab">Testes A/B</a>
       <a href="#jornada" data-secao="jornada">Jornada</a>
       <a href="#eventos" data-secao="eventos">Eventos</a>
@@ -292,6 +293,17 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
             <button class="btn" type="button" id="links-cancelar" hidden>Cancelar edição</button>
           </div>
         </form>
+      </div>
+    </section>
+
+    <section class="secao" id="secao-bloqueios">
+      <div class="card">
+        <div class="aviso">Estes leads foram barrados na entrada: não foram para o ClickUp, o GoHighLevel, o CRM, o Meta nem o GA4, e não contam nas métricas. <strong>Restaurar</strong> devolve o lead ao ClickUp, ao GoHighLevel e ao CRM, e faz ele voltar a contar. Meta e GA4 ficam de fora: o Meta recusa conversão com mais de 7 dias e o GA4 com mais de 72 horas, então um lead devolvido volta para o comercial, mas não para a otimização da campanha.</div>
+      </div>
+      <div class="card">
+        <h2>Leads bloqueados <small>200 mais recentes · restaurados continuam na lista</small></h2>
+        <div id="bloqueios-erro" class="aviso falha" hidden></div>
+        <div class="tabela-wrap" id="bloqueios-tabela"></div>
       </div>
     </section>
 
@@ -1173,6 +1185,73 @@ const AB_ESTADOS = {
 const AB_STATUS = { rascunho: 'rascunho', ativo: 'ATIVO', pausado: 'pausado', encerrado: 'encerrado' };
 const pct = (n) => (n * 100).toFixed(2).replace('.', ',') + '%';
 
+// ---------- bloqueios ----------
+// A aba NÃO decide nada: o motivo do bloqueio vem pronto de /api/bloqueios (que
+// o lê da coluna gravada no momento do bloqueio) e o reenvio é inteiro do
+// backend. Aqui só lista e dispara o botão.
+//
+// Não segue o filtro de datas do topo: o volume é baixo e o uso é "vasculhar o
+// que foi barrado", não "medir o período". Recortar por data esconderia
+// justamente o bloqueio antigo que alguém veio procurar.
+R.bloqueios = async () => {
+  const dados = await fetchJson('/api/bloqueios');
+  const linhas = dados.rows || [];
+
+  tabela($('#bloqueios-tabela'), [
+    { titulo: 'Quando', campo: 'criado_em', render: (r) => `<span class="mini">${quandoBRT(r.criado_em)}</span>` },
+    { titulo: 'E-mail', campo: 'email', render: (r) => esc(r.email || '—') },
+    { titulo: 'Nome', campo: 'nome', render: (r) => esc(r.nome || '—') },
+    { titulo: 'Telefone', campo: 'telefone', render: (r) => esc(r.telefone || '—') },
+    { titulo: 'Funil', campo: 'funnel', render: (r) => esc(r.funnel || '—') },
+    { titulo: 'Motivo', campo: 'motivo', render: (r) => `<span class="mini">${esc(r.motivo)}</span>` },
+    {
+      titulo: '',
+      campo: 'restaurado_em',
+      render: (r) => (r.restaurado_em
+        // Restaurado mostra o resultado por destino, não só "pronto": se o
+        // ClickUp estava fora do ar na hora, quem clicou precisa saber.
+        ? `<span class="mini">devolvido em ${quandoBRT(r.restaurado_em)}<br>${esc(r.restaurado_resultado || '')}</span>`
+        : `<button class="btn" type="button" data-restaurar="${r.id}">Restaurar</button>`),
+    },
+  ], linhas);
+
+  if (!linhas.length) {
+    $('#bloqueios-tabela').innerHTML = '<p class="mini">Nenhum lead bloqueado até agora.</p>';
+  }
+
+  // Listener no contêiner porque `tabela()` redesenha a tabela ao ordenar.
+  $('#bloqueios-tabela').onclick = async (ev) => {
+    const btn = ev.target.closest('[data-restaurar]');
+    if (!btn) return;
+    const erro = $('#bloqueios-erro');
+    erro.hidden = true;
+    btn.disabled = true;
+    btn.textContent = 'Devolvendo…';
+    try {
+      const r = await fetch(`/api/bloqueios?key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: Number(btn.dataset.restaurar) }),
+      });
+      const resposta = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        // A mensagem exibida é a do backend — a tela não inventa validação própria.
+        erro.textContent = resposta.error || 'Não foi possível restaurar. Tente de novo.';
+        erro.hidden = false;
+        btn.disabled = false;
+        btn.textContent = 'Restaurar';
+        return;
+      }
+      await R.bloqueios();
+    } catch {
+      erro.textContent = 'Não foi possível restaurar. Tente de novo.';
+      erro.hidden = false;
+      btn.disabled = false;
+      btn.textContent = 'Restaurar';
+    }
+  };
+};
+
 R.ab = async () => {
   const dados = await fetchJson('/api/ab-tests');
   const linhas = dados.rows || [];
@@ -1420,7 +1499,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', bloqueios: 'Bloqueios', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos' };
 let secao = 'visao';
 async function render() {
   const p = intervalo();
