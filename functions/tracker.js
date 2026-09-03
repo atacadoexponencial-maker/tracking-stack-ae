@@ -1,6 +1,7 @@
 import { FUNIL_MATERIAIS, materialPorSlug } from '../src/data/materiais.js';
 import { sha256, normalizePhone, normalizeName } from './api/_hash.js';
 import { detectBot } from './_bots.js';
+import { motivoBloqueio } from './_lead-bloqueio.js';
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -91,6 +92,18 @@ export async function onRequestPost(context) {
     // --- Bot detection ---
     const { isBot, botReason } = detectBot(userAgent);
 
+    // --- Bloqueio de lead falso ---
+    // Complementa o detectBot: aquele julga o User-Agent e pega crawler que se
+    // identifica; este julga o e-mail submetido e pega o script que manda UA de
+    // Chrome. Regras em _lead-bloqueio.js.
+    //
+    // O e-mail cru é lido AQUI, e não mais lá embaixo junto do event_log, porque
+    // a decisão precisa acontecer antes do primeiro fan-out (Meta/GA4, logo
+    // abaixo) — um bloqueio que só chega depois do envio não bloqueia nada.
+    const rawEmail = userData.em || '';
+    const motivoDoBloqueio = motivoBloqueio(rawEmail);
+    const bloqueado = motivoDoBloqueio !== '';
+
     // --- Fan out to ad platforms (skipped for bot UAs) ---
     // Bots still get logged to event_log so the dashboard's bot-filter
     // tracking-health metric stays accurate; only the outbound CAPI /
@@ -121,7 +134,7 @@ export async function onRequestPost(context) {
     const pixelId = env.META_PIXEL_ID_2 || env.META_PIXEL_ID;
     const accessToken = env.META_ACCESS_TOKEN_2 || env.META_ACCESS_TOKEN;
 
-    const results = (isBot || ehEventoInterno) ? [] : await Promise.allSettled([
+    const results = (isBot || ehEventoInterno || bloqueado) ? [] : await Promise.allSettled([
       sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }),
       sendToGA4({ body, gaClientId, gaSessionId, hashedEm, sessionData, funnel: effectiveFunnel, env }),
       Promise.resolve({ skipped: 'pixel 2 unificado ao principal', payload: null, response: null }),
@@ -183,10 +196,10 @@ export async function onRequestPost(context) {
     // (só lead/purchase, não-bot, throttle 1h) fica em maybeAlertMetaFailure.
     // Pixel 2 tem chave de throttle própria para uma falha não silenciar a outra.
     context.waitUntil(maybeAlertMetaFailure({
-      eventName: body.event_name, isBot, metaResponseOk, metaStatusCode, metaResponseBody, env,
+      eventName: body.event_name, isBot, bloqueado, metaResponseOk, metaStatusCode, metaResponseBody, env,
     }));
     context.waitUntil(maybeAlertMetaFailure({
-      eventName: body.event_name, isBot, metaResponseOk: meta2ResponseOk, metaStatusCode: meta2StatusCode, metaResponseBody: meta2ResponseBody, env,
+      eventName: body.event_name, isBot, bloqueado, metaResponseOk: meta2ResponseOk, metaStatusCode: meta2StatusCode, metaResponseBody: meta2ResponseBody, env,
       throttleKey: 'meta_capi_2', label: 'Meta CAPI (pixel 2)',
     }));
 
@@ -195,7 +208,10 @@ export async function onRequestPost(context) {
     // ao ClickUp) vem de env e pode ser trocado/removido sem alterar o front.
     // Cada funil tem seu próprio webhook: 'workshop' usa um, o diagnóstico o
     // padrão. Só dispara para eventos de Lead, em background.
-    if ((body.event_name || '').toLowerCase() === 'lead') {
+    // `!bloqueado`: lead barrado não chega a ClickUp, GHL, Supabase nem ao
+    // barramento de WhatsApp. Ele não some — vai inteiro para `leads_bloqueados`
+    // (abaixo) e a aba Bloqueios do dash pode devolvê-lo a estes mesmos destinos.
+    if ((body.event_name || '').toLowerCase() === 'lead' && !bloqueado) {
       // ClickUp DIRETO na API (sem n8n) para TODOS os funis — inclusive
       // 'workshop', que antes ia a um workflow n8n hoje desativado (leads se
       // perdiam; ver spec ponte-tracking-clickup). sendToClickUp faz
@@ -245,8 +261,6 @@ export async function onRequestPost(context) {
       }
     }
 
-    const rawEmail = userData.em || '';
-
     // --- Log to D1 (background) ---
     // Skip PageView: conversions fire regardless of this log, and the health
     // dashboard only reports Lead/Purchase. Dropping PageView cuts ~70% of
@@ -274,7 +288,12 @@ export async function onRequestPost(context) {
     // Testes internos saem das métricas do dash já na entrada (migration 0022).
     // Só afeta CONTAGEM: o lead segue normalmente para ClickUp/CRM/Meta, para o
     // teste continuar exercitando o pipeline inteiro de ponta a ponta.
-    const isJunk = isInternalTestEmail(rawEmail) ? 1 : 0;
+    //
+    // Lead bloqueado também sai da contagem, mas por outro motivo e com outro
+    // efeito: ele NÃO seguiu para destino nenhum. As duas condições dividem a
+    // coluna porque o dash faz a mesma pergunta às duas ("isto conta como
+    // lead?"), e a resposta é não nos dois casos.
+    const isJunk = (isInternalTestEmail(rawEmail) || bloqueado) ? 1 : 0;
     context.waitUntil(
       (async () => {
         try {
@@ -297,8 +316,8 @@ export async function onRequestPost(context) {
               pixelWasBlocked, fbpSource, fbcSource, fbclidSource,
               gaCookiePresent, gaClientIdFallback, fbpSource === 'middleware_http' ? 1 : 0,
               isBot ? 1 : 0, botReason, body.consent_status || 'unknown',
-              (isBot || ehEventoInterno) ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
-              (isBot || ehEventoInterno) ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
+              (isBot || ehEventoInterno || bloqueado) ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
+              (isBot || ehEventoInterno || bloqueado) ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
               hashedEm ? 1 : 0, hashedPh ? 1 : 0, (hashedFn || hashedLn) ? 1 : 0,
               rawEmail, loggedFunnel, isJunk, loggedMaterial, loggedStep
             ).run();
@@ -308,6 +327,40 @@ export async function onRequestPost(context) {
         }
       })()
     );
+
+    // --- Guarda o lead barrado, inteiro, para poder devolvê-lo ---
+    // Só para eventos de Lead: é o único que carrega o payload que o comercial
+    // precisaria de volta. Um FormStart bloqueado não tem nada a restaurar.
+    //
+    // O event_log acima já registrou o evento; esta escrita existe porque ele
+    // guarda apenas o e-mail e o funil. Sem nome e telefone, o botão Restaurar
+    // da aba Bloqueios não teria o que enviar ao ClickUp.
+    if (bloqueado && (body.event_name || '').toLowerCase() === 'lead') {
+      context.waitUntil(
+        (async () => {
+          try {
+            if (!env.DB) return;
+            const leadData = body.lead_data || {};
+            await env.DB.prepare(`
+              INSERT INTO leads_bloqueados (
+                event_id, session_id, email, nome, telefone, funnel,
+                motivo, lead_json, session_json, user_agent, ip_address, criado_em
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+              body.event_id || '', sessionId, rawEmail,
+              leadData.nome || '', leadData.telefone || '', loggedFunnel,
+              motivoDoBloqueio,
+              JSON.stringify(leadData),
+              JSON.stringify(sessionData || {}),
+              userAgent, clientIp,
+              Math.floor(Date.now() / 1000)
+            ).run();
+          } catch (e) {
+            console.error('D1 bloqueio log error:', e.message);
+          }
+        })()
+      );
+    }
 
     // --- Roteamento pós-captação (regra de negócio, no backend) ---
     // Funil 'workshop' segue para a página do vídeo do workshop. A live semanal
@@ -492,7 +545,7 @@ async function sendToGA4({ body, gaClientId, gaSessionId, hashedEm, sessionData,
 // CRM FORWARD — encaminha o lead para um webhook configurável
 // (hoje n8n → ClickUp). Dados crus do formulário + atribuição da sessão.
 // -------------------------------------------------------
-async function sendToCRM({ leadData, sessionData, fbc, externalId, url, token, label, env }) {
+export async function sendToCRM({ leadData, sessionData, fbc, externalId, url, token, label, env }) {
   try {
     const payload = {
       ...leadData,
@@ -753,9 +806,14 @@ async function sendThrottledAlert(type, text, env) {
 // skip por env ausente (META_PIXEL_ID/token sumiram = morte silenciosa —
 // metaResponseOk fica 0 em todos esses casos). PageView e bots não alertam.
 // Roda em waitUntil: nunca atrasa a resposta do /tracker.
-async function maybeAlertMetaFailure({ eventName, isBot, metaResponseOk, metaStatusCode, metaResponseBody, env, throttleKey = 'meta_capi', label = 'Meta CAPI' }) {
+async function maybeAlertMetaFailure({ eventName, isBot, bloqueado = false, metaResponseOk, metaStatusCode, metaResponseBody, env, throttleKey = 'meta_capi', label = 'Meta CAPI' }) {
   const name = (eventName || '').toLowerCase();
   if (isBot) return;
+  // Lead bloqueado não foi ao Meta porque nós decidimos assim — não é falha.
+  // Sem esta linha, cada bot barrado dispararia "Meta CAPI falhou num Lead:
+  // status 0" no WhatsApp e, pior, queimaria o throttle de 1h que existe para
+  // avisar de uma recusa DE VERDADE.
+  if (bloqueado) return;
   if (name !== 'lead' && name !== 'purchase') return;
   if (metaResponseOk === 1) return;
   await sendThrottledAlert(
