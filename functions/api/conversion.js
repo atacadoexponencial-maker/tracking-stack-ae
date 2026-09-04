@@ -46,20 +46,53 @@ export async function onRequestGet(context) {
   const binds = funnel ? [funnel, since, until, funnel] : [since, until];
 
   try {
-    // Query única: denominador (visitors) e numerador (leads) no mesmo
-    // GROUP BY. COUNT(DISTINCT ...) garante máx. 1 lead por sessão mesmo com
-    // N eventos 'Lead' (o fan-out do JOIN não infla visitors nem leads).
+    // Query única: denominador (visitors), numerador (leads) e os degraus
+    // intermediários do funil, todos no mesmo GROUP BY.
+    //
+    // ⚠️ CUSTO DE D1 — não reescrever isto com COUNT(DISTINCT)/LEFT JOIN.
+    // A forma anterior (LEFT JOIN + dois COUNT(DISTINCT)) obrigava o SQLite a
+    // montar três TEMP B-TREE sobre as ~37 mil sessões da janela: cada linha
+    // custava ~15 leituras em CADA b-tree, ou seja ~45 linhas lidas por sessão
+    // — 1,68 MILHÃO de linhas lidas por chamada, medido pelo `d1 insights`.
+    // Uma única abertura desta aba consumia quase a cota diária inteira do
+    // plano gratuito (5 M). Detalhes: incidente de 2026-09-04.
+    //
+    // `EXISTS` correlacionado dá o mesmo resultado sem b-tree temporário:
+    // como cada sessão é UMA linha de `sessions`, "existe ≥ 1 evento" é
+    // equivalente ao COUNT(DISTINCT session_id) que protegia do fan-out do
+    // JOIN, e `COUNT(*)` basta para visitors. O GROUP BY sai de graça do
+    // índice idx_sessions_lp_created (migration 0036). Confira com
+    // EXPLAIN QUERY PLAN: não pode aparecer nenhum "USE TEMP B-TREE".
+    //
+    // Os degraus (cliques/form_starts) eram uma segunda varredura das mesmas
+    // sessões, com o mesmo recorte — foram fundidos aqui para não pagar duas
+    // vezes. Eles usam o funil do DENOMINADOR (`s.funnel`, first-touch da
+    // sessão) e não o funil efetivo do evento: `CTAClick` e `FormStart` não
+    // carregam `lead_data`, então filtrar pelo funil do evento zeraria todos.
     const grouped = await env.DB.prepare(`
       SELECT
         s.landing_url,
-        COUNT(DISTINCT s.session_id) AS visitors,
-        COUNT(DISTINCT CASE WHEN e.id IS NOT NULL ${numeratorFunnelClause} THEN s.session_id END) AS leads
+        COUNT(*) AS visitors,
+        SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM event_log e
+           WHERE e.session_id = s.session_id
+             AND e.event_name = 'Lead'
+             AND e.is_bot = 0 AND e.is_junk = 0
+             ${numeratorFunnelClause}
+        ) THEN 1 ELSE 0 END) AS leads,
+        SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM event_log e
+           WHERE e.session_id = s.session_id
+             AND e.event_name IN ('CTAClick', 'InitiateCheckout')
+             AND e.is_bot = 0 AND e.is_junk = 0
+        ) THEN 1 ELSE 0 END) AS cliques,
+        SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM event_log e
+           WHERE e.session_id = s.session_id
+             AND e.event_name = 'FormStart'
+             AND e.is_bot = 0 AND e.is_junk = 0
+        ) THEN 1 ELSE 0 END) AS form_starts
       FROM sessions s
-      LEFT JOIN event_log e
-        ON e.session_id = s.session_id
-       AND e.event_name = 'Lead'
-       AND e.is_bot = 0
-       AND e.is_junk = 0
       WHERE s.created_at >= ? AND s.created_at <= ?
         AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
         ${botClauses}
@@ -72,6 +105,7 @@ export async function onRequestGet(context) {
     // construção: cada sessão tem exatamente 1 landing_url, logo os grupos
     // crus são disjuntos — somar não conta ninguém duas vezes.
     const byPath = new Map();
+    const degrausPorPath = new Map();
     for (const row of grouped.results || []) {
       const lp = normalizePath(row.landing_url);
       if (!isKnownPage(lp)) continue;
@@ -79,36 +113,25 @@ export async function onRequestGet(context) {
       acc.visitors += row.visitors;
       acc.leads += row.leads;
       byPath.set(lp, acc);
+
+      const d = degrausPorPath.get(lp) || { cliques: 0, formStarts: 0, etapas: new Map() };
+      d.cliques += row.cliques;
+      d.formStarts += row.form_starts;
+      degrausPorPath.set(lp, d);
     }
 
-    // --- Degraus do funil (spec 2026-08-31) --------------------------------
+    // --- Etapas do formulário (spec 2026-08-31) ----------------------------
     //
-    // Três consultas a mais, todas com o MESMO recorte de sessões da tabela
-    // acima (mesma janela, mesmos filtros de bot e de funil), para os números
-    // do funil baterem com a linha que ele expande.
+    // Mesmo recorte de sessões da consulta acima (mesma janela, mesmos filtros
+    // de bot e de funil), para os números do funil baterem com a linha que ele
+    // expande. Usa `s.funnel` (first-touch da sessão) pelo mesmo motivo dos
+    // demais degraus: `FormStep` não carrega `lead_data`.
     //
-    // Os degraus novos usam o funil do DENOMINADOR (`s.funnel`, first-touch da
-    // sessão) e não o funil efetivo do evento: `CTAClick` e `FormStep` não
-    // carregam `lead_data`, então filtrar pelo funil do evento zeraria todos
-    // eles. O recorte certo aqui é "sessões que chegaram nesta LP".
+    // Esta consulta é barata (157 linhas lidas, medido em 2026-09-04) e não
+    // precisou mudar: como o JOIN filtra por `event_name = 'FormStep'`, o
+    // otimizador já entra pela tabela pequena (`event_log`) por conta própria,
+    // em vez de varrer as sessões da janela.
     const bindsSessao = funnel ? [since, until, funnel] : [since, until];
-
-    const degrausQuery = await env.DB.prepare(`
-      SELECT
-        s.landing_url,
-        COUNT(DISTINCT CASE WHEN e.event_name IN ('CTAClick', 'InitiateCheckout') THEN s.session_id END) AS cliques,
-        COUNT(DISTINCT CASE WHEN e.event_name = 'FormStart' THEN s.session_id END) AS form_starts
-      FROM sessions s
-      LEFT JOIN event_log e
-        ON e.session_id = s.session_id
-       AND e.is_bot = 0
-       AND e.is_junk = 0
-      WHERE s.created_at >= ? AND s.created_at <= ?
-        AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
-        ${botClauses}
-        ${denominatorFunnelClause}
-      GROUP BY s.landing_url
-    `).bind(...bindsSessao).all();
 
     const etapasQuery = await env.DB.prepare(`
       SELECT
@@ -145,15 +168,8 @@ export async function onRequestGet(context) {
 
     // Merge pelo path normalizado, igual ao byPath acima e pelo mesmo motivo:
     // grupos crus distintos que normalizam para o mesmo path são disjuntos.
-    const degrausPorPath = new Map();
-    for (const row of degrausQuery.results || []) {
-      const lp = normalizePath(row.landing_url);
-      if (!isKnownPage(lp)) continue;
-      const acc = degrausPorPath.get(lp) || { cliques: 0, formStarts: 0, etapas: new Map() };
-      acc.cliques += row.cliques;
-      acc.formStarts += row.form_starts;
-      degrausPorPath.set(lp, acc);
-    }
+    // (cliques e form_starts já entraram no degrausPorPath junto com o byPath,
+    // porque vêm da mesma consulta.)
     for (const row of etapasQuery.results || []) {
       const lp = normalizePath(row.landing_url);
       if (!isKnownPage(lp)) continue;

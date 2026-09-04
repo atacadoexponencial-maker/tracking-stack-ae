@@ -129,6 +129,15 @@ export async function onRequestPost(context) {
         ).bind(resultado.erro.slice(0, 500), c.id).run();
         falhas++;
         credencialQuebrada = resultado.erro;
+        // ABORTA o lote: a credencial é a mesma para todas as pendências, então
+        // as demais falhariam pelo mesmo motivo. Insistir custa uma busca de
+        // lead por pendência (varredura de lead_dispatch) a cada rodada do
+        // cron — e como o erro de credencial não consome tentativa, a fila
+        // nunca esvazia e isso se repete para sempre. Foi o que consumiu 7,2
+        // milhões de linhas/dia do D1 em 2026-09-04, com o token do pixel 2
+        // inválido desde 31/07. Uma tentativa por rodada basta para detectar
+        // que o token voltou.
+        break;
       } else {
         const tentativas = c.tentativas + 1;
         const definitiva = tentativas >= MAX_TENTATIVAS;
