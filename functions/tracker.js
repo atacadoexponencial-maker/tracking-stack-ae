@@ -94,14 +94,14 @@ export async function onRequestPost(context) {
 
     // --- Bloqueio de lead falso ---
     // Complementa o detectBot: aquele julga o User-Agent e pega crawler que se
-    // identifica; este julga o e-mail submetido e pega o script que manda UA de
-    // Chrome. Regras em _lead-bloqueio.js.
+    // identifica; este julga o REMETENTE (e-mail submetido e IP de origem) e
+    // pega o script que manda UA de Chrome. Regras em _lead-bloqueio.js.
     //
     // O e-mail cru é lido AQUI, e não mais lá embaixo junto do event_log, porque
     // a decisão precisa acontecer antes do primeiro fan-out (Meta/GA4, logo
     // abaixo) — um bloqueio que só chega depois do envio não bloqueia nada.
     const rawEmail = userData.em || '';
-    const motivoDoBloqueio = motivoBloqueio(rawEmail);
+    const motivoDoBloqueio = motivoBloqueio(rawEmail, clientIp);
     const bloqueado = motivoDoBloqueio !== '';
 
     // --- Fan out to ad platforms (skipped for bot UAs) ---
