@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo.png';
+import felipe from '../assets/brand/felipe.webp';
 
 const aprender = [
   'Por que postar mais, investir em tráfego e contratar agência não destravou o seu faturamento — e o que realmente está no caminho.',
@@ -27,10 +28,15 @@ const proofImages = Object.entries(proofModules)
   <header class="lv-hero">
     <nav class="lv-hero__nav container"><Image src={logo} alt="Atacado Exponencial" height={72} style="height:2.25rem;width:auto;filter:brightness(0)" /></nav>
     <div class="lv-hero__body container">
-      <span class="lv-hero__badge">🔴 LIVE GRATUITA E ONLINE • QUINTA, 12H</span>
-      <h1 class="lv-hero__title">Como ter novos revendedores chegando toda semana no seu atacado</h1>
-      <p class="lv-hero__sub">Sem depender dos mesmos clientes de sempre, sem representante e sem aplicar estratégia de varejo num mercado que é completamente diferente.</p>
-      <a href="#inscricao" class="btn-cta lv-hero__cta">QUERO MINHA VAGA NA LIVE →</a>
+      <div class="lv-hero__texto">
+        <span class="lv-hero__badge">🔴 LIVE GRATUITA E ONLINE • QUINTA, 12H</span>
+        <h1 class="lv-hero__title">Como ter novos revendedores chegando toda semana no seu atacado</h1>
+        <p class="lv-hero__sub">Sem depender dos mesmos clientes de sempre, sem representante e sem aplicar estratégia de varejo num mercado que é completamente diferente.</p>
+        <a href="#inscricao" class="btn-cta lv-hero__cta">QUERO MINHA VAGA NA LIVE →</a>
+      </div>
+      <div class="lv-hero__visual">
+        <Image src={felipe} alt="Felipe Santos" class="lv-hero__img" loading="eager" />
+      </div>
     </div>
   </header>
 
@@ -89,13 +95,22 @@ const proofImages = Object.entries(proofModules)
 </BaseLayout>
 
 <style>
-  .lv-hero { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); min-height: 80vh; display: flex; flex-direction: column; }
-  .lv-hero__nav { display: flex; justify-content: center; padding-block: 1.5rem; }
-  .lv-hero__body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.25rem; max-width: 44rem; padding-block: 3rem; }
+  .lv-hero { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); display: flex; flex-direction: column; }
+  /* Sem respiro embaixo: quem espaca a logo do conteudo do hero e o
+     padding-top do .lv-hero__body — somar os dois abria um vazio grande. */
+  .lv-hero__nav { display: flex; justify-content: center; padding-block: 1.5rem 0; }
+  /* Duas colunas no desktop (texto + foto), empilhado no mobile — mesmo
+     desenho do hero da /lives-semanais-v2 e da /workshop-black-exponencial-2026. */
+  .lv-hero__body { flex: 1; display: grid; gap: 2.5rem; align-items: center; padding-block: 1rem 4rem; }
+  .lv-hero__texto { display: flex; flex-direction: column; align-items: flex-start; gap: 1.25rem; }
   .lv-hero__badge { display: inline-block; border: 1px solid rgba(30,30,30,0.15); border-radius: 9999px; padding: 0.5rem 1.25rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(30,30,30,0.7); }
-  .lv-hero__title { font-size: clamp(1.75rem, 4.5vw, 3.25rem); line-height: 1.1; }
+  .lv-hero__title { font-size: clamp(1.75rem, 3.4vw, 2.75rem); line-height: 1.1; }
   .lv-hero__sub { color: rgba(30,30,30,0.7); max-width: 36rem; }
   .lv-hero__cta { margin-top: 0.5rem; }
+  .lv-hero__img { width: 100%; height: auto; border-radius: 1rem; object-fit: cover; }
+  @media (min-width: 880px) {
+    .lv-hero__body { grid-template-columns: 1.45fr 1fr; gap: 3rem; padding-block: 0.75rem 3.5rem; }
+  }
 
   .aprender__list { margin-top: 2.5rem; max-width: 44rem; margin-inline: auto; display: flex; flex-direction: column; gap: 0.75rem; list-style: none; }
   .aprender__item { padding: 1rem 1.25rem; border: 1px solid rgba(30,30,30,0.12); border-radius: 0.75rem; background: rgba(255,255,255,0.4); font-size: 0.95rem; }
