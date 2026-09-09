@@ -9,7 +9,7 @@
 // Fonte: sessions LEFT JOIN event_log via session_id. Bots ficam fora do
 // denominador (e por consequência do numerador) via NOT LIKE em SQL.
 
-import { clausulasBotSql } from '../_bots.js';
+import { clausulasBotSql, clausulasBotIpSql } from '../_bots.js';
 import { montarFunil } from './_funil-etapas.js';
 
 export async function onRequestGet(context) {
@@ -39,7 +39,16 @@ export async function onRequestGet(context) {
 
   // Exclusão de bot: lista única em functions/_bots.js, a mesma que o
   // tracker.js usa na escrita.
-  const botClauses = clausulasBotSql('s');
+  //
+  // São DOIS cortes, porque são dois tipos de bot. O de user-agent pega quem se
+  // identifica (Googlebot, facebookexternalhit — este último sozinho gerou 25%
+  // das sessões da semana de 09/09). O de IP pega quem manda UA de Chrome e
+  // passaria liso: 672 das 920 sessões da /lives-semanais-v1 naquela semana,
+  // 73%, que vinham para o denominador e dividiam a conversão da LP por ~4.
+  //
+  // O corte por IP na ESCRITA (middleware, 09/09) só vale para tráfego novo;
+  // este aqui é o que limpa o histórico já gravado, sem apagar linha nenhuma.
+  const botClauses = clausulasBotSql('s') + '\n' + clausulasBotIpSql('s');
 
   // Ordem dos binds é posicional na ordem do texto SQL: o funil efetivo do
   // CASE (SELECT) vem ANTES de since/until; o s.funnel = ? vem por último.

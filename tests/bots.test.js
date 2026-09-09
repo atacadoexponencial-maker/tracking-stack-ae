@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { detectBot, detectBotPorIp, BOT_UA_SUBSTRINGS, clausulasBotSql } from '../functions/_bots.js';
+import { detectBot, detectBotPorIp, BOT_UA_SUBSTRINGS, clausulasBotSql, clausulasBotIpSql } from '../functions/_bots.js';
 
 const CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
@@ -115,5 +115,57 @@ test('detectBotPorIp devolve a mesma forma do detectBot', () => {
     assert.deepEqual(Object.keys(r).sort(), ['botReason', 'isBot']);
     assert.equal(typeof r.isBot, 'boolean');
     assert.equal(typeof r.botReason, 'string');
+  }
+});
+
+// --- Filtro de IP na leitura (limpeza do histórico, 09/09/2026) -------------
+
+test('clausulasBotIpSql cobre uma regra por linha, no alias pedido', () => {
+  const sql = clausulasBotIpSql('s');
+  const linhas = sql.split('\n');
+  assert.equal(linhas.length, 5, 'uma cláusula por família barrada');
+  for (const l of linhas) {
+    assert.ok(l.startsWith('AND COALESCE(s.ip_address'), `sem alias: ${l}`);
+  }
+  assert.ok(clausulasBotIpSql('a').includes("COALESCE(a.ip_address, '')"));
+});
+
+test('cada forma de regra vira o operador certo', () => {
+  const sql = clausulasBotIpSql('s');
+  assert.ok(sql.includes("<> '82.197.67.74'"), 'IP exato usa igualdade');
+  assert.ok(sql.includes("NOT LIKE '45.148.10.%'"), '/24 usa prefixo com ponto');
+  assert.ok(sql.includes("NOT LIKE '2605:a143:2218:7058:%'"), '/64 usa prefixo com dois-pontos');
+});
+
+// A armadilha que motivou o COALESCE: em SQLite `NULL NOT LIKE 'x'` é NULL, e
+// a linha CAI do resultado. Sem ele, toda sessão sem IP registrado sumiria do
+// denominador — cortando visitante real, o erro caro.
+test('sessão sem IP continua contando', () => {
+  const sql = clausulasBotIpSql('s');
+  assert.ok(!/AND s\.ip_address (<>|NOT LIKE)/.test(sql), 'coluna crua cortaria os NULL');
+  for (const l of sql.split('\n')) {
+    assert.ok(l.includes("COALESCE(s.ip_address, '')"), `sem COALESCE: ${l}`);
+  }
+});
+
+// Leitura e escrita saem da MESMA lista: um IP barrado na gravação precisa
+// estar barrado na contagem, senão o histórico e o tráfego novo discordam e
+// ninguém percebe.
+test('leitura e escrita concordam sobre quem é bot', () => {
+  const sql = clausulasBotIpSql('s');
+  for (const ip of [
+    '82.197.67.74',
+    '45.148.10.246',
+    '195.178.110.72',
+    '93.123.109.165',
+    '2605:a143:2218:7058::200',
+  ]) {
+    assert.equal(detectBotPorIp(ip).isBot, true);
+    // O IP precisa aparecer em alguma cláusula, exato ou como prefixo.
+    const coberto = sql.split('\n').some((l) => {
+      const valor = (l.match(/<> '([^']+)'/) || l.match(/NOT LIKE '([^']+)%'/) || [])[1];
+      return valor && ip.startsWith(valor);
+    });
+    assert.ok(coberto, `${ip} não é coberto por nenhuma cláusula`);
   }
 });

@@ -96,6 +96,41 @@ export function detectBotPorIp(ip) {
   return { isBot: false, botReason: '' };
 }
 
+/**
+ * Cláusulas de exclusão por IP para o WHERE, geradas da MESMA lista que o
+ * detectBotPorIp() usa. É o par de leitura do corte de escrita: sem isto, o
+ * bloqueio de 09/09 só valeria para o tráfego novo e todo o histórico já
+ * gravado continuaria inflando o denominador — a /lives-semanais-v1 seguiria
+ * mostrando a conversão dividida por ~4 nos dias anteriores.
+ *
+ * Limpar aqui, e não com DELETE em `sessions`, é de propósito: as linhas são a
+ * prova do que os bots fizeram, e uma lista negra que erra precisa ser
+ * reversível. Tirar um IP da lista devolve os números; um DELETE não volta.
+ *
+ * O COALESCE existe por um detalhe de SQL que morde em silêncio: em SQLite,
+ * `NULL NOT LIKE 'x'` é NULL, não verdadeiro, e a linha CAI do resultado. Sem
+ * ele, toda sessão sem IP registrado sumiria da conta — cortando visitante
+ * real, que é exatamente o erro que este filtro existe para não cometer. Hoje
+ * não há nenhuma (medido em 09/09: 0 de 14.371 sessões em 30 dias), mas o
+ * middleware grava '' quando o header falta, então a garantia fica no código
+ * em vez de depender do dado continuar limpo.
+ *
+ * O IPv6 é comparado pelo prefixo cru, sem a normalização do prefixo64(): o
+ * LIKE não sabe expandir "::". Se o mesmo bloco chegar escrito de outro jeito,
+ * o filtro deixa passar em vez de cortar — falha segura, do mesmo lado de
+ * sempre (bot contado se conserta, visitante cortado não).
+ */
+export function clausulasBotIpSql(alias) {
+  const col = `COALESCE(${alias}.ip_address, '')`;
+  return IPS_DE_BOT
+    .map((r) => {
+      if (r.exato) return `AND ${col} <> '${r.exato}'`;
+      if (r.prefixo24) return `AND ${col} NOT LIKE '${r.prefixo24}.%'`;
+      return `AND ${col} NOT LIKE '${r.prefixo64}:%'`;
+    })
+    .join('\n');
+}
+
 export function detectBot(userAgent) {
   if (!userAgent || userAgent.length < 10) {
     return { isBot: true, botReason: 'Missing or short user-agent' };

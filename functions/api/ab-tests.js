@@ -9,7 +9,7 @@
 // sessions.landing_url: o denominador do teste é quem foi SORTEADO.
 
 import { avaliarTeste } from './_ab-estatistica.js';
-import { clausulasBotSql } from '../_bots.js';
+import { clausulasBotSql, clausulasBotIpSql } from '../_bots.js';
 import { invalidarCacheAb, normalizarPath } from '../_ab-consulta.js';
 
 // Menos que isso não é teste, é chute: com 14 dias e 60 leads por variante já
@@ -70,6 +70,7 @@ export async function onRequestGet(context) {
     WHERE a.is_preview = 0
       AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
       ${clausulasBotSql('s')}
+      ${clausulasBotIpSql('s')}
     GROUP BY a.test_id, a.variante
   `).all();
 
