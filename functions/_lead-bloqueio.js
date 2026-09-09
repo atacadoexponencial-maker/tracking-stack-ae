@@ -1,3 +1,5 @@
+import { prefixo64 } from './_ip.js';
+
 // Regras de bloqueio de lead falso, num lugar só.
 //
 // Mesmo padrão do _bots.js: prefixo "_" para o Cloudflare Pages não transformar
@@ -41,29 +43,6 @@ const REGRAS_IP = [
   },
 ];
 
-/**
- * Prefixo /64 normalizado de um IPv6 (os 4 primeiros hextets, sem zeros à
- * esquerda, minúsculo), ou '' para IPv4 e para qualquer forma que não dê para
- * comparar com segurança.
- *
- * Normaliza porque o mesmo bloco pode chegar escrito de mais de um jeito
- * ("...:7058::200" e "...:7058:0:0:0:200"); comparar as strings cruas deixaria
- * a regra passar dependendo de como o proxy resolveu abreviar.
- *
- * Um "::" nos 4 primeiros hextets significa que o prefixo foi comprimido e não
- * dá para saber quantos grupos ele engoliu — nesse caso devolve '' e o IP
- * passa. Regra de bloqueio que chuta erra contra o lead real.
- */
-function prefixo64(ip) {
-  const s = (ip || '').trim().toLowerCase();
-  if (!s.includes(':')) return '';           // IPv4
-  if (s.startsWith('::')) return '';         // prefixo comprimido: indecidível
-  const grupos = s.split(':');
-  if (grupos.length < 4) return '';
-  const quatro = grupos.slice(0, 4);
-  if (quatro.some((g) => g === '')) return ''; // "::" caiu dentro do prefixo
-  return quatro.map((g) => g.replace(/^0+(?=.)/, '')).join(':');
-}
 
 /**
  * Devolve o motivo do bloqueio, ou string vazia se o lead está liberado.

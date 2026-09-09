@@ -1,5 +1,6 @@
 import { escolherVariante } from './_ab-sorteio.js';
 import { carregarTestesAtivos, normalizarPath } from './_ab-consulta.js';
+import { detectBotPorIp } from './_bots.js';
 
 export async function onRequest(context) {
   const { request, next, env } = context;
@@ -212,13 +213,30 @@ export async function onRequest(context) {
   });
 
   // --- D1 UPSERT (background, non-blocking) ---
-  // Não gravar sessão quando a página respondida é 404: scanners de
+  // Não gravar sessão quando a página respondida é 404 ou 405: scanners de
   // vulnerabilidade varrem paths inexistentes (/wp-admin, /.env, /.git/HEAD...)
   // e tomam 404 em massa — não devem virar linhas lixo em `sessions`.
-  // Somente 404 é excluído; 500 e afins continuam gravando (visitante real
-  // com erro transitório ainda merece atribuição). Cookies já foram setados
-  // acima, então o mesmo _krob_sid cria a sessão se ele navegar p/ página real.
-  if (response.status !== 404) {
+  //
+  // O 405 entrou em 09/09/2026, junto do corte por IP abaixo. A guarda nasceu
+  // olhando só 404 e o scanner de WordPress passou por baixo dela: ele faz
+  // POST em wp-json/batch/v1, e um POST para path inexistente responde 405,
+  // não 404 — foi assim que /wp/, /blog/ e /wordpress/, que NÃO existem neste
+  // site, apareceram como landing_url de sessão real. Método não permitido
+  // nunca é navegação de gente; não há atribuição a preservar.
+  //
+  // 500 e afins continuam gravando (visitante real com erro transitório ainda
+  // merece atribuição). Cookies já foram setados acima, então o mesmo
+  // _krob_sid cria a sessão se ele navegar p/ página real.
+  //
+  // O corte por IP é o outro lado: os bots que sobraram pedem páginas que
+  // EXISTEM (a home, a LP da live) e respondem 200, então nenhuma guarda de
+  // status os pega. Ver a lista e a medição que a motivou em _bots.js.
+  const botPorIp = detectBotPorIp(clientIp);
+  if (botPorIp.isBot) {
+    console.log('Sessão não gravada —', botPorIp.botReason, '|', url.pathname);
+  }
+  const rotaInexistente = response.status === 404 || response.status === 405;
+  if (!rotaInexistente && !botPorIp.isBot) {
     context.waitUntil(
       (async () => {
         try {

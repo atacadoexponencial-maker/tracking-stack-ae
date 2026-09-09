@@ -1,6 +1,6 @@
 import { FUNIL_MATERIAIS, materialPorSlug } from '../src/data/materiais.js';
 import { sha256, normalizePhone, normalizeName } from './api/_hash.js';
-import { detectBot } from './_bots.js';
+import { detectBot, detectBotPorIp } from './_bots.js';
 import { motivoBloqueio } from './_lead-bloqueio.js';
 import {
   CU_FIELD,
@@ -90,7 +90,15 @@ export async function onRequestPost(context) {
     const hashedExternalId = await sha256(externalId);
 
     // --- Bot detection ---
-    const { isBot, botReason } = detectBot(userAgent);
+    // Duas perguntas, uma resposta: o UA pega quem se identifica como crawler,
+    // o IP pega o script que se disfarça de Chrome. O UA vem primeiro para que
+    // um Googlebot continue registrado como 'Googlebot' e não pelo motivo do
+    // IP, caso um dia os dois casem — o motivo específico é o mais útil no
+    // event_log. Lista e medição em _bots.js.
+    const porUa = detectBot(userAgent);
+    const porIp = porUa.isBot ? { isBot: false, botReason: '' } : detectBotPorIp(clientIp);
+    const isBot = porUa.isBot || porIp.isBot;
+    const botReason = porUa.botReason || porIp.botReason;
 
     // --- Bloqueio de lead falso ---
     // Complementa o detectBot: aquele julga o User-Agent e pega crawler que se
