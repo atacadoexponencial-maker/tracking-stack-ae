@@ -23,15 +23,16 @@ import { inscreverComTag } from '../_manychat.js';
 import { normalizePhone } from '../_hash.js';
 
 // ID da tag do ManyChat que marca o comprador desta EDIÇÃO — a tag
-// `compradores_wopago-0909`, conferida na conta em 2026-08-13. É ela que dispara
-// o fluxo de WhatsApp lá dentro.
+// `compradores-wopago-2309` (edição de 23/09), criada na conta em 2026-09-14.
+// A anterior era `compradores_wopago-0909` (94144582). É ela que dispara o
+// fluxo de WhatsApp lá dentro.
 //
 // A API exige o ID numérico; o nome não serve. Para descobrir o de uma tag nova:
 //   GET https://api.manychat.com/fb/page/getTags  (header Authorization: Bearer)
 //
-// Muda JUNTO com TAG_EDICAO quando a turma virar: as duas nomeiam a mesma
-// edição em sistemas diferentes.
-const MANYCHAT_TAG_ID = 94144582;
+// Costuma mudar junto com TAG_EDICAO quando a turma vira. Em 2026-09-14 só a
+// do ManyChat foi trocada, a pedido da usuária; TAG_EDICAO segue `wo-pago-09-09`.
+const MANYCHAT_TAG_ID = 96512510;
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
