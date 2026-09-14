@@ -36,16 +36,38 @@ export async function onRequestPost(context) {
 
   // Status novo vem no history_items (after.status). Fallback: consulta a task.
   let status = '';
+  let item = null;
   for (const h of payload.history_items || []) {
-    if (h.field === 'status' && h.after) { status = (h.after.status || '').toLowerCase(); break; }
+    if (h.field === 'status' && h.after) { status = (h.after.status || '').toLowerCase(); item = h; break; }
   }
   const taskId = String(payload.task_id);
 
+  // Identidade e instante REAL da mudança de estágio (revisão 2026-09-13). O
+  // ClickUp retenta entregas e não garante ordem: sem o id do history_item, a
+  // reentrega virava segunda linha; sem a data dele, o funil ordenava por
+  // recebido_em e uma reentrega atrasada "voltava" o card de estágio. `date`
+  // vem em milissegundos como string. INSERT OR IGNORE contra o UNIQUE de
+  // hist_id (0037) faz a reentrega ser no-op; linhas sem history_item (hist_id
+  // NULL) continuam entrando, pois NULL não colide em UNIQUE.
+  //
+  // Quem LÊ crm_status_log (crm-funnel/leads) deve ordenar por
+  // COALESCE(hist_date, recebido_em) — leitura é de outra frente.
+  const histItem = item || (payload.history_items || [])[0] || null;
+  const histId = histItem && histItem.id ? String(histItem.id) : null;
+  const histDateMs = histItem ? Number(histItem.date) : NaN;
+  const histDate = Number.isFinite(histDateMs) && histDateMs > 0 ? Math.floor(histDateMs / 1000) : null;
+
+  let gravouNovo = true;
   if (status) {
-    await env.DB.prepare(
-      `INSERT INTO crm_status_log (task_id, status, recebido_em) VALUES (?, ?, strftime('%s','now'))`
-    ).bind(taskId, status).run();
+    const r = await env.DB.prepare(
+      `INSERT OR IGNORE INTO crm_status_log (task_id, status, recebido_em, hist_id, hist_date)
+       VALUES (?, ?, strftime('%s','now'), ?, ?)`
+    ).bind(taskId, status, histId, histDate).run();
+    gravouNovo = !histId || !!(r && r.meta && r.meta.changes);
   }
+
+  // Reentrega do mesmo history_item: nada novo aconteceu, não reprocessa a venda.
+  if (!gravouNovo) return json({ ok: true, dedup: true, hist_id: histId });
 
   if (status === STATUS_VENDA) {
     // Processa em background — resposta rápida ao ClickUp.
@@ -65,6 +87,19 @@ async function processarVenda(taskId, env, context) {
 
     const campo = (id) => (task.custom_fields || []).find((f) => f.id === id);
     const arrecadado = Number((campo(CAMPO_ARRECADADO) || {}).value || 0);
+
+    // Card em "contrato assinado" com 💰 Arrecadado vazio ou zero: acontece
+    // quando o comercial move o card antes de preencher o valor (e o webhook
+    // não dispara de novo quando o valor é preenchido depois). Gravar isso
+    // criava uma compra de R$ 0 no purchase_log/Receita e um Purchase de valor
+    // 0 na Meta — que polui o ROAS sem somar nada. E, como transaction_id é
+    // `clickup:<task>`, a dedup do _core barraria a venda REAL quando o valor
+    // fosse acertado e o card passasse de novo pelo estágio. Não grava nada.
+    if (!(arrecadado > 0)) {
+      console.error('clickup venda ignorada: 💰 Arrecadado vazio ou zero na task', taskId);
+      return;
+    }
+
     const email = String((campo(CAMPO_EMAIL) || {}).value || '').trim().toLowerCase();
     const phone = String((campo(CAMPO_WHATSAPP) || {}).value || '').trim();
     const funilField = campo(CAMPO_FUNIL);

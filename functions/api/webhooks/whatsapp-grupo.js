@@ -13,6 +13,7 @@
 // Evolution não pode ficar pendurada por causa daqui.
 
 import { classificarEvento } from './_classificar.js';
+import { telefoneDoJid } from '../_grupo-conversao.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -90,7 +91,14 @@ export async function onRequestPost(context) {
   }
 
   await env.DB.batch(stmts);
-  return json({ ok: true, status: 'gravado', linhas: evento.linhas.length });
+
+  // Quantas linhas vieram SEM telefone (só "@lid"): a partir de 2026-09-09 a
+  // Evolution passou a mandar participante sem phoneNumber com frequência, e
+  // essas entradas contam na aba Grupos mas nunca viram conversão EntrouGrupo
+  // nem cruzam com lead. Devolver o número aqui é o que deixa o n8n/log
+  // mostrar quando isso vira regra em vez de exceção.
+  const semTelefone = evento.linhas.filter((l) => !telefoneDoJid(l.participantJid)).length;
+  return json({ ok: true, status: 'gravado', linhas: evento.linhas.length, sem_telefone: semTelefone });
 }
 
 function json(data, status = 200) {

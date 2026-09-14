@@ -45,12 +45,18 @@ export async function onRequestGet(context) {
       if (s && s.external_id) externalIds.add(s.external_id);
     }
 
+    // `event_name = 'Lead'` literal (sem lower()) nas duas consultas por e-mail:
+    // é o que deixa o SQLite entrar pelo índice idx_event_log_lead_email
+    // (event_name, raw_email) da migration 0037. Com `lower(event_name)` a
+    // função esconde a coluna e a jornada varria o event_log inteiro DUAS
+    // vezes por clique numa linha de lead. O tracker grava sempre 'Lead'.
     if (email) {
       const linked = await env.DB.prepare(`
         SELECT DISTINCT s.external_id
         FROM event_log e
         JOIN sessions s ON e.session_id = s.session_id
-        WHERE e.raw_email = ? AND s.external_id IS NOT NULL AND s.external_id != ''
+        WHERE e.event_name = 'Lead' AND e.raw_email = ?
+          AND s.external_id IS NOT NULL AND s.external_id != ''
       `).bind(email).all();
       for (const r of linked.results || []) if (r.external_id) externalIds.add(r.external_id);
     }
@@ -78,7 +84,7 @@ export async function onRequestGet(context) {
       const l = await env.DB.prepare(`
         SELECT event_name, timestamp, raw_email, meta_response_ok
         FROM event_log
-        WHERE raw_email = ? AND lower(event_name) = 'lead'
+        WHERE event_name = 'Lead' AND raw_email = ?
         ORDER BY timestamp ASC
       `).bind(email).all();
       leads = l.results || [];

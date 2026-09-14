@@ -1,6 +1,15 @@
 // GET /api/revenue?key=...&days=30
 // Returns: { gross, sales, aov, currency, time_series: [{date, revenue, sales}] }
 // Source: purchase_log (one row per successful purchase)
+//
+// A série diária é agrupada pelo dia de BRASÍLIA (revisão de 13/09/2026):
+// `date(created_at, 'unixepoch', '-3 hours')`. Antes era o dia UTC, e uma venda
+// às 22h de sexta aparecia no gráfico no sábado. Feito no SQL, e não em JS,
+// porque a consulta já agrupa por dia — reagrupar em JS seria pagar a mesma
+// conta duas vezes. O deslocamento é fixo porque o Brasil não tem horário de
+// verão desde 2019 (mesmo pressuposto de _data-brt.js e _classificar.js).
+
+import { respostaJson, respostaEmCache } from './_cache.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -15,6 +24,10 @@ export async function onRequestGet(context) {
   // Período: intervalo explícito (from/to em unix) tem prioridade; senão, últimos `days`.
   const { since, until } = resolvePeriod(url, days);
 
+  // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
+  const emCache = await respostaEmCache(request, { until });
+  if (emCache) return emCache;
+
   try {
     const totals = await env.DB.prepare(`
       SELECT
@@ -28,23 +41,23 @@ export async function onRequestGet(context) {
 
     const series = await env.DB.prepare(`
       SELECT
-        date(created_at, 'unixepoch') as date,
+        date(created_at, 'unixepoch', '-3 hours') as date,
         COALESCE(SUM(value), 0) as revenue,
         COUNT(*) as sales
       FROM purchase_log
       WHERE created_at >= ? AND created_at <= ?
-      GROUP BY date(created_at, 'unixepoch')
+      GROUP BY date(created_at, 'unixepoch', '-3 hours')
       ORDER BY date ASC
     `).bind(since, until).all();
 
-    return json({
+    return respostaJson(request, {
       gross: Number(totals?.gross || 0),
       sales: Number(totals?.sales || 0),
       aov: Number(totals?.aov || 0),
       currency: totals?.currency || 'BRL',
       days,
       time_series: series.results || [],
-    });
+    }, { until, context });
   } catch (err) {
     return json({ error: err.message }, 500);
   }

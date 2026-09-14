@@ -11,6 +11,8 @@
 // SQL safety: dimension and filter names are strictly allowlisted before use
 // so they can be interpolated into the query without injection risk.
 
+import { respostaJson, respostaEmCache } from './_cache.js';
+
 const ALLOWED_DIMENSIONS = new Set([
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
 ]);
@@ -31,6 +33,10 @@ export async function onRequestGet(context) {
 
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
   const { since, until } = resolvePeriod(url, days);
+
+  // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
+  const emCache = await respostaEmCache(request, { until });
+  if (emCache) return emCache;
 
   // Build cascading filters from any other utm_* query params.
   const filterClauses = [];
@@ -66,12 +72,12 @@ export async function onRequestGet(context) {
 
   try {
     const rows = await env.DB.prepare(query).bind(since, until, ...filterBindings).all();
-    return json({
+    return respostaJson(request, {
       dimension,
       days,
       filters: activeFilters,
       rows: rows.results || [],
-    });
+    }, { until, context });
   } catch (err) {
     return json({ error: err.message }, 500);
   }

@@ -4,6 +4,11 @@
 //   time_series: [{date, product_id, product_name, sales, revenue}],
 // }
 // Source: purchase_items (one row per line item in a purchase).
+//
+// Série diária pelo dia de Brasília (`'-3 hours'` no SQL), pelo mesmo motivo
+// e com a mesma justificativa de revenue.js.
+
+import { respostaJson, respostaEmCache } from './_cache.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -16,6 +21,10 @@ export async function onRequestGet(context) {
 
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
   const { since, until } = resolvePeriod(url, days);
+
+  // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
+  const emCache = await respostaEmCache(request, { until });
+  if (emCache) return emCache;
 
   try {
     const products = await env.DB.prepare(`
@@ -34,22 +43,22 @@ export async function onRequestGet(context) {
 
     const series = await env.DB.prepare(`
       SELECT
-        date(created_at, 'unixepoch') as date,
+        date(created_at, 'unixepoch', '-3 hours') as date,
         product_id,
         COALESCE(MAX(product_name), product_id) as product_name,
         COUNT(*) as sales,
         COALESCE(SUM(value), 0) as revenue
       FROM purchase_items
       WHERE created_at >= ? AND created_at <= ?
-      GROUP BY date(created_at, 'unixepoch'), product_id
+      GROUP BY date(created_at, 'unixepoch', '-3 hours'), product_id
       ORDER BY date ASC
     `).bind(since, until).all();
 
-    return json({
+    return respostaJson(request, {
       days,
       products: products.results || [],
       time_series: series.results || [],
-    });
+    }, { until, context });
   } catch (err) {
     return json({ error: err.message }, 500);
   }

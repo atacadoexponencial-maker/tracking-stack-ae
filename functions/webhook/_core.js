@@ -61,8 +61,35 @@ export async function processPurchase({ parsed, env, context }) {
     }
   }
 
+  // Dedup ANTES do fan-out (revisão 2026-09-13). O índice único em
+  // purchase_log.transaction_id (0012) já barrava a segunda LINHA, mas só no
+  // final — Meta, GA4, Google Ads, Encharge e ManyChat já tinham recebido a
+  // compra de novo quando a plataforma reentregava o webhook (Kiwify retenta
+  // agressivamente; um card do ClickUp pode voltar a "contrato assinado").
+  // Uma leitura pelo índice, e a reentrega vira no-op.
+  if (parsed.transactionId && env.DB) {
+    try {
+      const existente = await env.DB.prepare(
+        'SELECT 1 FROM purchase_log WHERE transaction_id = ? LIMIT 1'
+      ).bind(parsed.transactionId).first();
+      if (existente) {
+        return { dedup: true, eventId: null, handlers: [] };
+      }
+    } catch (e) {
+      // Falha na checagem não pode engolir uma venda real: segue como nova e o
+      // índice único continua sendo a última barreira contra a linha dupla.
+      console.error('D1 purchase dedup lookup error:', e.message);
+    }
+  }
+
   const enriched = { ...parsed, productConfig, checkoutData };
-  const eventId = crypto.randomUUID();
+  // event_id determinístico por transação: se a reentrega passar pela dedup
+  // acima (ex.: D1 fora do ar naquele instante), o Meta ainda reconhece o
+  // mesmo acontecimento e não conta duas compras. Adaptador que já tenha um id
+  // determinístico próprio pode mandá-lo em parsed.eventId; sem transação
+  // (não deveria acontecer) cai no aleatório de antes.
+  const eventId = parsed.eventId
+    || (parsed.transactionId ? `purchase:${parsed.transactionId}` : crypto.randomUUID());
   const eventTime = Math.floor(Date.now() / 1000);
 
   // Fan out to handlers. Each wraps its own errors so one failing handler

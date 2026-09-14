@@ -38,6 +38,19 @@ export async function onRequestPost(context) {
     const cookies = parseCookies(request.headers.get('Cookie') || '');
     const userData = body.user_data || {};
 
+    // --- event_time confiável ---
+    // O front manda `Date.now()` do navegador, e relógio de celular erra: foram
+    // vistos eventos com horas de diferença, que o Meta recusa (evento "no
+    // futuro" ou mais velho que 7 dias) e que caem no dia errado do dash. O
+    // valor vira `body.event_time` de volta para que sendToMeta/GA4 e o
+    // event_log leiam o MESMO instante sem cada um refazer a conta. Janela de
+    // 5 min para trás (latência real de rede/JS) e 1 min para frente (skew).
+    const agora = Math.floor(Date.now() / 1000);
+    const eventTimeCru = Number(body.event_time);
+    body.event_time = Number.isFinite(eventTimeCru)
+      ? Math.min(Math.max(Math.trunc(eventTimeCru), agora - 300), agora + 60)
+      : agora;
+
     // --- Session enrichment from D1 ---
     let sessionData = {};
     const sessionId = cookies['_krob_sid'] || '';
@@ -124,6 +137,39 @@ export async function onRequestPost(context) {
     // existem (a pessoa apenas começou a digitar).
     const nomeEvento = (body.event_name || '').toLowerCase();
     const ehEventoInterno = EVENTOS_INTERNOS.has(nomeEvento);
+    const ehLead = nomeEvento === 'lead';
+
+    // --- Dedup de Lead por event_id (13/09/2026) ---
+    // Clique duplo, reenvio por lentidão e o retry do próprio navegador mandam
+    // o MESMO event_id duas vezes. O Meta deduplica sozinho; ClickUp, GHL,
+    // Supabase e o barramento de WhatsApp não — o comercial recebia dois
+    // avisos e o card ganhava um "Lead voltou ao CRM" que nunca aconteceu.
+    // Uma leitura pelo índice idx_event_log_event_id (migration 0037) antes
+    // de qualquer fan-out; se já existe, responde como se tivesse feito tudo
+    // (inclusive o redirect, porque o clique duplicado também quer navegar).
+    //
+    // Só Lead, de propósito: os eventos internos (CTAClick/FormStep) já são a
+    // maioria das escritas do event_log e não têm fan-out nenhum — checar cada
+    // um dobraria as operações no D1 para evitar uma linha repetida que o
+    // funil de micro-conversões conta por sessão, não por linha. O índice não
+    // é UNIQUE (o D1 já tinha 2 event_id repetidos em 13/09), então a garantia
+    // é esta leitura, e não o banco.
+    if (ehLead && body.event_id && env.DB) {
+      let repetido = null;
+      try {
+        repetido = await env.DB.prepare('SELECT 1 AS um FROM event_log WHERE event_id = ? LIMIT 1')
+          .bind(body.event_id).first();
+      } catch (e) {
+        // D1 fora não pode segurar o lead: sem resposta, segue como inédito.
+        console.error('Dedup lookup error:', e.message);
+      }
+      if (repetido) {
+        return new Response(JSON.stringify({ ok: true, dedup: true, redirect: resolverRedirectDoLead(body, env) }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     // Funil efetivo do evento (mesma regra do dashboard): o funil declarado pelo
     // formulário NESTE evento tem prioridade; cai para o funil da sessão.
@@ -211,6 +257,82 @@ export async function onRequestPost(context) {
       throttleKey: 'meta_capi_2', label: 'Meta CAPI (pixel 2)',
     }));
 
+    // --- Log to D1 ---
+    // Skip PageView: conversions fire regardless of this log, and the health
+    // dashboard only reports Lead/Purchase. Dropping PageView cuts ~70% of
+    // event_log writes so per-instance D1 stays healthy long-term.
+    //
+    // Este bloco vinha DEPOIS do fan-out de CRM e rodava em background; desde
+    // 13/09/2026 vem antes, e para Lead é AGUARDADO. É o par do dedup lá em
+    // cima: a linha do event_log é o que o próximo pedido com o mesmo event_id
+    // vai encontrar, então ela precisa existir antes de o ClickUp/GHL/CRM
+    // serem acionados — senão dois cliques a 200 ms de distância passam os
+    // dois pelo SELECT e o fan-out dobra. Fica DEPOIS do Meta/GA4 porque a
+    // linha guarda a resposta deles. Custa uma escrita a mais na latência do
+    // Lead (dezenas de ms); os demais eventos seguem em waitUntil.
+    const loggedEventName = nomeEvento;
+    const shouldLogEvent = loggedEventName !== 'pageview' && loggedEventName !== 'page_view';
+    const browserInfo = parseBrowser(userAgent);
+    // Funil declarado pelo formulário NESTE evento (não o da sessão). É o que o
+    // dashboard usa para categorizar o lead — imune a `&funnel=` errado na URL
+    // do anúncio ou a cookie reaproveitado entre funis. Vazio em eventos sem
+    // lead_data (ex.: InitiateCheckout).
+    const loggedFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
+    // Slug do material rico baixado (issue 148). Todas as iscas do ManyChat
+    // compartilham o funil 'iscas-manychat', então é esta coluna que distingue
+    // uma da outra no dashboard. Vazio nos demais funis e em eventos sem
+    // lead_data — mesmo tratamento do funil acima.
+    const loggedMaterial = ((body.lead_data && body.lead_data.material) || '').toLowerCase().trim();
+    // Etapa concluída num formulário multi-etapas (migration 0034). Só o
+    // `FormStep` carrega isso; em todo o resto fica NULL — inclusive no
+    // histórico anterior à coluna, que é o correto: não havia etapa a registrar.
+    const loggedStep =
+      loggedEventName === 'formstep' && Number.isFinite(Number(body.step))
+        ? Math.trunc(Number(body.step))
+        : null;
+    // Testes internos saem das métricas do dash já na entrada (migration 0022).
+    // Só afeta CONTAGEM: o lead segue normalmente para ClickUp/CRM/Meta, para o
+    // teste continuar exercitando o pipeline inteiro de ponta a ponta.
+    //
+    // Lead bloqueado também sai da contagem, mas por outro motivo e com outro
+    // efeito: ele NÃO seguiu para destino nenhum. As duas condições dividem a
+    // coluna porque o dash faz a mesma pergunta às duas ("isto conta como
+    // lead?"), e a resposta é não nos dois casos.
+    const isJunk = (isInternalTestEmail(rawEmail) || bloqueado) ? 1 : 0;
+    const gravarEventLog = (async () => {
+        try {
+          if (env.DB && shouldLogEvent) {
+            await env.DB.prepare(`
+              INSERT INTO event_log (
+                session_id, event_name, event_id, timestamp,
+                browser, browser_version, os, is_mobile,
+                pixel_was_blocked, fbp_source, fbc_source, fbclid_source,
+                ga_cookie_present, ga_client_id_fallback, itp_cookie_extended,
+                is_bot, bot_reason, consent_status,
+                sent_to_meta, meta_status_code, meta_response_ok, meta_response_body, meta_payload_sent,
+                sent_to_ga4, ga4_status_code, ga4_response_ok, ga4_response_body, ga4_payload_sent,
+                has_email, has_phone, has_name,
+                raw_email, funnel, is_junk, material, step
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+              sessionId, body.event_name, body.event_id, body.event_time,
+              browserInfo.browser, browserInfo.version, browserInfo.os, browserInfo.isMobile ? 1 : 0,
+              pixelWasBlocked, fbpSource, fbcSource, fbclidSource,
+              gaCookiePresent, gaClientIdFallback, fbpSource === 'middleware_http' ? 1 : 0,
+              isBot ? 1 : 0, botReason, body.consent_status || 'unknown',
+              (isBot || ehEventoInterno || bloqueado) ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
+              (isBot || ehEventoInterno || bloqueado) ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
+              hashedEm ? 1 : 0, hashedPh ? 1 : 0, (hashedFn || hashedLn) ? 1 : 0,
+              rawEmail, loggedFunnel, isJunk, loggedMaterial, loggedStep
+            ).run();
+          }
+        } catch (e) {
+          console.error('D1 log error:', e.message);
+        }
+      })();
+    if (ehLead) await gravarEventLog;
+    else context.waitUntil(gravarEventLog);
+
     // --- Encaminhar lead ao CRM (fan-out desacoplado; destino trocável) ---
     // O site fala apenas com /tracker. O destino do CRM (n8n hoje, que leva
     // ao ClickUp) vem de env e pode ser trocado/removido sem alterar o front.
@@ -255,12 +377,15 @@ export async function onRequestPost(context) {
       // filtro de funil no dashboard. A sessão já existe (criada pelo middleware
       // no pageview). Só preenche se ainda estiver vazio: preserva o first-touch
       // de um eventual ?funnel= já capturado e não sobrescreve em re-submits.
+      // A condição vai no WHERE, e não num CASE no SET: com o CASE o SQLite
+      // reescrevia a linha mesmo quando nada mudava (uma escrita por lead
+      // devolvida como "0 mudanças" só no nome); com o WHERE é no-op de verdade.
       const declaredFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
       if (declaredFunnel && sessionId && env.DB) {
         context.waitUntil((async () => {
           try {
             await env.DB.prepare(
-              `UPDATE sessions SET funnel = CASE WHEN funnel IS NULL OR funnel = '' THEN ? ELSE funnel END WHERE session_id = ?`
+              `UPDATE sessions SET funnel = ? WHERE session_id = ? AND (funnel IS NULL OR funnel = '')`
             ).bind(declaredFunnel, sessionId).run();
           } catch (e) {
             console.error('Funnel persist error:', e.message);
@@ -268,73 +393,6 @@ export async function onRequestPost(context) {
         })());
       }
     }
-
-    // --- Log to D1 (background) ---
-    // Skip PageView: conversions fire regardless of this log, and the health
-    // dashboard only reports Lead/Purchase. Dropping PageView cuts ~70% of
-    // event_log writes so per-instance D1 stays healthy long-term.
-    const loggedEventName = nomeEvento;
-    const shouldLogEvent = loggedEventName !== 'pageview' && loggedEventName !== 'page_view';
-    const browserInfo = parseBrowser(userAgent);
-    // Funil declarado pelo formulário NESTE evento (não o da sessão). É o que o
-    // dashboard usa para categorizar o lead — imune a `&funnel=` errado na URL
-    // do anúncio ou a cookie reaproveitado entre funis. Vazio em eventos sem
-    // lead_data (ex.: InitiateCheckout).
-    const loggedFunnel = ((body.lead_data && body.lead_data.funnel) || '').toLowerCase().trim();
-    // Slug do material rico baixado (issue 148). Todas as iscas do ManyChat
-    // compartilham o funil 'iscas-manychat', então é esta coluna que distingue
-    // uma da outra no dashboard. Vazio nos demais funis e em eventos sem
-    // lead_data — mesmo tratamento do funil acima.
-    const loggedMaterial = ((body.lead_data && body.lead_data.material) || '').toLowerCase().trim();
-    // Etapa concluída num formulário multi-etapas (migration 0034). Só o
-    // `FormStep` carrega isso; em todo o resto fica NULL — inclusive no
-    // histórico anterior à coluna, que é o correto: não havia etapa a registrar.
-    const loggedStep =
-      loggedEventName === 'formstep' && Number.isFinite(Number(body.step))
-        ? Math.trunc(Number(body.step))
-        : null;
-    // Testes internos saem das métricas do dash já na entrada (migration 0022).
-    // Só afeta CONTAGEM: o lead segue normalmente para ClickUp/CRM/Meta, para o
-    // teste continuar exercitando o pipeline inteiro de ponta a ponta.
-    //
-    // Lead bloqueado também sai da contagem, mas por outro motivo e com outro
-    // efeito: ele NÃO seguiu para destino nenhum. As duas condições dividem a
-    // coluna porque o dash faz a mesma pergunta às duas ("isto conta como
-    // lead?"), e a resposta é não nos dois casos.
-    const isJunk = (isInternalTestEmail(rawEmail) || bloqueado) ? 1 : 0;
-    context.waitUntil(
-      (async () => {
-        try {
-          if (env.DB && shouldLogEvent) {
-            await env.DB.prepare(`
-              INSERT INTO event_log (
-                session_id, event_name, event_id, timestamp,
-                browser, browser_version, os, is_mobile,
-                pixel_was_blocked, fbp_source, fbc_source, fbclid_source,
-                ga_cookie_present, ga_client_id_fallback, itp_cookie_extended,
-                is_bot, bot_reason, consent_status,
-                sent_to_meta, meta_status_code, meta_response_ok, meta_response_body, meta_payload_sent,
-                sent_to_ga4, ga4_status_code, ga4_response_ok, ga4_response_body, ga4_payload_sent,
-                has_email, has_phone, has_name,
-                raw_email, funnel, is_junk, material, step
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).bind(
-              sessionId, body.event_name, body.event_id, body.event_time,
-              browserInfo.browser, browserInfo.version, browserInfo.os, browserInfo.isMobile ? 1 : 0,
-              pixelWasBlocked, fbpSource, fbcSource, fbclidSource,
-              gaCookiePresent, gaClientIdFallback, fbpSource === 'middleware_http' ? 1 : 0,
-              isBot ? 1 : 0, botReason, body.consent_status || 'unknown',
-              (isBot || ehEventoInterno || bloqueado) ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
-              (isBot || ehEventoInterno || bloqueado) ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
-              hashedEm ? 1 : 0, hashedPh ? 1 : 0, (hashedFn || hashedLn) ? 1 : 0,
-              rawEmail, loggedFunnel, isJunk, loggedMaterial, loggedStep
-            ).run();
-          }
-        } catch (e) {
-          console.error('D1 log error:', e.message);
-        }
-      })()
-    );
 
     // --- Guarda o lead barrado, inteiro, para poder devolvê-lo ---
     // Só para eventos de Lead: é o único que carrega o payload que o comercial
@@ -381,37 +439,9 @@ export async function onRequestPost(context) {
     // demais ao agendamento (Calendly). O funil das iscas do ManyChat entrega o
     // próprio material, resolvido pelo slug no catálogo src/data/materiais.js.
     // Destinos por env (exceto as iscas). O front só executa o redirect.
-    let leadRedirect = null;
-    const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
-    if ((body.event_name || '').toLowerCase() === 'lead') {
-      if (leadFunnel === 'workshop') {
-        leadRedirect = env.LEAD_REDIRECT_WORKSHOP || '/video-workshop-instagram';
-      } else if (leadFunnel === 'lives-semanais-v1') {
-        leadRedirect = env.LEAD_REDIRECT_LIVE || '/obrigada';
-      } else if (leadFunnel === FUNIL_MATERIAIS) {
-        // Iscas do ManyChat (issue 147): o destino é o arquivo do material que a
-        // pessoa pediu, resolvido pelo slug no catálogo — o front nunca conhece
-        // o link. Slug ausente ou fora do catálogo cai em /obrigada em vez de
-        // devolver null e deixar o lead numa tela morta.
-        const material = materialPorSlug(body.lead_data?.material);
-        leadRedirect = material ? material.destino : '/obrigada';
-      } else if (leadFunnel === 'trafego-atacado') {
-        // Roteia pelo texto da faixa (mesmo padrão do faturamento abaixo).
-        // Investimento vazio cai no Calendly — não perde lead qualificado.
-        const investimento = (body.lead_data?.investimento || '').toLowerCase();
-        const baixoInvestimento =
-          investimento.includes('não invisto') || investimento.includes('até r$ 1.500');
-        leadRedirect = baixoInvestimento
-          ? (env.LEAD_REDIRECT_WHATSAPP_TRAFEGO || env.LEAD_REDIRECT_WHATSAPP || '')
-          : (env.LEAD_REDIRECT_CALENDLY_TRAFEGO || 'https://calendly.com/gruposete/aplicacao-trafego-pago');
-      } else {
-        const faturamento = (body.lead_data?.faturamento || '').toLowerCase();
-        const baixoTicket = faturamento.includes('menos de 20');
-        leadRedirect = baixoTicket
-          ? (env.LEAD_REDIRECT_WHATSAPP || '')
-          : (env.LEAD_REDIRECT_CALENDLY || '');
-      }
-    }
+    // A regra vive em resolverRedirectDoLead() porque a resposta de dedup (lá
+    // em cima) precisa do mesmo destino: o clique duplicado também navega.
+    const leadRedirect = resolverRedirectDoLead(body, env);
 
     return new Response(JSON.stringify({ ok: true, redirect: leadRedirect }), {
       status: 200,
@@ -451,6 +481,43 @@ export function isInternalTestEmail(email) {
 // ao pixel poluiria a otimização das campanhas, e ao CRM criaria lead de quem
 // ainda nem terminou de digitar.
 const EVENTOS_INTERNOS = new Set(['formstart', 'ctaclick', 'formstep']);
+
+// Destino pós-captação de um evento de Lead (null para os demais eventos).
+// Pura: só lê body e env, sem D1 — por isso serve tanto à resposta normal
+// quanto à de dedup. O texto explicando cada rota está no ponto de chamada.
+function resolverRedirectDoLead(body, env) {
+  if ((body.event_name || '').toLowerCase() !== 'lead') return null;
+  const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
+  if (leadFunnel === 'workshop') {
+    return env.LEAD_REDIRECT_WORKSHOP || '/video-workshop-instagram';
+  }
+  if (leadFunnel === 'lives-semanais-v1') {
+    return env.LEAD_REDIRECT_LIVE || '/obrigada';
+  }
+  if (leadFunnel === FUNIL_MATERIAIS) {
+    // Iscas do ManyChat (issue 147): o destino é o arquivo do material que a
+    // pessoa pediu, resolvido pelo slug no catálogo — o front nunca conhece
+    // o link. Slug ausente ou fora do catálogo cai em /obrigada em vez de
+    // devolver null e deixar o lead numa tela morta.
+    const material = materialPorSlug(body.lead_data?.material);
+    return material ? material.destino : '/obrigada';
+  }
+  if (leadFunnel === 'trafego-atacado') {
+    // Roteia pelo texto da faixa (mesmo padrão do faturamento abaixo).
+    // Investimento vazio cai no Calendly — não perde lead qualificado.
+    const investimento = (body.lead_data?.investimento || '').toLowerCase();
+    const baixoInvestimento =
+      investimento.includes('não invisto') || investimento.includes('até r$ 1.500');
+    return baixoInvestimento
+      ? (env.LEAD_REDIRECT_WHATSAPP_TRAFEGO || env.LEAD_REDIRECT_WHATSAPP || '')
+      : (env.LEAD_REDIRECT_CALENDLY_TRAFEGO || 'https://calendly.com/gruposete/aplicacao-trafego-pago');
+  }
+  const faturamento = (body.lead_data?.faturamento || '').toLowerCase();
+  const baixoTicket = faturamento.includes('menos de 20');
+  return baixoTicket
+    ? (env.LEAD_REDIRECT_WHATSAPP || '')
+    : (env.LEAD_REDIRECT_CALENDLY || '');
+}
 
 async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }) {
   if (!pixelId || !accessToken) {
@@ -740,15 +807,31 @@ async function atualizarDispatch(env, id, { resultado, taskId = null, taskUrl = 
 }
 
 // Grava o lead que não conseguiu ir pro ClickUp — nada se perde.
+//
+// Uma linha por lead, não por tentativa (13/09/2026): o crm-retry chama o
+// sendToClickUp até 5 vezes para o mesmo lead_dispatch, e cada falha inseria
+// de novo — o mesmo lead aparecia 5× na tabela e a fila "para replay manual"
+// virava ruído. A tabela não tem UNIQUE em (phone, email) (migration 0018) e
+// este projeto não reaplica migrations no D1 remoto, então o upsert é feito à
+// mão: atualiza a linha aberta do mesmo telefone+e-mail; se não havia, insere.
+// Lead sem telefone nem e-mail não tem chave — sempre insere, para não fundir
+// pessoas diferentes numa linha só.
 async function logClickUpFailure(leadData, phone, email, error, env) {
   try {
     if (!env.DB) return;
+    const leadJson = JSON.stringify(leadData || {});
+    const mensagem = (error && error.message) ? error.message : String(error || '');
+    if (phone || email) {
+      const r = await env.DB.prepare(
+        `UPDATE clickup_sync_failures
+            SET lead_json = ?, error = ?, created_at = datetime('now')
+          WHERE phone = ? AND email = ? AND resolved = 0`
+      ).bind(leadJson, mensagem, phone || '', email || '').run();
+      if (r.meta && r.meta.changes > 0) return;
+    }
     await env.DB.prepare(
       `INSERT INTO clickup_sync_failures (phone, email, lead_json, error) VALUES (?, ?, ?, ?)`
-    ).bind(
-      phone || '', email || '', JSON.stringify(leadData || {}),
-      (error && error.message) ? error.message : String(error || '')
-    ).run();
+    ).bind(phone || '', email || '', leadJson, mensagem).run();
   } catch (e) {
     console.error('clickup_sync_failures insert error:', e.message);
   }
@@ -790,7 +873,9 @@ async function sendEvolutionMessage(apikey, number, text, env) {
 // alerta duplicado que silêncio).
 const ALERT_THROTTLE_SECONDS = 3600;
 
-async function sendThrottledAlert(type, text, env) {
+// Exportada (13/09/2026) para o sync do Windsor (api/sync/meta-ads.js) avisar
+// quando a conexão do Meta cai em silêncio — mesmo throttle, mesmo canal.
+export async function sendThrottledAlert(type, text, env) {
   try {
     if (env.DB) {
       const now = Math.floor(Date.now() / 1000);

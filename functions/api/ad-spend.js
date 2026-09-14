@@ -7,6 +7,8 @@
 // Resposta: { rows: [{ campaign_id, campaign_name, spend, impressions,
 //             clicks, cpc, cpm }], total_spend, currency }
 
+import { ymdBrt } from './_data-brt.js';
+
 export async function onRequestGet(context) {
   const { request, env } = context;
 
@@ -18,8 +20,9 @@ export async function onRequestGet(context) {
 
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
   const { since, until } = resolvePeriod(url, days);
-  const sinceDate = new Date(since * 1000).toISOString().slice(0, 10);
-  const untilDate = new Date(until * 1000).toISOString().slice(0, 10);
+  // `ad_spend.date` é dia de Brasília; o recorte também (ver _data-brt.js).
+  const sinceDate = ymdBrt(since);
+  const untilDate = ymdBrt(until);
 
   const { results } = await env.DB.prepare(
     `SELECT campaign_id, MAX(campaign_name) AS campaign_name,

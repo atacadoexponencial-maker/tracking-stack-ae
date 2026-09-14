@@ -1,6 +1,6 @@
 import { escolherVariante } from './_ab-sorteio.js';
 import { carregarTestesAtivos, normalizarPath } from './_ab-consulta.js';
-import { detectBotPorIp } from './_bots.js';
+import { detectBot, detectBotPorIp } from './_bots.js';
 
 export async function onRequest(context) {
   const { request, next, env } = context;
@@ -22,7 +22,14 @@ export async function onRequest(context) {
     // sessão e cookies aqui encheria o dashboard de visitas que nunca existiram:
     // clicar num link de disparo não é visitar o site. A contagem de cliques
     // vive em short_link_clicks, não nas sessões.
-    && !url.pathname.startsWith('/links');
+    && !url.pathname.startsWith('/links')
+    // Mesma regra para os dois redirecionadores de grupo de WhatsApp: são
+    // destino de botão de template do WhatsApp e só respondem 302 para fora.
+    // Quem clica já é lead (ou já comprou); a visita não existe. Medido em
+    // 13/09/2026: cada clique virava uma sessão nova com landing_url do
+    // redirect e entrava no denominador da Conversão por LP.
+    && !url.pathname.startsWith('/grupo-da-live')
+    && !url.pathname.startsWith('/grupo-workshop');
 
   if (!isPageRequest) {
     return next();
@@ -63,7 +70,14 @@ export async function onRequest(context) {
   // Marcador próprio (fora dos UTMs) que diz QUAL oferta/jornada o lead entrou.
   // Necessário porque um mesmo funil pode compartilhar página com outros
   // (ex.: home), então não dá para deduzir só de landing_url, e os UTMs já
-  // carregam origem/campanha/criativo. Persiste como first-touch (igual UTMs).
+  // carregam origem/campanha/criativo. Persiste como FIRST-TOUCH, igual aos
+  // UTMs e aos click ids: o upsert lá embaixo só preenche o que ainda está
+  // vazio na sessão. Até 13/09/2026 o comentário dizia isso mas o SQL fazia o
+  // contrário (valor novo não-vazio sobrescrevia o antigo), e o tracker, que
+  // também grava funnel, já era first-touch — as duas escritas discordavam.
+  // A Conversão por LP conta a sessão como coorte pela 1ª visita (created_at
+  // e landing_url nunca mudam), então a atribuição precisa seguir a mesma
+  // regra para a taxa e a origem falarem da mesma pessoa.
   const funnel = url.searchParams.get('funnel') || '';
 
   // --- Read existing cookies ---
@@ -231,16 +245,38 @@ export async function onRequest(context) {
   // O corte por IP é o outro lado: os bots que sobraram pedem páginas que
   // EXISTEM (a home, a LP da live) e respondem 200, então nenhuma guarda de
   // status os pega. Ver a lista e a medição que a motivou em _bots.js.
-  const botPorIp = detectBotPorIp(clientIp);
-  if (botPorIp.isBot) {
-    console.log('Sessão não gravada —', botPorIp.botReason, '|', url.pathname);
+  //
+  // O corte por user-agent (13/09/2026) fecha o lado que faltava: o tracker já
+  // julgava o UA na gravação do event_log, mas o middleware só olhava IP —
+  // crawler de preview (WhatsApp, facebookexternalhit) e scanner que se
+  // identifica entravam em `sessions` como visita. Mesma ordem do tracker: UA
+  // primeiro, para o motivo registrado ser o mais específico.
+  const botPorUa = detectBot(userAgent);
+  const bot = botPorUa.isBot ? botPorUa : detectBotPorIp(clientIp);
+  if (bot.isBot) {
+    console.log('Sessão não gravada —', bot.botReason, '|', url.pathname);
   }
   const rotaInexistente = response.status === 404 || response.status === 405;
-  if (!rotaInexistente && !botPorIp.isBot) {
+  // Redirect também não é visita: o navegador ainda vai pedir o destino, e É
+  // essa segunda requisição que merece a sessão (com o landing_url certo). O
+  // 308 da barra final do Astro (ver o bloco do teste A/B acima) é o caso mais
+  // comum — sem esta guarda, cada visita sem barra gravava a sessão duas vezes.
+  const ehRedirect = [301, 302, 307, 308].includes(response.status);
+  if (!rotaInexistente && !ehRedirect && !bot.isBot) {
     context.waitUntil(
       (async () => {
         try {
           if (env.DB) {
+            // FIRST-TOUCH nas UTMs e no funil: só preenche o que ainda está
+            // vazio na sessão (a Conversão por LP conta coorte pela 1ª visita).
+            // fbclid/gclid/msclkid/fbc são a EXCEÇÃO e ficam em last-touch:
+            // o Meta casa a conversão pelo clique mais recente, e o tracker
+            // prefere sessions.fbc ao cookie — congelar o 1º clique mandaria
+            // ao CAPI um fbc velho para quem voltou por anúncio novo. A cláusula WHERE do DO UPDATE faz o
+            // conflito virar no-op quando não há nada novo a gravar — um
+            // pageview de quem já tem tudo preenchido (a maioria) não gera
+            // escrita no D1. `updated_at` deixa de ser "última visita" e passa
+            // a ser "última vez que ganhou atribuição"; ninguém lia a coluna.
             await env.DB.prepare(`
               INSERT INTO sessions (session_id, external_id, fbclid, gclid, msclkid, fbc, fbp, ip_address, user_agent, referrer, landing_url, utm_source, utm_medium, utm_campaign, utm_content, utm_term, funnel, created_at, updated_at)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -249,13 +285,23 @@ export async function onRequest(context) {
                 gclid = CASE WHEN excluded.gclid != '' THEN excluded.gclid ELSE sessions.gclid END,
                 msclkid = CASE WHEN excluded.msclkid != '' THEN excluded.msclkid ELSE sessions.msclkid END,
                 fbc = CASE WHEN excluded.fbc != '' THEN excluded.fbc ELSE sessions.fbc END,
-                utm_source = CASE WHEN excluded.utm_source != '' THEN excluded.utm_source ELSE sessions.utm_source END,
-                utm_medium = CASE WHEN excluded.utm_medium != '' THEN excluded.utm_medium ELSE sessions.utm_medium END,
-                utm_campaign = CASE WHEN excluded.utm_campaign != '' THEN excluded.utm_campaign ELSE sessions.utm_campaign END,
-                utm_content = CASE WHEN excluded.utm_content != '' THEN excluded.utm_content ELSE sessions.utm_content END,
-                utm_term = CASE WHEN excluded.utm_term != '' THEN excluded.utm_term ELSE sessions.utm_term END,
-                funnel = CASE WHEN excluded.funnel != '' THEN excluded.funnel ELSE sessions.funnel END,
+                utm_source = CASE WHEN COALESCE(sessions.utm_source, '') = '' THEN excluded.utm_source ELSE sessions.utm_source END,
+                utm_medium = CASE WHEN COALESCE(sessions.utm_medium, '') = '' THEN excluded.utm_medium ELSE sessions.utm_medium END,
+                utm_campaign = CASE WHEN COALESCE(sessions.utm_campaign, '') = '' THEN excluded.utm_campaign ELSE sessions.utm_campaign END,
+                utm_content = CASE WHEN COALESCE(sessions.utm_content, '') = '' THEN excluded.utm_content ELSE sessions.utm_content END,
+                utm_term = CASE WHEN COALESCE(sessions.utm_term, '') = '' THEN excluded.utm_term ELSE sessions.utm_term END,
+                funnel = CASE WHEN COALESCE(sessions.funnel, '') = '' THEN excluded.funnel ELSE sessions.funnel END,
                 updated_at = excluded.updated_at
+              WHERE (excluded.fbclid != '' AND excluded.fbclid != COALESCE(sessions.fbclid, ''))
+                 OR (excluded.gclid != '' AND excluded.gclid != COALESCE(sessions.gclid, ''))
+                 OR (excluded.msclkid != '' AND excluded.msclkid != COALESCE(sessions.msclkid, ''))
+                 OR (excluded.fbc != '' AND excluded.fbc != COALESCE(sessions.fbc, ''))
+                 OR (excluded.utm_source != '' AND COALESCE(sessions.utm_source, '') = '')
+                 OR (excluded.utm_medium != '' AND COALESCE(sessions.utm_medium, '') = '')
+                 OR (excluded.utm_campaign != '' AND COALESCE(sessions.utm_campaign, '') = '')
+                 OR (excluded.utm_content != '' AND COALESCE(sessions.utm_content, '') = '')
+                 OR (excluded.utm_term != '' AND COALESCE(sessions.utm_term, '') = '')
+                 OR (excluded.funnel != '' AND COALESCE(sessions.funnel, '') = '')
             `).bind(sessionId, externalId, fbclid, gclid, msclkid, fbc, fbp, clientIp, userAgent, referrer, url.toString(), utmSource, utmMedium, utmCampaign, utmContent, utmTerm, funnel, now, now).run();
 
             // Exposição ao teste. ON CONFLICT DO NOTHING garante o

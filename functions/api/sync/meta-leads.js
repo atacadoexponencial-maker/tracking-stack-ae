@@ -46,9 +46,18 @@ export async function onRequestPost(context) {
 
     try {
       // 1. Idempotência: já processado? pula sem tocar em ClickUp/GHL.
+      //    Olha TAMBÉM lead_dispatch (revisão 2026-09-13): o event_log era
+      //    gravado por último, então um lead cujo worker morreu entre o ClickUp
+      //    e o event_log voltava na rodada seguinte como inédito e ganhava
+      //    segundo card/comentário. A linha de lead_dispatch nasce ANTES do
+      //    ClickUp (dispatch-first, issue 126), então ela é a prova de que a
+      //    tentativa começou. Uma ida ao banco, dois índices por event_id.
       const seen = await env.DB.prepare(
-        'SELECT 1 FROM event_log WHERE event_id = ? LIMIT 1'
-      ).bind(eventId).first();
+        `SELECT 1 FROM event_log WHERE event_id = ?
+         UNION ALL
+         SELECT 1 FROM lead_dispatch WHERE event_id = ?
+         LIMIT 1`
+      ).bind(eventId, eventId).first();
       if (seen) { skipped++; continue; }
 
       const email = (lead.email || '').toString().trim();
@@ -86,14 +95,11 @@ export async function onRequestPost(context) {
         funnel: FUNNEL,
       };
 
-      // 3. ClickUp (card + dedup + lead_dispatch + notif comercial) com a tag própria.
-      await sendToClickUp({ leadData, sessionData, env, eventId, tag: CLICKUP_TAG });
-
-      // 4. GoHighLevel (contato + tag de funil). Best-effort dentro da própria função.
-      await sendToGHL({ leadData, env });
-
-      // 5. Dashboard: mesma estrutura do event_log do tracker.js, com valores
-      //    neutros (sem navegador/pixel), SEM CAPI (sent_to_meta=0) e origin=meta_form.
+      // 3. Dashboard PRIMEIRO: mesma estrutura do event_log do tracker.js, com
+      //    valores neutros (sem navegador/pixel), SEM CAPI (sent_to_meta=0) e
+      //    origin=meta_form. Vai antes do ClickUp/GHL de propósito: é a marca de
+      //    idempotência da checagem do passo 1 — gravada por último, um worker
+      //    morto no meio deixava o lead sem marca e ele era reprocessado.
       const isJunk = isInternalTestEmail(email) ? 1 : 0;
       await env.DB.prepare(`
         INSERT INTO event_log (
@@ -113,6 +119,12 @@ export async function onRequestPost(context) {
         email ? 1 : 0, telefone ? 1 : 0, nome ? 1 : 0,
         email, FUNNEL, isJunk, ORIGIN
       ).run();
+
+      // 4. ClickUp (card + dedup + lead_dispatch + notif comercial) com a tag própria.
+      await sendToClickUp({ leadData, sessionData, env, eventId, tag: CLICKUP_TAG });
+
+      // 5. GoHighLevel (contato + tag de funil). Best-effort dentro da própria função.
+      await sendToGHL({ leadData, env });
 
       created++;
     } catch (e) {

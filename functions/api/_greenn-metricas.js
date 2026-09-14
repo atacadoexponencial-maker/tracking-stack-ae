@@ -70,6 +70,31 @@ function lerVenda(linha) {
   };
 }
 
+// Uma linha por VENDA: a Greenn manda um `saleUpdated` a cada mudança de
+// status (waiting_payment → paid → refunded...) e sem reentrega garantida, então
+// a mesma `entity_id` aparece várias vezes na tabela. Contar cada linha como
+// uma venda inflava receita e quantidade; classificar pela primeira linha
+// deixaria um estorno passar como pago. Fica a linha mais RECENTE (maior
+// `received_at`; empate pelo maior `id`, que é a ordem de chegada) — e só
+// depois disso se decide paid/não paga.
+export function reduzirPorVenda(vendas) {
+  const porVenda = new Map();
+  for (const linha of vendas || []) {
+    if (!linha) continue;
+    const chave = String(linha.entity_id);
+    const atual = porVenda.get(chave);
+    if (!atual || maisRecente(linha, atual)) porVenda.set(chave, linha);
+  }
+  return [...porVenda.values()];
+}
+
+function maisRecente(a, b) {
+  const ra = Number(a.received_at) || 0;
+  const rb = Number(b.received_at) || 0;
+  if (ra !== rb) return ra > rb;
+  return (Number(a.id) || 0) > (Number(b.id) || 0);
+}
+
 /**
  * @param {object} entrada
  * @param {Array} entrada.vendas   linhas de greenn_webhook_event (event = 'saleUpdated')
@@ -88,7 +113,7 @@ export function calcularGreenn({ vendas = [], sessoes = [], gastos = [] } = {}) 
   let ilegiveis = 0;
   let testesInternos = 0;
 
-  for (const linha of vendas) {
+  for (const linha of reduzirPorVenda(vendas)) {
     const v = lerVenda(linha);
     if (!v) { ilegiveis++; continue; }
 

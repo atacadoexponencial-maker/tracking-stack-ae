@@ -380,31 +380,66 @@ const diaBR = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
 
 // ---------- acesso (mesmo mecanismo do dash antigo) ----------
 let key = new URL(location.href).searchParams.get('key') || sessionStorage.getItem('dashKey') || '';
-const fetchJson = (p) => fetch(p + (p.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key)).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+// ---------- datas de negócio em Brasília (espelho de functions/api/_data-brt.js) ----------
+// O D1 é UTC, mas quem lê o dash pensa no dia de Brasília. Sem horário de
+// verão desde 2019, o deslocamento é fixo em -03:00 — mesmo pressuposto do
+// backend. `sv-SE` é o locale cujo formato curto é exatamente ISO (2026-09-13).
+const FUSO_BRT = 'America/Sao_Paulo';
+const ymdBrt = (unix) => new Date(unix * 1000).toLocaleDateString('sv-SE', { timeZone: FUSO_BRT });
+const inicioDoDiaBrt = (ymd) => Math.floor(Date.parse(ymd + 'T00:00:00-03:00') / 1000);
+const meiaNoiteHojeBrt = () => inicioDoDiaBrt(ymdBrt(Math.floor(Date.now() / 1000)));
+
+// ---------- cache em memória por URL (revisão de 13/09/2026) ----------
+// Período que já FECHOU (o `to` da chamada é anterior a hoje 00:00 de Brasília)
+// não muda mais: guardar a resposta poupa o D1 a cada troca de aba, de preset
+// ou de funil. Sem TTL de propósito — o Map morre com a página. Resposta de
+// erro não entra. O backend faz o mesmo do lado dele (_cache.js); aqui é só
+// para nem sair do navegador.
+const cacheRespostas = new Map();
+const periodoFechado = (p) => { const m = /[?&]to=(\d+)/.exec(p); return !!m && Number(m[1]) < meiaNoiteHojeBrt(); };
+// Descarta o que foi guardado para um prefixo de rota — usado depois de um POST
+// que muda a resposta de um GET já cacheado (ex.: funil de campanha → /api/cpl).
+const esquecerCache = (prefixo) => { for (const u of [...cacheRespostas.keys()]) if (u.startsWith(prefixo)) cacheRespostas.delete(u); };
+const fetchJson = (p) => {
+  const url = p + (p.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key);
+  const cacheavel = periodoFechado(p);
+  if (cacheavel && cacheRespostas.has(url)) return Promise.resolve(cacheRespostas.get(url));
+  return fetch(url)
+    .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then((dados) => { if (cacheavel) cacheRespostas.set(url, dados); return dados; });
+};
 async function chaveValida(k) { try { return (await fetch('/api/revenue?days=1&key=' + encodeURIComponent(k))).ok; } catch { return false; } }
 
 // ---------- período (padrão do painel, em unix from/to) ----------
+// Calculado no calendário de Brasília, seja qual for o fuso da máquina que abre
+// o dash: antes usava o relógio local (setHours/getMonth), e quem abrisse de
+// outro fuso pedia um "dia" que não batia com o do backend nem com o do Meta.
 function intervalo() {
   const preset = $('#preset').value;
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  let de, ate = Math.floor(Date.now() / 1000);
-  const dias = (n) => { const d = new Date(hoje); d.setDate(d.getDate() - n); return Math.floor(d.getTime() / 1000); };
+  const agora = Math.floor(Date.now() / 1000);
+  const hojeYmd = ymdBrt(agora);
+  const hoje0 = inicioDoDiaBrt(hojeYmd);            // hoje 00:00 em Brasília
+  const dias = (n) => hoje0 - n * 86400;            // sem horário de verão, todo dia tem 86400 s
+  const [ano, mes] = hojeYmd.split('-').map(Number);
+  // 1º dia do mês (m = 0 cai em dezembro do ano anterior, como no Date nativo)
+  const inicioMes = (a, m) => inicioDoDiaBrt(new Date(Date.UTC(a, m - 1, 1)).toISOString().slice(0, 10));
+  let de, ate = agora;
   if (preset === 'custom') {
     const dv = $('#data-de').value, av = $('#data-ate').value;
-    de = dv ? Math.floor(new Date(dv + 'T00:00:00').getTime() / 1000) : dias(30);
-    ate = av ? Math.floor(new Date(av + 'T23:59:59').getTime() / 1000) : ate;
+    de = dv ? inicioDoDiaBrt(dv) : dias(30);
+    ate = av ? inicioDoDiaBrt(av) + 86399 : ate;   // dia escolhido inteiro (23:59:59)
   } else if (preset === 'mes') {
-    de = Math.floor(new Date(hoje.getFullYear(), hoje.getMonth(), 1).getTime() / 1000);
+    de = inicioMes(ano, mes);
   } else if (preset === 'mes-passado') {
-    de = Math.floor(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1).getTime() / 1000);
-    ate = Math.floor(new Date(hoje.getFullYear(), hoje.getMonth(), 1).getTime() / 1000) - 1;
+    de = inicioMes(ano, mes - 1);
+    ate = inicioMes(ano, mes) - 1;
   } else if (preset === 'hoje') {
-    de = Math.floor(hoje.getTime() / 1000); // hoje 00:00 até agora (dia em andamento)
+    de = hoje0; // hoje 00:00 até agora (dia em andamento)
   } else {
     // "Últimos N dias" = N dias cheios anteriores, sem o dia de hoje (que estaria parcial).
     // "Ontem" é o caso N = 1.
     de = dias(Number(preset));
-    ate = Math.floor(hoje.getTime() / 1000) - 1; // ontem 23:59:59
+    ate = hoje0 - 1; // ontem 23:59:59
   }
   const dur = ate - de;
   // Preset "Hoje" é um dia em andamento (00:00 → agora). Nesse caso o período
@@ -561,9 +596,11 @@ R.visao = async () => {
   const p = intervalo();
   const [leadsA, leadsB, convA, convB, atrA, atrB, revA, revB] = await Promise.all([
     fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&limit=500`),
-    fetchJson(`/api/leads?${q(p.antDe, p.antAte)}${funilQ}&limit=1`),
+    // Do período anterior só entram os totais para o delta — sem linhas, sem
+    // funil por página (revisão de 13/09/2026).
+    fetchJson(`/api/leads?${q(p.antDe, p.antAte)}${funilQ}&only=funnelCounts`),
     fetchJson(`/api/conversion?${q(p.de, p.ate)}${funilQ}`),
-    fetchJson(`/api/conversion?${q(p.antDe, p.antAte)}${funilQ}`),
+    fetchJson(`/api/conversion?${q(p.antDe, p.antAte)}${funilQ}&only=totals`),
     fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
     fetchJson(`/api/revenue?${q(p.de, p.ate)}`),
@@ -576,19 +613,24 @@ R.visao = async () => {
     .reduce((s, c) => s + Number(c.count || 0), 0);
   const totalLeads = soma(leadsA.funnelCounts), totalLeadsAnt = soma(leadsB.funnelCounts);
   const somaConv = (rows) => (rows || []).reduce((s, r) => ({ v: s.v + Number(r.visitors || 0), l: s.l + Number(r.leads || 0) }), { v: 0, l: 0 });
-  const cA = somaConv(convA.rows), cB = somaConv(convB.rows);
-  const txA = cA.v ? (cA.l / cA.v) * 100 : null, txB = cB.v ? (cB.l / cB.v) * 100 : null;
+  // convB veio com `only=totals`: { visitors, leads, rate } já somados no backend.
+  const cA = somaConv(convA.rows), cB = { v: Number(convB.visitors || 0), l: Number(convB.leads || 0) };
+  const txA = cA.v ? (cA.l / cA.v) * 100 : null, txB = cB.v ? Number(convB.rate || 0) * 100 : null;
   const cplA = totalLeads && atrA.meta_spend > 0 ? atrA.meta_spend / totalLeads : null;
   const cplB = totalLeadsAnt && atrB.meta_spend > 0 ? atrB.meta_spend / totalLeadsAnt : null;
 
   $('#visao-herois').innerHTML = [
     { rotulo: 'Leads', valor: fmtInt(totalLeads), delta: delta(totalLeads, totalLeadsAnt) },
     { rotulo: 'Conversão geral', valor: txA === null ? null : fmtPct(txA, 2), delta: txA !== null && txB !== null ? delta(txA, txB) : undefined },
-    { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, invertido: true, nota: cplA === null ? 'precisa do sync de investimento' : '' },
+    // Este CPL divide o gasto do Meta por TODOS os leads (orgânico incluso);
+    // o da aba Meta Ads é só do canal pago — por isso o subtítulo.
+    { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, invertido: true, nota: cplA === null ? 'precisa do sync de investimento' : 'todos os canais' },
   ].map((k) => tile(k, true)).join('');
 
   $('#visao-kpis').innerHTML = [
-    { rotulo: 'Sessões (visitantes)', valor: fmtInt(cA.v), delta: delta(cA.v, cB.v) },
+    // `visitors` de /api/conversion conta sessões pela PRIMEIRA visita (first-touch
+    // no upsert de sessions): quem chegou antes do período não entra aqui.
+    { rotulo: 'Novos visitantes', valor: fmtInt(cA.v), delta: delta(cA.v, cB.v), nota: 'coorte pela 1ª visita' },
     { rotulo: 'Investimento (Meta)', valor: atrA.meta_spend > 0 ? money(atrA.meta_spend) : null, delta: atrA.meta_spend > 0 && atrB.meta_spend > 0 ? delta(atrA.meta_spend, atrB.meta_spend) : undefined, invertido: true },
     { rotulo: 'Receita', valor: revA.gross > 0 ? money(revA.gross, revA.currency) : null, delta: revA.gross > 0 && revB.gross > 0 ? delta(revA.gross, revB.gross) : undefined, nota: revA.gross > 0 ? '' : 'aguardando conversões do CRM' },
     { rotulo: 'ROAS', valor: atrA.meta_roas != null ? fmtNum(atrA.meta_roas) + 'x' : null, nota: atrA.meta_roas != null ? '' : 'aguardando conversões do CRM' },
@@ -613,8 +655,11 @@ R.visao = async () => {
 
 R.leads = async () => {
   const p = intervalo();
+  // A lista de funis (história inteira) só é pedida uma vez por sessão da
+  // página: depois disso `popularFunis` usa a guardada em `funisConhecidos`.
+  const comFunis = funisConhecidos.length ? '' : '&with=funnels';
   const [dados, conv, crm] = await Promise.all([
-    fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&limit=50`),
+    fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&limit=50${comFunis}`),
     fetchJson(`/api/conversion?${q(p.de, p.ate)}${funilQ}`),
     fetchJson(`/api/crm-funnel?${q(p.de, p.ate)}`).catch(() => null),
   ]);
@@ -795,19 +840,23 @@ R.metaads = async () => {
   // campaign_funnel_map ainda não existir (ex.: produção antes da migration),
   // os dois podem falhar — e isso não pode derrubar os KPIs e a tabela de
   // campanhas que já existiam antes.
-  const [atr, atrAnt, camp, leads, cpl, mapa] = await Promise.all([
+  const [atr, atrAnt, camp, cpl, mapa] = await Promise.all([
     fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
     fetchJson(`/api/ad-spend?${q(p.de, p.ate)}`),
-    fetchJson(`/api/leads?${q(p.de, p.ate)}&limit=1`),
     fetchJson(`/api/cpl?${q(p.de, p.ate)}`).catch(() => null),
     fetchJson(`/api/campaign-funnel?${q(p.de, p.ate)}`).catch(() => null),
   ]);
-  const totalLeads = (leads.funnelCounts || []).reduce((s, c) => s + Number(c.count || 0), 0);
-  const cplKpi = totalLeads && atr.meta_spend > 0 ? atr.meta_spend / totalLeads : null;
+  // O CPL desta aba é o do canal pago, calculado no backend (/api/cpl,
+  // linha 'meta-ads' de `por_canal`). Antes dividia o gasto pelo total de
+  // leads de TODOS os canais — o mesmo número da Visão geral, que agora
+  // avisa "todos os canais". A linha só existe quando houve gasto ou lead
+  // pago no período; sem ela, fica "—".
+  const linhaMeta = ((cpl && cpl.por_canal) || []).find((c) => c.canal === 'meta-ads');
+  const cplMeta = linhaMeta && linhaMeta.cpl != null ? linhaMeta.cpl : null;
   $('#meta-kpis').innerHTML = [
     { rotulo: 'Investimento', valor: atr.meta_spend > 0 ? money(atr.meta_spend) : null, delta: atr.meta_spend > 0 && atrAnt.meta_spend > 0 ? delta(atr.meta_spend, atrAnt.meta_spend) : undefined, invertido: true },
-    { rotulo: 'CPL', valor: cplKpi === null ? null : money(cplKpi), invertido: true },
+    { rotulo: 'CPL Meta (pago)', valor: cplMeta === null ? null : money(cplMeta), invertido: true, nota: cpl ? '' : 'CPL indisponível' },
     { rotulo: 'CPA', valor: atr.meta_cpa != null ? money(atr.meta_cpa) : null, invertido: true, nota: atr.meta_cpa != null ? '' : 'aguardando conversões do CRM' },
     { rotulo: 'ROAS', valor: atr.meta_roas != null ? fmtNum(atr.meta_roas) + 'x' : null, nota: atr.meta_roas != null ? '' : 'aguardando conversões do CRM' },
   ].map((k) => tile(k)).join('');
@@ -889,6 +938,9 @@ R.metaads = async () => {
         }),
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
+      // O mapa campanha→funil muda o CPL por funil e a tabela de campanhas;
+      // o que estava guardado em memória para o período fechado já não vale.
+      esquecerCache('/api/cpl?'); esquecerCache('/api/campaign-funnel?');
       await R.metaads();   // redesenha com o CPL já recalculado
     } catch {
       sel.disabled = false;
@@ -1484,12 +1536,15 @@ $('#modal-fundo').addEventListener('click', (e) => { if (e.target.id === 'modal-
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#modal-fundo').hidden = true; });
 
 // ---------- funis ----------
+// `funisConhecidos` é preenchida pela primeira resposta de /api/leads com
+// `&with=funnels` e reaproveitada nas seguintes (a aba Leads só pede a lista
+// enquanto ela está vazia). Chamada sem lista nova redesenha com a guardada.
 let funisConhecidos = [];
 function popularFunis(lista) {
-  if (!Array.isArray(lista)) return;
-  funisConhecidos = lista;
+  if (Array.isArray(lista)) funisConhecidos = lista;
+  if (!funisConhecidos.length) return;
   const sel = $('#funil'), atual = sel.value;
-  sel.innerHTML = '<option value="">Todos os funis</option>' + lista.map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+  sel.innerHTML = '<option value="">Todos os funis</option>' + funisConhecidos.map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
   sel.value = atual;
   if (sel.value !== atual) { sel.value = ''; funilQ = ''; }
 }
@@ -1504,7 +1559,8 @@ let secao = 'visao';
 async function render() {
   const p = intervalo();
   $('#titulo').textContent = TITULOS[secao];
-  $('#subtitulo').textContent = `${new Date(p.de * 1000).toLocaleDateString('pt-BR')} – ${new Date(p.ate * 1000).toLocaleDateString('pt-BR')} · comparado ao período anterior`;
+  // Exibido em Brasília também: `p.de` é 00:00 BRT, e em outro fuso o dia mudaria.
+  $('#subtitulo').textContent = `${new Date(p.de * 1000).toLocaleDateString('pt-BR', { timeZone: FUSO_BRT })} – ${new Date(p.ate * 1000).toLocaleDateString('pt-BR', { timeZone: FUSO_BRT })} · comparado ao período anterior`;
   document.querySelectorAll('.secao').forEach((s) => s.classList.toggle('ativa', s.id === 'secao-' + secao));
   document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('ativo', a.dataset.secao === secao));
   try { await R[secao](); }

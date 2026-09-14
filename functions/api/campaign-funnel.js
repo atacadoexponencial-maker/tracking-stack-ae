@@ -6,6 +6,8 @@
 
 import { resolverFunilAuto, listarFunisConhecidos, FUNIL_SEM_CLASSIFICACAO } from './_funil-campanha.js';
 import { CANAL_AQUISICAO } from './_canal.js';
+import { ymdBrt } from './_data-brt.js';
+import { respostaJson, respostaEmCache } from './_cache.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -17,8 +19,16 @@ export async function onRequestGet(context) {
 
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
   const { since, until } = resolvePeriod(url, days);
-  const sinceDate = new Date(since * 1000).toISOString().slice(0, 10);
-  const untilDate = new Date(until * 1000).toISOString().slice(0, 10);
+  // `ad_spend.date` é dia de Brasília; o recorte também (ver _data-brt.js).
+  const sinceDate = ymdBrt(since);
+  const untilDate = ymdBrt(until);
+
+  // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
+  // O POST (override manual) não passa por aqui: um override novo muda a
+  // resposta do GET, e o cache por URL vale por até 1h — é o preço aceito; o
+  // front pode refazer a chamada com outro parâmetro para forçar a leitura.
+  const emCache = await respostaEmCache(request, { until });
+  if (emCache) return emCache;
 
   const [campanhas, overrides, funis] = await Promise.all([
     env.DB.prepare(`
@@ -47,7 +57,7 @@ export async function onRequestGet(context) {
     };
   });
 
-  return json({ rows, funis: [...funis, CANAL_AQUISICAO] });
+  return respostaJson(request, { rows, funis: [...funis, CANAL_AQUISICAO] }, { until, context });
 }
 
 export async function onRequestPost(context) {

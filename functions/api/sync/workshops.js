@@ -54,8 +54,13 @@ export async function onRequestPost(context) {
       w.id, w.title || null, w.started_at || null, w.ended_at || null,
       w.calendly_event_uri || null, w.meet_record_name || w.id, now));
     for (const r of (w.registrants || [])) {
-      if (!r.email) continue;
-      stmts.push(upReg.bind(w.id, r.name || null, r.email, r.registered_at || null));
+      // Normalizado ANTES do upsert: a chave é (workshop_id, email), e o
+      // Calendly entrega o e-mail como a pessoa digitou — "Ana@Gmail.com " e
+      // "ana@gmail.com" viravam dois inscritos e inflavam o denominador da
+      // taxa de presença.
+      const email = String(r.email || '').trim().toLowerCase();
+      if (!email) continue;
+      stmts.push(upReg.bind(w.id, r.name || null, email, r.registered_at || null));
     }
     for (const p of (w.participants || [])) {
       stmts.push(upPart.bind(

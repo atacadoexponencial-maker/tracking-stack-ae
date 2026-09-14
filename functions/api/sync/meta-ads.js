@@ -20,6 +20,19 @@
 // provider doesn't mark the endpoint as failing — a recipient who hasn't
 // configured ad spend sync still wants a healthy ping response.
 
+// Alerta com throttle (1/h por tipo) do tracker — o mesmo canal dos alertas de
+// Meta CAPI e ClickUp. Reusado em vez de duplicado.
+import { sendThrottledAlert } from '../../tracker.js';
+
+// Janela a partir da qual "0 linhas" não é um dia parado, é a conexão caída.
+// A conta veicula todo dia; uma semana inteira sem gasto não existe.
+const DIAS_JANELA_SUSPEITA = 7;
+// Aos domingos a janela padrão cresce para 28 dias: o Meta reatribui
+// conversões e ajusta gasto retroativamente por até 28 dias, e o upsert diário
+// de 7 dias nunca revisitava o mês. Uma rodada semanal maior corrige o
+// histórico sem custar 4× todo dia.
+const DIAS_JANELA_DOMINGO = 28;
+
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -65,10 +78,25 @@ export async function onRequestPost(context) {
         `&access_token=${adsToken}`;
       rows = await fetchAllPages(url);
     }
+    // 0 linhas numa janela de uma semana ou mais NÃO é sucesso (incidente de
+    // 2026-07-24→08-10: a conexão OAuth do Meta no Windsor caiu sozinha, a API
+    // respondeu 200 com lista vazia por 17 dias, o sync_log ficou "ok, 0" e o
+    // CPL do dash virou "—" sem ninguém ser avisado). Nada é apagado: as linhas
+    // já gravadas ficam como estão; só o status e o alerta mudam.
+    if (rows.length === 0 && diasEntre(dateFrom, dateTo) >= DIAS_JANELA_SUSPEITA) {
+      throw new Error(viaWindsor
+        ? 'Windsor devolveu 0 linhas — conexão caiu?'
+        : 'Meta API devolveu 0 linhas — token/conta caíram?');
+    }
     rowsUpserted = await upsertAdSpend(env.DB, rows);
   } catch (err) {
     status = 'error';
     errorMessage = err.message || String(err);
+    if (/0 linhas/.test(errorMessage)) {
+      await sendThrottledAlert('meta_ads_sync_vazio',
+        `⚠️ Sync Meta Ads (${dateFrom} → ${dateTo}): ${errorMessage} Reconecte o Meta no Windsor e rode o backfill.`,
+        env);
+    }
   }
 
   const durationMs = Date.now() - runStartedAt;
@@ -172,10 +200,20 @@ async function upsertAdSpend(db, rows) {
 
 function resolveRange(dateFrom, dateTo) {
   const today = new Date();
-  const fallbackFrom = addDays(today, -7);
+  // Domingo (UTC) sem date_from explícito: janela de 28 dias (ver constante).
+  const dias = today.getUTCDay() === 0 ? DIAS_JANELA_DOMINGO : 7;
+  const fallbackFrom = addDays(today, -dias);
   const from = isYmd(dateFrom) ? dateFrom : ymd(fallbackFrom);
   const to = isYmd(dateTo) ? dateTo : ymd(today);
   return { dateFrom: from, dateTo: to };
+}
+
+// Dias inteiros entre duas datas 'YYYY-MM-DD' (inclusive → 7 dias atrás até
+// hoje dá 7). Entrada inválida vira 0, e a checagem de "0 linhas" não dispara.
+function diasEntre(from, to) {
+  const a = Date.parse(from), b = Date.parse(to);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.round((b - a) / 86400000);
 }
 
 function isYmd(s) {

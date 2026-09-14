@@ -218,3 +218,29 @@ test('author em formato telefone bate com o phoneNumber do participante (id é @
   }), RECEBIDO_MS);
   assert.equal(r.linhas[0].action, 'saiu');
 });
+
+// Revisão 2026-09-13: o fallback do horário de recebimento é arredondado ao
+// minuto, porque occurred_at faz parte da chave de dedup — duas reentregas do
+// mesmo evento segundos depois precisam colidir, não virar duas entradas.
+
+test('sem date_time, o horário de recebimento é arredondado ao minuto', () => {
+  const cru = evento();
+  delete cru.date_time;
+  const recebido = Date.parse('2026-07-27T18:00:47.913Z');
+  const r = classificarEvento(cru, recebido);
+  assert.equal(r.occurredAt, '2026-07-27T18:00:00.000Z');
+});
+
+test('duas reentregas do mesmo evento dentro do mesmo minuto têm o mesmo occurredAt', () => {
+  const cru = evento();
+  delete cru.date_time;
+  const a = classificarEvento(cru, Date.parse('2026-07-27T18:00:03.000Z'));
+  const b = classificarEvento(cru, Date.parse('2026-07-27T18:00:41.500Z'));
+  assert.equal(a.occurredAt, b.occurredAt);
+});
+
+test('date_time explícito NÃO é arredondado', () => {
+  const cru = evento();
+  cru.date_time = '2026-07-27T17:30:12.345Z';
+  assert.equal(classificarEvento(cru, RECEBIDO_MS).occurredAt, '2026-07-27T17:30:12.345Z');
+});

@@ -28,7 +28,7 @@ export async function onRequestGet(context) {
 
   try {
     const vendas = await env.DB.prepare(`
-      SELECT entity_id, current_status, amount, received_at, raw_json
+      SELECT id, entity_id, current_status, amount, received_at, raw_json
       FROM greenn_webhook_event
       WHERE event = 'saleUpdated'
       ORDER BY received_at DESC

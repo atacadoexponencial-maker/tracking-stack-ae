@@ -8,6 +8,8 @@
 // Séries, totais, saldos e recordes saem prontos daqui: o dash só formata.
 
 import { diaLocalDeUnix } from './webhooks/_classificar.js';
+import { inicioDoDiaBrt } from './_data-brt.js';
+import { respostaJson, respostaEmCache } from './_cache.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -21,6 +23,10 @@ export async function onRequestGet(context) {
   const ate = Number(url.searchParams.get('to')) || agora;
   const diaDe = diaLocalDeUnix(de);
   const diaAte = diaLocalDeUnix(ate);
+
+  // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
+  const emCache = await respostaEmCache(request, { until: ate });
+  if (emCache) return emCache;
 
   const { results: grupos } = await env.DB.prepare(
     `SELECT group_jid, label FROM whatsapp_groups_tracked WHERE enabled = 1 ORDER BY label`
@@ -68,6 +74,17 @@ export async function onRequestGet(context) {
   // PERÍODO pela data da entrada real — não pela do envio, que é quando o cron
   // rodou. Isto é só leitura: as contagens de entradas/saídas acima não mudam,
   // e continuam incluindo reentradas que a conversão deduplica.
+  //
+  // `occurred_at` é ISO UTC completo ('2026-07-27T22:00:00.000Z'). O recorte é
+  // por intervalo de texto ISO — que ordena igual ao tempo — em vez do
+  // `substr(occurred_at, 1, 10) BETWEEN dia AND dia` de antes, por dois
+  // motivos (revisão de 13/09/2026): substr() esconde a coluna e impede o
+  // índice idx_wgc_occurred (migration 0037); e comparava o dia UTC do texto
+  // com dias de Brasília, jogando as entradas de 21h–meia-noite no dia
+  // seguinte. As bordas são a meia-noite de Brasília de `diaDe` e a do dia
+  // SEGUINTE a `diaAte` (limite exclusivo).
+  const convDe = new Date(inicioDoDiaBrt(diaDe) * 1000).toISOString();
+  const convAte = new Date((inicioDoDiaBrt(diaAte) + 86400) * 1000).toISOString();
   const conv = await env.DB.prepare(
     `SELECT
        SUM(CASE WHEN status = 'enviada' THEN 1 ELSE 0 END) AS enviadas,
@@ -75,8 +92,8 @@ export async function onRequestGet(context) {
        SUM(CASE WHEN status = 'pendente' THEN 1 ELSE 0 END) AS pendentes,
        SUM(CASE WHEN status = 'falha' THEN 1 ELSE 0 END) AS falhas
      FROM whatsapp_group_conversions
-     WHERE substr(occurred_at, 1, 10) BETWEEN ? AND ?`
-  ).bind(diaDe, diaAte).first();
+     WHERE occurred_at >= ? AND occurred_at < ?`
+  ).bind(convDe, convAte).first();
 
   const ultimaConv = await env.DB.prepare(
     `SELECT MAX(enviado_em) AS quando FROM whatsapp_group_conversions WHERE status = 'enviada'`
@@ -120,7 +137,7 @@ export async function onRequestGet(context) {
     };
   });
 
-  return json({
+  return respostaJson(request, {
     grupos: saida,
     recentes: recentes || [],
     nao_monitorados: naoMonitorados || [],
@@ -132,7 +149,7 @@ export async function onRequestGet(context) {
       falhas: Number(conv?.falhas || 0),
       ultima_enviada_em: ultimaConv?.quando || null,
     },
-  });
+  }, { until: ate, context });
 }
 
 // Todos os dias entre duas datas 'YYYY-MM-DD', inclusive. Usa UTC para andar de

@@ -107,7 +107,14 @@ export function classificarEvento(raw, recebidoEmMs) {
   if (!participantes.length) return null;
 
   const autor = data.author ? String(data.author) : null;
-  const occurredAt = paraIso(raw.date_time) || new Date(recebidoEmMs).toISOString();
+  // Fallback arredondado ao MINUTO (revisão 2026-09-13). O occurred_at faz
+  // parte da chave de dedup (idx_wge_dedup: grupo+pessoa+ação+instante); com o
+  // horário de recebimento ao milissegundo, uma reentrega do n8n segundos
+  // depois tinha instante diferente e virava segunda linha — inflando entradas
+  // e, no sync EntrouGrupo, tentando uma segunda conversão. Ao minuto, as
+  // reentregas do mesmo evento colidem e o INSERT OR IGNORE faz o serviço.
+  const occurredAt = paraIso(raw.date_time)
+    || new Date(Math.floor(recebidoEmMs / 60000) * 60000).toISOString();
 
   const linhas = participantes.map((p) => {
     const { participantJid, ids } = identificadoresDe(p);

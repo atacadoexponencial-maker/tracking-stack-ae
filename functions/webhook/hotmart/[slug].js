@@ -98,6 +98,15 @@ export async function onRequestPost(context) {
 
     const result = await processPurchase({ parsed, env, context });
 
+    // Reentrega da mesma transação: _core.js já barrou antes do fan-out.
+    // 200 para a Hotmart parar de retentar.
+    if (result.dedup) {
+      return new Response(
+        JSON.stringify({ ok: true, dedup: true, transaction_id: parsed.transactionId }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ ok: true, event_id: result.eventId }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

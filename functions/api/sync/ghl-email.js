@@ -35,6 +35,7 @@ export async function onRequestPost(context) {
 
   const loc = env.LOCAL_ID;
   const agora = Math.floor(Date.now() / 1000);
+  const started = Date.now();
   // Teto de campanhas por execução: cada campanha = 1 subrequisição de stats, e
   // o Worker tem limite de subrequisições por invocação. As gravações no D1 vão
   // num batch único (1 subrequisição). Sincroniza as MAIS RECENTES — campanhas
@@ -54,6 +55,7 @@ export async function onRequestPost(context) {
       const res = await ghlV3(`/emails/locations/${loc}/campaigns/emails?status=sent&limit=${PAGINA}&offset=${offset}`, env);
       if (!res.ok) {
         const corpo = await res.text().catch(() => '');
+        await gravarSyncLog(env, 'error', 0, `list campaigns HTTP ${res.status}: ${corpo.slice(0, 200)}`, started);
         return json({ error: `list campaigns HTTP ${res.status}`, corpo: corpo.slice(0, 300) }, 502);
       }
       const lote = (await res.json().catch(() => ({}))).campaigns || [];
@@ -100,10 +102,33 @@ export async function onRequestPost(context) {
     // 3) Grava tudo num batch único (1 subrequisição ao D1).
     if (batch.length) await env.DB.batch(batch);
 
+    // Campanha com stats indisponível não derruba a rodada, mas também não é
+    // "ok": fica registrado como erro parcial para aparecer no sync_log.
+    await gravarSyncLog(env, erros.length ? 'error' : 'ok', batch.length,
+      erros.length ? `${erros.length} campanha(s) sem stats: ${erros.slice(0, 5).join(', ')}` : null, started);
+
     return json({ ok: true, sincronizadas: batch.length, com_erro: erros.length });
   } catch (e) {
     console.error('GHL email sync erro:', e.message);
+    await gravarSyncLog(env, 'error', 0, e.message, started);
     return json({ error: e.message }, 500);
+  }
+}
+
+// Mesma tabela e mesmo formato dos outros syncs (meta, workshops,
+// grupo_conversoes). Até 2026-09-13 este era o único sync que não gravava nada:
+// a queda de entrega de 91% para ~50% (ver metricas-email-gohighlevel) só foi
+// notada olhando o GHL à mão, porque não havia rastro de rodada falhando.
+// Best-effort: falha ao logar não muda o desfecho da rodada.
+async function gravarSyncLog(env, status, rows, erro, started) {
+  try {
+    await env.DB.prepare(
+      `INSERT INTO sync_log (platform, status, rows_upserted, date_from, date_to, error_message, duration_ms, run_at)
+       VALUES ('ghl_email', ?, ?, NULL, NULL, ?, ?, ?)`
+    ).bind(status, rows, erro ? String(erro).slice(0, 500) : null,
+      Date.now() - started, Math.floor(Date.now() / 1000)).run();
+  } catch (e) {
+    console.error('GHL email sync_log erro:', e.message);
   }
 }
 

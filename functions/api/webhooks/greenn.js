@@ -147,6 +147,32 @@ export async function onRequestPost(context) {
   // GoHighLevel são destinos independentes. Se o CRM estiver fora do ar, o
   // contato ainda entra no e-mail marketing, e vice-versa.
   if (linhaId && deveCriarCard(body)) {
+    // A dedup do INSERT OR IGNORE é por (event, entity_id, status, updated_at):
+    // a MESMA venda volta como linha nova quando a Greenn reemite o "paid" com
+    // outro updated_at (edição da venda, reprocessamento deles). Cada reemissão
+    // rodava as três pontes de novo — comentário repetido no card, tag e fluxo
+    // do ManyChat reaplicados. Antes das pontes, pergunta se esta venda já teve
+    // um paid gravado (índice idx_greenn_entidade, 0037). O evento em si fica
+    // gravado do mesmo jeito; só as pontes não repetem.
+    let jaPaga = null;
+    try {
+      jaPaga = await env.DB.prepare(
+        `SELECT 1 FROM greenn_webhook_event
+          WHERE entity_type = 'sale' AND entity_id = ? AND current_status = 'paid' AND id <> ?
+          LIMIT 1`
+      ).bind(evento.entity_id, linhaId).first();
+    } catch (e) {
+      // Sem resposta do banco, o lado seguro é NÃO repetir as pontes? Não: o
+      // custo de um comentário duplicado é menor que o de um comprador sem
+      // card. Falha na checagem segue como venda nova.
+      console.error('greenn — checagem de venda já paga falhou, seguindo:', e?.message || e);
+    }
+
+    if (jaPaga) {
+      console.error('greenn — venda já tinha paid gravado, pontes não repetidas:', { venda: evento.entity_id });
+      return json({ ok: true, status: 'gravado', event: evento.event, pontes: 'ignoradas_venda_ja_paga' });
+    }
+
     context.waitUntil(pontearParaClickUp(env, body, linhaId));
     context.waitUntil(pontearParaGHL(env, body));
     context.waitUntil(pontearParaManyChat(env, body));

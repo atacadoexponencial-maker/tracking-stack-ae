@@ -1,4 +1,4 @@
-// GET /api/conversion?key=...&days=30&funnel=...
+// GET /api/conversion?key=...&days=30&funnel=...&only=totals
 //
 // Conversão por landing page: para cada LP (path normalizado de
 // sessions.landing_url), quantos visitantes únicos não-bot chegaram no
@@ -8,9 +8,23 @@
 //
 // Fonte: sessions LEFT JOIN event_log via session_id. Bots ficam fora do
 // denominador (e por consequência do numerador) via NOT LIKE em SQL.
+//
+// `&only=totals` (revisão de 13/09/2026): responde só `{ visitors, leads, rate }`
+// somados sobre as mesmas linhas — é o que a Visão geral precisa do PERÍODO
+// ANTERIOR para desenhar o delta, e evita a consulta das etapas do formulário
+// e a montagem do funil por página. Sem `only`, a resposta é a de sempre.
 
 import { clausulasBotSql, clausulasBotIpSql } from '../_bots.js';
 import { montarFunil } from './_funil-etapas.js';
+import { respostaJson, respostaEmCache } from './_cache.js';
+
+// Início da coleta dos degraus novos (CTAClick/FormStep): o funil de
+// micro-conversões entrou no ar em 31/08/2026 (spec 2026-08-31). Era lido do
+// banco a cada chamada com `SELECT MIN(timestamp) FROM event_log WHERE
+// event_name IN (...)` — uma varredura do event_log inteiro para descobrir uma
+// data que nunca mais muda. Constante = zero leituras. Meia-noite de Brasília,
+// porque é o dia em que o deploy foi feito, na régua do negócio.
+const INICIO_COLETA_MS = Date.parse('2026-08-31T00:00:00-03:00');
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -23,6 +37,11 @@ export async function onRequestGet(context) {
 
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
   const { since, until } = resolvePeriod(url, days);
+  const soTotais = url.searchParams.get('only') === 'totals';
+
+  // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
+  const emCache = await respostaEmCache(request, { until });
+  if (emCache) return emCache;
 
   // Funil EFETIVO do lead = o declarado no evento (event_log.funnel), com
   // fallback para o da sessão (mesmo padrão do /api/leads, para o total de
@@ -129,6 +148,23 @@ export async function onRequestGet(context) {
       degrausPorPath.set(lp, d);
     }
 
+    // Só os totais: soma das mesmas linhas que sairiam em `rows` (mesma
+    // whitelist de páginas), para o número bater com o que a Visão geral soma
+    // no front a partir de `rows` no período atual.
+    if (soTotais) {
+      let visitors = 0;
+      let leads = 0;
+      for (const v of byPath.values()) {
+        visitors += v.visitors;
+        leads += v.leads;
+      }
+      return respostaJson(request, {
+        visitors,
+        leads,
+        rate: visitors > 0 ? leads / visitors : 0,
+      }, { until, context });
+    }
+
     // --- Etapas do formulário (spec 2026-08-31) ----------------------------
     //
     // Mesmo recorte de sessões da consulta acima (mesma janela, mesmos filtros
@@ -161,20 +197,6 @@ export async function onRequestGet(context) {
       GROUP BY s.landing_url, e.step
     `).bind(...bindsSessao).all();
 
-    // Início da coleta: primeiro evento novo do SITE INTEIRO. Sem filtro de
-    // página, de funil nem de período — é o que mantém a data FIXA. Calculada
-    // dentro do filtro, ela mudaria conforme o que o usuário escolhesse na
-    // tela, virando um número sem significado.
-    const coleta = await env.DB.prepare(`
-      SELECT MIN(timestamp) AS inicio
-        FROM event_log
-       WHERE event_name IN ('CTAClick', 'FormStep')
-    `).first();
-    // `timestamp` e `created_at` são segundos no D1; o funil trabalha em ms.
-    const inicioColetaMs = Number.isFinite(Number(coleta?.inicio))
-      ? Number(coleta.inicio) * 1000
-      : null;
-
     // Merge pelo path normalizado, igual ao byPath acima e pelo mesmo motivo:
     // grupos crus distintos que normalizam para o mesmo path são disjuntos.
     // (cliques e form_starts já entraram no degrausPorPath junto com o byPath,
@@ -195,7 +217,7 @@ export async function onRequestGet(context) {
         formStarts: d.formStarts,
         etapas: [...d.etapas].map(([step, sessoes]) => ({ step, sessoes })),
         leads: v.leads,
-        inicioColetaMs,
+        inicioColetaMs: INICIO_COLETA_MS,
         periodoInicioMs: since * 1000,
       });
       return {
@@ -212,7 +234,7 @@ export async function onRequestGet(context) {
     // empate por lp alfabético.
     rows.sort((a, b) => b.visitors - a.visitors || a.lp.localeCompare(b.lp));
 
-    return json({ days, funnel: funnel || null, rows });
+    return respostaJson(request, { days, funnel: funnel || null, rows }, { until, context });
   } catch (err) {
     return json({ error: err.message }, 500);
   }

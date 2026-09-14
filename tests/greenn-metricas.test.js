@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcularGreenn, SEM_CAMPANHA } from '../functions/api/_greenn-metricas.js';
+import { calcularGreenn, reduzirPorVenda, SEM_CAMPANHA } from '../functions/api/_greenn-metricas.js';
 
 const CAMPANHA = 'ae_vendas-workshop-pago-09-09_publico-frio';
 const CAMPANHA_NOVA = 'ae_vendas-workshop-pago-23-09_publico-frio';
@@ -167,4 +167,68 @@ test('vendas saem da mais recente para a mais antiga', () => {
 
 test('entrada vazia não lança', () => {
   assert.doesNotThrow(() => calcularGreenn());
+});
+
+// --- Uma linha por venda (revisão de 13/09/2026) -----------------------------
+
+test('a mesma venda com vários saleUpdated conta UMA vez', () => {
+  const r = calcularGreenn({
+    vendas: [
+      venda({ id: 7, status: 'waiting_payment', at: 100 }),
+      venda({ id: 7, status: 'paid', at: 200 }),
+      venda({ id: 7, status: 'paid', at: 300 }),
+    ],
+    sessoes: [],
+    gastos: [],
+  });
+  assert.equal(r.resumo.vendas, 1);
+  assert.equal(r.resumo.receita, 27);
+  assert.equal(r.resumo.nao_pagas, 0, 'o waiting_payment anterior não conta como não paga');
+});
+
+test('venda estornada depois de paga não entra na receita', () => {
+  const r = calcularGreenn({
+    vendas: [
+      venda({ id: 7, status: 'paid', at: 200 }),
+      venda({ id: 7, status: 'refunded', at: 300 }),
+    ],
+    sessoes: [],
+    gastos: [],
+  });
+  assert.equal(r.resumo.vendas, 0);
+  assert.equal(r.resumo.nao_pagas, 1);
+});
+
+test('a ordem das linhas não importa: vence o maior received_at', () => {
+  const r = calcularGreenn({
+    vendas: [
+      venda({ id: 7, status: 'refunded', at: 300 }),
+      venda({ id: 7, status: 'paid', at: 200 }),
+    ],
+    sessoes: [],
+    gastos: [],
+  });
+  assert.equal(r.resumo.vendas, 0);
+});
+
+test('empate de received_at é desfeito pelo id da linha (ordem de chegada)', () => {
+  const linhas = [
+    { ...venda({ id: 7, status: 'paid', at: 200 }), id: 10 },
+    { ...venda({ id: 7, status: 'refunded', at: 200 }), id: 11 },
+  ];
+  assert.equal(calcularGreenn({ vendas: linhas }).resumo.vendas, 0);
+  assert.equal(calcularGreenn({ vendas: [linhas[1], linhas[0]] }).resumo.vendas, 0);
+});
+
+test('reduzirPorVenda mantém uma linha por entity_id', () => {
+  const linhas = [
+    venda({ id: 1, at: 100 }),
+    venda({ id: 2, at: 100 }),
+    venda({ id: 1, at: 150 }),
+    { entity_id: '2', current_status: 'paid', amount: 27, received_at: 90, raw_json: '{}' },
+  ];
+  const reduzidas = reduzirPorVenda(linhas);
+  assert.equal(reduzidas.length, 2);
+  assert.equal(reduzidas.find((l) => String(l.entity_id) === '1').received_at, 150);
+  assert.equal(reduzidas.find((l) => String(l.entity_id) === '2').received_at, 100, 'entity_id numérico e texto são a mesma venda');
 });

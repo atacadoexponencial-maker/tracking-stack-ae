@@ -1,4 +1,4 @@
-// GET /api/leads?key=...&days=30&limit=100
+// GET /api/leads?key=...&days=30&limit=100[&funnel=...][&only=funnelCounts][&with=funnels]
 //
 // Returns Lead events joined to their originating session so each row carries
 // its UTMs / fbclid / gclid. This is the "where did my leads come from" view
@@ -6,6 +6,19 @@
 //
 // Source: event_log (Lead events only) LEFT JOIN sessions via session_id.
 // Bots are excluded by default; pass include_bots=1 to see them.
+//
+// Contrato (revisão de 13/09/2026, economia do D1):
+//   - sem parâmetros extras: `{ days, funnel, funnelCounts, materialCounts, leads }`;
+//   - `&with=funnels`: acrescenta `funnels` (todos os funis da história — só a
+//     aba Leads precisa, para o seletor, e só na primeira vez);
+//   - `&only=funnelCounts`: responde só `{ funnelCounts }` (é o que a Visão
+//     geral pede do período anterior e o que a aba Meta Ads usa para o CPL).
+//   `summary` (leads por utm_source) saiu: o dashboard nunca leu esse campo e
+//   ele custava uma varredura extra do event_log a cada abertura.
+
+import { clausulasBotIpSql } from '../_bots.js';
+import { listarFunisConhecidos } from './_funil-campanha.js';
+import { respostaJson, respostaEmCache } from './_cache.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -20,8 +33,17 @@ export async function onRequestGet(context) {
   const limit = clampInt(url.searchParams.get('limit'), 100, 1, 500);
   const includeBots = url.searchParams.get('include_bots') === '1';
   const { since, until } = resolvePeriod(url, days);
+  const soFunnelCounts = url.searchParams.get('only') === 'funnelCounts';
+  const comFunnels = url.searchParams.get('with') === 'funnels';
 
-  const botClause = includeBots ? '' : 'AND e.is_bot = 0';
+  // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
+  const emCache = await respostaEmCache(request, { until });
+  if (emCache) return emCache;
+
+  // Bot por user-agent (is_bot, decidido na escrita) E por IP (lista de
+  // _bots.js, aplicada na leitura sobre a sessão do lead — é o que limpa o
+  // histórico anterior ao bloqueio de 09/09). `include_bots=1` desliga os dois.
+  const botClause = includeBots ? '' : 'AND e.is_bot = 0\n' + clausulasBotIpSql('s');
   // Testes internos (is_junk = 1, ver migration 0022) nunca entram nas métricas.
   // Diferente de is_bot, não há flag para reincluir: se precisar auditar um
   // teste, consulte o D1 direto — o dado continua lá, só não é contado.
@@ -29,7 +51,7 @@ export async function onRequestGet(context) {
 
   // Filtro opcional de funil (não é UTM). Funil ausente = todos os funis
   // (comportamento original). A lista de funis disponíveis é devolvida em
-  // `funnels` para o dashboard popular o seletor automaticamente.
+  // `funnels` (só com `&with=funnels`) para o dashboard popular o seletor.
   // Funil EFETIVO do lead = o declarado no evento (event_log.funnel), com
   // fallback para o da sessão (sessions.funnel) nas linhas históricas gravadas
   // antes da coluna existir. Usar o da sessão sozinho categorizava errado:
@@ -46,7 +68,54 @@ export async function onRequestGet(context) {
   }
 
   try {
-    const rows = await env.DB.prepare(`
+    // Contagens por funil e por material numa consulta só (antes eram duas
+    // varreduras do mesmo recorte). `GROUP BY funil, material` devolve poucas
+    // dezenas de linhas; o resto é somado em JS:
+    //   - funnelCounts IGNORA o &funnel= de propósito (a ideia é ver a
+    //     distribuição entre todos os funis) e inclui o balde '' para a soma
+    //     fechar com o KPI total;
+    //   - materialCounts RESPEITA o &funnel= (issue 150) e só olha linhas com
+    //     material — todas as iscas do ManyChat dividem o mesmo funil, então o
+    //     que separa uma da outra é event_log.material.
+    // Não dá para derivar isto das linhas de `leads`: o dashboard pede
+    // `limit=1` só para ler as contagens, e mesmo com `limit=500` uma lista
+    // truncada contaria a menos.
+    const contagens = await env.DB.prepare(`
+      SELECT
+        COALESCE(${EFFECTIVE_FUNNEL}, '') AS funnel,
+        COALESCE(e.material, '') AS material,
+        COUNT(*) AS count
+      FROM event_log e
+      LEFT JOIN sessions s ON e.session_id = s.session_id
+      WHERE e.event_name = 'Lead'
+        AND e.timestamp >= ? AND e.timestamp <= ?
+        AND e.is_bot = 0
+        AND e.is_junk = 0
+        ${clausulasBotIpSql('s')}
+      GROUP BY 1, 2
+    `).bind(since, until).all();
+
+    const porFunil = new Map();
+    const porMaterial = new Map();
+    for (const r of contagens.results || []) {
+      const n = Number(r.count) || 0;
+      porFunil.set(r.funnel, (porFunil.get(r.funnel) || 0) + n);
+      if (r.material && (!funnel || r.funnel === funnel)) {
+        porMaterial.set(r.material, (porMaterial.get(r.material) || 0) + n);
+      }
+    }
+    const ordenar = (mapa, chave) => [...mapa]
+      .map(([k, count]) => ({ [chave]: k, count }))
+      .sort((a, b) => b.count - a.count);
+    const funnelCounts = ordenar(porFunil, 'funnel');
+    const materialCounts = ordenar(porMaterial, 'material');
+
+    if (soFunnelCounts) {
+      return respostaJson(request, { funnelCounts }, { until, context });
+    }
+
+    const [rows, funnels] = await Promise.all([
+      env.DB.prepare(`
       SELECT
         e.event_id,
         e.timestamp,
@@ -82,7 +151,8 @@ export async function onRequestGet(context) {
         d.resultado AS crm_resultado,
         d.task_url AS crm_task_url,
         (SELECT status FROM crm_status_log st
-          WHERE st.task_id = d.task_id ORDER BY st.id DESC LIMIT 1) AS crm_status
+          WHERE st.task_id = d.task_id
+          ORDER BY COALESCE(st.hist_date, st.recebido_em) DESC, st.id DESC LIMIT 1) AS crm_status
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
       LEFT JOIN lead_dispatch d ON d.event_id = e.event_id
@@ -93,82 +163,24 @@ export async function onRequestGet(context) {
         ${funnelClause}
       ORDER BY e.timestamp DESC
       LIMIT ?
-    `).bind(since, until, ...funnelBinds, limit).all();
+    `).bind(since, until, ...funnelBinds, limit).all(),
 
-    // Summary counts grouped by utm_source for the summary card above the table.
-    const summary = await env.DB.prepare(`
-      SELECT
-        COALESCE(NULLIF(s.utm_source, ''), '(direct)') as utm_source,
-        COUNT(*) as count
-      FROM event_log e
-      LEFT JOIN sessions s ON e.session_id = s.session_id
-      WHERE e.event_name = 'Lead'
-        AND e.timestamp >= ? AND e.timestamp <= ?
-        AND e.is_bot = 0
-        AND e.is_junk = 0
-        ${funnelClause}
-      GROUP BY utm_source
-      ORDER BY count DESC
-    `).bind(since, until, ...funnelBinds).all();
+      // Lista de funis para o seletor do dashboard: independente do período e
+      // do filtro, para o dropdown não perder opção ao trocar a data. Mesma
+      // função que o CPL e o mapeamento de campanhas usam — uma definição só.
+      comFunnels ? listarFunisConhecidos(env.DB) : Promise.resolve(null),
+    ]);
 
-    // Lista de funis disponíveis para o seletor do dashboard. Independente do
-    // período e do filtro atual, para o dropdown ficar estável (não some uma
-    // opção ao trocar a data). Apenas funis efetivamente capturados.
-    const funnels = await env.DB.prepare(`
-      SELECT DISTINCT ${EFFECTIVE_FUNNEL} as funnel
-      FROM event_log e
-      LEFT JOIN sessions s ON e.session_id = s.session_id
-      WHERE e.event_name = 'Lead'
-        AND e.is_bot = 0
-        AND e.is_junk = 0
-        AND ${EFFECTIVE_FUNNEL} IS NOT NULL AND ${EFFECTIVE_FUNNEL} != ''
-      ORDER BY funnel
-    `).all();
-
-    // Contagem de leads por funil no período, para o bloco "Leads por funil" do
-    // dashboard. Respeita o período (since/until) e exclui bots, mas IGNORA o
-    // filtro &funnel= de propósito: a ideia é ver a distribuição entre todos os
-    // funis. Inclui o bucket sem funil ('') para a soma fechar com o KPI total.
-    const funnelCounts = await env.DB.prepare(`
-      SELECT COALESCE(${EFFECTIVE_FUNNEL}, '') as funnel, COUNT(*) as count
-      FROM event_log e
-      LEFT JOIN sessions s ON e.session_id = s.session_id
-      WHERE e.event_name = 'Lead'
-        AND e.timestamp >= ? AND e.timestamp <= ?
-        AND e.is_bot = 0
-        AND e.is_junk = 0
-      GROUP BY COALESCE(${EFFECTIVE_FUNNEL}, '')
-      ORDER BY count DESC
-    `).bind(since, until).all();
-
-    // Contagem de leads por material rico no período, para o bloco "Materiais
-    // mais baixados" (issue 150). Todas as iscas do ManyChat dividem o mesmo
-    // funil, então o que separa uma da outra é event_log.material. Linhas sem
-    // material (todos os demais funis e o histórico anterior à migration 0027)
-    // ficam de fora. Respeita o &funnel= como as demais consultas do endpoint.
-    const materialCounts = await env.DB.prepare(`
-      SELECT e.material as material, COUNT(*) as count
-      FROM event_log e
-      LEFT JOIN sessions s ON e.session_id = s.session_id
-      WHERE e.event_name = 'Lead'
-        AND e.timestamp >= ? AND e.timestamp <= ?
-        AND e.is_bot = 0
-        AND e.is_junk = 0
-        AND e.material IS NOT NULL AND e.material != ''
-        ${funnelClause}
-      GROUP BY e.material
-      ORDER BY count DESC
-    `).bind(since, until, ...funnelBinds).all();
-
-    return json({
+    const resposta = {
       days,
       funnel: funnel || null,
-      funnels: (funnels.results || []).map(r => r.funnel),
-      funnelCounts: (funnelCounts.results || []).map(r => ({ funnel: r.funnel, count: r.count })),
-      materialCounts: (materialCounts.results || []).map(r => ({ material: r.material, count: r.count })),
+      funnelCounts,
+      materialCounts,
       leads: rows.results || [],
-      summary: summary.results || [],
-    });
+    };
+    if (funnels) resposta.funnels = funnels;
+
+    return respostaJson(request, resposta, { until, context });
   } catch (err) {
     return json({ error: err.message }, 500);
   }

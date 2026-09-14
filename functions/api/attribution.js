@@ -17,6 +17,9 @@
 //   last_synced_at,     // last successful Meta sync timestamp, or null
 // }
 
+import { ymdBrt } from './_data-brt.js';
+import { respostaJson, respostaEmCache } from './_cache.js';
+
 export async function onRequestGet(context) {
   const { request, env } = context;
 
@@ -28,6 +31,10 @@ export async function onRequestGet(context) {
 
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
   const { since, until } = resolvePeriod(url, days);
+
+  // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
+  const emCache = await respostaEmCache(request, { until });
+  if (emCache) return emCache;
 
   try {
     const rows = await env.DB.prepare(`
@@ -56,9 +63,11 @@ export async function onRequestGet(context) {
       }
     }
 
-    // Meta spend from ad_spend table over the same window.
-    const sinceDate = ymd(new Date(since * 1000));
-    const untilDate = ymd(new Date(until * 1000));
+    // Investimento do Meta na mesma janela. `ad_spend.date` é o dia LOCAL da
+    // conta de anúncios (Brasília), então o período em unix vira dia de
+    // Brasília — não UTC, que jogava o gasto de 21h–meia-noite no dia seguinte.
+    const sinceDate = ymdBrt(since);
+    const untilDate = ymdBrt(until);
     const spendRow = await env.DB.prepare(`
       SELECT COALESCE(SUM(spend_cents), 0) as spend_cents
       FROM ad_spend
@@ -74,25 +83,20 @@ export async function onRequestGet(context) {
       WHERE platform = 'meta' AND status = 'ok'
     `).first();
 
-    return json({
+    return respostaJson(request, {
       days,
       groups,
       meta_spend: metaSpend,
       meta_cpa: groups.meta.sales > 0 ? metaSpend / groups.meta.sales : null,
       meta_roas: metaSpend > 0 ? groups.meta.revenue / metaSpend : null,
       last_synced_at: syncRow?.last_synced_at || null,
-    });
+    }, { until, context });
   } catch (err) {
     return json({ error: err.message }, 500);
   }
 }
 
 function empty() { return { sales: 0, revenue: 0 }; }
-
-function ymd(d) {
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-}
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
