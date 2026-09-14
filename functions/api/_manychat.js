@@ -30,6 +30,9 @@
 // Daí o passo 2 desta função: preencher `phone` logo na criação torna a pessoa
 // encontrável para sempre. Sem ele, a única chance de agir sobre alguém é o
 // instante em que ele nasce.
+//
+// 5. `findBySystemField` responde `status: success` com `data: []` quando NÃO
+//    acha — só o array vazio indica ausência (confirmado em 2026-09-09).
 // ------------------------------------------------------------------------
 
 const MANYCHAT_API = 'https://api.manychat.com';
@@ -43,6 +46,35 @@ function manychatFetch(path, body, env) {
     },
     body: JSON.stringify(body),
   });
+}
+
+// Procura um inscrito pelo campo `phone` ou `email`. Devolve o id ou ''.
+// Só acha quem tem o campo preenchido — quem nasceu só com WhatsApp continua
+// inencontrável (item 3 acima).
+async function buscarInscrito(campo, valor, env) {
+  if (!valor) return '';
+  try {
+    const res = await fetch(
+      `${MANYCHAT_API}/fb/subscriber/findBySystemField?${campo}=${encodeURIComponent(valor)}`,
+      { headers: { Authorization: `Bearer ${env.MANYCHAT_API}` } },
+    );
+    if (!res.ok) return '';
+    const data = (await res.json())?.data;
+    if (Array.isArray(data)) return data[0]?.id ? String(data[0].id) : '';
+    return data?.id ? String(data.id) : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+async function aplicarTag(subscriberId, tagId, env) {
+  const tagRes = await manychatFetch('/fb/subscriber/addTag', {
+    subscriber_id: subscriberId,
+    tag_id: tagId,
+  }, env);
+  if (tagRes.ok) return '';
+  const t = await tagRes.text().catch(() => '');
+  return `tag falhou: ${t.slice(0, 200)}`;
 }
 
 // Divide "Fulana de Tal Silva" em primeiro e último nome. O ManyChat guarda os
@@ -66,13 +98,15 @@ function separarNome(nome) {
  *
  * `motivo` distingue os desfechos que importam:
  *   'inscrito'     — criado e tagueado (caminho feliz)
- *   'ja_existia'   — o WhatsApp já estava na conta; NÃO foi possível taguear,
- *                    porque a API não permite achar um inscrito pelo WhatsApp
+ *   'ja_existia_tagueado' — o WhatsApp já estava na conta; achado pelo
+ *                    `phone` ou pelo `email` e tagueado (ok: true)
+ *   'ja_existia'   — o WhatsApp já estava na conta e NÃO foi achado nem por
+ *                    `phone` nem por `email` (inscrito só-WhatsApp); sem tag
  *   'sem_config'   — falta MANYCHAT_API ou tagId
  *   'sem_telefone' — sem número não há como inscrever por WhatsApp
  *   'erro'         — qualquer outra falha (detalhe no log de quem chama)
  */
-export async function inscreverComTag({ nome, telefone, tagId, env }) {
+export async function inscreverComTag({ nome, telefone, email, tagId, env }) {
   if (!env.MANYCHAT_API || !tagId) {
     return { ok: false, motivo: 'sem_config', subscriberId: null };
   }
@@ -92,16 +126,23 @@ export async function inscreverComTag({ nome, telefone, tagId, env }) {
   const criaTexto = await criaRes.text().catch(() => '');
 
   if (!criaRes.ok) {
-    // "já existe" é um desfecho previsto, não um erro de integração: quem já
-    // está na conta segue lá, só não recebe a tag. Separado dos demais para
-    // quem chama poder contar os dois casos.
-    const jaExiste = /already exists/i.test(criaTexto);
-    return {
-      ok: false,
-      motivo: jaExiste ? 'ja_existia' : 'erro',
-      subscriberId: null,
-      detalhe: criaTexto.slice(0, 200),
-    };
+    if (!/already exists/i.test(criaTexto)) {
+      return { ok: false, motivo: 'erro', subscriberId: null, detalhe: criaTexto.slice(0, 200) };
+    }
+
+    // "já existe" é um desfecho previsto: quem já está na conta é procurado
+    // pelo `phone` e depois pelo `email` e recebe a tag no contato existente.
+    const existenteId =
+      (await buscarInscrito('phone', telefone, env)) ||
+      (await buscarInscrito('email', email, env));
+    if (!existenteId) {
+      return { ok: false, motivo: 'ja_existia', subscriberId: null, detalhe: criaTexto.slice(0, 200) };
+    }
+    const falhaTag = await aplicarTag(existenteId, tagId, env);
+    if (falhaTag) {
+      return { ok: false, motivo: 'erro', subscriberId: existenteId, detalhe: falhaTag };
+    }
+    return { ok: true, motivo: 'ja_existia_tagueado', subscriberId: existenteId };
   }
 
   let subscriberId = '';
@@ -130,14 +171,9 @@ export async function inscreverComTag({ nome, telefone, tagId, env }) {
   }
 
   // 3. A tag — é ela que dispara o fluxo de WhatsApp no ManyChat.
-  const tagRes = await manychatFetch('/fb/subscriber/addTag', {
-    subscriber_id: subscriberId,
-    tag_id: tagId,
-  }, env);
-
-  if (!tagRes.ok) {
-    const t = await tagRes.text().catch(() => '');
-    return { ok: false, motivo: 'erro', subscriberId, detalhe: `tag falhou: ${t.slice(0, 200)}` };
+  const falhaTag = await aplicarTag(subscriberId, tagId, env);
+  if (falhaTag) {
+    return { ok: false, motivo: 'erro', subscriberId, detalhe: falhaTag };
   }
 
   return { ok: true, motivo: 'inscrito', subscriberId };

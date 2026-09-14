@@ -355,11 +355,10 @@ async function pontearParaGHL(env, payload) {
 // (dígitos com DDI, sem `+`). Formato confirmado contra a API deles em
 // 2026-08-13.
 //
-// O desfecho `ja_existia` é registrado à parte de propósito: a API do ManyChat
-// não permite encontrar um inscrito pelo WhatsApp, então quem já estava na conta
-// não recebe a tag e não entra no fluxo. Em 2026-08-13 a base foi zerada pela
-// usuária, então isso deveria ser raro — e o log é o que vai dizer se voltou a
-// acontecer, em vez de a pessoa sumir calada.
+// Quem já estava na conta é procurado pelo telefone e pelo e-mail e recebe a
+// tag no contato existente (desde 2026-09-14). Sobra `ja_existia` só para quem
+// nasceu só com WhatsApp e não é achável pela API — o log é o que diz se isso
+// aconteceu, em vez de a pessoa sumir calada.
 async function pontearParaManyChat(env, payload) {
   const cliente = payload.client || {};
   const vendaId = payload.sale && payload.sale.id;
@@ -367,6 +366,7 @@ async function pontearParaManyChat(env, payload) {
     const r = await inscreverComTag({
       nome: cliente.name || '',
       telefone: normalizePhone(cliente.cellphone, env.DEFAULT_COUNTRY_CODE || '55'),
+      email: (cliente.email || '').trim().toLowerCase(),
       tagId: MANYCHAT_TAG_ID,
       env,
     });
