@@ -26,8 +26,9 @@ database_id = "__REPLACE_ME_DB_ID__"
 # and prints them for you to paste.
 #
 # Required environment variables (set in the Cloudflare dashboard):
-#   META_PIXEL_ID           Meta Pixel numeric ID
-#   META_ACCESS_TOKEN       Meta CAPI long-lived access token
+#   META_PIXEL_ID_2         Meta Pixel numeric ID (o par `_2` é o único em uso;
+#                           o nome mantém o sufixo da migração de 07/2026)
+#   META_ACCESS_TOKEN_2     Meta CAPI long-lived access token
 #   GA4_MEASUREMENT_ID      GA4 Measurement ID (G-XXXXXXXXXX)
 #   GA4_API_SECRET          GA4 Measurement Protocol API secret
 #   DASH_KEY                Random string to gate the dashboard
@@ -36,9 +37,6 @@ database_id = "__REPLACE_ME_DB_ID__"
 #                           Must differ from DASH_KEY; unset = the route refuses all
 #
 # Optional (leave unset to skip that integration):
-#   META_PIXEL_ID_2         Second Meta Pixel (new ad account during migration);
-#                           receives PageView + Lead only
-#   META_ACCESS_TOKEN_2     CAPI access token for the second pixel
 #   META_TEST_EVENT_CODE    Meta test-events code for debugging
 #   TIMEZONE_OFFSET         ISO offset like "-03:00" for Google Ads timestamps
 #   DEFAULT_COUNTRY_CODE    Calling code prepended to local-format phones

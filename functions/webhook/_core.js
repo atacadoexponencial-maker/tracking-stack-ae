@@ -480,7 +480,10 @@ async function handlePurchaseLog({ parsed, eventId, eventTime, resultMap, env })
 // META CAPI — Purchase with full navigation data from D1
 // -----------------------------------------------------------------------------
 async function sendToMeta({ checkoutData, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, eventId, eventTime, value, currency, productName, contents, env }) {
-  if (!env.META_PIXEL_ID || !env.META_ACCESS_TOKEN) {
+  // Par `_2` = pixel vivo (conta Sete Ads 2). Até 2026-09-15 isto usava as vars
+  // sem sufixo, que guardam o pixel 915637492681788 desativado em 30/07 — todo
+  // Purchase da Greenn foi para um pixel morto desde então.
+  if (!env.META_PIXEL_ID_2 || !env.META_ACCESS_TOKEN_2) {
     return { skipped: 'missing meta env', payload: null, response: null };
   }
 
@@ -532,7 +535,7 @@ async function sendToMeta({ checkoutData, hashedEm, hashedFn, hashedLn, hashedPh
 
   const payloadJson = JSON.stringify(metaPayload);
   const response = await fetch(
-    `https://graph.facebook.com/v25.0/${env.META_PIXEL_ID}/events?access_token=${env.META_ACCESS_TOKEN}`,
+    `https://graph.facebook.com/v25.0/${env.META_PIXEL_ID_2}/events?access_token=${env.META_ACCESS_TOKEN_2}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

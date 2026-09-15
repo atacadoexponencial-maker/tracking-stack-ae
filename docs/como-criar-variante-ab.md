@@ -57,7 +57,6 @@ enquanto a página, o sorteio A/B e o D1 continuam funcionando:
 
 ```bash
 npx wrangler pages dev dist \
-  --binding META_PIXEL_ID= --binding META_ACCESS_TOKEN= \
   --binding META_PIXEL_ID_2= --binding META_ACCESS_TOKEN_2= \
   --binding GA4_MEASUREMENT_ID= --binding GA4_API_SECRET= \
   --binding CLICKUP_API_TOKEN= \

@@ -178,15 +178,15 @@ export async function onRequestPost(context) {
 
     // Pixel ÚNICO desde 2026-07-30: a conta antiga foi bloqueada, então o pixel
     // 915637492681788 parou de servir para qualquer coisa e saiu (do browser em
-    // BaseLayout.astro e daqui). As vars `_2` continuam sendo a fonte porque são
-    // as que já apontam para a conta Sete Ads 2; o fallback para as primárias
-    // deixa a renomeação futura ser só troca de secret, sem deploy.
+    // BaseLayout.astro e daqui). Ficou só o par `_2`, que aponta para a conta
+    // Sete Ads 2. NÃO existe fallback para as vars sem sufixo: elas guardam o
+    // pixel morto, e cair nelas mandaria os eventos para o vazio em silêncio.
     //
     // Efeito colateral bem-vindo: o event_log passa a registrar a resposta do
     // pixel que realmente importa. Antes ele guardava a do pixel antigo, e foi
     // por isso que o token quebrado do pixel novo passou semanas invisível.
-    const pixelId = env.META_PIXEL_ID_2 || env.META_PIXEL_ID;
-    const accessToken = env.META_ACCESS_TOKEN_2 || env.META_ACCESS_TOKEN;
+    const pixelId = env.META_PIXEL_ID_2;
+    const accessToken = env.META_ACCESS_TOKEN_2;
 
     const results = (isBot || ehEventoInterno || bloqueado) ? [] : await Promise.allSettled([
       sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }),
@@ -896,7 +896,7 @@ export async function sendThrottledAlert(type, text, env) {
 
 // Camada A — Meta CAPI: alerta quando um Lead/Purchase REAL (não-bot) não foi
 // aceito pelo Meta, qualquer que seja a razão: erro HTTP, fetch rejeitado ou
-// skip por env ausente (META_PIXEL_ID/token sumiram = morte silenciosa —
+// skip por env ausente (META_PIXEL_ID_2/token sumiram = morte silenciosa —
 // metaResponseOk fica 0 em todos esses casos). PageView e bots não alertam.
 // Roda em waitUntil: nunca atrasa a resposta do /tracker.
 async function maybeAlertMetaFailure({ eventName, isBot, bloqueado = false, metaResponseOk, metaStatusCode, metaResponseBody, env, throttleKey = 'meta_capi', label = 'Meta CAPI' }) {
