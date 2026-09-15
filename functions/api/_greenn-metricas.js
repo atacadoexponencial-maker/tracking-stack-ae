@@ -17,14 +17,40 @@ export const EMAILS_TESTE_INTERNO = new Set([
   'marcellefernandesdemesquita@gmail.com',
 ]);
 
-// Como reconhecer, em ad_spend, uma campanha deste produto.
+// Como reconhecer, em ad_spend, uma campanha deste produto: o nome CONTÉM o
+// trecho do nome da campanha do funil ativo do tipo "Venda na Greenn" no
+// cadastro de funis (spec-feedback-marketing.md, módulo 3). O padrão fixo
+// `/workshop-pago/i` deixou de existir; o cadastro inicial (migration 0040)
+// traz o trecho `workshop-pago`, que reproduz exatamente o mesmo resultado.
 //
-// A nomenclatura é `ae_vendas-workshop-pago-<data>_<publico>`. O
-// `resolverFunilAuto` de _funil-campanha.js não serve aqui: ele lê apenas o
+// Sem diferenciar maiúsculas e minúsculas, e o trecho é TEXTO literal — nunca
+// regex: `a.b` não casa `axb`. Mesma comparação do reconhecimento pelo trecho
+// em _funis-relatorio-conflitos.js.
+//
+// O `resolverFunilAuto` de _funil-campanha.js não serve aqui: ele lê apenas o
 // ÚLTIMO segmento do nome (`publico-frio`), então estas campanhas caem todas em
-// `sem-funil`. Sem este padrão, uma campanha que gastou e não vendeu sumiria da
-// tela — justamente o caso que a spec manda mostrar.
-export const PADRAO_CAMPANHA_PRODUTO = /workshop-pago/i;
+// `sem-funil`. Sem o trecho, uma campanha que gastou e não vendeu sumiria da
+// tela — é o que acontece, de propósito, quando não há funil de venda com
+// trecho (a tela avisa).
+export function campanhaDoProduto(nome, trecho) {
+  const t = String(trecho == null ? '' : trecho).trim().toLowerCase();
+  if (!t) return false;
+  return String(nome == null ? '' : nome).toLowerCase().includes(t);
+}
+
+export const AVISO_SEM_FUNIL_VENDA = 'Nenhum funil de venda cadastrado — as campanhas do produto que não venderam não aparecem. Cadastre em Funis do relatório.';
+
+// Faixa da aba Greenn (spec-feedback-marketing.md, módulo 3). Montada aqui para
+// a tela só exibir. `funil` = { nome, trecho_campanha } do funil ativo do tipo
+// "Venda na Greenn", ou null quando não há nenhum (arquivado, nunca cadastrado
+// ou tabela ainda inexistente). Devolve null quando não há o que avisar.
+export function avisoFunilVenda(funil) {
+  if (!funil) return AVISO_SEM_FUNIL_VENDA;
+  if (!String(funil.trecho_campanha == null ? '' : funil.trecho_campanha).trim()) {
+    return `O funil ${funil.nome} não tem trecho do nome da campanha.`;
+  }
+  return null;
+}
 
 // Rótulo único das vendas que chegaram sem campanha identificada: acesso
 // direto, link compartilhado, indicação. É um grupo legítimo, não um erro.
@@ -100,8 +126,10 @@ function maisRecente(a, b) {
  * @param {Array} entrada.vendas   linhas de greenn_webhook_event (event = 'saleUpdated')
  * @param {Array} entrada.sessoes  linhas de checkout_sessions (trk + utms)
  * @param {Array} entrada.gastos   linhas de ad_spend já agrupadas por campanha
+ * @param {string|null} entrada.trechoCampanha  trecho do funil ativo de venda
+ *   na Greenn; vazio/null = nenhuma campanha entra só por ter gastado
  */
-export function calcularGreenn({ vendas = [], sessoes = [], gastos = [] } = {}) {
+export function calcularGreenn({ vendas = [], sessoes = [], gastos = [], trechoCampanha = null } = {}) {
   // A atribuição mora em checkout_sessions.trk, que casa com o `sf_trk`
   // devolvido pela Greenn na venda. NÃO é event_log.session_id: cruzar por lá
   // devolve zero linhas e parece bug sem ser.
@@ -162,10 +190,11 @@ export function calcularGreenn({ vendas = [], sessoes = [], gastos = [] } = {}) 
   }
 
   // A lista de campanhas é a UNIÃO de quem vendeu com quem gastou. Só quem
-  // vendeu esconderia a campanha que queimou orçamento sem retorno.
+  // vendeu esconderia a campanha que queimou orçamento sem retorno. Sem trecho,
+  // sobram só as que venderam.
   const nomes = new Set(receitaPorCampanha.keys());
   for (const nome of investPorCampanha.keys()) {
-    if (PADRAO_CAMPANHA_PRODUTO.test(nome)) nomes.add(nome);
+    if (campanhaDoProduto(nome, trechoCampanha)) nomes.add(nome);
   }
 
   const por_campanha = [];

@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcularGreenn, reduzirPorVenda, SEM_CAMPANHA } from '../functions/api/_greenn-metricas.js';
+import { AVISO_SEM_FUNIL_VENDA, avisoFunilVenda, calcularGreenn, campanhaDoProduto, reduzirPorVenda, SEM_CAMPANHA } from '../functions/api/_greenn-metricas.js';
 
 const CAMPANHA = 'ae_vendas-workshop-pago-09-09_publico-frio';
 const CAMPANHA_NOVA = 'ae_vendas-workshop-pago-23-09_publico-frio';
+// Trecho do cadastro inicial (migration 0040) do funil WO PAGO.
+const TRECHO = 'workshop-pago';
 
 function venda({ id = 1, status = 'paid', amount = 27, at = 1000, email = 'cliente@gmail.com', nome = 'Cliente', trk = null, raw = null }) {
   return {
@@ -62,6 +64,7 @@ test('campanha que gastou e não vendeu continua na lista', () => {
     vendas: [venda({ id: 1, trk: 'a' })],
     sessoes: [sessao('a', CAMPANHA)],
     gastos: [gasto(CAMPANHA, 10000), gasto(CAMPANHA_NOVA, 5000)],
+    trechoCampanha: TRECHO,
   });
   const perdida = linhaDe(r, CAMPANHA_NOVA);
   assert.ok(perdida, 'a campanha sem venda não pode sumir da tela');
@@ -76,6 +79,7 @@ test('campanha alheia ao produto não entra na aba', () => {
     vendas: [venda({ id: 1, trk: 'a' })],
     sessoes: [sessao('a', CAMPANHA)],
     gastos: [gasto(CAMPANHA, 10000), gasto('ae_leads_publico-frio_evento-lead_sessao-estrategica', 900000)],
+    trechoCampanha: TRECHO,
   });
   assert.equal(r.por_campanha.length, 1);
   assert.equal(r.resumo.investimento, 100);
@@ -231,4 +235,128 @@ test('reduzirPorVenda mantém uma linha por entity_id', () => {
   assert.equal(reduzidas.length, 2);
   assert.equal(reduzidas.find((l) => String(l.entity_id) === '1').received_at, 150);
   assert.equal(reduzidas.find((l) => String(l.entity_id) === '2').received_at, 100, 'entity_id numérico e texto são a mesma venda');
+});
+
+// --- Reconhecimento pelo trecho do cadastro (issue 266) ----------------------
+
+test('trecho reconhece sem diferenciar maiúsculas e minúsculas', () => {
+  assert.equal(campanhaDoProduto('AE_VENDAS-WORKSHOP-PAGO-30-09_PUBLICO-FRIO', 'workshop-pago'), true);
+  assert.equal(campanhaDoProduto('ae_vendas-workshop-pago-23-09_publico-frio', 'WorkShop-Pago'), true);
+});
+
+test('trecho é texto literal, nunca regex', () => {
+  assert.equal(campanhaDoProduto('ae_vendas-axb_publico', 'a.b'), false);
+  assert.equal(campanhaDoProduto('ae_vendas-a.b_publico', 'a.b'), true);
+  assert.equal(campanhaDoProduto('campanha (teste)+1', '(teste)+'), true);
+  assert.doesNotThrow(() => campanhaDoProduto('x', '[quebrado('));
+});
+
+test('trecho com espaços nas pontas vale sem eles; vazio não reconhece nada', () => {
+  assert.equal(campanhaDoProduto(CAMPANHA, '  workshop-pago '), true);
+  assert.equal(campanhaDoProduto(CAMPANHA, ''), false);
+  assert.equal(campanhaDoProduto(CAMPANHA, '   '), false);
+  assert.equal(campanhaDoProduto(CAMPANHA, null), false);
+});
+
+test('trecho alterado passa a reconhecer as campanhas do trecho novo', () => {
+  const gastos = [gasto(CAMPANHA, 10000), gasto('ae_vendas-mentoria-paga_publico-frio', 5000)];
+  const antes = calcularGreenn({ gastos, trechoCampanha: TRECHO });
+  const depois = calcularGreenn({ gastos, trechoCampanha: 'mentoria-paga' });
+  assert.deepEqual(antes.por_campanha.map((c) => c.campanha), [CAMPANHA]);
+  assert.deepEqual(depois.por_campanha.map((c) => c.campanha), ['ae_vendas-mentoria-paga_publico-frio']);
+});
+
+test('sem trecho: lista vendas e campanhas que venderam, esconde as que só gastaram', () => {
+  for (const trechoCampanha of [null, undefined, '']) {
+    const r = calcularGreenn({
+      vendas: [venda({ id: 1, trk: 'a' })],
+      sessoes: [sessao('a', CAMPANHA)],
+      gastos: [gasto(CAMPANHA, 10000), gasto(CAMPANHA_NOVA, 5000)],
+      trechoCampanha,
+    });
+    assert.deepEqual(r.por_campanha.map((c) => c.campanha), [CAMPANHA]);
+    assert.equal(linhaDe(r, CAMPANHA).investimento, 100, 'quem vendeu mantém o investimento');
+    assert.equal(r.resumo.vendas, 1);
+    assert.equal(r.vendas.length, 1);
+    assert.equal(r.resumo.investimento, 100);
+  }
+});
+
+// Equivalência: padrão fixo antigo × trecho do cadastro inicial.
+//
+// NOMES reúne os nomes reais de ad_spend (três campanhas do produto, SE, LIVE,
+// impulsionamento) mais uma variação em maiúsculas e uma quase-igual sem hífen.
+const PADRAO_ANTIGO = /workshop-pago/i;
+const NOMES = [
+  'ae_vendas-workshop-pago-09-09_publico-frio',
+  'ae_vendas-workshop-pago-23-09_publico-frio',
+  'ae_vendas-workshop-pago-23-09_publico-quente',
+  'ae_leads_publico-frio_evento-lead_sessao-estrategica',
+  'ae_leads_publico-frio_evento-lead_lives-semanais',
+  'Post do Instagram: Comente “ANALISE” se quiser...',
+  'AE_VENDAS-WORKSHOP-PAGO-30-09_PUBLICO-FRIO',
+  'workshop_pago_sem_hifen',
+];
+
+test('equivalência: o trecho do cadastro reconhece exatamente as mesmas campanhas do padrão antigo', () => {
+  for (const nome of NOMES) {
+    assert.equal(campanhaDoProduto(nome, TRECHO), PADRAO_ANTIGO.test(nome), nome);
+  }
+});
+
+function vendaEq(id, status, at, email, trk) {
+  return {
+    id, entity_id: id, current_status: status, amount: 27, received_at: at,
+    raw_json: JSON.stringify({ client: { name: 'C' + id, email }, sale: { method: 'PIX' }, product: { name: 'Workshop' }, ...(trk ? { sf_trk: trk } : {}) }),
+  };
+}
+
+// Cobre: venda paga de campanha do produto, venda com várias atualizações,
+// venda paga vinda de campanha de outro funil, venda sem rastreio, estorno,
+// teste interno, campanha do produto que só gastou e campanhas alheias.
+const CONJUNTO_EQ = {
+  vendas: [
+    vendaEq(1, 'paid', 100, 'a@gmail.com', 't1'),
+    vendaEq(2, 'waiting_payment', 100, 'b@gmail.com', 't2'),
+    vendaEq(2, 'paid', 200, 'b@gmail.com', 't2'),
+    vendaEq(3, 'paid', 150, 'c@gmail.com', 't3'),
+    vendaEq(4, 'paid', 160, 'd@gmail.com', null),
+    vendaEq(5, 'refunded', 170, 'e@gmail.com', 't1'),
+    vendaEq(6, 'paid', 180, 'marcellefernandesdemesquita@gmail.com', 't1'),
+  ],
+  sessoes: [
+    { trk: 't1', utm_campaign: NOMES[0], utm_content: 'ad01', utm_source: 'facebookads', utm_medium: 'cpc' },
+    { trk: 't2', utm_campaign: NOMES[2], utm_content: 'ad02', utm_source: 'facebookads', utm_medium: 'cpc' },
+    { trk: 't3', utm_campaign: NOMES[3], utm_content: 'ad03', utm_source: 'facebookads', utm_medium: 'cpc' },
+  ],
+  gastos: [30592, 176113, 48938, 1285039, 489140, 42567, 1000, 500].map((c, i) => gasto(NOMES[i], c)),
+};
+
+// Saída de `calcularGreenn(CONJUNTO_EQ)` gerada com o módulo ANTES da troca
+// (commit 7bbb053, ainda com `PADRAO_CAMPANHA_PRODUTO = /workshop-pago/i`).
+// Não recalcular a partir do código novo: o valor é justamente o de antes.
+const SAIDA_PADRAO_ANTIGO = {"resumo":{"receita":108,"vendas":4,"ticket_medio":27,"investimento":15416.82,"roas":0.0070053357307148945,"nao_pagas":1,"ilegiveis":0,"testes_internos":1},"por_campanha":[{"campanha":"ae_leads_publico-frio_evento-lead_sessao-estrategica","sem_campanha":false,"investimento":12850.39,"receita":27,"vendas":1,"roas":0.002101103546273693,"custo_por_venda":12850.39},{"campanha":"ae_vendas-workshop-pago-23-09_publico-quente","sem_campanha":false,"investimento":489.38,"receita":27,"vendas":1,"roas":0.055171850096039886,"custo_por_venda":489.38},{"campanha":"ae_vendas-workshop-pago-09-09_publico-frio","sem_campanha":false,"investimento":305.92,"receita":27,"vendas":1,"roas":0.08825836820083681,"custo_por_venda":305.92},{"campanha":"sem-campanha","sem_campanha":true,"investimento":null,"receita":27,"vendas":1,"roas":null,"custo_por_venda":0},{"campanha":"ae_vendas-workshop-pago-23-09_publico-frio","sem_campanha":false,"investimento":1761.13,"receita":0,"vendas":0,"roas":0,"custo_por_venda":null},{"campanha":"AE_VENDAS-WORKSHOP-PAGO-30-09_PUBLICO-FRIO","sem_campanha":false,"investimento":10,"receita":0,"vendas":0,"roas":0,"custo_por_venda":null}],"vendas":[{"id":2,"data":200,"nome":"C2","valor":27,"metodo":"PIX","produto":"Workshop","campanha":"ae_vendas-workshop-pago-23-09_publico-quente","criativo":"ad02","origem":"facebookads","sem_origem":false},{"id":4,"data":160,"nome":"C4","valor":27,"metodo":"PIX","produto":"Workshop","campanha":"sem-campanha","criativo":"","origem":"","sem_origem":true},{"id":3,"data":150,"nome":"C3","valor":27,"metodo":"PIX","produto":"Workshop","campanha":"ae_leads_publico-frio_evento-lead_sessao-estrategica","criativo":"ad03","origem":"facebookads","sem_origem":false},{"id":1,"data":100,"nome":"C1","valor":27,"metodo":"PIX","produto":"Workshop","campanha":"ae_vendas-workshop-pago-09-09_publico-frio","criativo":"ad01","origem":"facebookads","sem_origem":false}]};
+
+test('equivalência: com o trecho do cadastro inicial a saída é idêntica à do padrão antigo', () => {
+  const r = calcularGreenn({ ...CONJUNTO_EQ, trechoCampanha: TRECHO });
+  assert.deepEqual(r, SAIDA_PADRAO_ANTIGO);
+  assert.equal(JSON.stringify(r), JSON.stringify(SAIDA_PADRAO_ANTIGO), 'mesma ordem de campanhas e de chaves');
+});
+
+// --- Aviso da aba Greenn sem funil de venda ou sem trecho (issue 267) --------
+
+test('sem funil de venda ativo o aviso manda cadastrar', () => {
+  assert.equal(avisoFunilVenda(null), 'Nenhum funil de venda cadastrado — as campanhas do produto que não venderam não aparecem. Cadastre em Funis do relatório.');
+  assert.equal(avisoFunilVenda(undefined), AVISO_SEM_FUNIL_VENDA);
+});
+
+test('funil de venda sem trecho avisa pelo nome do funil', () => {
+  const msg = 'O funil WO PAGO não tem trecho do nome da campanha.';
+  assert.equal(avisoFunilVenda({ nome: 'WO PAGO', trecho_campanha: null }), msg);
+  assert.equal(avisoFunilVenda({ nome: 'WO PAGO', trecho_campanha: '' }), msg);
+  assert.equal(avisoFunilVenda({ nome: 'WO PAGO', trecho_campanha: '   ' }), msg, 'só espaços é sem trecho');
+});
+
+test('funil de venda com trecho não gera aviso', () => {
+  assert.equal(avisoFunilVenda({ nome: 'WO PAGO', trecho_campanha: 'workshop-pago' }), null);
 });
