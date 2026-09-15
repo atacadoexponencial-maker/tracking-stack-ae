@@ -156,6 +156,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <a href="#grupos" data-secao="grupos">Grupos</a>
       <a href="#links" data-secao="links">Links</a>
       <a href="#bloqueios" data-secao="bloqueios">Bloqueios</a>
+      <a href="#funis-relatorio" data-secao="funis-relatorio">Funis do relatório</a>
       <a href="#ab" data-secao="ab">Testes A/B</a>
       <a href="#jornada" data-secao="jornada">Jornada</a>
       <a href="#eventos" data-secao="eventos">Eventos</a>
@@ -215,6 +216,9 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
     <section class="secao" id="secao-greenn">
       <div class="card">
         <div class="aviso alerta">Esta aba soma o <strong>ciclo inteiro</strong> de cada campanha, do primeiro dia até hoje. Ela não segue o filtro de datas do topo: investimento e vendas caem em dias diferentes, e recortar o período daria um retorno falso.</div>
+        <!-- Faixa do funil de venda (spec-feedback-marketing.md, módulo 3): o texto vem
+             pronto do backend; sem ele a faixa fica escondida. -->
+        <div class="aviso alerta" id="greenn-aviso-funil" hidden></div>
         <div class="grid-kpi" id="greenn-kpis"></div>
       </div>
       <div class="card"><h2>Campanhas <small>retorno por campanha do produto pago</small></h2><div class="tabela-wrap" id="greenn-campanhas"></div></div>
@@ -304,6 +308,67 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
         <h2>Leads bloqueados <small>200 mais recentes · restaurados continuam na lista</small></h2>
         <div id="bloqueios-erro" class="aviso falha" hidden></div>
         <div class="tabela-wrap" id="bloqueios-tabela"></div>
+      </div>
+    </section>
+
+    <!-- Aba Funis do relatório (spec-feedback-marketing.md): cada linha ativa vira
+         um bloco do relatório de marketing, na ordem da lista. Toda validação é do
+         servidor; a tela só coleta e exibe. Não segue o filtro de datas do topo. -->
+    <section class="secao" id="secao-funis-relatorio">
+      <div class="card">
+        <div class="aviso">Cada funil ativo vira um bloco do relatório de marketing, na ordem desta lista. O que não casar com nenhum funil ativo aparece no bloco <strong>sem funil</strong>, com o valor à mostra.</div>
+      </div>
+      <div id="funisrel-conflitos" class="aviso alerta" hidden></div>
+      <div class="card">
+        <h2>Funis cadastrados <small>ordem do relatório</small></h2>
+        <div class="abas" id="funisrel-filtro">
+          <button type="button" data-situacao="ativos" class="ativo">Ativos</button>
+          <button type="button" data-situacao="todos">Todos</button>
+        </div>
+        <div id="funisrel-lista-erro" class="aviso falha" hidden></div>
+        <div id="funisrel-vazio" class="aviso" hidden>Nenhum funil cadastrado — todo o investimento do relatório vai aparecer em 'sem funil'.</div>
+        <div class="tabela-wrap" id="funisrel-tabela"></div>
+      </div>
+      <div class="card">
+        <h2 id="funisrel-form-titulo">Novo funil</h2>
+        <form id="funisrel-form" style="display:grid; gap:0.6rem; max-width:640px">
+          <input type="hidden" id="funisrel-id">
+          <!-- Versão lida: o servidor recusa a gravação se outra pessoa alterou o funil. -->
+          <input type="hidden" id="funisrel-versao">
+          <label>Nome no relatório
+            <input type="text" id="funisrel-nome" placeholder="Ex.: SE, LIVE, WO PAGO, AQUISIÇÃO" style="width:100%"></label>
+          <label>Tipo de medição
+            <select id="funisrel-tipo" style="width:100%">
+              <option value="">— escolha —</option>
+              <option value="lead_mql">Lead do formulário + MQL</option>
+              <option value="manual">Manual</option>
+              <option value="venda_greenn">Venda na Greenn</option>
+            </select></label>
+          <!-- Notas por tipo: texto e regra de exibição vêm de /api/funis-relatorio-opcoes. -->
+          <p class="mini" id="funisrel-nota-manual" hidden></p>
+          <label id="funisrel-funil-tracking-wrap">Funil do tracking
+            <select id="funisrel-funil-tracking" style="width:100%"><option value="">— escolha —</option></select></label>
+          <fieldset style="border:1px solid var(--border); border-radius:0.5rem; padding:0.5rem 0.7rem">
+            <legend class="mini">Opção do campo "🔻 Funil" no CRM (uma ou mais)</legend>
+            <div id="funisrel-crm-erro" class="aviso falha" hidden></div>
+            <div id="funisrel-opcoes-crm" style="display:flex; flex-wrap:wrap; gap:0.3rem 0.9rem"></div>
+          </fieldset>
+          <label id="funisrel-origem-wrap">Origem do lead
+            <select id="funisrel-origem" style="width:100%">
+              <option value="">— escolha —</option>
+              <option value="trafego_pago">Tráfego pago</option>
+              <option value="exceto_trafego_pago">Qualquer origem exceto tráfego pago</option>
+              <option value="qualquer">Qualquer origem</option>
+            </select></label>
+          <label>Trecho do nome da campanha <span class="mini">(opcional)</span>
+            <input type="text" id="funisrel-trecho" placeholder="Ex.: workshop-pago" style="width:100%"></label>
+          <p class="mini" id="funisrel-nota-greenn" hidden></p>
+          <div id="funisrel-erro" class="aviso falha" hidden></div>
+          <div style="display:flex; gap:0.5rem">
+            <button class="btn" type="submit" id="funisrel-salvar">Salvar</button>
+            <button class="btn" type="button" id="funisrel-cancelar" hidden>Cancelar edição</button>
+          </div>
+        </form>
       </div>
     </section>
 
@@ -786,6 +851,11 @@ R.greenn = async () => {
 
   // O cabeçalho anuncia o intervalo escolhido lá em cima, que aqui não vale.
   $('#subtitulo').textContent = 'ciclo inteiro de cada campanha · não segue o filtro de datas';
+
+  // Faixa do funil de venda: texto e regra são do backend; aqui só exibe.
+  const avisoFunil = $('#greenn-aviso-funil');
+  avisoFunil.textContent = d.aviso_funil_venda || '';
+  avisoFunil.hidden = !d.aviso_funil_venda;
 
   const roasTxt = (v) => (v === null || v === undefined ? null : fmtNum(v, 2) + '×');
 
@@ -1304,6 +1374,273 @@ R.bloqueios = async () => {
   };
 };
 
+// ---------- funis do relatório ----------
+// A aba NÃO decide nada: rótulos, marcações ("não existe mais no CRM"), ordem e
+// validação vêm prontos do backend. Aqui só coleta e exibe.
+//
+// Não segue o filtro de datas do topo: é cadastro, não medição.
+
+// Filtro de situação: 'ativos' (padrão) ou 'todos'. Quem filtra é o backend.
+let funisRelSituacao = 'ativos';
+
+R['funis-relatorio'] = async () => {
+  $('#subtitulo').textContent = 'cadastro · não segue o filtro de datas';
+  // Conflitos calculados no servidor (últimos 30 dias). Falha aqui não pode
+  // derrubar a lista — e também não pode sumir calada, como se não houvesse
+  // conflito nenhum.
+  const conflitos = fetchJson('/api/funis-relatorio-conflitos').catch(() => null);
+  desenharListaFunisRel(await fetchJson(`/api/funis-relatorio?situacao=${funisRelSituacao}`));
+  desenharConflitosFunisRel(await conflitos);
+  // Opções do formulário vêm do servidor. Falha aqui não derruba a lista acima:
+  // só bloqueia o "Salvar", porque não dá para validar opção do CRM sem o CRM.
+  const opcoes = await fetchJson('/api/funis-relatorio-opcoes')
+    .catch(() => ({ funis_tracking: [], crm: { ok: false, erro: 'Não foi possível ler as opções do CRM agora' } }));
+  desenharOpcoesFunisRel(opcoes);
+};
+
+function desenharConflitosFunisRel(dados) {
+  const el = $('#funisrel-conflitos');
+  if (!dados) {
+    el.hidden = false;
+    el.innerHTML = 'Não foi possível conferir as campanhas dos últimos 30 dias agora.';
+    return;
+  }
+  const conflitos = dados.conflitos || [];
+  el.hidden = !conflitos.length;
+  el.innerHTML = el.hidden ? '' : '<strong>Campanhas dos últimos 30 dias que não casam com exatamente um funil ativo:</strong><br>'
+    + conflitos.map((c) => `${esc(c.campanha)} — ${money(c.valor)} <span class="mini">(${esc(c.motivo)})</span>`).join('<br>');
+}
+
+function desenharOpcoesFunisRel(opcoes) {
+  const sel = $('#funisrel-funil-tracking'), atual = sel.value;
+  sel.innerHTML = '<option value="">— escolha —</option>'
+    + (opcoes.funis_tracking || []).map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+  sel.value = atual;
+  const crm = opcoes.crm || {};
+  // Redesenhar (ex.: trocar o filtro no meio de uma edição) não desmarca nada.
+  const marcadas = new Set([...document.querySelectorAll('input[name="funisrel-crm"]:checked')].map((c) => c.value));
+  $('#funisrel-crm-erro').hidden = !!crm.ok;
+  $('#funisrel-crm-erro').textContent = crm.ok ? '' : (crm.erro || '');
+  $('#funisrel-opcoes-crm').innerHTML = (crm.opcoes || []).map((o) =>
+    `<label class="mini"><input type="checkbox" name="funisrel-crm" value="${esc(o.id)}" data-nome="${esc(o.nome)}"${marcadas.has(o.id) ? ' checked' : ''}> ${esc(o.nome)}</label>`).join('');
+  $('#funisrel-salvar').disabled = !crm.ok;
+  funisRelTipos = opcoes.tipos || {};
+  aplicarTipoFunisRel();
+}
+
+// Campos e notas por tipo de medição: o que aparece em cada tipo vem pronto do
+// servidor (`tipos`). Esconder é só conveniência de tela — quem descarta o
+// valor que não se aplica é o backend.
+let funisRelTipos = {};
+function aplicarTipoFunisRel() {
+  const cfg = funisRelTipos[$('#funisrel-tipo').value];
+  $('#funisrel-funil-tracking-wrap').hidden = !!cfg && !cfg.funil_tracking;
+  $('#funisrel-origem-wrap').hidden = !!cfg && !cfg.origem_lead;
+  const nota = $('#funisrel-nota-manual');
+  nota.textContent = (cfg && cfg.nota) || '';
+  nota.hidden = !nota.textContent;
+  const aviso = $('#funisrel-nota-greenn');
+  aviso.textContent = (cfg && cfg.aviso_sem_trecho) || '';
+  aviso.hidden = !aviso.textContent || !!$('#funisrel-trecho').value.trim();
+}
+$('#funisrel-tipo').addEventListener('change', aplicarTipoFunisRel);
+$('#funisrel-trecho').addEventListener('input', aplicarTipoFunisRel);
+
+// Filtro de situação: troca o parâmetro e pede a lista de novo ao servidor.
+$('#funisrel-filtro').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('button[data-situacao]');
+  if (!btn || btn.dataset.situacao === funisRelSituacao) return;
+  funisRelSituacao = btn.dataset.situacao;
+  document.querySelectorAll('#funisrel-filtro button').forEach((b) => b.classList.toggle('ativo', b === btn));
+  render();
+});
+
+// Linhas como o servidor mandou: é delas que o "Editar" preenche o formulário.
+let funisRelLinhas = [];
+
+function desenharListaFunisRel(dados) {
+  const linhas = dados.rows || [];
+  funisRelLinhas = linhas;
+  // Estado vazio e última posição vêm do backend; a tela não conta nada.
+  $('#funisrel-vazio').textContent = dados.aviso_vazio || '';
+  $('#funisrel-vazio').hidden = !dados.aviso_vazio;
+  const ultimaPos = dados.total_ativos;
+  tabela($('#funisrel-tabela'), [
+    { titulo: 'Posição', num: true, render: (r) => r.posicao == null ? '<span class="semdado">—</span>' : r.posicao },
+    { titulo: 'Nome no relatório', render: (r) => `<b>${esc(r.nome)}</b>` },
+    { titulo: 'Tipo de medição', render: (r) => esc(r.tipo_rotulo) },
+    { titulo: 'Funil do tracking', render: (r) => esc(r.funil_tracking) },
+    { titulo: 'Opção do CRM', render: (r) => (r.opcoes_crm || []).map((o) => esc(o.nome)
+        + (o.existe === false ? ' <span class="mini falha">não existe mais no CRM</span>' : '')).join('<br>') },
+    { titulo: 'Origem do lead', render: (r) => r.origem_rotulo ? esc(r.origem_rotulo) : '<span class="semdado">—</span>' },
+    { titulo: 'Trecho da campanha', render: (r) => r.trecho_campanha ? `<code>${esc(r.trecho_campanha)}</code>` : '<span class="semdado">—</span>' },
+    { titulo: 'Situação', render: (r) => r.situacao === 'ativo' ? 'ativo' : '<span class="mini">arquivado</span>' },
+    { titulo: 'Última alteração', render: (r) => `<span class="mini">${quandoBRT(r.alterado_em)}</span>` },
+    { titulo: '', render: (r) => r.situacao === 'ativo'
+        ? `<button class="btn sec" type="button" data-subir="${r.id}"${r.posicao === 1 ? ' disabled' : ''}>subir</button>
+           <button class="btn sec" type="button" data-descer="${r.id}"${r.posicao === ultimaPos ? ' disabled' : ''}>descer</button>
+           <button class="btn" type="button" data-editar="${r.id}">Editar</button>
+           <button class="btn sec" type="button" data-arquivar="${r.id}">Arquivar</button>`
+        : `<button class="btn" type="button" data-reativar="${r.id}">Reativar</button>` },
+  ], linhas);
+  if (!linhas.length) $('#funisrel-tabela').innerHTML = '';
+
+  // Listener no contêiner porque `tabela()` redesenha a tabela.
+  $('#funisrel-tabela').onclick = async (ev) => {
+    const editar = ev.target.closest('[data-editar]');
+    if (editar) return preencherFormFunisRel(funisRelLinhas.find((r) => String(r.id) === editar.dataset.editar));
+    const mover = ev.target.closest('[data-subir], [data-descer]');
+    if (mover) {
+      return acaoListaFunisRel(mover, {
+        acao: mover.dataset.subir ? 'subir' : 'descer',
+        id: Number(mover.dataset.subir || mover.dataset.descer),
+      }, 'Não foi possível alterar a ordem. Tente de novo.');
+    }
+    const arquivar = ev.target.closest('[data-arquivar]');
+    if (arquivar) {
+      return acaoListaFunisRel(arquivar, { acao: 'arquivar', id: Number(arquivar.dataset.arquivar) },
+        'Não foi possível arquivar. Tente de novo.');
+    }
+    const reativar = ev.target.closest('[data-reativar]');
+    if (reativar) {
+      return acaoListaFunisRel(reativar, { acao: 'reativar', id: Number(reativar.dataset.reativar) },
+        'Não foi possível reativar. Tente de novo.');
+    }
+  };
+}
+
+// Ações feitas direto na lista (ordem, arquivar, reativar). O erro aparece
+// acima da tabela com o texto do servidor; dando certo ou não, a lista
+// recarrega para mostrar o estado real do cadastro.
+async function acaoListaFunisRel(btn, corpo, falhaRede) {
+  const erro = $('#funisrel-lista-erro');
+  erro.hidden = true;
+  btn.disabled = true;
+  try {
+    let { ok, resposta } = await enviarFunisRel(corpo);
+    // Confirmação pedida pelo servidor, com o texto dele. Cancelar não grava.
+    if (ok && resposta.confirmar) {
+      if (!confirm(resposta.confirmar)) { btn.disabled = false; return; }
+      ({ ok, resposta } = await enviarFunisRel({ ...corpo, confirmado: true }));
+    }
+    if (!ok) {
+      erro.textContent = resposta.error || falhaRede;
+      erro.hidden = false;
+      btn.disabled = false;
+      return;
+    }
+    await render();
+  } catch {
+    erro.textContent = falhaRede;
+    erro.hidden = false;
+    btn.disabled = false;
+  }
+}
+
+// Toda gravação do cadastro passa por aqui. A tela não valida nada: devolve o
+// status e a resposta do servidor, e quem chamou exibe a mensagem que veio.
+async function enviarFunisRel(corpo) {
+  const r = await fetch(`/api/funis-relatorio?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(corpo),
+  });
+  return { ok: r.ok, resposta: await r.json().catch(() => ({})) };
+}
+
+function erroFormFunisRel(texto) {
+  $('#funisrel-erro').textContent = texto;
+  $('#funisrel-erro').hidden = false;
+  $('#funisrel-salvar').disabled = false;
+}
+
+function limparFormFunisRel() {
+  $('#funisrel-form').reset();
+  // Opção que só existia na linha em edição sai junto com a edição.
+  document.querySelectorAll('#funisrel-opcoes-crm [data-orfa]').forEach((el) => el.remove());
+  $('#funisrel-id').value = '';
+  $('#funisrel-versao').value = '';
+  $('#funisrel-form-titulo').textContent = 'Novo funil';
+  $('#funisrel-cancelar').hidden = true;
+  $('#funisrel-erro').hidden = true;
+  aplicarTipoFunisRel();
+}
+
+// Preenche com os valores da linha. Opção do CRM ou funil do tracking que não
+// estão mais entre as opções continuam visíveis (e marcados): sumir com eles em
+// silêncio mudaria o funil sem ninguém pedir. Quem recusa é o servidor.
+function preencherFormFunisRel(linha) {
+  if (!linha) return;
+  limparFormFunisRel();
+  $('#funisrel-id').value = linha.id;
+  $('#funisrel-versao').value = linha.versao;
+  $('#funisrel-nome').value = linha.nome;
+  $('#funisrel-tipo').value = linha.tipo;
+  const sel = $('#funisrel-funil-tracking');
+  if (linha.funil_tracking && ![...sel.options].some((o) => o.value === linha.funil_tracking)) {
+    sel.insertAdjacentHTML('beforeend', `<option value="${esc(linha.funil_tracking)}">${esc(linha.funil_tracking)}</option>`);
+  }
+  sel.value = linha.funil_tracking || '';
+  $('#funisrel-origem').value = linha.origem_lead || '';
+  $('#funisrel-trecho').value = linha.trecho_campanha || '';
+  const caixas = [...document.querySelectorAll('input[name="funisrel-crm"]')];
+  for (const o of linha.opcoes_crm || []) {
+    const caixa = caixas.find((c) => c.value === o.id);
+    if (caixa) caixa.checked = true;
+    else {
+      $('#funisrel-opcoes-crm').insertAdjacentHTML('beforeend',
+        `<label class="mini" data-orfa><input type="checkbox" name="funisrel-crm" value="${esc(o.id)}" checked> ${esc(o.nome)} <span class="falha">(não existe mais no CRM)</span></label>`);
+    }
+  }
+  $('#funisrel-form-titulo').textContent = `Editando: ${linha.nome}`;
+  $('#funisrel-cancelar').hidden = false;
+  aplicarTipoFunisRel();
+  $('#funisrel-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+$('#funisrel-cancelar').addEventListener('click', limparFormFunisRel);
+
+// Manda o que está na tela, inclusive campos escondidos: descartar o que não se
+// aplica ao tipo é regra do servidor.
+function corpoFormFunisRel() {
+  const id = $('#funisrel-id').value;
+  return {
+    acao: id ? 'editar' : 'criar',
+    id: id || undefined,
+    versao: id ? $('#funisrel-versao').value : undefined,
+    nome: $('#funisrel-nome').value,
+    tipo: $('#funisrel-tipo').value,
+    funil_tracking: $('#funisrel-funil-tracking').value,
+    opcoes_crm: [...document.querySelectorAll('input[name="funisrel-crm"]:checked')].map((c) => c.value),
+    origem_lead: $('#funisrel-origem').value,
+    trecho_campanha: $('#funisrel-trecho').value,
+  };
+}
+
+$('#funisrel-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  $('#funisrel-erro').hidden = true;
+  // Desabilitado durante o envio: duplo clique criaria dois funis.
+  $('#funisrel-salvar').disabled = true;
+  try {
+    const corpo = corpoFormFunisRel();
+    let { ok, resposta } = await enviarFunisRel(corpo);
+    // Quem decide se a mudança pede confirmação é o servidor; o texto também
+    // vem dele. Cancelar não grava e mantém o formulário como está.
+    if (ok && resposta.confirmar) {
+      if (!confirm(resposta.confirmar)) { $('#funisrel-salvar').disabled = false; return; }
+      ({ ok, resposta } = await enviarFunisRel({ ...corpo, confirmado: true }));
+    }
+    // A mensagem exibida é a do backend — a tela não inventa validação própria.
+    if (!ok) return erroFormFunisRel(resposta.error || 'Não foi possível salvar. Tente de novo.');
+    limparFormFunisRel();
+    // O render redesenha a lista e devolve ao "Salvar" o estado do CRM.
+    await render();
+  } catch {
+    erroFormFunisRel('Não foi possível salvar. Tente de novo.');
+  }
+});
+
 R.ab = async () => {
   const dados = await fetchJson('/api/ab-tests');
   const linhas = dados.rows || [];
@@ -1554,7 +1891,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', bloqueios: 'Bloqueios', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos' };
 let secao = 'visao';
 async function render() {
   const p = intervalo();

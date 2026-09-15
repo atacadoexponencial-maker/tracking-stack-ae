@@ -12,7 +12,7 @@
 // Este endpoint é isolado do resto da contabilidade: não lê nem escreve em
 // purchase_log, e nenhuma outra aba depende dele (migration 0032).
 
-import { calcularGreenn } from './_greenn-metricas.js';
+import { avisoFunilVenda, calcularGreenn } from './_greenn-metricas.js';
 
 // D1 limita a quantidade de parâmetros por consulta; as sessões são buscadas
 // em lotes para que a aba continue funcionando quando as vendas crescerem.
@@ -57,13 +57,47 @@ export async function onRequestGet(context) {
       GROUP BY campaign_name
     `).all();
 
-    return json(calcularGreenn({
-      vendas: linhas,
-      sessoes,
-      gastos: gastos.results || [],
-    }));
+    // Lido a cada abertura (sem cache): trecho alterado no cadastro vale na
+    // próxima vez que a aba abrir.
+    const funilVenda = await lerFunilVenda(env.DB);
+
+    // O campo só existe quando há o que avisar: com funil de venda e trecho, a
+    // resposta fica idêntica à de antes do cadastro de funis.
+    const aviso = avisoFunilVenda(funilVenda);
+
+    return json({
+      ...calcularGreenn({
+        vendas: linhas,
+        sessoes,
+        gastos: gastos.results || [],
+        trechoCampanha: funilVenda?.trecho_campanha || null,
+      }),
+      ...(aviso ? { aviso_funil_venda: aviso } : {}),
+    });
   } catch (err) {
     return json({ error: err.message }, 500);
+  }
+}
+
+// Funil ativo do tipo "Venda na Greenn" (o cadastro só aceita um; se houvesse
+// dois, vale o primeiro na ordem do relatório). Pelo índice
+// (situacao, posicao) da migration 0039, sem varredura.
+//
+// Tabela ainda inexistente — produção antes da migration 0039 — é tratada como
+// "nenhum funil de venda": a aba continua de pé, listando vendas e campanhas
+// que venderam. Qualquer outro erro de banco sobe e vira 500, como antes.
+async function lerFunilVenda(db) {
+  try {
+    return await db.prepare(`
+      SELECT nome, trecho_campanha
+      FROM funis_relatorio
+      WHERE situacao = 'ativo' AND tipo = 'venda_greenn'
+      ORDER BY posicao, id
+      LIMIT 1
+    `).first();
+  } catch (err) {
+    if (/no such table:\s*funis_relatorio/i.test(String(err?.message || ''))) return null;
+    throw err;
   }
 }
 
