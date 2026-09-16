@@ -84,6 +84,8 @@ a.btn { display: inline-block; text-decoration: none; }
 .card h2 { font-size: 0.95rem; margin-bottom: 0.7rem; }
 .card h2 small { color: var(--muted); font-weight: 400; font-size: 0.78rem; }
 .duas-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+/* min-width 0: sem isso uma tabela larga estica a coluna da grade além da tela. */
+.duas-colunas > * { min-width: 0; }
 @media (max-width: 980px) {
   .duas-colunas { grid-template-columns: 1fr; }
   /* minmax(0, …): sem isso a faixa de abas estica a coluna até caber inteira. */
@@ -240,6 +242,17 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
   .faixa-heroi .kpi.heroi .valor { font-size: 2.5rem; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+/* ---------- Saúde do Meta (spec-capi-reenvio-monitoramento.md) ---------- */
+.faixa-estado { display: flex; gap: 0.9rem; align-items: center; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1.1rem; background: var(--card); }
+.faixa-estado .selo-estado { font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; padding: 0.3rem 0.65rem; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.faixa-estado.saudavel .selo-estado { color: var(--up); }
+.faixa-estado.atencao .selo-estado { color: var(--warn); }
+.faixa-estado.incidente { border-color: var(--down); }
+.faixa-estado.incidente .selo-estado { color: var(--down); }
+.faixa-estado p { margin: 0; }
+.saude-filtros { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; }
+.paginacao { display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; margin-top: 0.7rem; }
+.saude-acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 </style>
 </head>
 <body>
@@ -281,6 +294,7 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
         <span class="nav-rotulo" id="nav-diagnostico">Diagnóstico</span>
         <a href="#jornada" data-secao="jornada">Jornada</a>
         <a href="#eventos" data-secao="eventos">Eventos</a>
+        <a href="#saude-meta" data-secao="saude-meta">Saúde do Meta</a>
       </div>
     </nav>
   </aside>
@@ -536,6 +550,48 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
           <button class="btn" type="submit">Buscar</button>
         </form>
         <div id="jornada-resultado" style="margin-top:1rem"></div>
+      </div>
+    </section>
+
+    <!-- Aba Saúde do Meta (spec-capi-reenvio-monitoramento.md, issues 268–287):
+         taxas, estado, categorias e decisões vêm prontos de /api/meta-saude. -->
+    <section class="secao" id="secao-saude-meta">
+      <div class="saude-acoes" style="justify-content:flex-end;margin-bottom:0.8rem">
+        <span class="mini" id="saude-resultado" role="status" aria-live="polite"></span>
+        <button class="btn sec" type="button" id="saude-teste">Enviar alerta de teste</button>
+        <button class="btn sec" type="button" id="saude-atualizar">Atualizar</button>
+      </div>
+      <div id="saude-canal"></div>
+      <div id="saude-estado"></div>
+      <div id="saude-avisos"></div>
+      <div class="grid-kpi" id="saude-kpis"></div>
+      <div class="card"><h2>Aceitação por tipo de evento <small>pelo horário original do evento</small></h2><div class="tabela-wrap" id="saude-tipos"></div></div>
+      <div class="card"><h2>Evolução diária <small>conversões destinadas ao Meta × aceitas</small></h2><div class="grafico" id="saude-grafico"></div></div>
+      <div class="card"><h2>Pendentes de reenvio <small>agora, independente do período</small></h2><div class="tabela-wrap" id="saude-pendentes"></div></div>
+      <div class="card">
+        <h2>Falhas definitivas <small>clique numa linha para ver a resposta do Meta</small></h2>
+        <div class="saude-filtros">
+          <select id="saude-falhas-tipo" aria-label="Filtrar falhas por tipo de evento"><option value="">Todos os tipos</option></select>
+          <select id="saude-falhas-categoria" aria-label="Filtrar falhas por motivo">
+            <option value="">Todos os motivos</option>
+            <option value="credencial">Credencial</option>
+            <option value="evento">Evento recusado</option>
+            <option value="esgotou">Esgotou as tentativas</option>
+            <option value="expirou">Expirou</option>
+          </select>
+        </div>
+        <div id="saude-falhas-erro" class="aviso falha" hidden></div>
+        <div class="tabela-wrap" id="saude-falhas"></div>
+        <div class="paginacao">
+          <button class="btn sec" type="button" id="saude-falhas-anterior">Anterior</button>
+          <span class="mini" id="saude-falhas-pagina"></span>
+          <button class="btn sec" type="button" id="saude-falhas-proxima">Próxima</button>
+        </div>
+      </div>
+      <div class="card"><h2>Captura de identificadores de clique <small>visitas vindas de anúncio, sem bots</small></h2><div class="grid-kpi" id="saude-captura" style="margin-bottom:0"></div></div>
+      <div class="duas-colunas">
+        <div class="card"><h2>Últimas rodadas de reenvio</h2><div class="tabela-wrap" id="saude-rodadas"></div></div>
+        <div class="card"><h2>Alertas enviados</h2><div class="tabela-wrap" id="saude-alertas"></div></div>
       </div>
     </section>
 
@@ -2037,6 +2093,185 @@ function htmlToque(t) {
   return `<div class="tl-item"><span class="tl-dot" style="background:${cor}"></span><div style="display:flex;justify-content:space-between;gap:0.5rem"><b style="font-size:0.86rem">${rotulo}</b><span class="mini">${fmtData(t.ts)}</span></div>${detalhe ? `<div class="mini">${detalhe}</div>` : ''}</div>`;
 }
 
+// ---------- saúde do Meta (spec-capi-reenvio-monitoramento.md) ----------
+// A aba NÃO calcula nada: estado, taxas, categorias, janela e o que pode ser
+// reenviado vêm prontos de /api/meta-saude. Aqui só pede e exibe.
+const SAUDE_CATEGORIAS = { credencial: 'Credencial', evento: 'Evento recusado', passageira: 'Falha passageira', esgotou: 'Esgotou as tentativas', expirou: 'Expirou', EntrouGrupo: 'EntrouGrupo (fila própria)' };
+const SAUDE_ESTADOS = { saudavel: 'Saudável', atencao: 'Atenção', incidente: 'Incidente' };
+const SAUDE_ALERTAS = { alerta: 'Alerta', lembrete: 'Lembrete', recuperacao: 'Recuperação', teste: 'Teste' };
+const taxaTxt = (t) => (t === null || t === undefined ? '<span class="semdado">—</span>' : fmtPct(t * 100, 1));
+const idade = (seg) => { if (seg == null) return '—'; const h = Math.floor(seg / 3600); return h >= 48 ? `${Math.floor(h / 24)} dias` : h >= 1 ? `${h} h` : `${Math.max(1, Math.floor(seg / 60))} min`; };
+let saudeFalhasPagina = 1;
+
+// Pede à API e devolve o JSON; erro vira exceção com a mensagem do servidor.
+async function saudeApi(caminho, init) {
+  const r = await fetch(caminho + (caminho.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key), init);
+  const dados = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(dados.error || 'HTTP ' + r.status); e.mensagemUsuario = dados.error; throw e; }
+  return dados;
+}
+
+R['saude-meta'] = async () => {
+  const p = intervalo();
+  let d;
+  try {
+    d = await saudeApi(`/api/meta-saude?${q(p.de, p.ate)}`);
+  } catch (e) {
+    e.mensagemUsuario = e.mensagemUsuario || 'Não foi possível carregar a saúde do Meta agora.';
+    throw e;
+  }
+
+  $('#saude-canal').innerHTML = d.canalConfigurado ? ''
+    : '<div class="aviso alerta">Nenhum canal de alerta configurado — problemas não serão avisados.</div>';
+
+  const est = d.estado || {};
+  $('#saude-estado').innerHTML = `<div class="faixa-estado ${esc(est.estado)}">
+    <span class="selo-estado">${esc(SAUDE_ESTADOS[est.estado] || est.estado)}</span><p>${esc(est.frase || '')}</p></div>`;
+
+  const avisos = [];
+  if (d.semSituacao) avisos.push(`<div class="aviso alerta">${fmtInt(d.semSituacao)} ${d.semSituacao === 1 ? 'conversão' : 'conversões'} deste período sem situação registrada — o registro falhou e elas não entram no reenvio.</div>`);
+  if (d.antesDaAtivacao) {
+    avisos.push(`<div class="aviso explica">${d.ativacaoEm
+      ? `Antes de ${new Date(d.ativacaoEm * 1000).toLocaleDateString('pt-BR', { timeZone: FUSO_BRT })} não havia reenvio: as recusas desse período aparecem só como resposta da primeira tentativa.`
+      : 'O reenvio ainda não registrou nenhuma conversão.'}</div>`);
+  }
+  $('#saude-avisos').innerHTML = avisos.join('');
+
+  const ult = d.ultimaAceita || {};
+  $('#saude-kpis').innerHTML = [
+    { rotulo: 'Última conversão aceita', valor: ult.geral ? fmtData(ult.geral) : null, nota: ult.geral ? `há ${idade(d.agora - ult.geral)}` : 'nenhuma registrada' },
+    ...(ult.porTipo || []).filter((t) => ['Lead', 'Purchase'].includes(t.tipo)).map((t) => ({ rotulo: `Último ${t.tipo} aceito`, valor: fmtData(t.ts), nota: `há ${idade(d.agora - t.ts)}` })),
+    { rotulo: 'Pendentes de reenvio', valor: fmtInt(d.pendentes?.total), nota: d.pendentes?.expiram24h ? `${fmtInt(d.pendentes.expiram24h)} expiram em 24 h` : '' },
+    { rotulo: 'Aceitação no período', valor: d.porTipo?.totais?.total ? fmtPct(d.porTipo.totais.taxa * 100, 1) : null, nota: d.porTipo?.totais?.total ? `${fmtInt(d.porTipo.totais.primeira + d.porTipo.totais.reenvio)} de ${fmtInt(d.porTipo.totais.total)}` : 'nenhuma conversão' },
+  ].map((k) => tile(k)).join('');
+
+  const linhas = d.porTipo?.linhas || [];
+  if (!linhas.length) {
+    $('#saude-tipos').innerHTML = '<div class="aviso">Nenhuma conversão destinada ao Meta neste período.</div>';
+  } else {
+    const t = d.porTipo.totais;
+    $('#saude-tipos').innerHTML = `<table><thead><tr><th>Tipo</th><th class="num">Total</th><th class="num">Aceitas na 1ª</th><th class="num">Aceitas no reenvio</th><th class="num">Aguardando</th><th class="num">Falhou de vez</th><th class="num">Aceitação</th></tr></thead><tbody>
+      ${linhas.map((l) => `<tr><td>${esc(l.tipo)}</td><td class="num">${fmtInt(l.total)}</td><td class="num">${fmtInt(l.primeira)}</td><td class="num">${fmtInt(l.reenvio)}</td><td class="num">${fmtInt(l.pendentes)}</td><td class="num">${l.falhas ? `<span class="falha">${fmtInt(l.falhas)}</span>` : '0'}</td><td class="num">${taxaTxt(l.taxa)}</td></tr>`).join('')}
+      <tr><td><b>Total</b></td><td class="num"><b>${fmtInt(t.total)}</b></td><td class="num"><b>${fmtInt(t.primeira)}</b></td><td class="num"><b>${fmtInt(t.reenvio)}</b></td><td class="num"><b>${fmtInt(t.pendentes)}</b></td><td class="num"><b>${fmtInt(t.falhas)}</b></td><td class="num"><b>${taxaTxt(t.taxa)}</b></td></tr>
+    </tbody></table>`;
+  }
+
+  grafico($('#saude-grafico'), (d.diario || []).map((x) => ({ d: x.d, v: x.total })), (v) => fmtInt(Math.round(v)),
+    { serie2: (d.diario || []).map((x) => ({ d: x.d, v: x.aceitas })), rotulo1: 'Destinadas ao Meta', rotulo2: 'Aceitas' });
+
+  const pend = d.pendentes || {};
+  const cats = Object.entries(pend.porCategoria || {});
+  $('#saude-pendentes').innerHTML = !pend.total
+    ? '<div class="aviso">Nenhuma conversão aguardando reenvio.</div>'
+    : `<table><tbody>
+        ${cats.map(([c, n]) => `<tr><td>${esc(SAUDE_CATEGORIAS[c] || c)}</td><td class="num">${fmtInt(n)}</td></tr>`).join('')}
+        <tr><td>Mais antiga aguardando</td><td class="num">há ${idade(pend.idadeMaisAntiga)}</td></tr>
+        <tr><td>Expiram nas próximas 24 h</td><td class="num">${pend.expiram24h ? `<span class="falha">${fmtInt(pend.expiram24h)}</span>` : '0'}</td></tr>
+      </tbody></table>`;
+
+  const cap = d.captura || {};
+  $('#saude-captura').innerHTML = [
+    { rotulo: 'fbclid em visitas do Meta', valor: cap.meta?.visitas ? fmtPct(cap.meta.taxa * 100, 1) : null, nota: cap.meta?.visitas ? `${fmtInt(cap.meta.comId)} de ${fmtInt(cap.meta.visitas)}` : 'nenhuma visita de anúncio do Meta' },
+    { rotulo: 'gclid em visitas do Google', valor: cap.google?.visitas ? fmtPct(cap.google.taxa * 100, 1) : null, nota: cap.google?.visitas ? `${fmtInt(cap.google.comId)} de ${fmtInt(cap.google.visitas)}` : 'nenhuma visita de anúncio do Google' },
+  ].map((k) => tile(k)).join('');
+
+  $('#saude-rodadas').innerHTML = !(d.rodadas || []).length ? '<div class="aviso">Nenhuma rodada com trabalho ainda.</div>'
+    : `<table><thead><tr><th>Quando</th><th class="num">Aceitas</th><th class="num">Pendentes</th><th class="num">Falhas</th><th class="num">Expiradas</th><th></th></tr></thead><tbody>
+      ${d.rodadas.map((r) => `<tr><td><span class="mini">${fmtData(r.iniciada_em)}</span></td><td class="num">${fmtInt(r.aceitas)}</td><td class="num">${fmtInt(r.pendentes)}</td><td class="num">${fmtInt(r.falhas)}</td><td class="num">${fmtInt(r.expiradas)}</td><td>${r.abortou_credencial ? '<span class="mini falha">parou: credencial</span>' : ''}</td></tr>`).join('')}
+    </tbody></table>`;
+
+  $('#saude-alertas').innerHTML = !(d.alertas || []).length ? '<div class="aviso">Nenhum alerta enviado.</div>'
+    : `<table><thead><tr><th>Quando</th><th>Tipo</th><th>Entrega</th></tr></thead><tbody>
+      ${d.alertas.map((a) => `<tr><td><span class="mini">${fmtData(a.criado_em)}</span></td><td>${esc(SAUDE_ALERTAS[a.tipo] || a.tipo)}</td><td>${a.entregue ? '<span class="mini">entregue</span>' : `<span class="falha" title="${esc(a.erro || '')}">não entregue</span>`}</td></tr>`).join('')}
+    </tbody></table>`;
+
+  const selTipo = $('#saude-falhas-tipo'), atual = selTipo.value;
+  selTipo.innerHTML = '<option value="">Todos os tipos</option>' + linhas.map((l) => `<option value="${esc(l.tipo)}">${esc(l.tipo)}</option>`).join('');
+  selTipo.value = [...selTipo.options].some((o) => o.value === atual) ? atual : '';
+  await carregarFalhasSaude();
+};
+
+async function carregarFalhasSaude() {
+  const p = intervalo();
+  const ps = new URLSearchParams({ view: 'falhas', from: p.de, to: p.ate, pagina: saudeFalhasPagina, tipo: $('#saude-falhas-tipo').value, categoria: $('#saude-falhas-categoria').value });
+  const erro = $('#saude-falhas-erro');
+  erro.hidden = true;
+  let d;
+  try { d = await saudeApi('/api/meta-saude?' + ps); }
+  catch (e) { erro.textContent = e.mensagemUsuario || 'Não foi possível carregar as falhas agora.'; erro.hidden = false; return; }
+  const linhas = d.linhas || [];
+  $('#saude-falhas-pagina').textContent = linhas.length || saudeFalhasPagina > 1 ? `página ${d.pagina}` : '';
+  $('#saude-falhas-anterior').disabled = d.pagina <= 1;
+  $('#saude-falhas-proxima').disabled = !d.temProxima;
+  if (!linhas.length) { $('#saude-falhas').innerHTML = '<div class="aviso">Nenhuma falha definitiva neste período.</div>'; return; }
+  tabela($('#saude-falhas'), [
+    { titulo: 'Quando', campo: 'event_time', render: (r) => `<span class="mini">${fmtData(r.event_time)}</span>` },
+    { titulo: 'Tipo', campo: 'tipo', render: (r) => esc(r.tipo) },
+    { titulo: 'Origem', campo: 'origem', render: (r) => ({ site: 'site', venda: 'venda', grupo: 'grupo' })[r.origem] || esc(r.origem) },
+    { titulo: 'Página ou produto', campo: 'referencia', render: (r) => `<span class="mini">${esc(r.referencia || '—')}</span>` },
+    { titulo: 'Tentativas', num: true, campo: 'tentativas', render: (r) => fmtInt(r.tentativas) },
+    { titulo: 'Motivo', campo: 'categoria', render: (r) => `<span class="mini">${esc(r.motivo || '')}</span>` },
+    { titulo: 'Virou falha', campo: 'falhou_em', render: (r) => `<span class="mini">${r.falhou_em ? fmtData(r.falhou_em) : '—'}</span>` },
+    { titulo: '', render: (r) => `<button class="btn sec" type="button" data-tentar-meta="${r.id}"${r.podeTentarDeNovo ? '' : ` disabled title="${esc(r.dicaTentar || '')}"`}>Tentar de novo</button>` },
+  ], linhas, (r) => abrirDetalheFalhaSaude(r));
+}
+
+// "Tentar de novo" mora dentro de uma linha clicável. Ouvinte único, na fase de
+// captura: o clique no botão é tratado aqui e não chega a abrir o detalhe.
+$('#saude-falhas').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('[data-tentar-meta]');
+  if (!btn) return;
+  ev.stopPropagation();
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const r = await saudeApi('/api/meta-saude', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'tentar-de-novo', id: Number(btn.dataset.tentarMeta) }) });
+    $('#saude-resultado').textContent = r.mensagem || 'Devolvida para a fila.';
+    await render();
+  } catch (e) {
+    $('#saude-resultado').textContent = e.mensagemUsuario || 'Não foi possível devolver para a fila.';
+    btn.disabled = false;
+  }
+}, true);
+
+async function abrirDetalheFalhaSaude(linha) {
+  $('#modal-titulo').textContent = `Falha: ${linha.tipo}`;
+  $('#modal-sub').textContent = `${fmtData(linha.event_time)} · ${linha.referencia || ''}`;
+  $('#modal-corpo').innerHTML = '<div class="aviso">Carregando a resposta do Meta…</div>';
+  focoAntesDoModal = document.activeElement;
+  $('#modal-fundo').hidden = false;
+  $('#modal-fechar').focus();
+  try {
+    const d = await saudeApi(`/api/meta-saude?view=detalhe&origem=${encodeURIComponent(linha.origem)}&id=${linha.id}`);
+    $('#modal-corpo').innerHTML = d.error ? `<div class="aviso falha">${esc(d.error)}</div>`
+      : `<div><div class="mini" style="margin-bottom:0.2rem">MOTIVO</div><p>${esc(linha.motivo || '')}</p></div>
+         <div><div class="mini" style="margin-bottom:0.2rem">IDENTIFICADOR DO EVENTO</div><pre>${esc(d.eventId || '—')}</pre></div>
+         <div><div class="mini" style="margin-bottom:0.2rem">ÚLTIMA RESPOSTA DO META${d.ultimoStatus ? ` (HTTP ${d.ultimoStatus})` : ''}</div><pre>${esc(d.ultimaResposta || '—')}</pre></div>`;
+  } catch (e) {
+    $('#modal-corpo').innerHTML = `<div class="aviso falha">${esc(e.mensagemUsuario || 'Não foi possível carregar o detalhe.')}</div>`;
+  }
+}
+
+$('#saude-falhas-tipo').addEventListener('change', () => { saudeFalhasPagina = 1; carregarFalhasSaude(); });
+$('#saude-falhas-categoria').addEventListener('change', () => { saudeFalhasPagina = 1; carregarFalhasSaude(); });
+$('#saude-falhas-anterior').addEventListener('click', () => { saudeFalhasPagina = Math.max(1, saudeFalhasPagina - 1); carregarFalhasSaude(); });
+$('#saude-falhas-proxima').addEventListener('click', () => { saudeFalhasPagina++; carregarFalhasSaude(); });
+$('#saude-atualizar').addEventListener('click', () => render());
+$('#saude-teste').addEventListener('click', async () => {
+  const btn = $('#saude-teste');
+  btn.disabled = true;
+  $('#saude-resultado').textContent = 'Enviando…';
+  try {
+    const r = await saudeApi('/api/meta-saude', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'alerta-teste' }) });
+    $('#saude-resultado').textContent = r.mensagem;
+  } catch (e) {
+    $('#saude-resultado').textContent = e.mensagemUsuario || 'Não foi possível enviar o teste.';
+  } finally {
+    btn.disabled = false;
+    render();
+  }
+});
+
 R.eventos = async () => {
   const dados = await fetchJson('/api/events?limit=60');
   const rec = dados.recovery || {};
@@ -2156,7 +2391,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde do Meta' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
@@ -2177,6 +2412,7 @@ const FILTROS = {
   ab: { nota: 'cadastro · não usa o filtro de datas' },
   jornada: { nota: 'busca por e-mail · não usa o filtro de datas' },
   eventos: { nota: 'eventos mais recentes · não usa o filtro de datas' },
+  'saude-meta': { periodo: true },
 };
 let secao = 'visao';
 let renderAtual = 0;
@@ -2265,7 +2501,7 @@ async function render() {
     $('#status').textContent = '';
     el.classList.add('falhou');
     el.insertAdjacentHTML('afterbegin', `<div class="card aviso erro-carga" role="alert">
-      <p>Não foi possível carregar os dados desta aba. Os números anteriores foram escondidos para não serem lidos como atuais.</p>
+      <p>${esc((e && e.mensagemUsuario) || 'Não foi possível carregar os dados desta aba.')} Os números anteriores foram escondidos para não serem lidos como atuais.</p>
       <button class="btn sec" type="button" data-tentar>Tentar de novo</button></div>`);
     el.querySelector('[data-tentar]').onclick = () => render();
   } finally {

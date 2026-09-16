@@ -2,6 +2,7 @@ import { FUNIL_MATERIAIS, materialPorSlug } from '../src/data/materiais.js';
 import { sha256, normalizePhone, normalizeName } from './api/_hash.js';
 import { detectBot, detectBotPorIp } from './_bots.js';
 import { motivoBloqueio } from './_lead-bloqueio.js';
+import { registrarPrimeiraTentativa } from './api/_meta-fila.js';
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -191,7 +192,6 @@ export async function onRequestPost(context) {
     const results = (isBot || ehEventoInterno || bloqueado) ? [] : await Promise.allSettled([
       sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }),
       sendToGA4({ body, gaClientId, gaSessionId, hashedEm, sessionData, funnel: effectiveFunnel, env }),
-      Promise.resolve({ skipped: 'pixel 2 unificado ao principal', payload: null, response: null }),
     ]);
 
     // --- Parse Meta result ---
@@ -226,36 +226,31 @@ export async function onRequestPost(context) {
       ga4ResponseBody = `Fetch error: ${results[1].reason?.message || 'unknown'}`;
     }
 
-    // --- Parse Meta pixel 2 result (não vai ao D1; só alimenta o alerta) ---
-    let meta2StatusCode = 0, meta2ResponseOk = 0, meta2ResponseBody = '';
-    if (results[2]?.status === 'fulfilled' && results[2].value) {
-      const v = results[2].value;
-      if (v.skipped) {
-        meta2ResponseBody = `skipped: ${v.skipped}`;
-        // Skip não é falha para o pixel 2: evento fora do escopo, ou vars _2
-        // ausentes (= integração desligada de propósito, ao contrário do pixel 1
-        // onde env sumido é morte silenciosa e alerta).
-        meta2ResponseOk = 1;
-      } else if (v.response) {
-        meta2StatusCode = v.response.status;
-        meta2ResponseOk = v.response.ok ? 1 : 0;
-        try { meta2ResponseBody = await v.response.text(); } catch (e) { meta2ResponseBody = `Read error: ${e.message}`; }
-      }
-    } else if (results[2]?.status === 'rejected') {
-      meta2ResponseBody = `Fetch error: ${results[2].reason?.message || 'unknown'}`;
+    // --- Situação da conversão no Meta (spec-capi-reenvio-monitoramento.md) ---
+    // Toda conversão que foi ao Meta ganha situação: aceita, pendente (entra no
+    // reenvio de /api/sync/meta-reenvio) ou falhou. Bot, bloqueado e evento
+    // interno nem foram enviados (results vazio); PageView fica fora dentro de
+    // registrarPrimeiraTentativa. Substitui o antigo aviso por WhatsApp, que
+    // passou 6 semanas mudo enquanto o Meta recusava tudo: agora quem avisa é
+    // o alerta do Slack, a partir da própria fila.
+    if (results[0]) {
+      const semCredencial = results[0].status === 'fulfilled' && results[0].value?.skipped === 'missing meta env';
+      context.waitUntil(registrarPrimeiraTentativa(env, {
+        origem: 'site',
+        eventId: body.event_id,
+        eventName: body.event_name,
+        eventTime: body.event_time,
+        referencia: body.event_source_url || '',
+        payload: metaPayloadSent,
+        resultado: {
+          ok: metaResponseOk === 1,
+          status: metaStatusCode,
+          corpo: metaResponseBody,
+          erroRede: results[0].status === 'rejected',
+          semCredencial,
+        },
+      }));
     }
-
-    // --- Alerta crítico (camada A): Meta recusou uma conversão real ---
-    // Em waitUntil próprio para não atrasar a resposta ao navegador. A regra
-    // (só lead/purchase, não-bot, throttle 1h) fica em maybeAlertMetaFailure.
-    // Pixel 2 tem chave de throttle própria para uma falha não silenciar a outra.
-    context.waitUntil(maybeAlertMetaFailure({
-      eventName: body.event_name, isBot, bloqueado, metaResponseOk, metaStatusCode, metaResponseBody, env,
-    }));
-    context.waitUntil(maybeAlertMetaFailure({
-      eventName: body.event_name, isBot, bloqueado, metaResponseOk: meta2ResponseOk, metaStatusCode: meta2StatusCode, metaResponseBody: meta2ResponseBody, env,
-      throttleKey: 'meta_capi_2', label: 'Meta CAPI (pixel 2)',
-    }));
 
     // --- Log to D1 ---
     // Skip PageView: conversions fire regardless of this log, and the health
@@ -520,10 +515,8 @@ function resolverRedirectDoLead(body, env) {
 }
 
 async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }) {
-  if (!pixelId || !accessToken) {
-    return { skipped: 'missing meta env', payload: null, response: null };
-  }
-
+  // O payload é montado mesmo sem credencial: é ele que a fila de reenvio usa
+  // quando a credencial voltar — sem ele, a conversão se perderia.
   const metaUserData = {
     client_ip_address: clientIp,
     client_user_agent: userAgent,
@@ -553,6 +546,9 @@ async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashe
   }
 
   const payloadJson = JSON.stringify(payload);
+  if (!pixelId || !accessToken) {
+    return { skipped: 'missing meta env', payload: payloadJson, response: null };
+  }
   const response = await fetch(`https://graph.facebook.com/v25.0/${pixelId}/events?access_token=${accessToken}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -892,28 +888,6 @@ export async function sendThrottledAlert(type, text, env) {
     console.error('alert_throttle D1 error:', e.message); // fail-open: envia assim mesmo
   }
   await sendEvolutionMessage(env.EVOLUTION_APIKEY_ALERTA, env.EVOLUTION_NUMERO_ALERTA, text, env);
-}
-
-// Camada A — Meta CAPI: alerta quando um Lead/Purchase REAL (não-bot) não foi
-// aceito pelo Meta, qualquer que seja a razão: erro HTTP, fetch rejeitado ou
-// skip por env ausente (META_PIXEL_ID_2/token sumiram = morte silenciosa —
-// metaResponseOk fica 0 em todos esses casos). PageView e bots não alertam.
-// Roda em waitUntil: nunca atrasa a resposta do /tracker.
-async function maybeAlertMetaFailure({ eventName, isBot, bloqueado = false, metaResponseOk, metaStatusCode, metaResponseBody, env, throttleKey = 'meta_capi', label = 'Meta CAPI' }) {
-  const name = (eventName || '').toLowerCase();
-  if (isBot) return;
-  // Lead bloqueado não foi ao Meta porque nós decidimos assim — não é falha.
-  // Sem esta linha, cada bot barrado dispararia "Meta CAPI falhou num Lead:
-  // status 0" no WhatsApp e, pior, queimaria o throttle de 1h que existe para
-  // avisar de uma recusa DE VERDADE.
-  if (bloqueado) return;
-  if (name !== 'lead' && name !== 'purchase') return;
-  if (metaResponseOk === 1) return;
-  await sendThrottledAlert(
-    throttleKey,
-    `⚠️ ${label} falhou num ${eventName}: status ${metaStatusCode} — ${(metaResponseBody || '').slice(0, 180)}`,
-    env
-  );
 }
 
 function buildLeadNotif(header, { nome, phoneE164, email, instagram, faturamento, material }) {
