@@ -201,7 +201,8 @@ Cantos suavemente arredondados: 0.75rem em cards, KPIs, modais e tela de acesso,
 - **Default:** texto cinza texto.
 - **Hover:** texto branco sobre grafite.
 - **Active:** texto branco em 700 sobre grafite alto.
-- **Mobile:** vira faixa horizontal rolável.
+- **Group label:** título de grupo (Resultados, Operação, Diagnóstico) em caixa alta com espaçamento de 0.08em, 700, 0.68rem, no bege assinatura, com um fio cinza quente acima de cada grupo seguinte. Precisa se distinguir do nome da aba por mais de um sinal: com tamanho menor e o mesmo cinza, ele sumia.
+- **Mobile:** vira faixa horizontal rolável. Os títulos de grupo somem e um fio vertical separa os grupos.
 
 ### KPI Tile (signature)
 O bloco de número é a unidade central do dash: rótulo cinza pequeno em cima, valor branco em 700 com algarismos tabulares, e delta colorido embaixo. A variante herói aumenta o valor para display.
