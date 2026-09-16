@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-16T13:30:00-03:00",
+  "title": "Design System: Atacado Exponencial",
+  "extensions": {
+    "colorMeta": {
+      "carvao": { "role": "neutral", "displayName": "Carvão", "canonical": "#1e1e1e", "tonalRamp": ["#0f0f0f", "#1e1e1e", "#242424", "#2a2a2a", "#393536", "#6b6667", "#a6a6a6", "#e6e6e6"] },
+      "grafite": { "role": "neutral", "displayName": "Grafite", "canonical": "#242424", "tonalRamp": ["#121212", "#1b1b1b", "#242424", "#2e2e2e", "#3b3b3b", "#5c5c5c", "#8f8f8f", "#d4d4d4"] },
+      "grafite-alto": { "role": "neutral", "displayName": "Grafite Alto", "canonical": "#2a2a2a", "tonalRamp": ["#151515", "#1f1f1f", "#2a2a2a", "#343434", "#424242", "#636363", "#969696", "#d9d9d9"] },
+      "cinza-quente": { "role": "neutral", "displayName": "Cinza Quente", "canonical": "#393536", "tonalRamp": ["#1a1818", "#2a2728", "#393536", "#4a4546", "#5f595a", "#857e80", "#b3adae", "#e3dfe0"] },
+      "branco": { "role": "neutral", "displayName": "Branco", "canonical": "#ffffff", "tonalRamp": ["#262626", "#4d4d4d", "#737373", "#999999", "#bfbfbf", "#d9d9d9", "#f0f0f0", "#ffffff"] },
+      "cinza-texto": { "role": "neutral", "displayName": "Cinza Texto", "canonical": "#a6a6a6", "tonalRamp": ["#262626", "#404040", "#595959", "#737373", "#8c8c8c", "#a6a6a6", "#cccccc", "#ededed"] },
+      "bege-assinatura": { "role": "primary", "displayName": "Bege Assinatura", "canonical": "#f5f0eb", "tonalRamp": ["#2b2621", "#4a4139", "#6e6357", "#968a7d", "#bdb2a6", "#ddd4cb", "#ede6df", "#f5f0eb"] },
+      "verde-alta": { "role": "tertiary", "displayName": "Verde Alta", "canonical": "#5dc986", "tonalRamp": ["#0f2b1a", "#1a4a2d", "#276b42", "#378f59", "#48ad6f", "#5dc986", "#94dcae", "#d2f2de"] },
+      "coral-queda": { "role": "tertiary", "displayName": "Coral Queda", "canonical": "#f37f7f", "tonalRamp": ["#3a1414", "#5e2020", "#852e2e", "#ab4040", "#d05a5a", "#f37f7f", "#f7abab", "#fcdede"] },
+      "azul-informacao": { "role": "tertiary", "displayName": "Azul Informação", "canonical": "#7fb5f3", "tonalRamp": ["#10233a", "#1b3a5e", "#295385", "#3a6fab", "#548fd0", "#7fb5f3", "#abcff7", "#deecfc"] },
+      "ambar-alerta": { "role": "tertiary", "displayName": "Âmbar Alerta", "canonical": "#e0b34c", "tonalRamp": ["#33260a", "#523e12", "#735a1c", "#96772a", "#b9963a", "#e0b34c", "#ebcd86", "#f7ebcc"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Valor dos KPIs-herói da Visão geral." },
+      "headline": { "displayName": "Headline", "purpose": "Título da aba no topo." },
+      "title": { "displayName": "Title", "purpose": "Título de card." },
+      "body": { "displayName": "Body", "purpose": "Texto corrido; tabelas em 0.84rem." },
+      "label": { "displayName": "Label", "purpose": "Rótulo de KPI, cabeçalho de tabela, delta, nota mini." }
+    },
+    "shadows": [
+      { "name": "veu-modal", "value": "rgba(0,0,0,0.55)", "purpose": "Véu atrás do modal; o único escurecimento do sistema, não é elevação." }
+    ],
+    "motion": [],
+    "breakpoints": [
+      { "name": "empilha", "value": "980px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão primário",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal; o maior contraste do sistema.",
+      "html": "<button class=\"ds-btn-primary\">Abrir painel</button>",
+      "css": ".ds-btn-primary { background: var(--fg, #ffffff); color: var(--bg, #1e1e1e); border: 0; border-radius: 0.5rem; padding: 0.5rem 0.9rem; font-family: Satoshi, system-ui, sans-serif; font-weight: 700; font-size: 0.86rem; cursor: pointer; } .ds-btn-primary:hover { background: #f5f0eb; } .ds-btn-primary:focus-visible { outline: 2px solid #f5f0eb; outline-offset: 2px; }"
+    },
+    {
+      "name": "Botão secundário",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ação de apoio.",
+      "html": "<button class=\"ds-btn-sec\">Cancelar</button>",
+      "css": ".ds-btn-sec { background: #2a2a2a; color: #ffffff; border: 1px solid #393536; border-radius: 0.5rem; padding: 0.5rem 0.9rem; font-family: Satoshi, system-ui, sans-serif; font-size: 0.86rem; cursor: pointer; } .ds-btn-sec:hover { border-color: #a6a6a6; } .ds-btn-sec:focus-visible { outline: 2px solid #f5f0eb; outline-offset: 2px; }"
+    },
+    {
+      "name": "Campo",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Select, data e texto dos filtros.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Buscar\">",
+      "css": ".ds-input { background: #242424; color: #ffffff; border: 1px solid #393536; border-radius: 0.5rem; padding: 0.45rem 0.6rem; font-family: Satoshi, system-ui, sans-serif; font-size: 0.86rem; } .ds-input:focus-visible { outline: 2px solid #f5f0eb; outline-offset: 1px; }"
+    },
+    {
+      "name": "Navegação lateral",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Lista de abas na barra lateral.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\" class=\"ativo\">Visão geral</a><a href=\"#\">Leads</a><a href=\"#\">Vendas</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 0.15rem; width: 200px; font-family: Satoshi, system-ui, sans-serif; } .ds-nav a { color: #a6a6a6; text-decoration: none; padding: 0.55rem 0.6rem; border-radius: 0.5rem; font-size: 0.92rem; } .ds-nav a:hover { color: #ffffff; background: #242424; } .ds-nav a.ativo { color: #ffffff; background: #2a2a2a; font-weight: 700; }"
+    },
+    {
+      "name": "Aba em pílula",
+      "kind": "chip",
+      "refersTo": "tab-pill",
+      "description": "Troca de dimensão dentro de um card.",
+      "html": "<div class=\"ds-abas\"><button class=\"ativo\">Origem</button><button>Campanha</button></div>",
+      "css": ".ds-abas { display: flex; gap: 0.3rem; } .ds-abas button { background: transparent; color: #a6a6a6; border: 1px solid #393536; border-radius: 999px; padding: 0.3rem 0.75rem; font-family: Satoshi, system-ui, sans-serif; font-size: 0.78rem; cursor: pointer; } .ds-abas button.ativo { background: #2a2a2a; color: #ffffff; font-weight: 700; }"
+    },
+    {
+      "name": "KPI",
+      "kind": "card",
+      "refersTo": "kpi",
+      "description": "Unidade central do dash: rótulo, valor tabular e delta.",
+      "html": "<div class=\"ds-kpi\"><div class=\"ds-rot\">Leads</div><div class=\"ds-val\">1.284</div><div class=\"ds-delta\">▲ 12%</div></div>",
+      "css": ".ds-kpi { background: #242424; border: 1px solid #393536; border-radius: 0.75rem; padding: 0.8rem 0.9rem; width: 200px; font-family: Satoshi, system-ui, sans-serif; color: #ffffff; } .ds-rot { color: #a6a6a6; font-size: 0.76rem; margin-bottom: 0.25rem; } .ds-val { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; } .ds-delta { color: #5dc986; font-size: 0.76rem; font-variant-numeric: tabular-nums; margin-top: 0.15rem; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "O Relatório Editorial Noturno",
+    "overview": "A Atacado Exponencial se apresenta como uma publicação de negócios premium lida à noite: fundo carvão, texto branco nítido e um bege quente que funciona como assinatura. Nas superfícies de operação o tom é calmo e confiável: os números vêm em primeiro plano, a interface recua, e a cor só aparece para dizer que algo subiu, caiu ou pede atenção.",
+    "keyCharacteristics": [
+      "Fundo escuro sempre, inegociável",
+      "Satoshi em dois pesos (400 e 700), números com algarismos tabulares",
+      "Bege `bege-assinatura` como voz da marca e cor das séries de dados",
+      "Cor semântica só para estado (alta, queda, informação, alerta)",
+      "Superfícies planas separadas por tom e contorno, sem sombra"
+    ],
+    "rules": [
+      { "name": "The Cor Com Motivo Rule", "body": "Cor semântica só aparece para comunicar estado. Se remover a cor não muda o significado, a cor não devia estar lá.", "section": "colors" },
+      { "name": "The Nunca Só Cor Rule", "body": "Alta e queda levam sinal ou seta além da cor, para quem não distingue verde de coral.", "section": "colors" },
+      { "name": "The Noite Sempre Rule", "body": "Nenhuma superfície de operação ganha tema claro. O bege entra como acento, nunca como fundo do dash.", "section": "colors" },
+      { "name": "The Número Tabular Rule", "body": "Todo número que se compara com outro (KPI, delta, coluna numérica, tooltip) usa `font-variant-numeric: tabular-nums` e alinha à direita em tabela.", "section": "typography" },
+      { "name": "The Plano Por Tom Rule", "body": "Para elevar um elemento, sobe-se um degrau de tom. Não se adiciona sombra.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do manter o fundo carvão (`#1e1e1e`) em toda superfície de operação.",
+      "Do usar o bege assinatura como cor da série principal de dados.",
+      "Do criar hierarquia com tamanho e peso da Satoshi antes de recorrer à cor.",
+      "Do alinhar números à direita com algarismos tabulares.",
+      "Do separar camadas por tom (grafite → grafite alto) e contorno de 1px cinza quente."
+    ],
+    "donts": [
+      "Don't introduzir tema claro nem fundo bege no dash ou no painel.",
+      "Don't usar cor semântica (verde, coral, azul, âmbar) como decoração.",
+      "Don't adicionar sombras para criar profundidade.",
+      "Don't comunicar alta ou queda só pela cor."
+    ]
+  }
+}
