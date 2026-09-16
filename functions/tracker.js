@@ -4,6 +4,7 @@ import { detectBot, detectBotPorIp } from './_bots.js';
 import { motivoBloqueio } from './_lead-bloqueio.js';
 import { registrarPrimeiraTentativa } from './api/_meta-fila.js';
 import { fbcValido } from './_fbc.js';
+import { normalizarSituacaoAviso } from './_aviso-cookies.js';
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -318,7 +319,7 @@ export async function onRequestPost(context) {
               browserInfo.browser, browserInfo.version, browserInfo.os, browserInfo.isMobile ? 1 : 0,
               pixelWasBlocked, fbpSource, fbcSource, fbclidSource,
               gaCookiePresent, gaClientIdFallback, fbpSource === 'middleware_http' ? 1 : 0,
-              isBot ? 1 : 0, botReason, body.consent_status || 'unknown',
+              isBot ? 1 : 0, botReason, normalizarSituacaoAviso(body.consent_status),
               (isBot || ehEventoInterno || bloqueado) ? 0 : 1, metaStatusCode, metaResponseOk, metaResponseBody, metaPayloadSent ?? null,
               (isBot || ehEventoInterno || bloqueado) ? 0 : 1, ga4StatusCode, ga4ResponseOk, ga4ResponseBody, ga4PayloadSent ?? null,
               hashedEm ? 1 : 0, hashedPh ? 1 : 0, (hashedFn || hashedLn) ? 1 : 0,
@@ -479,7 +480,9 @@ export function isInternalTestEmail(email) {
 // botão ou concluir a etapa 1 de um formulário NÃO é conversão — mandar isso
 // ao pixel poluiria a otimização das campanhas, e ao CRM criaria lead de quem
 // ainda nem terminou de digitar.
-const EVENTOS_INTERNOS = new Set(['formstart', 'ctaclick', 'formstep']);
+// `avisocookiesfechado`: clique no "Entendi" do aviso de cookies — ciência,
+// não conversão (spec-aviso-cookies.md).
+const EVENTOS_INTERNOS = new Set(['formstart', 'ctaclick', 'formstep', 'avisocookiesfechado']);
 
 // Destino pós-captação de um evento de Lead (null para os demais eventos).
 // Pura: só lê body e env, sem D1 — por isso serve tanto à resposta normal

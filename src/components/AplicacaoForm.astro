@@ -379,7 +379,7 @@ const investimentoOptions = [
           keepalive: true,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            event_name: 'Lead',
+            event_name: 'Lead', consent_status: (window.aeSituacaoAviso ? window.aeSituacaoAviso() : 'unknown'),
             event_id: eventId,
             event_time: Math.floor(Date.now() / 1000),
             event_source_url: window.location.href,

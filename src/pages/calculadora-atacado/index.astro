@@ -88,7 +88,7 @@ const microBenefits = [
           // o /tracker nunca recebe nada.
           method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            event_name: 'Lead', event_id: eventId,
+            event_name: 'Lead', consent_status: (window.aeSituacaoAviso ? window.aeSituacaoAviso() : 'unknown'), event_id: eventId,
             event_time: Math.floor(Date.now() / 1000), event_source_url: window.location.href,
             user_data: { em: lead.email, ph: lead.telefone, fn: lead.nome }, lead_data: lead,
           }),

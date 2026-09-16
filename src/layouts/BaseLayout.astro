@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import AvisoCookies from '../components/AvisoCookies.astro';
 
 interface Props {
   title: string;
@@ -31,6 +32,29 @@ const {
     <link rel="preload" href="/fonts/Satoshi-Bold.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/Satoshi-Regular.woff2" as="font" type="font/woff2" crossorigin />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <!-- Situação do aviso de cookies (spec-aviso-cookies.md). Definida antes de
+         qualquer envio ao /tracker para o PageView (logo abaixo) e os demais
+         eventos usarem a mesma regra: "aviso fechado" quando o "Entendi" foi
+         clicado nos últimos 12 meses, "aviso exibido" nos demais casos.
+         Armazenamento bloqueado não quebra nada: vale só a página atual.
+         É só registro de ciência — não liga nem desliga nenhum script. -->
+    <script is:inline>
+      (function () {
+        var CHAVE = 'ae_aviso_cookies_fechado', VALIDADE = 365 * 24 * 3600 * 1000, fechadoAgora = false;
+        window.aeSituacaoAviso = function () {
+          if (fechadoAgora) return 'aviso fechado';
+          try {
+            var em = Number(window.localStorage.getItem(CHAVE));
+            if (em && Date.now() - em < VALIDADE) return 'aviso fechado';
+          } catch (e) { /* armazenamento bloqueado */ }
+          return 'aviso exibido';
+        };
+        window.aeFecharAviso = function () {
+          fechadoAgora = true;
+          try { window.localStorage.setItem(CHAVE, String(Date.now())); } catch (e) { /* idem */ }
+        };
+      })();
+    </script>
     <!-- GA4 (gtag) via proxy first-party /scripts (anti-adblock). Envia só o
          PageView no client; conversões (Lead/Purchase) continuam server-side no
          /tracker — sem contagem dupla. Measurement ID não é secreto. -->
@@ -67,6 +91,7 @@ const {
         body: JSON.stringify({
           event_name: 'PageView',
           event_id: pvEventId,
+          consent_status: window.aeSituacaoAviso(),
           event_time: Math.floor(Date.now() / 1000),
           event_source_url: window.location.href,
         }),
@@ -89,6 +114,7 @@ const {
     {showHeader && <Header />}
     <slot />
     {showFooter && <Footer />}
+    <AvisoCookies />
     <!-- Degrau "clicou no CTA" do funil de micro-conversões (spec 2026-08-31).
          Vive aqui, no layout, para toda página existente e futura entrar no
          funil sem instrumentação própria. Evento INTERNO: fica no event_log e
