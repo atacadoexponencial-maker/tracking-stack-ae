@@ -1,6 +1,7 @@
 import { escolherVariante } from './_ab-sorteio.js';
 import { carregarTestesAtivos, normalizarPath } from './_ab-consulta.js';
 import { detectBot, detectBotPorIp } from './_bots.js';
+import { fbcValido, vidaRestanteFbc } from './_fbc.js';
 
 export async function onRequest(context) {
   const { request, next, env } = context;
@@ -101,7 +102,11 @@ export async function onRequest(context) {
   const SUB_DOMAIN_INDEX = computeSubDomainIndex(request.headers.get('host') || '');
 
   // --- Build _fbc from fbclid ---
-  let fbc = existingFbc;
+  // Clique com mais de 90 dias sai (recomendação do Meta, ver _fbc.js): sem
+  // isso o cookie, regravado a cada visita, levaria um clique velho para
+  // sempre e o Meta o receberia como atribuição.
+  let fbc = fbcValido(existingFbc) ? existingFbc : '';
+  const fbcVencido = !!existingFbc && !fbc;
   if (fbclid) {
     const existingPayload = existingFbc ? extractFbcPayload(existingFbc) : '';
     if (!existingFbc || existingPayload !== fbclid) {
@@ -203,7 +208,11 @@ export async function onRequest(context) {
   newHeaders.append('Set-Cookie', `_fbp=${fbp}; ${cookieBase}`);
 
   if (fbc) {
-    newHeaders.append('Set-Cookie', `_fbc=${fbc}; ${cookieBase}`);
+    // Max-Age = o que resta dos 90 dias desde o clique, não 400 dias a cada visita.
+    const vidaFbc = Math.max(1, Math.floor(vidaRestanteFbc(fbc) / 1000));
+    newHeaders.append('Set-Cookie', `_fbc=${fbc}; Path=/; Max-Age=${vidaFbc}; SameSite=Lax; Secure`);
+  } else if (fbcVencido) {
+    newHeaders.append('Set-Cookie', '_fbc=; Path=/; Max-Age=0; SameSite=Lax; Secure');
   }
 
   if (abTeste) {
