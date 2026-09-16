@@ -197,7 +197,7 @@ async function handleTracking({ parsed, eventId, eventTime, env }) {
   }));
 
   const [metaResult, ga4Result, googleAdsResult] = await Promise.allSettled([
-    sendToMeta({ checkoutData, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, eventId, eventTime, value, currency, productName, contents, env }),
+    sendToMeta({ checkoutData, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, eventId, eventTime, value, currency, productName, contents, env, forceSend: parsed.forceSend }),
     sendToGA4({ checkoutData, hashedEm, transactionId, value, currency, ga4Items, env }),
     sendToGoogleAds({ checkoutData, productConfig, hashedEm, transactionId, value, currency, eventTime, env }),
   ]);
@@ -503,7 +503,7 @@ async function handlePurchaseLog({ parsed, eventId, eventTime, resultMap, env })
 // -----------------------------------------------------------------------------
 // META CAPI — Purchase with full navigation data from D1
 // -----------------------------------------------------------------------------
-async function sendToMeta({ checkoutData, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, eventId, eventTime, value, currency, productName, contents, env }) {
+async function sendToMeta({ checkoutData, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, eventId, eventTime, value, currency, productName, contents, env, forceSend = false }) {
   // Par `_2` = pixel vivo (conta Sete Ads 2). Até 2026-09-15 isto usava as vars
   // sem sufixo, que guardam o pixel 915637492681788 desativado em 30/07 — todo
   // Purchase da Greenn foi para um pixel morto desde então.
@@ -545,7 +545,10 @@ async function sendToMeta({ checkoutData, hashedEm, hashedFn, hashedLn, hashedPh
       event_time: eventTime,
       event_id: eventId,
       event_source_url: checkoutData.event_source_url || '',
-      action_source: 'website',
+      // Venda que não nasce no site (forceSend: ponte do CRM) não é evento de
+      // website: o Meta pede `system_generated` para conversão vinda de CRM.
+      // Com `website` ele espera navegador (user agent, URL) que essa venda não tem.
+      action_source: forceSend ? 'system_generated' : 'website',
       user_data: metaUserData,
       custom_data: customData,
     }],

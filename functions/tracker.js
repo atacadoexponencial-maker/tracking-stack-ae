@@ -3,6 +3,7 @@ import { sha256, normalizePhone, normalizeName } from './api/_hash.js';
 import { detectBot, detectBotPorIp } from './_bots.js';
 import { motivoBloqueio } from './_lead-bloqueio.js';
 import { registrarPrimeiraTentativa } from './api/_meta-fila.js';
+import { fbcValido } from './_fbc.js';
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -68,7 +69,10 @@ export async function onRequestPost(context) {
 
     // --- Resolve fbp/fbc with fallback chain ---
     const fbp = validateFbCookie(userData.fbp) || validateFbCookie(cookies['_fbp']) || validateFbCookie(sessionData.fbp) || '';
-    const fbc = validateFbCookie(sessionData.fbc) || validateFbCookie(cookies['_fbc']) || validateFbCookie(userData.fbc) || '';
+    // fbc com mais de 90 dias não vai ao Meta (ver _fbc.js): a sessão no D1
+    // guarda o clique para sempre, e ele cairia em qualquer evento futuro.
+    const fbcDaFonte = (v) => { const f = validateFbCookie(v); return f && fbcValido(f) ? f : ''; };
+    const fbc = fbcDaFonte(sessionData.fbc) || fbcDaFonte(cookies['_fbc']) || fbcDaFonte(userData.fbc) || '';
     const externalId = userData.external_id || cookies['_krob_eid'] || sessionData.external_id || '';
 
     // Track sources for analytics
