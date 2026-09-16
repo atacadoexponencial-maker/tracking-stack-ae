@@ -40,10 +40,12 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--fg); f
 .nav a { color: var(--muted); text-decoration: none; padding: 0.5rem 0.6rem; border-radius: 0.5rem; font-size: 0.92rem; }
 .nav a:hover { color: var(--fg); background: var(--card); }
 .nav a.ativo { color: var(--fg); background: var(--card-2); font-weight: 700; }
-.conteudo { padding: 1.4rem 1.8rem 3rem; min-width: 0; }
+/* Largura máxima: num monitor largo, tabela e número esticados de ponta a ponta
+   perdem a leitura. */
+.conteudo { padding: 1.4rem 1.8rem 3rem; min-width: 0; max-width: 1480px; }
 .topo { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; justify-content: space-between; margin-bottom: 1.4rem; }
 .topo h1 { font-size: 1.25rem; }
-.topo .sub { color: var(--muted); font-size: 0.85rem; }
+.topo .sub { color: var(--muted); font-size: 0.84rem; }
 .filtros { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 select, input[type="date"], input[type="text"], input[type="password"], input[type="email"] {
   background: var(--card); color: var(--fg); border: 1px solid var(--border);
@@ -64,10 +66,13 @@ a.btn { display: inline-block; text-decoration: none; }
 .grid-heroi { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
 .kpi { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 0.9rem; min-width: 0; }
 .kpi .rotulo { color: var(--muted); font-size: 0.76rem; margin-bottom: 0.25rem; }
-.kpi .valor { font-size: clamp(1.05rem, 1.6vw, 1.3rem); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; overflow-wrap: break-word; }
+.kpi .valor { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; overflow-wrap: break-word; }
 .kpi.heroi { padding: 1.1rem 1.2rem; }
 .kpi.heroi .rotulo { font-size: 0.84rem; }
-.kpi.heroi .valor { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.kpi.heroi .valor { font-size: 2rem; }
+/* Manchete da Visão geral: o resumo do período em uma frase, antes dos números. */
+.manchete { font-size: 1.15rem; line-height: 1.4; color: var(--muted); margin: 0 0 1.1rem; max-width: 70ch; }
+.manchete strong { color: var(--fg); }
 .semdado { color: var(--muted); }
 .kpi .semdado { font-size: 1rem; font-weight: 400; }
 .delta { font-size: 0.76rem; font-variant-numeric: tabular-nums; margin-top: 0.15rem; display: inline-block; }
@@ -96,13 +101,20 @@ th, td { text-align: left; padding: 0.45rem 0.55rem; border-bottom: 1px solid va
 th { color: var(--muted); font-weight: 400; font-size: 0.74rem; }
 th.ordenavel { cursor: pointer; user-select: none; }
 th.ordenavel:hover { color: var(--fg); }
+tbody tr.clicavel:focus-visible td { background: var(--card-2); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr.clicavel { cursor: pointer; }
 tbody tr.clicavel:hover td { background: var(--card-2); }
 td .mini, .mini { color: var(--muted); font-size: 0.72rem; }
 .ok { color: var(--up); } .falha { color: var(--down); }
-.aviso { color: var(--muted); font-size: 0.83rem; padding: 1rem; text-align: center; }
+.aviso { color: var(--muted); font-size: 0.84rem; padding: 1rem; text-align: center; }
+/* .aviso.explica: explicação permanente (cinza). O âmbar de .alerta fica só para
+   o que pede ação — usado como explicação, ele deixava de chamar atenção. */
+.aviso.explica { text-align: left; background: var(--card-2); border-radius: var(--radius); padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; }
+.selo { display: inline-block; margin-left: 0.3rem; padding: 0 0.45rem; border: 1px solid var(--border); border-radius: 999px; color: var(--info); font-size: 0.72rem; }
+.nota-estado { margin-top: 0.3rem; }
+.nota-estado.ok { color: var(--up); }
 /* Carregando: os números da consulta anterior esmaecem até a nova resposta
    chegar, para ninguém ler o período velho achando que é o novo. */
 .status { color: var(--muted); font-size: 0.85rem; }
@@ -120,20 +132,20 @@ td .mini, .mini { color: var(--muted); font-size: 0.72rem; }
    da tabela Conversão por LP. A barra é proporcional ao PRIMEIRO degrau, então
    o afunilamento é visível de relance — sem eixo, sem legenda. */
 .funil-lp { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
-.funil-lp h3 { font-size: 0.82rem; font-weight: 500; color: var(--muted); margin: 0 0 0.5rem; }
+.funil-lp h3 { font-size: 0.84rem; font-weight: 400; color: var(--muted); margin: 0 0 0.5rem; }
 .funil-lp h3 code { color: var(--fg); }
 .funil-tabela td { border-bottom: none; padding: 0.3rem 0.55rem; }
 .funil-tabela td.funil-barra { width: 45%; padding-left: 0.9rem; }
 .funil-barra span { display: block; height: 9px; border-radius: 3px; background: var(--info); opacity: 0.55; }
 /* A maior queda é o degrau onde mais gente desiste — é a única informação
    acionável do funil, então é a única destacada. */
-.funil-queda td { color: var(--down); font-weight: 500; }
+.funil-queda td { color: var(--down); font-weight: 700; }
 .funil-queda .funil-barra span { background: var(--down); opacity: 0.75; }
 .funil-aviso { color: var(--muted); }
 .funil-nota { color: var(--muted); font-size: 0.72rem; margin: 0.6rem 0 0; }
 .secao { display: none; } .secao.ativa { display: block; }
 .grafico { position: relative; }
-.grafico svg { display: block; width: 100%; height: auto; }
+.grafico svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
 .grafico .eixo { stroke: var(--border); stroke-width: 1; }
 .grafico .rot-eixo { fill: var(--muted); font-size: 10px; font-family: var(--font-sans); }
 .grafico .linha { fill: none; stroke: var(--serie); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
@@ -173,9 +185,9 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 
 <div class="gate" id="gate" hidden>
   <form id="gate-form">
-    <strong>Chave do painel</strong>
-    <span class="mini">Cole a <code>DASH_KEY</code> definida no Cloudflare.</span>
-    <input type="password" id="gate-key" placeholder="DASH_KEY" autocomplete="off">
+    <strong>Atacado Exponencial · Tracking</strong>
+    <span class="mini">Digite a chave de acesso do painel.</span>
+    <input type="password" id="gate-key" placeholder="Chave de acesso" aria-label="Chave de acesso" autocomplete="off">
     <button class="btn" type="submit">Abrir painel</button>
     <span class="mini falha" id="gate-erro" hidden>Chave inválida.</span>
   </form>
@@ -232,6 +244,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
     </div>
 
     <section class="secao" id="secao-visao">
+      <p class="manchete" id="visao-manchete"></p>
       <div class="grid-heroi" id="visao-herois"></div>
       <div class="grid-kpi" id="visao-kpis"></div>
       <div class="card"><h2>Leads por dia <small id="visao-serie-nota"></small></h2><div class="grafico" id="visao-grafico"></div></div>
@@ -264,7 +277,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
          de propósito — ver o aviso dentro do primeiro card. -->
     <section class="secao" id="secao-greenn">
       <div class="card">
-        <div class="aviso alerta">Esta aba soma o <strong>ciclo inteiro</strong> de cada campanha, do primeiro dia até hoje. Ela não segue o filtro de datas do topo: investimento e vendas caem em dias diferentes, e recortar o período daria um retorno falso.</div>
+        <div class="aviso explica">Esta aba soma o <strong>ciclo inteiro</strong> de cada campanha, do primeiro dia até hoje. Ela não segue o filtro de datas do topo: investimento e vendas caem em dias diferentes, e recortar o período daria um retorno falso.</div>
         <!-- Faixa do funil de venda (spec-feedback-marketing.md, módulo 3): o texto vem
              pronto do backend; sem ele a faixa fica escondida. -->
         <div class="aviso alerta" id="greenn-aviso-funil" hidden></div>
@@ -330,8 +343,8 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
         <h2 id="links-form-titulo">Novo destino</h2>
         <form id="links-form" style="display:grid; gap:0.6rem; max-width:640px">
           <input type="hidden" id="links-id">
-          <input type="text" id="links-label" placeholder="Rótulo (ex.: Disparo Live 05/08)" required>
-          <input type="text" id="links-url" placeholder="https://destino-completo.com/pagina" required>
+          <input type="text" id="links-label" aria-label="Rótulo do destino" placeholder="Rótulo (ex.: Disparo Live 05/08)" required>
+          <input type="text" id="links-url" aria-label="Endereço de destino" placeholder="https://destino-completo.com/pagina" required>
           <label style="display:flex; gap:0.5rem; align-items:center">
             <input type="checkbox" id="links-padrao">
             Destino padrão (vale sempre que nenhum agendamento estiver valendo)
@@ -431,9 +444,9 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
         <h2 id="ab-form-titulo">Novo teste</h2>
         <form id="ab-form" style="display:grid; gap:0.6rem; max-width:640px">
           <input type="hidden" id="ab-id">
-          <input type="text" id="ab-nome" placeholder="Nome do teste (ex.: Home — oferta nova)" required>
-          <input type="text" id="ab-slug" placeholder="Identificador (ex.: home-oferta-2026-08)" required>
-          <input type="text" id="ab-path" placeholder="Página testada (ex.: /aplicacao-mentoria)" required>
+          <input type="text" id="ab-nome" aria-label="Nome do teste" placeholder="Nome do teste (ex.: Home — oferta nova)" required>
+          <input type="text" id="ab-slug" aria-label="Identificador do teste" placeholder="Identificador (ex.: home-oferta-2026-08)" required>
+          <input type="text" id="ab-path" aria-label="Página testada" placeholder="Página testada (ex.: /aplicacao-mentoria)" required>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap">
             <label style="flex:1; min-width:180px">Leads por variante
               <input type="number" id="ab-leads" min="10" step="1" value="60" style="width:100%"></label>
@@ -456,7 +469,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
       <div class="card">
         <h2>Buscar jornada de um lead</h2>
         <form id="jornada-form" style="display:flex; gap:0.5rem; flex-wrap:wrap">
-          <input type="email" id="jornada-email" placeholder="email do lead" style="flex:1; min-width:220px" required>
+          <input type="email" id="jornada-email" aria-label="E-mail do lead" placeholder="email do lead" style="flex:1; min-width:220px" required>
           <button class="btn" type="submit">Buscar</button>
         </form>
         <div id="jornada-resultado" style="margin-top:1rem"></div>
@@ -471,7 +484,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 </div>
 
 <div class="modal-fundo" id="modal-fundo" hidden>
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
     <header>
       <div><strong id="modal-titulo"></strong><small id="modal-sub"></small></div>
       <button class="fechar" id="modal-fechar" aria-label="Fechar">&times;</button>
@@ -568,17 +581,19 @@ const delta = (a, b) => (b ? ((a - b) / b) * 100 : null);
 let funilQ = '';
 
 // ---------- componentes (portados do painel) ----------
-function deltaChip(pct, invertido = false) {
+// `neutro`: a seta mostra a direção sem julgar. Investimento subir ou cair não é
+// bom nem ruim por si — em verde ou coral, escalar de propósito parecia bronca.
+function deltaChip(pct, invertido = false, neutro = false) {
   if (pct === null || pct === undefined || !isFinite(pct)) return '';
   const up = pct >= 0, bom = invertido ? !up : up;
-  const cls = pct === 0 ? 'neutro' : (bom ? 'up' : 'down');
+  const cls = pct === 0 || neutro ? 'neutro' : (bom ? 'up' : 'down');
   return `<span class="delta ${cls}">${pct === 0 ? '•' : (up ? '▲' : '▼')} ${fmtNum(Math.abs(pct), 1)}%</span>`;
 }
 const tile = (k, heroi = false) => `
   <div class="kpi${heroi ? ' heroi' : ''}">
     <div class="rotulo">${esc(k.rotulo)}</div>
     <div class="valor">${k.valor === null || k.valor === undefined ? '<span class="semdado">—</span>' : k.valor}</div>
-    ${k.delta !== undefined ? deltaChip(k.delta, k.invertido) : ''}${k.nota ? `<div class="mini">${k.nota}</div>` : ''}
+    ${k.delta !== undefined ? deltaChip(k.delta, k.invertido, k.neutro) : ''}${k.nota ? `<div class="mini">${k.nota}</div>` : ''}
   </div>`;
 
 // Confirmação na própria linha, no lugar do botão: "Apagar este destino? Sim · Não".
@@ -625,8 +640,9 @@ function tabela(el, colunas, linhas, aoClicar) {
         return ordem.asc ? cmp : -cmp;
       });
     }
-    const ths = colunas.map((c, i) => `<th class="${c.num ? 'num' : ''}${c.campo ? ' ordenavel' : ''}" data-i="${i}">${esc(c.titulo)}${c.campo === ordem.campo ? (ordem.asc ? ' ↑' : ' ↓') : ''}</th>`).join('');
-    const trs = dados.map((l) => `<tr class="${aoClicar ? 'clicavel' : ''}" data-k="${linhas.indexOf(l)}">${colunas.map((c) => `<td class="${c.num ? 'num' : ''}">${c.render(l)}</td>`).join('')}</tr>`).join('');
+    const sort = (c) => (c.campo && c.campo === ordem.campo ? ` aria-sort="${ordem.asc ? 'ascending' : 'descending'}"` : '');
+    const ths = colunas.map((c, i) => `<th class="${c.num ? 'num' : ''}${c.campo ? ' ordenavel' : ''}" data-i="${i}"${c.campo ? ' tabindex="0"' : ''}${sort(c)}>${esc(c.titulo)}${c.campo === ordem.campo ? (ordem.asc ? ' ↑' : ' ↓') : ''}</th>`).join('');
+    const trs = dados.map((l) => `<tr class="${aoClicar ? 'clicavel' : ''}" data-k="${linhas.indexOf(l)}"${aoClicar ? ' tabindex="0"' : ''}>${colunas.map((c) => `<td class="${c.num ? 'num' : ''}">${c.render(l)}</td>`).join('')}</tr>`).join('');
     el.innerHTML = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
   };
   el.onclick = (ev) => {
@@ -634,25 +650,59 @@ function tabela(el, colunas, linhas, aoClicar) {
     if (th) {
       const campo = colunas[Number(th.dataset.i)].campo;
       if (ordem.campo === campo) ordem.asc = !ordem.asc; else { ordem.campo = campo; ordem.asc = false; }
-      desenhar(); return;
+      desenhar();
+      // Redesenhar troca o HTML; o foco volta ao mesmo cabeçalho para quem usa teclado.
+      if (ev.detail === 0) { const novo = el.querySelector(`th[data-i="${th.dataset.i}"]`); if (novo) novo.focus(); }
+      return;
     }
     const tr = ev.target.closest('tr[data-k]');
     if (tr && aoClicar) aoClicar(linhas[Number(tr.dataset.k)]);
   };
+  // Enter ou espaço num cabeçalho ordenável ou numa linha clicável = clique.
+  el.onkeydown = (ev) => {
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    const alvo = ev.target.closest('th.ordenavel, tr.clicavel');
+    if (!alvo || ev.target !== alvo) return;
+    ev.preventDefault();
+    alvo.click();
+  };
   desenhar();
 }
+
+// O gráfico é desenhado na largura real do contêiner (antes: viewBox fixo de
+// 900, que no celular encolhia os rótulos para ~4px). Um ResizeObserver redesenha
+// quando a largura muda — inclusive quando a aba sai do `display:none`.
+const observadorGraficos = new ResizeObserver((entradas) => {
+  for (const e of entradas) {
+    const el = e.target, w = Math.round(e.contentRect.width);
+    if (el._grafico && w > 0 && Math.abs(w - el._grafico.w) > 24) grafico(el, ...el._grafico.args);
+  }
+});
 
 // `opcoes.serie2` é opcional: sem ele, o desenho é exatamente o de antes (uma
 // linha com área preenchida), que é o que as abas Visão geral e Vendas usam.
 // Com ele, vira duas linhas sem área — área com duas séries sobrepostas vira
 // borrão.
+// Um único ouvinte para todos os gráficos: toque fora esconde o valor aberto.
+document.addEventListener('pointerdown', (ev) => {
+  document.querySelectorAll('.grafico').forEach((g) => { if (g._esconder && !g.contains(ev.target)) g._esconder(); });
+});
+
 function grafico(el, serie, valorFmt, opcoes) {
   if (!serie.length) { el.innerHTML = '<div class="aviso">Sem dados no período.</div>'; return; }
   const serie2 = opcoes && opcoes.serie2 && opcoes.serie2.length === serie.length ? opcoes.serie2 : null;
-  const W = 900, H = 240, m = { t: 14, r: 12, b: 26, l: 56 };
+  const W = Math.max(300, Math.round(el.clientWidth || 900));
+  const estreito = W < 560;
+  const H = estreito ? 200 : 240, m = { t: 14, r: 12, b: 26, l: estreito ? 44 : 56 };
+  el._grafico = { w: W, args: [serie, valorFmt, opcoes] };
+  observadorGraficos.observe(el);
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const todos = serie.map((p) => p.v).concat(serie2 ? serie2.map((p) => p.v) : []);
-  const max = Math.max(...todos, 1) * 1.08;
+  // Topo do eixo arredondado para um número limpo (40, não 39,96), em meios de
+  // potência de 10 — assim a marca do meio também sai redonda.
+  const bruto = Math.max(...todos, 1) * 1.08;
+  const ordem = 10 ** Math.floor(Math.log10(bruto));
+  const max = Math.ceil((bruto / ordem) * 2) / 2 * ordem;
   const x = (i) => m.l + (serie.length === 1 ? iw / 2 : (i / (serie.length - 1)) * iw);
   const y = (v) => m.t + ih - (v / max) * ih;
   const caminho = (s) => 'M' + s.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('L');
@@ -660,15 +710,19 @@ function grafico(el, serie, valorFmt, opcoes) {
   const area = serie2 ? '' : `<path class="area" d="${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z"/>`;
   const linha2 = serie2 ? `<path class="linha2" d="${caminho(serie2)}"/>` : '';
   const yt = [0, 0.5, 1].map((f) => { const v = max * f, yy = y(v); return `<line class="eixo" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/><text class="rot-eixo" x="${m.l - 6}" y="${yy + 3}" text-anchor="end">${valorFmt(v, true)}</text>`; }).join('');
-  const passo = Math.max(1, Math.ceil(serie.length / 8));
+  // Um rótulo de data a cada ~64px, para não encavalar em tela estreita.
+  const passo = Math.max(1, Math.ceil(serie.length / Math.max(2, Math.floor(iw / 64))));
   const xt = serie.map((p, i) => i % passo ? '' : `<text class="rot-eixo" x="${x(i)}" y="${H - 8}" text-anchor="middle">${diaBR(p.d)}</text>`).join('');
   const legenda = serie2 ? `<div class="legenda"><span class="s1">${esc(opcoes.rotulo1 || '')}</span><span class="s2">${esc(opcoes.rotulo2 || '')}</span></div>` : '';
   const pt2 = serie2 ? '<circle class="p2" r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>' : '';
-  el.innerHTML = `${legenda}<svg viewBox="0 0 ${W} ${H}">${yt}${xt}${area}<path class="linha" d="${linha}"/>${linha2}<line class="cursor" y1="${m.t}" y2="${m.t + ih}" x1="-9" x2="-9" style="display:none"/><circle r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>${pt2}</svg><div class="tooltip"></div>`;
+  // Resumo para leitor de tela: o pico da série principal.
+  const pico = serie.reduce((a, b) => (b.v > a.v ? b : a), serie[0]);
+  const resumo = `Gráfico de ${serie.length} dias, de ${diaBR(serie[0].d)} a ${diaBR(serie[serie.length - 1].d)}. Pico de ${valorFmt(pico.v)} em ${diaBR(pico.d)}.`;
+  el.innerHTML = `${legenda}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumo)}">${yt}${xt}${area}<path class="linha" d="${linha}"/>${linha2}<line class="cursor" y1="${m.t}" y2="${m.t + ih}" x1="-9" x2="-9" style="display:none"/><circle r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>${pt2}</svg><div class="tooltip"></div>`;
   const svg = el.querySelector('svg'), tip = el.querySelector('.tooltip');
   const cur = el.querySelector('.cursor'), pt = el.querySelector('circle:not(.p2)');
   const ptB = el.querySelector('circle.p2');
-  svg.addEventListener('pointermove', (ev) => {
+  const mostrar = (ev) => {
     const r = svg.getBoundingClientRect();
     const px = ((ev.clientX - r.left) / r.width) * W;
     const i = Math.max(0, Math.min(serie.length - 1, Math.round(((px - m.l) / iw) * (serie.length - 1))));
@@ -676,16 +730,27 @@ function grafico(el, serie, valorFmt, opcoes) {
     cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.style.display = '';
     pt.setAttribute('cx', cx); pt.setAttribute('cy', cy); pt.style.display = '';
     if (ptB) { ptB.setAttribute('cx', cx); ptB.setAttribute('cy', y(serie2[i].v)); ptB.style.display = ''; }
-    tip.style.display = 'block'; tip.style.left = (cx / W) * r.width + 'px'; tip.style.top = (cy / H) * r.height + 'px';
     tip.innerHTML = serie2
       ? `${diaBR(serie[i].d)}<b>${esc(opcoes.rotulo1 || '')}: ${valorFmt(serie[i].v)}</b><b>${esc(opcoes.rotulo2 || '')}: ${valorFmt(serie2[i].v)}</b>`
       : `${diaBR(serie[i].d)}<b>${valorFmt(serie[i].v)}</b>`;
-  });
-  svg.addEventListener('pointerleave', () => {
+    tip.style.display = 'block';
+    // A caixa não passa da borda: perto dela, o centro é empurrado para dentro.
+    const meia = tip.offsetWidth / 2 + 4;
+    tip.style.left = Math.min(Math.max((cx / W) * r.width, meia), r.width - meia) + 'px';
+    tip.style.top = (cy / H) * r.height + 'px';
+  };
+  // pointerdown além de pointermove: no toque, um toque simples já mostra o valor.
+  svg.addEventListener('pointermove', mostrar);
+  svg.addEventListener('pointerdown', mostrar);
+  const esconder = () => {
     cur.style.display = 'none'; pt.style.display = 'none';
     if (ptB) ptB.style.display = 'none';
     tip.style.display = 'none';
-  });
+  };
+  // No toque, o navegador dispara pointerleave logo ao levantar o dedo; ali o
+  // valor fica na tela até um toque fora do gráfico.
+  svg.addEventListener('pointerleave', (ev) => { if (ev.pointerType !== 'touch') esconder(); });
+  el._esconder = esconder;
 }
 
 // ---------- funil de micro-conversões (spec 2026-08-31) ----------
@@ -762,6 +827,15 @@ R.visao = async () => {
   const cplA = totalLeads && atrA.meta_spend > 0 ? atrA.meta_spend / totalLeads : null;
   const cplB = totalLeadsAnt && atrB.meta_spend > 0 ? atrB.meta_spend / totalLeadsAnt : null;
 
+  // Manchete: só reescreve em frase os números já calculados acima.
+  const dLeads = delta(totalLeads, totalLeadsAnt);
+  const QUANDO = { hoje: 'hoje', 1: 'ontem', mes: 'neste mês', 'mes-passado': 'no mês passado', custom: 'no período' };
+  const quando = QUANDO[$('#preset').value] || `nos últimos ${$('#preset').value} dias`;
+  $('#visao-manchete').innerHTML = `<strong>${fmtInt(totalLeads)} leads</strong> ${esc(quando)}`
+    + (fSel ? ` no funil ${esc(fSel)}` : '')
+    + (dLeads !== null && isFinite(dLeads) ? `, ${dLeads === 0 ? 'o mesmo que' : `${fmtNum(Math.abs(dLeads), 0)}% ${dLeads > 0 ? 'a mais que' : 'a menos que'}`} no período anterior` : '')
+    + (cplA !== null ? `, com CPL de <strong>${money(cplA)}</strong>` : '') + '.';
+
   $('#visao-herois').innerHTML = [
     { rotulo: 'Leads', valor: fmtInt(totalLeads), delta: delta(totalLeads, totalLeadsAnt) },
     { rotulo: 'Conversão geral', valor: txA === null ? null : fmtPct(txA, 2), delta: txA !== null && txB !== null ? delta(txA, txB) : undefined },
@@ -774,9 +848,9 @@ R.visao = async () => {
     // `visitors` de /api/conversion conta sessões pela PRIMEIRA visita (first-touch
     // no upsert de sessions): quem chegou antes do período não entra aqui.
     { rotulo: 'Novos visitantes', valor: fmtInt(cA.v), delta: delta(cA.v, cB.v), nota: 'coorte pela 1ª visita' },
-    { rotulo: 'Investimento (Meta)', valor: atrA.meta_spend > 0 ? money(atrA.meta_spend) : null, delta: atrA.meta_spend > 0 && atrB.meta_spend > 0 ? delta(atrA.meta_spend, atrB.meta_spend) : undefined, invertido: true },
+    { rotulo: 'Investimento (Meta)', valor: atrA.meta_spend > 0 ? money(atrA.meta_spend) : null, delta: atrA.meta_spend > 0 && atrB.meta_spend > 0 ? delta(atrA.meta_spend, atrB.meta_spend) : undefined, neutro: true },
     { rotulo: 'Receita', valor: revA.gross > 0 ? money(revA.gross, revA.currency) : null, delta: revA.gross > 0 && revB.gross > 0 ? delta(revA.gross, revB.gross) : undefined, nota: revA.gross > 0 ? '' : 'aguardando conversões do CRM' },
-    { rotulo: 'ROAS', valor: atrA.meta_roas != null ? fmtNum(atrA.meta_roas) + 'x' : null, nota: atrA.meta_roas != null ? '' : 'aguardando conversões do CRM' },
+    { rotulo: 'ROAS', valor: atrA.meta_roas > 0 ? fmtNum(atrA.meta_roas) + 'x' : null, nota: atrA.meta_roas > 0 ? '' : (atrA.meta_roas === 0 ? 'nenhuma venda atribuída no período' : 'aguardando conversões do CRM') },
   ].map((k) => tile(k)).join('');
 
   // Leads por dia derivado das linhas (limit 500 — se estourar, série parcial).
@@ -841,12 +915,13 @@ R.leads = async () => {
   tabela($('#leads-tabela'), [
     { titulo: 'Quando', campo: 'timestamp', render: (l) => `<span class="mini">${fmtData(l.timestamp)}</span>` },
     { titulo: 'Email', campo: 'raw_email', render: (l) => esc(l.raw_email || '—')
-        + (l.origin === 'meta_form' ? ' <span class="mini" title="Lead do formulário nativo do Meta" style="background:#e7f0ff;color:#1a56db;padding:1px 5px;border-radius:4px;margin-left:4px">form Meta</span>' : '') },
+        + (l.origin === 'meta_form' ? ' <span class="selo" title="Lead do formulário nativo do Meta">form Meta</span>' : '') },
     { titulo: 'Origem', campo: 'utm_source', render: (l) => esc(l.utm_source || '(direto)') },
     { titulo: 'Campanha', campo: 'utm_campaign', render: (l) => `<span class="mini">${esc(l.utm_campaign || '—')}</span>` },
     { titulo: 'Conteúdo', campo: 'utm_content', render: (l) => `<span class="mini">${esc(l.utm_content || '—')}</span>` },
-    { titulo: 'Meta', num: true, render: (l) => l.meta_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
-    { titulo: 'GA4', num: true, render: (l) => l.ga4_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
+    // Sucesso em cinza, só a falha em coral: com ✓ verde em toda linha, o ✕ se perdia.
+    { titulo: 'Meta', num: true, render: (l) => l.meta_response_ok ? '<span class="mini" title="aceito">✓</span>' : '<span class="falha" title="falhou">✕</span>' },
+    { titulo: 'GA4', num: true, render: (l) => l.ga4_response_ok ? '<span class="mini" title="aceito">✓</span>' : '<span class="falha" title="falhou">✕</span>' },
     { titulo: 'CRM', campo: 'crm_resultado', render: (l) => l.crm_resultado === 'criado' ? '<span class="ok">novo</span>'
         : l.crm_resultado === 'comentado' ? '<span class="mini">retorno</span>'
         : l.crm_resultado === 'falha' ? '<span class="falha">falha</span>' : '<span class="mini">—</span>' },
@@ -877,9 +952,9 @@ R.vendas = async () => {
     { titulo: 'Email', campo: 'raw_email', render: (c) => esc(c.raw_email || '—') },
     { titulo: 'Produto', campo: 'product_name', render: (c) => esc(c.product_name || c.product_id || '—') },
     { titulo: 'Valor', num: true, campo: 'value', render: (c) => money(c.value, c.currency || 'BRL') },
-    { titulo: 'Meta', num: true, render: (c) => c.meta_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
-    { titulo: 'GA4', num: true, render: (c) => c.ga4_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>' },
-    { titulo: 'GAds', num: true, render: (c) => c.google_ads_response_ok ? '<span class="ok">✓</span>' : (String(c.google_ads_response_body || '').startsWith('skipped:') ? '<span class="mini">—</span>' : '<span class="falha">✕</span>') },
+    { titulo: 'Meta', num: true, render: (c) => c.meta_response_ok ? '<span class="mini" title="aceito">✓</span>' : '<span class="falha" title="falhou">✕</span>' },
+    { titulo: 'GA4', num: true, render: (c) => c.ga4_response_ok ? '<span class="mini" title="aceito">✓</span>' : '<span class="falha" title="falhou">✕</span>' },
+    { titulo: 'GAds', num: true, render: (c) => c.google_ads_response_ok ? '<span class="mini" title="aceito">✓</span>' : (String(c.google_ads_response_body || '').startsWith('skipped:') ? '<span class="mini">—</span>' : '<span class="falha">✕</span>') },
   ], compras.rows || [], (c) => abrirDetalhes('purchase', c));
 };
 
@@ -889,13 +964,9 @@ R.atribuicao = async () => {
   const atr = await fetchJson(`/api/attribution?${q(p.de, p.ate)}`);
   const g = atr.groups || {};
   $('#atr-canais').innerHTML = [
-    { rotulo: 'Meta — vendas', valor: fmtInt(g.meta?.sales) },
-    { rotulo: 'Meta — receita', valor: money(g.meta?.revenue) },
-    { rotulo: 'Google — vendas', valor: fmtInt(g.google?.sales) },
-    { rotulo: 'Google — receita', valor: money(g.google?.revenue) },
-    { rotulo: 'Orgânico — vendas', valor: fmtInt(g.organic?.sales) },
-    { rotulo: 'Orgânico — receita', valor: money(g.organic?.revenue) },
-  ].map((k) => tile(k)).join('');
+    // Um bloco por canal (receita + vendas) em vez de 6 blocos soltos em pares.
+    ['Meta', g.meta], ['Google', g.google], ['Orgânico', g.organic],
+  ].map(([rotulo, c]) => tile({ rotulo, valor: money(c?.revenue), nota: `${fmtInt(c?.sales)} ${Number(c?.sales) === 1 ? 'venda' : 'vendas'}` })).join('');
   await carregarUtm();
 };
 async function carregarUtm() {
@@ -1002,10 +1073,10 @@ R.metaads = async () => {
   const linhaMeta = ((cpl && cpl.por_canal) || []).find((c) => c.canal === 'meta-ads');
   const cplMeta = linhaMeta && linhaMeta.cpl != null ? linhaMeta.cpl : null;
   $('#meta-kpis').innerHTML = [
-    { rotulo: 'Investimento', valor: atr.meta_spend > 0 ? money(atr.meta_spend) : null, delta: atr.meta_spend > 0 && atrAnt.meta_spend > 0 ? delta(atr.meta_spend, atrAnt.meta_spend) : undefined, invertido: true },
+    { rotulo: 'Investimento', valor: atr.meta_spend > 0 ? money(atr.meta_spend) : null, delta: atr.meta_spend > 0 && atrAnt.meta_spend > 0 ? delta(atr.meta_spend, atrAnt.meta_spend) : undefined, neutro: true },
     { rotulo: 'CPL Meta (pago)', valor: cplMeta === null ? null : money(cplMeta), invertido: true, nota: cpl ? '' : 'CPL indisponível' },
     { rotulo: 'CPA', valor: atr.meta_cpa != null ? money(atr.meta_cpa) : null, invertido: true, nota: atr.meta_cpa != null ? '' : 'aguardando conversões do CRM' },
-    { rotulo: 'ROAS', valor: atr.meta_roas != null ? fmtNum(atr.meta_roas) + 'x' : null, nota: atr.meta_roas != null ? '' : 'aguardando conversões do CRM' },
+    { rotulo: 'ROAS', valor: atr.meta_roas > 0 ? fmtNum(atr.meta_roas) + 'x' : null, nota: atr.meta_roas > 0 ? '' : (atr.meta_roas === 0 ? 'nenhuma venda atribuída no período' : 'aguardando conversões do CRM') },
   ].map((k) => tile(k)).join('');
   $('#meta-sync-nota').textContent = atr.last_synced_at ? `última sincronização ${new Date(atr.last_synced_at * 1000).toLocaleString('pt-BR')}` : 'sincronização de investimento ainda não configurada';
 
@@ -1378,9 +1449,9 @@ $('#links-form').addEventListener('submit', async (ev) => {
 // da real — e aqui a regra existe justamente para conter a vontade de decidir
 // cedo demais.
 const AB_ESTADOS = {
-  rodando: '⏳ Ainda rodando — não decida agora',
-  'sem-diferenca': '➖ Sem diferença detectável entre as versões',
-  conclusivo: '✅ Resultado confiável (95%)',
+  rodando: 'Ainda rodando — não decida agora',
+  'sem-diferenca': 'Sem diferença detectável entre as versões',
+  conclusivo: 'Resultado confiável (95%)',
 };
 const AB_STATUS = { rascunho: 'rascunho', ativo: 'ATIVO', pausado: 'pausado', encerrado: 'encerrado' };
 const pct = (n) => (n * 100).toFixed(2).replace('.', ',') + '%';
@@ -1740,19 +1811,19 @@ R.ab = async () => {
     const corpo = [a, b].map((x) => `
       <tr>
         <td>${x.chave === 'a' ? 'A (atual)' : 'B (nova)'} <span class="mini">${x.peso}%</span></td>
-        <td style="text-align:right">${x.visitas}</td>
-        <td style="text-align:right">${x.form_starts}</td>
-        <td style="text-align:right">${x.leads}</td>
-        <td style="text-align:right">${pct(x.taxa)}</td>
+        <td class="num">${x.visitas}</td>
+        <td class="num">${x.form_starts}</td>
+        <td class="num">${x.leads}</td>
+        <td class="num">${pct(x.taxa)}</td>
       </tr>`).join('');
 
     const progresso = t.status === 'encerrado'
       ? `<p class="mini">Encerrado — vencedor declarado: <b>${esc(t.vencedor || 'nenhum')}</b></p>`
       : `<p class="mini">Progresso: faltam ${v.faltamLeads} leads na variante mais atrasada e ${v.faltamDias} dias · alvo ${v.metaLeads} leads/variante em ${v.metaDias} dias</p>
-         <p>${AB_ESTADOS[v.estado] || ''}${v.estado === 'conclusivo' && v.vencedor ? ` — vence a variante <b>${v.vencedor.toUpperCase()}</b>` : ''}</p>`;
+         <p class="nota-estado${v.estado === 'conclusivo' ? ' ok' : ''}">${AB_ESTADOS[v.estado] || ''}${v.estado === 'conclusivo' && v.vencedor ? ` — vence a variante <b>${v.vencedor.toUpperCase()}</b>` : ''}</p>`;
 
     const srm = v.srm.alerta
-      ? '<div class="aviso falha">⚠️ A divisão do tráfego está torta (bug, bot ou cache). Enquanto isso não for resolvido, o resultado deste teste não vale.</div>'
+      ? '<div class="aviso falha">A divisão do tráfego está torta (bug, bot ou cache). Enquanto isso não for resolvido, o resultado deste teste não vale.</div>'
       : '';
 
     const acoes = t.status === 'encerrado' ? '' : `
@@ -1767,7 +1838,7 @@ R.ab = async () => {
         <h3 style="margin:0 0 0.2rem">${esc(t.nome)} <span class="mini">${AB_STATUS[t.status] || esc(t.status)} · ${esc(t.path)} · dia ${v.diasCorridos} de ${v.metaDias}</span></h3>
         ${srm}
         <div class="tabela-wrap"><table>
-          <thead><tr><th>Variante</th><th style="text-align:right">Visitas</th><th style="text-align:right">Form. inic.</th><th style="text-align:right">Leads</th><th style="text-align:right">Conversão</th></tr></thead>
+          <thead><tr><th>Variante</th><th class="num">Visitas</th><th class="num">Formulários iniciados</th><th class="num">Leads</th><th class="num">Conversão</th></tr></thead>
           <tbody>${corpo}</tbody>
         </table></div>
         ${progresso}
@@ -1906,7 +1977,7 @@ R.eventos = async () => {
     { titulo: 'Evento', campo: 'event_name', render: (e) => esc(e.event_name) },
     { titulo: 'Navegador', campo: 'browser', render: (e) => `<span class="mini">${esc(e.browser || '—')}${e.is_mobile ? ' · mobile' : ''}</span>` },
     { titulo: 'Bot?', render: (e) => e.is_bot ? `<span class="falha">sim</span>` : '<span class="mini">não</span>' },
-    { titulo: 'Meta', num: true, render: (e) => e.sent_to_meta ? (e.meta_response_ok ? '<span class="ok">✓</span>' : '<span class="falha">✕</span>') : '<span class="mini">—</span>' },
+    { titulo: 'Meta', num: true, render: (e) => e.sent_to_meta ? (e.meta_response_ok ? '<span class="mini" title="aceito">✓</span>' : '<span class="falha" title="falhou">✕</span>') : '<span class="mini">—</span>' },
   ], dados.events || dados.rows || []);
 };
 
@@ -1943,7 +2014,9 @@ async function abrirDetalhes(tipo, linha) {
   ];
   if (tipo === 'purchase') secoes.push(secaoPayload('Google Ads', { status_code: linha.google_ads_status_code, response_ok: linha.google_ads_response_ok, payload_sent: linha.google_ads_payload_sent, response_body: linha.google_ads_response_body }));
   $('#modal-corpo').innerHTML = secoes.join('');
+  focoAntesDoModal = document.activeElement;
   $('#modal-fundo').hidden = false;
+  $('#modal-fechar').focus();
   const alvo = $('#modal-jornada');
   if (!linha.raw_email && !linha.session_id) { alvo.innerHTML = ''; return; }
   try {
@@ -1953,9 +2026,26 @@ async function abrirDetalhes(tipo, linha) {
     alvo.innerHTML = `<div class="card" style="margin:0"><h2>Jornada deste lead</h2>${htmlJornada(await fetchJson('/api/lead-journey?' + ps))}</div>`;
   } catch { alvo.innerHTML = '<div class="aviso falha">Não foi possível carregar a jornada.</div>'; }
 }
-$('#modal-fechar').addEventListener('click', () => { $('#modal-fundo').hidden = true; });
-$('#modal-fundo').addEventListener('click', (e) => { if (e.target.id === 'modal-fundo') $('#modal-fundo').hidden = true; });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#modal-fundo').hidden = true; });
+// Ao fechar, o foco volta para a linha que abriu o modal.
+let focoAntesDoModal = null;
+function fecharModal() {
+  if ($('#modal-fundo').hidden) return;
+  $('#modal-fundo').hidden = true;
+  if (focoAntesDoModal && focoAntesDoModal.isConnected) focoAntesDoModal.focus();
+}
+$('#modal-fechar').addEventListener('click', fecharModal);
+$('#modal-fundo').addEventListener('click', (e) => { if (e.target.id === 'modal-fundo') fecharModal(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') fecharModal();
+  // Tab não escapa do modal aberto.
+  if (e.key === 'Tab' && !$('#modal-fundo').hidden) {
+    const focaveis = [...document.querySelectorAll('#modal-fundo button, #modal-fundo a[href]')];
+    if (!focaveis.length) return;
+    const [primeiro, ultimo] = [focaveis[0], focaveis[focaveis.length - 1]];
+    if (e.shiftKey && document.activeElement === primeiro) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primeiro.focus(); }
+  }
+});
 
 // ---------- funis ----------
 // `funisConhecidos` é preenchida pela primeira resposta de /api/leads com
