@@ -28,6 +28,9 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--fg); f
 .sidebar { border-right: 1px solid var(--border); padding: 1.25rem 0.9rem; display: flex; flex-direction: column; gap: 1.5rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 .marca { font-weight: 700; font-size: 1rem; padding: 0 0.6rem; }
 .marca small { display: block; color: var(--muted); font-weight: 400; font-size: 0.72rem; }
+/* Logo branco sem fundo; largura e altura no HTML reservam o espaço antes de carregar. */
+.marca-logo { display: block; width: 168px; height: auto; margin-bottom: 0.45rem; }
+@media (max-width: 980px) { .marca-logo { width: 132px; margin-bottom: 0.3rem; } }
 /* Navegação em três grupos (resultado, operação, diagnóstico): 15 itens soltos
    não deixavam ver que Links ou Bloqueios são cadastro, não leitura de número. */
 .nav { display: flex; flex-direction: column; gap: 0.9rem; }
@@ -179,6 +182,64 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .tl { display: grid; gap: 0.6rem; }
 .tl-item { position: relative; padding-left: 1.1rem; }
 .tl-dot { position: absolute; left: 0; top: 0.35rem; width: 9px; height: 9px; border-radius: 50%; }
+/* ============================================================================
+   Acabamento "Painel refinado" (16/09/2026). Mesma identidade — carvão, Satoshi,
+   bege —, com mais presença: faixa-herói na Visão geral, números principais em
+   bege, cards com degradê de tom, rótulos em caixa alta espaçada e gráfico com
+   área em degradê. Fica numa camada só para ser fácil de ler e de desfazer.
+   ============================================================================ */
+body { background: radial-gradient(1100px 520px at 28% -8%, rgba(245,240,235,0.05), transparent 70%) no-repeat, var(--bg); }
+.topo { margin-bottom: 1.6rem; }
+.topo h1 { font-size: 1.6rem; letter-spacing: -0.01em; }
+.nav a { transition: color 0.15s ease-out, background-color 0.15s ease-out; }
+/* Tom quente dos rótulos (taupe da rampa do bege): o cinza frio deixava o painel
+   neutro demais; o taupe amarra rótulos, cabeçalhos e títulos ao bege da marca. */
+:root { --taupe: #b8ada1; }
+.nav a.ativo { color: var(--bege); }
+.nav a.ativo::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--bege); margin-right: 0.55rem; vertical-align: middle; }
+
+.kpi, .card { background: linear-gradient(180deg, #292929 0%, var(--card) 55%); transition: border-color 0.2s ease-out; }
+.kpi:hover { border-color: #4f4a4b; }
+.kpi .rotulo { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--taupe); }
+.kpi .valor { font-size: 1.55rem; margin-top: 0.2rem; letter-spacing: -0.01em; }
+.kpi .delta { margin-top: 0.3rem; }
+.grid-kpi { gap: 0.8rem; margin-bottom: 1.1rem; }
+.card { padding: 1.3rem 1.4rem; margin-bottom: 1.1rem; }
+.card h2 { font-size: 1.02rem; margin-bottom: 1rem; }
+
+th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--taupe); }
+th, td { padding: 0.62rem 0.6rem; }
+tbody tr td { transition: background-color 0.15s ease-out; }
+tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
+
+/* Faixa-herói: a manchete e os três números que respondem "como estamos". */
+.faixa-heroi {
+  background: radial-gradient(760px 320px at 0% 0%, rgba(245,240,235,0.12), transparent 62%), linear-gradient(180deg, #2c2b2a 0%, var(--card) 100%);
+  border: 1px solid var(--border); border-radius: 1rem; padding: 1.7rem 1.8rem 1.5rem; margin-bottom: 1.1rem;
+}
+.faixa-heroi .manchete { font-size: 1.32rem; margin-bottom: 1.5rem; }
+.faixa-heroi .grid-heroi { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0; }
+.faixa-heroi .kpi.heroi { background: none; border: 0; border-left: 1px solid var(--border); border-radius: 0; padding: 0.1rem 1.7rem; }
+.faixa-heroi .kpi.heroi:first-child { border-left: 0; padding-left: 0; }
+.faixa-heroi .kpi.heroi .rotulo { font-size: 0.72rem; }
+.faixa-heroi .kpi.heroi .valor { font-size: 3.4rem; line-height: 1.05; color: var(--bege); letter-spacing: -0.025em; margin: 0.45rem 0 0.35rem; }
+.faixa-heroi .kpi.heroi .delta { font-size: 0.86rem; }
+
+.grafico .linha { stroke-width: 2.5; }
+.grafico .ponta { fill: var(--bege); }
+.grafico .ponta-halo { fill: var(--bege); opacity: 0.16; }
+.tooltip { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4); }
+.btn { transition: background-color 0.15s ease-out, border-color 0.15s ease-out, opacity 0.15s ease-out; }
+
+@media (max-width: 980px) {
+  .faixa-heroi { padding: 1.3rem 1.2rem; }
+  .faixa-heroi .manchete { font-size: 1.12rem; margin-bottom: 1rem; }
+  .faixa-heroi .grid-heroi { grid-template-columns: 1fr; }
+  .faixa-heroi .kpi.heroi, .faixa-heroi .kpi.heroi:first-child { border-left: 0; padding: 0.9rem 0; }
+  .faixa-heroi .kpi.heroi + .kpi.heroi { border-top: 1px solid var(--border); }
+  .faixa-heroi .kpi.heroi .valor { font-size: 2.5rem; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
 </style>
 </head>
 <body>
@@ -195,7 +256,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 
 <div class="layout" id="app" hidden>
   <aside class="sidebar">
-    <div class="marca">Atacado Exponencial<small>Tracking interno</small></div>
+    <div class="marca"><img class="marca-logo" src="/dash/logo-atacado-exponencial.png" alt="Atacado Exponencial" width="957" height="261"><small>Tracking interno</small></div>
     <nav class="nav" id="nav" aria-label="Seções do painel">
       <div class="nav-grupo" role="group" aria-labelledby="nav-resultados">
         <span class="nav-rotulo" id="nav-resultados">Resultados</span>
@@ -244,8 +305,10 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
     </div>
 
     <section class="secao" id="secao-visao">
-      <p class="manchete" id="visao-manchete"></p>
-      <div class="grid-heroi" id="visao-herois"></div>
+      <div class="faixa-heroi">
+        <p class="manchete" id="visao-manchete"></p>
+        <div class="grid-heroi" id="visao-herois"></div>
+      </div>
       <div class="grid-kpi" id="visao-kpis"></div>
       <div class="card"><h2>Leads por dia <small id="visao-serie-nota"></small></h2><div class="grafico" id="visao-grafico"></div></div>
       <div class="card"><h2>Conversão por LP <small>resumo</small></h2><div class="tabela-wrap" id="visao-lps"></div></div>
@@ -592,9 +655,28 @@ function deltaChip(pct, invertido = false, neutro = false) {
 const tile = (k, heroi = false) => `
   <div class="kpi${heroi ? ' heroi' : ''}">
     <div class="rotulo">${esc(k.rotulo)}</div>
-    <div class="valor">${k.valor === null || k.valor === undefined ? '<span class="semdado">—</span>' : k.valor}</div>
+    <div class="valor"${k.conta && k.valor != null ? ` data-conta="${k.conta.v}" data-fmt="${k.conta.fmt}"` : ''}>${k.valor === null || k.valor === undefined ? '<span class="semdado">—</span>' : k.valor}</div>
     ${k.delta !== undefined ? deltaChip(k.delta, k.invertido, k.neutro) : ''}${k.nota ? `<div class="mini">${k.nota}</div>` : ''}
   </div>`;
+
+// Contagem dos números-herói: sobem do zero ao valor em 0,7s, desacelerando.
+// É o único movimento "de apresentação" do painel. Quem pediu menos movimento
+// no sistema vê o número direto.
+const FORMATOS_CONTA = { int: (v) => fmtInt(Math.round(v)), pct2: (v) => fmtPct(v, 2), money: (v) => money(v) };
+function contarNumeros(raiz) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  raiz.querySelectorAll('[data-conta]').forEach((el) => {
+    const alvo = Number(el.dataset.conta), fmt = FORMATOS_CONTA[el.dataset.fmt];
+    if (!isFinite(alvo) || !fmt) return;
+    const final = el.textContent, inicio = performance.now(), dur = 700;
+    const passo = (t) => {
+      const f = Math.min(1, (t - inicio) / dur);
+      el.textContent = f < 1 ? fmt(alvo * (1 - (1 - f) ** 3)) : final;
+      if (f < 1) requestAnimationFrame(passo);
+    };
+    requestAnimationFrame(passo);
+  });
+}
 
 // Confirmação na própria linha, no lugar do botão: "Apagar este destino? Sim · Não".
 // `opcoes` vira um botão cada (ex.: A venceu / B venceu / Nenhum); sem elas, é Sim.
@@ -688,6 +770,7 @@ document.addEventListener('pointerdown', (ev) => {
   document.querySelectorAll('.grafico').forEach((g) => { if (g._esconder && !g.contains(ev.target)) g._esconder(); });
 });
 
+let seqGrafico = 0;
 function grafico(el, serie, valorFmt, opcoes) {
   if (!serie.length) { el.innerHTML = '<div class="aviso">Sem dados no período.</div>'; return; }
   const serie2 = opcoes && opcoes.serie2 && opcoes.serie2.length === serie.length ? opcoes.serie2 : null;
@@ -707,7 +790,12 @@ function grafico(el, serie, valorFmt, opcoes) {
   const y = (v) => m.t + ih - (v / max) * ih;
   const caminho = (s) => 'M' + s.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('L');
   const linha = caminho(serie);
-  const area = serie2 ? '' : `<path class="area" d="${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z"/>`;
+  // Área em degradê bege (forte junto à linha, some no eixo) e um ponto com halo
+  // no último valor — o "agora" da série.
+  const idGrad = 'grad-' + (++seqGrafico);
+  const area = serie2 ? '' : `<defs><linearGradient id="${idGrad}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f5f0eb" stop-opacity="0.30"/><stop offset="100%" stop-color="#f5f0eb" stop-opacity="0"/></linearGradient></defs><path class="area" style="fill:url(#${idGrad})" d="${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z"/>`;
+  const ultimo = serie[serie.length - 1];
+  const ponta = serie2 ? '' : `<circle class="ponta-halo" cx="${x(serie.length - 1)}" cy="${y(ultimo.v)}" r="9"/><circle class="ponta" cx="${x(serie.length - 1)}" cy="${y(ultimo.v)}" r="3.5"/>`;
   const linha2 = serie2 ? `<path class="linha2" d="${caminho(serie2)}"/>` : '';
   const yt = [0, 0.5, 1].map((f) => { const v = max * f, yy = y(v); return `<line class="eixo" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/><text class="rot-eixo" x="${m.l - 6}" y="${yy + 3}" text-anchor="end">${valorFmt(v, true)}</text>`; }).join('');
   // Um rótulo de data a cada ~64px, para não encavalar em tela estreita.
@@ -718,7 +806,7 @@ function grafico(el, serie, valorFmt, opcoes) {
   // Resumo para leitor de tela: o pico da série principal.
   const pico = serie.reduce((a, b) => (b.v > a.v ? b : a), serie[0]);
   const resumo = `Gráfico de ${serie.length} dias, de ${diaBR(serie[0].d)} a ${diaBR(serie[serie.length - 1].d)}. Pico de ${valorFmt(pico.v)} em ${diaBR(pico.d)}.`;
-  el.innerHTML = `${legenda}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumo)}">${yt}${xt}${area}<path class="linha" d="${linha}"/>${linha2}<line class="cursor" y1="${m.t}" y2="${m.t + ih}" x1="-9" x2="-9" style="display:none"/><circle r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>${pt2}</svg><div class="tooltip"></div>`;
+  el.innerHTML = `${legenda}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumo)}">${yt}${xt}${area}<path class="linha" d="${linha}"/>${ponta}${linha2}<line class="cursor" y1="${m.t}" y2="${m.t + ih}" x1="-9" x2="-9" style="display:none"/><circle r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>${pt2}</svg><div class="tooltip"></div>`;
   const svg = el.querySelector('svg'), tip = el.querySelector('.tooltip');
   const cur = el.querySelector('.cursor'), pt = el.querySelector('circle:not(.p2)');
   const ptB = el.querySelector('circle.p2');
@@ -837,12 +925,13 @@ R.visao = async () => {
     + (cplA !== null ? `, com CPL de <strong>${money(cplA)}</strong>` : '') + '.';
 
   $('#visao-herois').innerHTML = [
-    { rotulo: 'Leads', valor: fmtInt(totalLeads), delta: delta(totalLeads, totalLeadsAnt) },
-    { rotulo: 'Conversão geral', valor: txA === null ? null : fmtPct(txA, 2), delta: txA !== null && txB !== null ? delta(txA, txB) : undefined },
+    { rotulo: 'Leads', valor: fmtInt(totalLeads), conta: { v: totalLeads, fmt: 'int' }, delta: delta(totalLeads, totalLeadsAnt) },
+    { rotulo: 'Conversão geral', valor: txA === null ? null : fmtPct(txA, 2), conta: { v: txA, fmt: 'pct2' }, delta: txA !== null && txB !== null ? delta(txA, txB) : undefined },
     // Este CPL divide o gasto do Meta por TODOS os leads (orgânico incluso);
     // o da aba Meta Ads é só do canal pago — por isso o subtítulo.
-    { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, invertido: true, nota: cplA === null ? 'precisa do sync de investimento' : 'todos os canais' },
+    { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), conta: { v: cplA, fmt: 'money' }, delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, invertido: true, nota: cplA === null ? 'precisa do sync de investimento' : 'todos os canais' },
   ].map((k) => tile(k, true)).join('');
+  contarNumeros($('#visao-herois'));
 
   $('#visao-kpis').innerHTML = [
     // `visitors` de /api/conversion conta sessões pela PRIMEIRA visita (first-touch

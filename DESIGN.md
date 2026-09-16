@@ -8,6 +8,7 @@ colors:
   cinza-quente: "#393536"
   branco: "#ffffff"
   cinza-texto: "#a6a6a6"
+  taupe: "#b8ada1"
   bege-assinatura: "#f5f0eb"
   verde-alta: "#5dc986"
   coral-queda: "#f37f7f"
@@ -124,7 +125,8 @@ Paleta quase monocromática e quente, em que o bege assina e as cores semântica
 - **Grafite Alto** (`grafite-alto`): a camada acima do card, para item de navegação ativo, aba ativa, hover de linha de tabela, tooltip e botão secundário.
 - **Cinza Quente** (`cinza-quente`): contornos de card, divisórias de tabela e eixos de gráfico. Tem um toque avermelhado que aquece o cinza.
 - **Branco** (`branco`): texto principal, valores de KPI e botão primário.
-- **Cinza Texto** (`cinza-texto`): rótulos, cabeçalhos de tabela, subtítulos e estado vazio.
+- **Cinza Texto** (`cinza-texto`): subtítulos, notas e estado vazio.
+- **Taupe** (`taupe`): rótulos de KPI e cabeçalhos de tabela, sempre em caixa alta espaçada. É o bege da marca rebaixado, e aquece o painel onde o cinza frio o deixava neutro demais.
 
 ### Tertiary
 - **Verde Alta** (`verde-alta`): delta positivo e status "ok".
@@ -165,10 +167,15 @@ Abaixo de 980px a barra lateral vira faixa horizontal rolável, e as duas coluna
 
 ## Elevation & Depth
 
-O sistema é plano. A profundidade vem da escada tonal carvão → grafite → grafite alto e de um contorno de 1px cinza quente. A única sombra do sistema é o véu preto a 55% atrás do modal, que é recuo de contexto e não elevação.
+A profundidade vem da escada tonal carvão → grafite → grafite alto e de um contorno de 1px cinza quente. Desde o acabamento "Painel refinado" (16/09/2026), três recursos entram por cima:
+- cards e KPIs com um degradê vertical curto do grafite alto (#292929) para o grafite;
+- um brilho bege muito sutil no alto da página e da faixa-herói;
+- uma única sombra difusa, no tooltip do gráfico, que flutua sobre o conteúdo.
+
+O véu preto a 55% atrás do modal continua sendo recuo de contexto.
 
 ### Named Rules
-**The Plano Por Tom Rule.** Para elevar um elemento, sobe-se um degrau de tom. Não se adiciona sombra.
+**The Tom Antes De Sombra Rule.** Para elevar um elemento, sobe-se um degrau de tom ou um degradê de tom. Sombra só existe no que flutua de fato (tooltip), sempre com deslocamento e desfoque.
 
 ## Shapes
 
@@ -200,12 +207,17 @@ Cantos suavemente arredondados: 0.75rem em cards, KPIs, modais e tela de acesso,
 - **Style:** lista vertical na barra lateral, 0.92rem.
 - **Default:** texto cinza texto.
 - **Hover:** texto branco sobre grafite.
-- **Active:** texto branco em 700 sobre grafite alto.
+- **Active:** texto bege assinatura em 700 sobre grafite alto, com um ponto bege de 6px antes do nome.
+- **Logo:** o logo horizontal branco (`public/dash/logo-atacado-exponencial.png`) abre a barra lateral, com 168px de largura (132px no celular) e "Tracking interno" em cinza embaixo.
 - **Group label:** título de grupo (Resultados, Operação, Diagnóstico) em caixa alta com espaçamento de 0.08em, 700, 0.68rem, no bege assinatura, com um fio cinza quente acima de cada grupo seguinte. Precisa se distinguir do nome da aba por mais de um sinal: com tamanho menor e o mesmo cinza, ele sumia.
 - **Mobile:** vira faixa horizontal rolável. Os títulos de grupo somem e um fio vertical separa os grupos.
 
 ### KPI Tile (signature)
-O bloco de número é a unidade central do dash: rótulo cinza pequeno em cima, valor branco em 700 com algarismos tabulares, e delta colorido embaixo. A variante herói aumenta o valor para display (2rem fixo; tamanhos fluidos não servem a produto).
+O bloco de número é a unidade central do dash. Em cima fica o rótulo em taupe, em caixa alta espaçada (0.68rem). No meio, o valor branco em 700 e 1.55rem, com algarismos tabulares. Embaixo, o delta colorido. Tamanhos são fixos, porque tamanho fluido não serve a produto.
+- **Hover:** o contorno acende um tom.
+
+### Hero Band (Visão geral, signature)
+Uma faixa única que responde "como estamos". Ela tem cantos de 1rem, degradê de tom e brilho bege no canto superior esquerdo. Dentro vêm a manchete e os três números principais: 3.4rem, em bege assinatura, sem caixa própria, separados por fios verticais. Ao carregar, os três sobem do zero ao valor em 0,7s com desaceleração. É o único movimento de apresentação do painel, e é desligado para quem pede menos movimento. No celular, os números empilham, separados por fios horizontais.
 - **Delta neutro:** métrica que não é boa nem ruim por si (investimento) leva só a seta, em cinza.
 - **Sem dado ≠ zero:** quando a razão não tem base (ROAS sem venda atribuída), mostra "—" com a nota do motivo, nunca "0x".
 
@@ -219,7 +231,7 @@ Uma frase antes dos KPIs-herói, que resume o período (1.15rem, cinza, com os n
 - **Status de envio em tabela:** sucesso em ✓ cinza, e só a falha em ✕ coral.
 
 ### Line Chart (signature)
-Gráfico em SVG próprio: linha bege de 2px com área bege a 13%, eixos em cinza quente, rótulos de 10px em cinza texto, cursor tracejado e tooltip em grafite alto. A segunda série usa coral, sem área, com legenda de pontos coloridos.
+Gráfico em SVG próprio, desenhado na largura real do contêiner: linha bege de 2.5px, área em degradê bege (30% junto à linha, 0% no eixo) e ponto com halo no último valor, eixos em cinza quente, rótulos de 10px em cinza texto, cursor tracejado e tooltip em grafite alto. A segunda série usa coral, sem área, com legenda de pontos coloridos.
 
 ## Do's and Don'ts
 
@@ -233,5 +245,5 @@ Gráfico em SVG próprio: linha bege de 2px com área bege a 13%, eixos em cinza
 ### Don't:
 - **Don't** introduzir tema claro nem fundo bege no dash ou no painel.
 - **Don't** usar cor semântica (verde, coral, azul, âmbar) como decoração.
-- **Don't** adicionar sombras para criar profundidade.
+- **Don't** usar sombra para criar profundidade de card; sombra só no que flutua (tooltip).
 - **Don't** comunicar alta ou queda só pela cor.
