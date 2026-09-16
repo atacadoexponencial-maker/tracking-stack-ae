@@ -36,6 +36,7 @@
 // -----------------------------------------------------------------------------
 
 import PRODUCTS_CONFIG from '../../config/products.js';
+import { registrarPrimeiraTentativa } from '../api/_meta-fila.js';
 
 // Module-scope OAuth2 access token cache for Google Ads API.
 // Reused across warm worker invocations to skip the refresh round-trip.
@@ -129,6 +130,29 @@ export async function processPurchase({ parsed, env, context }) {
   for (const r of results) {
     const val = r.status === 'fulfilled' ? r.value : { handler: 'unknown', error: r.reason?.message };
     resultMap[val.handler] = val;
+  }
+
+  // Situação do Purchase no Meta (spec-capi-reenvio-monitoramento.md, issue
+  // 271): só quando o envio ao Meta de fato rodou (handleTracking). Pendente
+  // entra no reenvio de /api/sync/meta-reenvio.
+  const tracking = resultMap.tracking;
+  if (tracking && !tracking.error && tracking.metaPayloadSent) {
+    const corpo = tracking.metaResponseBody || '';
+    context.waitUntil(registrarPrimeiraTentativa(env, {
+      origem: 'venda',
+      eventId,
+      eventName: 'Purchase',
+      eventTime,
+      referencia: parsed.productName || '',
+      payload: tracking.metaPayloadSent,
+      resultado: {
+        ok: tracking.metaResponseOk === 1,
+        status: tracking.metaStatusCode,
+        corpo,
+        erroRede: corpo.startsWith('Fetch error'),
+        semCredencial: corpo === 'skipped: missing meta env',
+      },
+    }));
   }
 
   // purchase_log always runs, in the background, so webhook response isn't blocked.
@@ -483,10 +507,8 @@ async function sendToMeta({ checkoutData, hashedEm, hashedFn, hashedLn, hashedPh
   // Par `_2` = pixel vivo (conta Sete Ads 2). Até 2026-09-15 isto usava as vars
   // sem sufixo, que guardam o pixel 915637492681788 desativado em 30/07 — todo
   // Purchase da Greenn foi para um pixel morto desde então.
-  if (!env.META_PIXEL_ID_2 || !env.META_ACCESS_TOKEN_2) {
-    return { skipped: 'missing meta env', payload: null, response: null };
-  }
-
+  // Sem credencial o payload é montado assim mesmo: a fila de reenvio o usa
+  // quando a credencial voltar.
   const metaUserData = {
     client_ip_address: checkoutData.ip_address || '',
     client_user_agent: checkoutData.user_agent || '',
@@ -534,6 +556,9 @@ async function sendToMeta({ checkoutData, hashedEm, hashedFn, hashedLn, hashedPh
   }
 
   const payloadJson = JSON.stringify(metaPayload);
+  if (!env.META_PIXEL_ID_2 || !env.META_ACCESS_TOKEN_2) {
+    return { skipped: 'missing meta env', payload: payloadJson, response: null };
+  }
   const response = await fetch(
     `https://graph.facebook.com/v25.0/${env.META_PIXEL_ID_2}/events?access_token=${env.META_ACCESS_TOKEN_2}`,
     {
