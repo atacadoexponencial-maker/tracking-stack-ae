@@ -111,7 +111,7 @@ test('dia local a partir de unix', () => {
 test('o dia do evento acompanha occurredAt', () => {
   const cru = evento();
   cru.date_time = '2026-07-28T02:30:00.000Z';
-  assert.equal(classificarEvento(cru, RECEBIDO_MS).dayLocal, '2026-07-27');
+  assert.equal(classificarEvento(cru, Date.parse('2026-07-28T02:30:01.000Z')).dayLocal, '2026-07-27');
 });
 
 test('date_time sem fuso ("YYYY-MM-DD HH:MM:SS") cai no horário de recebimento', () => {
@@ -131,14 +131,14 @@ test('date_time ISO sem "Z" (sem fuso explícito) cai no horário de recebimento
 test('date_time ISO com offset explícito (-03:00) é aceito e convertido para UTC', () => {
   const cru = evento();
   cru.date_time = '2026-07-27T22:00:00-03:00';
-  const r = classificarEvento(cru, RECEBIDO_MS);
+  const r = classificarEvento(cru, Date.parse('2026-07-28T01:00:01.000Z'));
   assert.equal(r.occurredAt, '2026-07-28T01:00:00.000Z');
 });
 
 test('date_time ISO com "z" minúsculo é aceito e convertido, não cai no horário de recebimento', () => {
   const cru = evento();
   cru.date_time = '2026-07-27T22:00:00z';
-  const r = classificarEvento(cru, RECEBIDO_MS);
+  const r = classificarEvento(cru, Date.parse('2026-07-27T22:00:01.000Z'));
   assert.equal(r.occurredAt, '2026-07-27T22:00:00.000Z');
   assert.notEqual(r.occurredAt, new Date(RECEBIDO_MS).toISOString());
 });
@@ -243,4 +243,36 @@ test('date_time explícito NÃO é arredondado', () => {
   const cru = evento();
   cru.date_time = '2026-07-27T17:30:12.345Z';
   assert.equal(classificarEvento(cru, RECEBIDO_MS).occurredAt, '2026-07-27T17:30:12.345Z');
+});
+
+// Revisão 2026-09-16: a Evolution carimba "Z" num horário que é de Brasília.
+// A leitura é conferida contra o recebimento para não jogar o evento 3h atrás.
+
+test('date_time de Brasília carimbado com "Z" é corrigido em +3h (payload real de 16/09)', () => {
+  const cru = evento();
+  cru.date_time = '2026-09-16T09:46:45.097Z';
+  // Chegou ao Worker às 12:46:45 UTC = 09:46:45 em Brasília.
+  const r = classificarEvento(cru, Date.parse('2026-09-16T12:46:45.500Z'));
+  assert.equal(r.occurredAt, '2026-09-16T12:46:45.097Z');
+});
+
+test('entrada às 00h30 de Brasília fica no dia certo, não no anterior', () => {
+  const cru = evento();
+  cru.date_time = '2026-09-17T00:30:00.000Z'; // relógio de Brasília com "Z"
+  const r = classificarEvento(cru, Date.parse('2026-09-17T03:30:02.000Z'));
+  assert.equal(r.dayLocal, '2026-09-17');
+});
+
+test('se a Evolution mandar UTC de verdade, a leitura literal continua valendo', () => {
+  const cru = evento();
+  cru.date_time = '2026-09-16T12:46:45.097Z';
+  const r = classificarEvento(cru, Date.parse('2026-09-16T12:46:46.000Z'));
+  assert.equal(r.occurredAt, '2026-09-16T12:46:45.097Z');
+});
+
+test('date_time no futuro nas duas leituras cai no horário de recebimento', () => {
+  const cru = evento();
+  cru.date_time = '2026-07-27T19:00:00.000Z';
+  const r = classificarEvento(cru, RECEBIDO_MS);
+  assert.equal(r.occurredAt, new Date(RECEBIDO_MS).toISOString());
 });

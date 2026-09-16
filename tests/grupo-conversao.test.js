@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { telefoneDoJid, eventIdDaEntrada, entradaElegivel, sufixoParaCasar } from '../functions/api/_grupo-conversao.js';
+import { telefoneDoJid, eventIdDaEntrada, entradaElegivel, sufixoParaCasar, comNonoDigito } from '../functions/api/_grupo-conversao.js';
 
 const GRUPO_LIVE = '120363427499061913@g.us';
 // Grupo elegível a partir de 2026-07-29 12:00:00 -03 (marco de corte).
@@ -68,6 +68,22 @@ test('número curto demais não gera sufixo de casamento', () => {
   assert.equal(sufixoParaCasar('987654321'), '');
   assert.equal(sufixoParaCasar(''), '');
   assert.equal(sufixoParaCasar(null), '');
+});
+
+test('celular sem o 9 vindo do WhatsApp casa com o lead digitado com 9 (caso real de 16/09)', () => {
+  assert.equal(sufixoParaCasar('558496078857'), sufixoParaCasar('+5584996078857'));
+});
+
+// --- comNonoDigito ---
+
+test('celular antigo ganha o 9 depois do DDD', () => {
+  assert.equal(comNonoDigito('558496078857'), '5584996078857');
+});
+
+test('número já com 9, fixo e estrangeiro passam intactos', () => {
+  assert.equal(comNonoDigito('5584996078857'), '5584996078857');
+  assert.equal(comNonoDigito('551133334444'), '551133334444');
+  assert.equal(comNonoDigito('14155552671'), '14155552671');
 });
 
 // --- entradaElegivel ---

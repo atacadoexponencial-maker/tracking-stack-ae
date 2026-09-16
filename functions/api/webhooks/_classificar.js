@@ -38,7 +38,29 @@ export function diaLocalDeUnix(unixSeconds) {
 // aproximado mas nunca sistematicamente errado.
 const TEM_FUSO = /(?:[Zz]|[+-]\d{2}:\d{2})$/;
 
-function paraIso(valor) {
+// A Evolution grava o `date_time` no relógio de BRASÍLIA mas carimba "Z" como
+// se fosse UTC (confirmado em 2026-09-16: os 197 eventos desde 28/07 chegaram
+// exatamente 10.800 s depois do instante declarado). Lido ao pé da letra, todo
+// evento ficava 3h no passado — o EntrouGrupo ia ao Meta antes do próprio
+// clique no anúncio, e as entradas das 00h–03h caíam no dia anterior.
+//
+// Em vez de assumir o fuso errado para sempre, a leitura é conferida contra o
+// horário de recebimento (relógio do Worker, confiável): vale a interpretação
+// literal ou a corrigida em +3h, a que não estiver no futuro e for a mais
+// próxima do recebimento. Se a Evolution um dia corrigir o carimbo, a leitura
+// literal volta a vencer sozinha.
+const FOLGA_FUTURO_MS = 2 * 60 * 1000;
+
+function instanteConferido(iso, recebidoEmMs) {
+  if (!iso || !Number.isFinite(recebidoEmMs)) return iso;
+  const literal = Date.parse(iso);
+  const candidatos = [literal, literal - OFFSET_SEGUNDOS * 1000]
+    .filter((ms) => ms <= recebidoEmMs + FOLGA_FUTURO_MS);
+  if (!candidatos.length) return null;
+  return new Date(Math.max(...candidatos)).toISOString();
+}
+
+function paraIso(valor, recebidoEmMs) {
   if (valor === undefined || valor === null || valor === '') return null;
   const n = Number(valor);
   if (Number.isFinite(n) && n > 0) {
@@ -47,7 +69,9 @@ function paraIso(valor) {
   }
   if (typeof valor !== 'string' || !TEM_FUSO.test(valor.trim())) return null;
   const ms = Date.parse(valor);
-  return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+  // Só a string passa pela conferência: unix é UTC por definição, e é a string
+  // que chega com o "Z" falso.
+  return Number.isFinite(ms) ? instanteConferido(new Date(ms).toISOString(), recebidoEmMs) : null;
 }
 
 // '5511888888888:12@s.whatsapp.net' → '5511888888888'. O sufixo ":N" identifica
@@ -113,7 +137,7 @@ export function classificarEvento(raw, recebidoEmMs) {
   // depois tinha instante diferente e virava segunda linha — inflando entradas
   // e, no sync EntrouGrupo, tentando uma segunda conversão. Ao minuto, as
   // reentregas do mesmo evento colidem e o INSERT OR IGNORE faz o serviço.
-  const occurredAt = paraIso(raw.date_time)
+  const occurredAt = paraIso(raw.date_time, recebidoEmMs)
     || new Date(Math.floor(recebidoEmMs / 60000) * 60000).toISOString();
 
   const linhas = participantes.map((p) => {
