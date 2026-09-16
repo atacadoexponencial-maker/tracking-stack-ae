@@ -1,0 +1,136 @@
+---
+/**
+ * Aviso de cookies (spec-aviso-cookies.md, issues 289–291).
+ *
+ * SOMENTE INFORMATIVO, por decisão da usuária: nenhum script, cookie ou envio
+ * (Meta, GA4, Clarity, tracking próprio) depende do aviso. O "Entendi" é
+ * ciência, não consentimento — ver "Risco assumido" na spec.
+ *
+ * Nasce escondido: sem script não aparece, e quem já fechou não vê piscar.
+ * A memória do fechamento e a situação enviada ao tracking moram na função
+ * `window.aeSituacaoAviso`, definida no <head> do BaseLayout, para o PageView
+ * (script inline, que roda antes deste componente) usar a mesma regra.
+ */
+---
+
+<section class="aviso-cookies" id="aviso-cookies" aria-label="Aviso de cookies" hidden>
+  <p class="aviso-cookies__texto">
+    Usamos cookies para medir as visitas ao site e o resultado dos nossos anúncios no Meta (Facebook e Instagram) e no Google.
+    Saiba mais na nossa <a href="/privacy-policy#cookies">Política de Privacidade</a>.
+  </p>
+  <button type="button" class="aviso-cookies__botao" data-aviso-entendi>Entendi</button>
+</section>
+
+<style is:global>
+  .aviso-cookies {
+    position: fixed;
+    left: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    /* Acima da barra fixa de CTA (40), abaixo do balão de prova social (60,
+       sem toque) e dos modais de formulário/chat (1000), que o cobrem. */
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    max-width: 30rem;
+    padding: 0.9rem 1rem;
+    background: #242424;
+    color: #ffffff;
+    border: 1px solid #393536;
+    border-radius: 0.75rem;
+    font-family: 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+  .aviso-cookies[hidden],
+  .aviso-cookies[data-oculto] { display: none; }
+  .aviso-cookies__texto { margin: 0; color: #d9d9d9; }
+  .aviso-cookies__texto a { color: #f5f0eb; text-decoration: underline; text-underline-offset: 2px; }
+  .aviso-cookies__botao {
+    flex: none;
+    min-width: 5.5rem;
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: #ffffff;
+    color: #1e1e1e;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .aviso-cookies a:focus-visible,
+  .aviso-cookies__botao:focus-visible { outline: 2px solid #f5f0eb; outline-offset: 2px; }
+
+  @media (max-width: 767px) {
+    .aviso-cookies {
+      left: 16px;
+      right: 16px;
+      max-width: none;
+      gap: 0.75rem;
+      padding: 0.75rem 0.85rem;
+      /* --aviso-acima: altura da barra fixa de CTA quando ela está visível,
+         medida pelo script. O aviso fica acima dela, nunca por cima. */
+      bottom: calc(0.75rem + var(--aviso-acima, 0px) + env(safe-area-inset-bottom));
+    }
+  }
+
+  /* O balão de prova social sobe acima do aviso enquanto ele está aberto. */
+  body[data-aviso-aberto] #prova-social {
+    bottom: calc(5.5rem + var(--aviso-altura, 0px));
+  }
+  @media (min-width: 768px) {
+    body[data-aviso-aberto] #prova-social { bottom: calc(1.5rem + var(--aviso-altura, 0px) + 0.75rem); }
+  }
+</style>
+
+<script>
+  import { enviarEventoInterno } from '../scripts/funil';
+
+  const aviso = document.getElementById('aviso-cookies');
+  const w = window as unknown as {
+    aeSituacaoAviso?: () => string;
+    aeFecharAviso?: () => void;
+  };
+
+  if (aviso && w.aeSituacaoAviso && w.aeSituacaoAviso() === 'aviso exibido') {
+    const barra = document.querySelector<HTMLElement>('[data-sticky-cta]');
+    const raiz = document.documentElement;
+
+    const medir = () => {
+      const barraVisivel = !!barra && barra.hasAttribute('data-visivel') && getComputedStyle(barra).position === 'fixed';
+      raiz.style.setProperty('--aviso-acima', barraVisivel ? `${barra.offsetHeight}px` : '0px');
+      raiz.style.setProperty('--aviso-altura', `${aviso.offsetHeight}px`);
+    };
+
+    aviso.removeAttribute('hidden');
+    document.body.setAttribute('data-aviso-aberto', '');
+    medir();
+    if (barra) new MutationObserver(medir).observe(barra, { attributes: true, attributeFilter: ['data-visivel'] });
+    window.addEventListener('resize', medir);
+
+    // Celular com teclado aberto: o aviso sai de cena enquanto um campo está
+    // em foco, para nunca cobrir o campo nem o botão de avançar.
+    const ehCampo = (el: EventTarget | null) => el instanceof HTMLElement && el.matches('input, textarea, select') && !aviso.contains(el);
+    document.addEventListener('focusin', (e) => {
+      if (window.innerWidth < 768 && ehCampo(e.target)) aviso.setAttribute('data-oculto', '');
+    });
+    document.addEventListener('focusout', (e) => {
+      if (ehCampo(e.target)) aviso.removeAttribute('data-oculto');
+    });
+
+    aviso.querySelector('[data-aviso-entendi]')?.addEventListener('click', () => {
+      const tinhaFoco = aviso.contains(document.activeElement);
+      w.aeFecharAviso?.();
+      aviso.setAttribute('hidden', '');
+      document.body.removeAttribute('data-aviso-aberto');
+      enviarEventoInterno('AvisoCookiesFechado', 'ck-');
+      // Pelo teclado, o foco não pode sumir no vazio: vai para o conteúdo.
+      if (tinhaFoco) {
+        const destino = document.querySelector<HTMLElement>('main') || document.body;
+        if (!destino.hasAttribute('tabindex')) destino.setAttribute('tabindex', '-1');
+        destino.focus({ preventScroll: true });
+      }
+    });
+  }
+</script>

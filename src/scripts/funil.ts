@@ -37,6 +37,8 @@ export function enviarEventoInterno(
       event_id: prefixo + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
       event_time: Math.floor(Date.now() / 1000),
       event_source_url: window.location.href,
+      // Situação do aviso de cookies (spec-aviso-cookies.md), definida no BaseLayout.
+      consent_status: (window as unknown as { aeSituacaoAviso?: () => string }).aeSituacaoAviso?.() || 'unknown',
       ...extras,
     });
 

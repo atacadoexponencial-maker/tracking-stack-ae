@@ -5,7 +5,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 <BaseLayout title="Política de Privacidade — Atacado Exponencial" description="Política de Privacidade do Atacado Exponencial.">
   <main class="container privacy">
     <h1>Política de Privacidade</h1>
-    <p class="privacy__date">Última atualização: 31 de julho de 2026</p>
+    <p class="privacy__date">Última atualização: 16 de setembro de 2026</p>
 
     <section>
       <h2>1. Introdução</h2>
@@ -85,7 +85,35 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <li><strong>Google Analytics 4:</strong> métricas agregadas de visitas e origem de tráfego.</li>
         <li><strong>Meta Pixel:</strong> mensuração de conversões das nossas campanhas no Facebook e Instagram.</li>
       </ul>
-      <p>Essas ferramentas utilizam cookies e identificadores próprios, sujeitos às políticas de privacidade da Microsoft, do Google e da Meta. Você pode bloqueá-las nas configurações do seu navegador ou por meio de extensões de privacidade, sem prejuízo ao uso do site.</p>
+      <p>Essas ferramentas utilizam cookies e identificadores próprios, sujeitos às políticas de privacidade da Microsoft, do Google e da Meta. A lista completa dos cookies, com finalidade e duração, está na seção <a href="#cookies">Cookies usados no site</a>.</p>
+    </section>
+
+    <section id="cookies">
+      <h2>10.1 Cookies usados no site</h2>
+      <p>Cookies são pequenos arquivos que o site grava no seu navegador. Usamos cookies e tecnologias parecidas para medir as visitas ao site e o resultado dos nossos anúncios no Meta (Facebook e Instagram) e no Google. Eles são gravados em todas as visitas: o aviso de cookies exibido no site informa sobre esse uso, mas não liga nem desliga nenhum deles.</p>
+      <div class="privacy__tabela">
+        <table>
+          <thead>
+            <tr><th scope="col">Nome</th><th scope="col">Quem grava</th><th scope="col">Para quê</th><th scope="col">Duração</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>_krob_sid</code></td><td>Atacado Exponencial</td><td>Identificar a visita para saber de onde você veio e quais páginas acessou.</td><td>400 dias</td></tr>
+            <tr><td><code>_krob_eid</code></td><td>Atacado Exponencial</td><td>Identificador anônimo do navegador, usado para medir o resultado dos anúncios.</td><td>400 dias</td></tr>
+            <tr><td><code>_fbp</code></td><td>Atacado Exponencial e Meta Pixel</td><td>Reconhecer o navegador para medir o resultado dos anúncios no Facebook e no Instagram.</td><td>até 400 dias</td></tr>
+            <tr><td><code>_fbc</code></td><td>Atacado Exponencial e Meta Pixel</td><td>Guardar o clique num anúncio do Meta para atribuir a conversão a esse anúncio.</td><td>90 dias a partir do clique</td></tr>
+            <tr><td><code>fr</code></td><td>Meta (domínio facebook.com)</td><td>Entrega e medição de anúncios do Meta.</td><td>90 dias</td></tr>
+            <tr><td><code>_ga</code></td><td>Google Analytics 4</td><td>Distinguir visitantes para métricas agregadas de visitas e origem de tráfego.</td><td>400 dias</td></tr>
+            <tr><td><code>_ga_3C24BQVR59</code></td><td>Google Analytics 4</td><td>Manter o estado da sessão para as métricas do Google Analytics.</td><td>400 dias</td></tr>
+            <tr><td><code>_clck</code></td><td>Microsoft Clarity</td><td>Reconhecer o navegador entre visitas para mapas de calor e gravações de sessão.</td><td>1 ano</td></tr>
+            <tr><td><code>_clsk</code></td><td>Microsoft Clarity</td><td>Juntar as páginas de uma mesma visita na gravação de sessão.</td><td>1 dia</td></tr>
+            <tr><td><code>CLID</code>, <code>MUID</code>, <code>MR</code>, <code>SM</code>, <code>ANONCHK</code></td><td>Microsoft (domínios clarity.ms)</td><td>Funcionamento e medição do Microsoft Clarity.</td><td>da sessão a 13 meses</td></tr>
+            <tr><td><code>MUID</code>, <code>MR</code>, <code>SRM_B</code></td><td>Microsoft (domínio bing.com), carregados pelo Clarity</td><td>Identificação do navegador pelos serviços da Microsoft.</td><td>7 dias a 13 meses</td></tr>
+            <tr><td><code>YSC</code>, <code>VISITOR_INFO1_LIVE</code>, <code>VISITOR_PRIVACY_METADATA</code>, <code>__Secure-YNID</code>, <code>__Secure-ROLLOUT_TOKEN</code></td><td>YouTube, só nas páginas com vídeo do YouTube</td><td>Reproduzir o vídeo e medir sua exibição.</td><td>da sessão a 6 meses</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Outras tecnologias.</strong> O site guarda no armazenamento local do navegador a data em que você fechou o aviso de cookies, para não exibi-lo de novo por 12 meses, e alguns fluxos (como a calculadora) guardam ali o progresso para você continuar de onde parou. As conversões (por exemplo, o envio de um formulário) também são informadas pelo nosso servidor ao Meta e ao Google, com a mesma finalidade de medir o resultado dos anúncios.</p>
+      <p><strong>Como controlar.</strong> Você pode apagar ou bloquear cookies nas configurações do seu navegador ou por meio de extensões de privacidade, sem prejuízo ao uso do site. Saiba mais nas políticas da <a href="https://www.facebook.com/privacy/policy" target="_blank" rel="noopener">Meta</a>, do <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google</a> e da <a href="https://privacy.microsoft.com/pt-br/privacystatement" target="_blank" rel="noopener">Microsoft</a>.</p>
     </section>
 
     <section>
@@ -110,4 +138,12 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   .privacy p { color: hsl(var(--muted-foreground)); line-height: 1.7; margin-bottom: 0.75rem; }
   .privacy ul { color: hsl(var(--muted-foreground)); line-height: 1.7; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
   .privacy strong { color: hsl(var(--foreground)); }
+  .privacy a { color: hsl(var(--foreground)); text-decoration: underline; text-underline-offset: 2px; }
+  /* A tabela rola dentro do próprio contêiner: a página nunca rola para o lado. */
+  .privacy__tabela { overflow-x: auto; margin-bottom: 1rem; border: 1px solid hsl(var(--border)); border-radius: 0.75rem; }
+  .privacy table { width: 100%; min-width: 40rem; border-collapse: collapse; font-size: 0.85rem; }
+  .privacy th, .privacy td { text-align: left; vertical-align: top; padding: 0.6rem 0.75rem; border-bottom: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); line-height: 1.5; }
+  .privacy th { color: hsl(var(--foreground)); font-weight: 700; }
+  .privacy tbody tr:last-child td { border-bottom: 0; }
+  .privacy code { font-size: 0.8rem; color: hsl(var(--foreground)); word-break: break-word; }
 </style>
