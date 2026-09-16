@@ -21,7 +21,7 @@
 // Auth: header `x-sync-secret: <env.SYNC_SECRET>`, como os demais syncs.
 
 import { sha256, normalizePhone } from '../_hash.js';
-import { entradaElegivel, eventIdDaEntrada, sufixoParaCasar } from '../_grupo-conversao.js';
+import { entradaElegivel, eventIdDaEntrada, sufixoParaCasar, comNonoDigito } from '../_grupo-conversao.js';
 
 const EVENT_NAME = 'EntrouGrupo';
 const MAX_TENTATIVAS = 5;
@@ -325,8 +325,11 @@ async function enviarAoMeta(env, conversao, lead) {
     return { ok: false, credencial: true, erro: 'META_PIXEL_ID_2/META_ACCESS_TOKEN_2 ausentes' };
   }
 
+  // Telefone com o nono dígito completado: é o formato do perfil da pessoa no
+  // Meta. `conversao.phone` fica como veio do WhatsApp porque compõe o event_id
+  // e a chave UNIQUE — mudá-lo lá abriria espaço para conversão duplicada.
   const userData = {
-    ph: [await sha256(normalizePhone(conversao.phone, env.DEFAULT_COUNTRY_CODE))],
+    ph: [await sha256(normalizePhone(comNonoDigito(conversao.phone), env.DEFAULT_COUNTRY_CODE))],
   };
   if (lead) {
     if (lead.fbp) userData.fbp = lead.fbp;

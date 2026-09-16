@@ -31,6 +31,24 @@ export function eventIdDaEntrada(groupJid, phone) {
   return `grupo:${groupJid}:${phone}`;
 }
 
+// Celular brasileiro no formato antigo, sem o nono dígito, recebe o 9.
+//
+// O WhatsApp entrega a MAIORIA dos números da live sem o 9 (63 de 89 em
+// 2026-09-16: `558496078857`), enquanto o lead digita no formulário com ele
+// (`+5584996078857`, 484 de 494 leads). Sem completar, o casamento com o lead
+// nunca acontecia e o Meta recebia um telefone que não é o do perfil da pessoa.
+//
+// Só mexe no que é inequivocamente celular antigo: DDI 55 + DDD + 8 dígitos
+// começando em 6–9. Fixo (2–5), número estrangeiro e número já com o 9 passam
+// intactos.
+export function comNonoDigito(phone) {
+  const digitos = (phone == null ? '' : String(phone)).replace(/\D/g, '');
+  if (/^55[1-9]\d[6-9]\d{7}$/.test(digitos)) {
+    return digitos.slice(0, 4) + '9' + digitos.slice(4);
+  }
+  return digitos;
+}
+
 // Sufixo usado para procurar o mesmo telefone entre os leads conhecidos. Os
 // números chegam em formatos diferentes (`5511987654321` no WhatsApp,
 // `+55 11 98765-4321` no lead), então o casamento é pelos últimos 11 dígitos —
@@ -41,10 +59,10 @@ export function eventIdDaEntrada(groupJid, phone) {
 // Deliberadamente conservador: um falso negativo custa só o enriquecimento; um
 // falso positivo mandaria ao Meta os dados de navegação de OUTRA pessoa.
 //
-// Limite conhecido: número antigo sem o 9 (12 dígitos com DDI) não casa. Fica
-// sem enriquecimento, o que é degradação aceitável — a conversão vai assim mesmo.
+// Número sem o 9 é completado antes (ver `comNonoDigito`), então o sufixo sai
+// sempre no formato com 9 — o mesmo em que o lead está gravado.
 export function sufixoParaCasar(phone) {
-  const digitos = (phone == null ? '' : String(phone)).replace(/\D/g, '');
+  const digitos = comNonoDigito(phone);
   return digitos.length >= 11 ? digitos.slice(-11) : '';
 }
 
