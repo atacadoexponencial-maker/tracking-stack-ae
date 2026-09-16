@@ -30,9 +30,13 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--fg); f
 .marca small { display: block; color: var(--muted); font-weight: 400; font-size: 0.72rem; }
 /* Navegação em três grupos (resultado, operação, diagnóstico): 15 itens soltos
    não deixavam ver que Links ou Bloqueios são cadastro, não leitura de número. */
-.nav { display: flex; flex-direction: column; gap: 1.1rem; }
+.nav { display: flex; flex-direction: column; gap: 0.9rem; }
 .nav-grupo { display: flex; flex-direction: column; gap: 0.15rem; }
-.nav-rotulo { color: var(--muted); font-size: 0.72rem; padding: 0 0.6rem 0.3rem; }
+/* O título do grupo precisa se distinguir do nome da aba à primeira vista:
+   caixa alta espaçada, negrito e o bege da marca, contra o cinza das abas, e
+   um fio acima de cada grupo seguinte. Só com tamanho menor, como antes, sumia. */
+.nav-grupo + .nav-grupo { border-top: 1px solid var(--border); padding-top: 0.9rem; }
+.nav-rotulo { color: var(--bege); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0 0.6rem 0.4rem; }
 .nav a { color: var(--muted); text-decoration: none; padding: 0.5rem 0.6rem; border-radius: 0.5rem; font-size: 0.92rem; }
 .nav a:hover { color: var(--fg); background: var(--card); }
 .nav a.ativo { color: var(--fg); background: var(--card-2); font-weight: 700; }
@@ -83,7 +87,7 @@ a.btn { display: inline-block; text-decoration: none; }
   .nav { gap: 0.15rem; overflow-x: auto; scrollbar-width: none; }
   .nav-rotulo { display: none; }
   /* Sem os rótulos, um fio separa os grupos na faixa horizontal. */
-  .nav-grupo + .nav-grupo { border-left: 1px solid var(--border); padding-left: 0.3rem; margin-left: 0.3rem; }
+  .nav-grupo + .nav-grupo { border-top: 0; padding-top: 0; border-left: 1px solid var(--border); padding-left: 0.3rem; margin-left: 0.3rem; }
   .nav a { white-space: nowrap; }
 }
 .tabela-wrap { overflow-x: auto; }
