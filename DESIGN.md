@@ -205,7 +205,18 @@ Cantos suavemente arredondados: 0.75rem em cards, KPIs, modais e tela de acesso,
 - **Mobile:** vira faixa horizontal rolável. Os títulos de grupo somem e um fio vertical separa os grupos.
 
 ### KPI Tile (signature)
-O bloco de número é a unidade central do dash: rótulo cinza pequeno em cima, valor branco em 700 com algarismos tabulares, e delta colorido embaixo. A variante herói aumenta o valor para display.
+O bloco de número é a unidade central do dash: rótulo cinza pequeno em cima, valor branco em 700 com algarismos tabulares, e delta colorido embaixo. A variante herói aumenta o valor para display (2rem fixo; tamanhos fluidos não servem a produto).
+- **Delta neutro:** métrica que não é boa nem ruim por si (investimento) leva só a seta, em cinza.
+- **Sem dado ≠ zero:** quando a razão não tem base (ROAS sem venda atribuída), mostra "—" com a nota do motivo, nunca "0x".
+
+### Headline (Visão geral)
+Uma frase antes dos KPIs-herói, que resume o período (1.15rem, cinza, com os números em branco e 700, até 70ch). Só reescreve em texto números já calculados.
+
+### Avisos e selos
+- **`.aviso.explica`:** explicação permanente, em cinza sobre grafite alto.
+- **`.aviso.alerta`:** âmbar, só para o que pede ação.
+- **`.selo`:** marcação curta numa linha (ex.: "form Meta"), em pílula com contorno cinza quente e texto azul informação.
+- **Status de envio em tabela:** sucesso em ✓ cinza, e só a falha em ✕ coral.
 
 ### Line Chart (signature)
 Gráfico em SVG próprio: linha bege de 2px com área bege a 13%, eixos em cinza quente, rótulos de 10px em cinza texto, cursor tracejado e tooltip em grafite alto. A segunda série usa coral, sem área, com legenda de pontos coloridos.
