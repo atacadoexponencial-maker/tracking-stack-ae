@@ -98,7 +98,7 @@ export async function removerTag(subscriberId, tagId, env) {
 // automação, mas a tag manual dispara na hora).
 // `sendFlow` pode responder 200 com `status: "error"` no corpo, por isso o
 // corpo também é conferido.
-async function dispararFluxo(subscriberId, flowNs, env) {
+export async function dispararFluxo(subscriberId, flowNs, env) {
   const res = await manychatFetch('/fb/sending/sendFlow', {
     subscriber_id: subscriberId,
     flow_ns: flowNs,

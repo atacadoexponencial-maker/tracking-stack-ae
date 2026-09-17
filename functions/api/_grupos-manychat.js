@@ -12,8 +12,9 @@
 //
 // Prefixo "_": o Cloudflare Pages não transforma em rota.
 
-import { inscreverComTag, buscarInscrito, aplicarTag, removerTag } from './_manychat.js';
+import { inscreverComTag, buscarInscrito, aplicarTag, removerTag, dispararFluxo } from './_manychat.js';
 import { telefoneDoJid, comNonoDigito } from './_grupo-conversao.js';
+import { variantesTelefone } from '../_telefone.js';
 
 // Um grupo por entrada. Ligar um grupo novo é acrescentar uma linha aqui —
 // nada mais no código precisa mudar.
@@ -66,6 +67,15 @@ function log(rotulo, desfecho, detalhe) {
 // aceito — aplica a tag de controle. Tudo isso é o `inscreverComTag`, que já é
 // exatamente essa sequência. Depois, o caso "voltou": tira a tag de saída.
 async function tratarEntrada(telefone, cfg, env) {
+  // Quem já existe cadastrado SEM o nono dígito não pode virar contato novo:
+  // o ManyChat não deixa apagar contato pela API, então duplicata é para
+  // sempre. Achando o existente, a tag e o fluxo vão nele.
+  const existente = await acharPorTelefone(telefone, env);
+  if (existente) {
+    const falha = await taguearExistente(existente, cfg, env);
+    return falha || 'ja_existia_tagueado';
+  }
+
   const r = await inscreverComTag({
     telefone,
     tagId: cfg.tagGrupo,
@@ -88,13 +98,48 @@ async function tratarEntrada(telefone, cfg, env) {
   return r.ok ? r.motivo : `entrada_${r.motivo}`;
 }
 
+// Procura o inscrito pelas DUAS formas do celular: com e sem o nono dígito.
+//
+// 🚨 Por que isto existe (achado com dado real em 17/09): o WhatsApp entrega a
+// maioria dos números da live SEM o 9 (`556293824829`) e é nessa forma que
+// eles foram cadastrados no ManyChat na importação de 09/09. Nosso código
+// padroniza COM o 9 antes de procurar, e `findBySystemField` casa string
+// exata — então a saída de quem já estava na base nunca achava ninguém e a tag
+// não era aplicada, em silêncio. É o mesmo motivo de
+// `searchClickUpTaskPorTelefone` tentar as variantes no CRM.
+async function acharPorTelefone(telefone, env) {
+  for (const variante of variantesTelefone(telefone)) {
+    const id = await buscarInscrito('phone', variante, env);
+    if (id) return id;
+  }
+  return '';
+}
+
 // Saída: NUNCA cria contato. Quem não está no ManyChat (ou é inencontrável,
 // caso de quem nasceu só com WhatsApp) fica de fora, e isso vai para o log.
 async function tratarSaida(telefone, cfg, env) {
-  const id = await buscarInscrito('phone', telefone, env);
+  const id = await acharPorTelefone(telefone, env);
   if (!id) return 'saida_sem_inscrito';
   const falha = await aplicarTag(id, cfg.tagSaiu, env);
   return falha ? `saida_erro: ${falha}` : 'saida_tagueada';
+}
+
+// Mesma sequência do `inscreverComTag` (tag → fluxo → tag de controle), só que
+// num contato que já existe: nada de criar.
+async function taguearExistente(subscriberId, cfg, env) {
+  const falhaTag = await aplicarTag(subscriberId, cfg.tagGrupo, env);
+  if (falhaTag) return `entrada_erro: ${falhaTag}`;
+
+  const falhaFluxo = await dispararFluxo(subscriberId, cfg.fluxoBoasVindas, env);
+  if (falhaFluxo) return `fluxo_falhou: ${falhaFluxo}`;
+
+  const falhaControle = await aplicarTag(subscriberId, cfg.tagBoasVindasEnviada, env);
+  if (falhaControle) return `controle_falhou: ${falhaControle}`;
+
+  // "Voltou": quem entra de novo perde a tag de saída.
+  const falhaRemocao = await removerTag(subscriberId, cfg.tagSaiu, env);
+  if (falhaRemocao) log(cfg.rotulo, 'voltou_tag_saida_nao_removida', { falha: falhaRemocao });
+  return '';
 }
 
 /**

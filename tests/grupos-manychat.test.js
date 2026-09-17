@@ -45,6 +45,10 @@ test('entrou: inscreve, tagueia, dispara o fluxo e só então marca a tag de con
 
   assert.deepEqual(resumo, { inscrito: 1 });
   assert.deepEqual(caminhos(chamadas), [
+    // As duas buscas (com e sem o nono dígito) vêm antes: só quem não existe
+    // em nenhuma das formas é criado.
+    '/fb/subscriber/findBySystemField',
+    '/fb/subscriber/findBySystemField',
     '/fb/subscriber/createSubscriber',
     '/fb/subscriber/updateSubscriber',
     '/fb/subscriber/addTag',
@@ -105,7 +109,7 @@ test('saiu quem não está no ManyChat: nenhum contato é criado', async () => {
   const resumo = await pontearGrupo(env, [saiu('5521999990000')], LIVE);
 
   assert.deepEqual(resumo, { saida_sem_inscrito: 1 });
-  assert.deepEqual(caminhos(chamadas), ['/fb/subscriber/findBySystemField']);
+  assert.deepEqual(caminhos(chamadas), ['/fb/subscriber/findBySystemField', '/fb/subscriber/findBySystemField']);
 });
 
 test('participante só com @lid: nenhuma chamada ao ManyChat', async () => {
@@ -126,7 +130,8 @@ test('telefone antigo sem o nono dígito recebe o 9 antes de ir ao ManyChat', as
 
   await pontearGrupo(env, [entrou('558496078857')], LIVE);
 
-  assert.equal(chamadas[0].body.whatsapp_phone, '5584996078857');
+  const criacao = chamadas.find((c) => c.caminho.startsWith('/fb/subscriber/createSubscriber'));
+  assert.equal(criacao.body.whatsapp_phone, '5584996078857');
 });
 
 test('sem MANYCHAT_API: desiste sem chamar nada', async () => {
@@ -186,4 +191,41 @@ test('grupo sem automação configurada: nenhuma chamada ao ManyChat', async () 
   const resumo = await pontearGrupo(env, [entrou('5521999990000')], '120363999999999999@g.us');
   assert.deepEqual(resumo, {});
   assert.equal(chamadas.length, 0);
+});
+
+test('já cadastrado SEM o nono dígito: acha, tagueia e NÃO cria contato novo', async () => {
+  // O caso que apareceu com dado real em 17/09: a base de 09/09 foi criada com
+  // o número como o WhatsApp entrega (sem o 9), e a busca só pela forma com o 9
+  // não achava ninguém — a pessoa ficava sem tag, em silêncio.
+  const chamadas = simularApi({
+    '/fb/subscriber/findBySystemField?phone=5562993824829': () => [200, { status: 'success', data: [] }],
+    '/fb/subscriber/findBySystemField?phone=556293824829': () => [200, { status: 'success', data: [{ id: 400232113 }] }],
+    '/fb/subscriber/addTag': () => [200, {}],
+    '/fb/sending/sendFlow': () => [200, { status: 'success' }],
+    '/fb/subscriber/removeTag': () => [200, {}],
+  });
+
+  const resumo = await pontearGrupo(env, [entrou('556293824829')], LIVE);
+
+  assert.deepEqual(resumo, { ja_existia_tagueado: 1 });
+  assert.equal(chamadas.some((c) => c.caminho.startsWith('/fb/subscriber/createSubscriber')), false);
+  assert.deepEqual(corpoDe(chamadas, '/fb/subscriber/addTag'), [
+    { subscriber_id: '400232113', tag_id: cfgLive.tagGrupo },
+    { subscriber_id: '400232113', tag_id: cfgLive.tagBoasVindasEnviada },
+  ]);
+});
+
+test('saiu quem está cadastrado SEM o nono dígito: recebe a tag de saída', async () => {
+  const chamadas = simularApi({
+    '/fb/subscriber/findBySystemField?phone=5562993824829': () => [200, { status: 'success', data: [] }],
+    '/fb/subscriber/findBySystemField?phone=556293824829': () => [200, { status: 'success', data: [{ id: 400232113 }] }],
+    '/fb/subscriber/addTag': () => [200, {}],
+  });
+
+  const resumo = await pontearGrupo(env, [saiu('556293824829')], LIVE);
+
+  assert.deepEqual(resumo, { saida_tagueada: 1 });
+  assert.deepEqual(corpoDe(chamadas, '/fb/subscriber/addTag'), [
+    { subscriber_id: '400232113', tag_id: cfgLive.tagSaiu },
+  ]);
 });
