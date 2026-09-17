@@ -1,273 +1,204 @@
-# Spec: Página de vendas do Workshop Black Exponencial
+# Spec: Grupo da live semanal → ManyChat automático
+
+> **Cortes aprovados pela usuária em 17/09, antes da implementação.** Saíram do
+> escopo, para a entrega ser pequena: (1) a **tabela de registro** e a migration
+> `0043` — a proteção contra mensagem repetida é o `meta.changes` do `INSERT OR
+> IGNORE`, e "quem recebeu" é respondido pela tag de controle dentro do próprio
+> ManyChat; (2) a **lista fixa de telefones da equipe** — só entradas novas
+> disparam, então quem já está no grupo (inclusive os admins) não recebe nada;
+> ficou só a regra de pular quem entra já com `admin` preenchido; (3) o **teto
+> de 30 participantes por evento**. O módulo 4 abaixo está mantido como registro
+> do que foi desenhado, mas **não foi implementado**.
 
 ## Visão Geral
 
-Página de vendas única, no endereço `/workshop-black-exponencial-2026`, para
-vender ingresso do **Workshop Black Exponencial** — evento ao vivo com Felipe
-Santos em **09/09, às 19h, com 2 horas de duração**.
+**O que faz.** Quando alguém **entra** no grupo de WhatsApp da live semanal, essa pessoa passa a existir no ManyChat automaticamente: é inscrita pelo telefone, recebe a tag `grupo-live-semanal` e recebe, pelo WhatsApp, a mensagem de boas-vindas do fluxo "Boas-vindas Live Semanal". Quando alguém **sai** do grupo, o contato dela no ManyChat ganha a tag `saiu-grupo-live` — sem mensagem nenhuma.
 
-**Para quem:** dona ou dono de marca de atacado que já tem base de revendedores
-e precisa montar a campanha de Black Friday da marca — com a tese do "duplo
-pico" (outubro traz revendedor novo, novembro faz a base repor).
+**Por que agora.** Hoje a entrada no grupo já é gravada no D1 (`whatsapp_group_events`, alimentada por `POST /api/webhooks/whatsapp-grupo`) e já vira conversão `EntrouGrupo` no Meta, mas a pessoa **não vira contato**. Em 09/09/2026 a base do grupo foi levada ao ManyChat **à mão** (tag `grupolive-manual`, 176 de 193 pessoas, 6 admins excluídos manualmente) — trabalho que se repete toda semana e que não escala. Esta feature substitui o trabalho manual do ciclo em diante.
 
-**Problema que resolve:** hoje não existe página onde essa oferta possa ser
-apresentada e vendida. A marca chega em novembro anunciando junto com o varejo,
-quando o lojista já decidiu de quem comprar em outubro. A página precisa
-explicar essa inversão de calendário, provar autoridade e levar o visitante ao
-checkout do workshop.
+**Quem usa.** Ninguém opera nada: é automação de servidor pendurada num webhook que já existe. Quem observa é quem mantém o tracking (logs do Pages + resposta do endpoint) e quem dispara campanhas no ManyChat (as tags são o filtro).
 
-**Diferença em relação às páginas existentes do projeto:** as landing pages
-atuais são de captura (formulário, chat ou entrada em grupo) e geram *lead*.
-Esta é a primeira **página de vendas** com preço e destino de compra — não tem
-formulário nenhum, e o objetivo do visitante é sair da página em direção ao
-checkout.
+**Escopo — o que está DECIDIDO e não se discute aqui:**
 
-**Duas particularidades que definem o comportamento da página:**
+1. **Só o grupo `120363427499061913@g.us`** (label `Lives Semanais` em `whatsapp_groups_tracked`). Os outros grupos monitorados (Workshops) e os ~119 grupos de terceiros continuam exatamente como estão: gravados no D1, nada de ManyChat.
+2. **Entrou** → inscrever no ManyChat pelo telefone; aplicar a tag `grupo-live-semanal` (id **96802043**); disparar o fluxo `content20260917172557_668685` ("Boas-vindas Live Semanal"); **só depois de o fluxo ser aceito**, aplicar a tag de controle `boas-vindas-enviada-live` (id **96802947**). Se a pessoa estiver com a tag `saiu-grupo-live`, essa tag é **removida** (caso "voltou").
+3. **Saiu** → achar o inscrito pelo telefone, **manter** `grupo-live-semanal` e aplicar `saiu-grupo-live` (id **96802046**). Sem fluxo, sem mensagem, sem criar contato novo.
+4. **Só daqui para frente.** Nada retroativo: nenhum evento já gravado é reprocessado, não existe backfill. A tag `grupolive-manual` (id **96185696**) fica **intocada** — não é lida, não é aplicada, não é removida.
+5. **Sem telefone** (participante que chega só com `@lid`) → não inscreve, não tagueia; só registra no log.
+6. **Best-effort absoluto.** Falha no ManyChat **nunca** pode quebrar a gravação no D1 nem a resposta 200 ao n8n.
+7. **Nenhum evento dispara o fluxo duas vezes.** Reentrega do n8n é inofensiva.
 
-1. **O checkout ainda não existe.** Todos os botões apontam para um destino
-   configurável, definido num único lugar da página, que será trocado pela URL
-   real do checkout quando ela existir. Nada além desse único ponto muda quando
-   a URL chegar.
-2. **O preço não é fixo.** A página descobre sozinha, pela data corrente no
-   fuso de Brasília, qual lote está vigente e mostra o valor daquele lote, o
-   rótulo do lote e qual será o próximo valor.
+**Princípios que valem para a feature inteira:**
+
+- **O D1 primeiro, o ManyChat depois.** A gravação do evento acontece e a resposta 200 sai antes de qualquer chamada ao ManyChat. A ponte roda fora do caminho da resposta (`waitUntil`), como já fazem as três pontes da Greenn.
+- **Reuso, não reinvenção.** A ponte usa `inscreverComTag` de `functions/api/_manychat.js` (que já faz criar → preencher `phone` → taguear → disparar fluxo → tag de controle, exatamente a sequência pedida) e `telefoneDoJid` de `functions/api/_grupo-conversao.js`. O que falta hoje naquele helper — achar alguém sem criar, e **remover** uma tag — entra lá, não em cópia nova.
+- **Nada de dado pessoal no log.** Telefone só **mascarado** (últimos 4 dígitos). Nome de participante, JID inteiro e payload cru nunca vão para o log — regra que o endpoint já segue.
+- **Identidade estável.** Nenhuma mudança aqui altera `whatsapp_group_events`, `day_local`, a dedup existente ou a conversão `EntrouGrupo`. A feature só **lê** o que o webhook acabou de gravar.
+
+**Limites conhecidos da API do ManyChat que a feature precisa respeitar** (comprovados contra a conta real e documentados em `functions/api/_manychat.js`):
+
+- O telefone vai em **dígitos com DDI e sem `+`** (`5511987654321`) — o formato do `normalizePhone`/`padronizarTelefone` do projeto.
+- `createSubscriber` **falha** quando o WhatsApp já existe ("This WhatsApp ID already exists") e **não** devolve o id do existente.
+- `findBySystemField` só aceita **`phone` ou `email`**; `whatsapp_phone` é recusado. Quem nasceu só com WhatsApp e sem o campo `phone` preenchido é **inencontrável** pela API — por isso a criação preenche `phone` logo em seguida.
+- `findBySystemField` responde `success` com `data: []` quando não acha.
+- Tag aplicada **pela API não aciona automação** no ManyChat — por isso o fluxo é disparado explicitamente (`sendFlow`), e não esperado do gatilho "Tag aplicada".
+- `sendFlow` pode responder **200 com `status: "error"` no corpo** — o corpo precisa ser conferido.
+- A API é chamada **um contato por vez**; não há operação em lote. Um único evento da Evolution pode trazer vários participantes.
 
 ---
 
 ## Páginas / Módulos
 
-### Página de vendas `/workshop-black-exponencial-2026`
+### 1. Gatilho no webhook dos grupos (`functions/api/webhooks/whatsapp-grupo.js`)
 
-**Descrição:** página longa de venda direta, com ordem fixa de blocos, quatro
-chamadas para ação no corpo mais o botão da barra fixa, e preço calculado pela
-data. Não capta dados: o único caminho de saída é o destino de compra.
+**Descrição:** O endpoint que já recebe e grava entradas/saídas passa a decidir, **depois de gravar**, se chama a ponte do ManyChat. É a única alteração no arquivo existente: nada do que ele faz hoje (auth, classificação, registro de horário, `whatsapp_groups_seen`, `INSERT OR IGNORE` em `whatsapp_group_events`, resposta) muda de comportamento.
 
 **Componentes:**
 
-- **Barra fixa de topo:** texto "BLACK EXPONENCIAL · 09/09 · 19h · ao vivo" e um
-  botão pequeno de compra. Fica visível o tempo todo, sobre o conteúdo.
-- **Hero:** selo "Exclusivo para marcas atacado"; headline "Monte a Black Friday
-  da sua marca atacado em 2 horas, com metas, oferta e calendário semana a
-  semana definidos.", com o trecho "2 horas" em destaque visual; subtítulo com a
-  data, o horário e a tese do duplo pico; botão "Garantir minha vaga"; logo
-  abaixo do botão, uma linha com o valor vigente e o rótulo do lote vigente; um
-  elemento visual (mockup do planner, ou foto do Felipe como alternativa).
-  Sem vídeo.
-- **Bloco de dor:** texto corrido centralizado, frases curtas em linhas
-  separadas, sobre a Black passada que deu faturamento mas não deu revendedor
-  novo. Sem ícone, sem lista, sem card. Fundo diferente do hero.
-- **Bloco do problema real:** texto explicando que o lojista decide em outubro e
-  que a Black do atacado precisa acontecer antes da do varejo; ao lado, uma
-  linha do tempo simples com dois marcos — "OUT: decisão do lojista" e "NOV:
-  você anuncia (tarde)". É o único gráfico da página.
-- **Bloco antes e depois:** duas colunas. À esquerda, "Como a maioria faz", com
-  quatro itens marcados com ✕ e tratamento visual apagado. À direita, "Como
-  funciona o duplo pico", com quatro itens marcados com ✓ e tratamento visual de
-  destaque. Abaixo, a frase de fecho "No dia 09/09 você monta os dois."
-- **Bloco da solução:** nome do workshop, data, horário, duração, e o texto que
-  posiciona a aula como sessão de execução — o visitante entra com o planner em
-  branco e sai com ele preenchido.
-- **Cronograma da aula:** sete linhas, cada uma com horário à esquerda (19h00,
-  19h15, 19h30, 20h00, 20h15, 20h40, 20h50), título do módulo em negrito e
-  descrição em texto secundário abaixo.
-- **Bloco de entregáveis:** um card largo em destaque para o *Planner da Black
-  Atacado* com imagem; abaixo, uma grade de três cards menores (Mapa mental do
-  método completo; Calendário Black Atacado 2026; Pack de mensagens de
-  WhatsApp); abaixo, um segundo card largo para *Os 3 checklists de execução*.
-- **Bloco de autoridade:** foto do Felipe Santos à esquerda, nome, papel
-  ("fundador do Atacado Exponencial") e a biografia de quatro frases à direita.
-- **Bloco de prova social:** os mesmos depoimentos já usados na página das
-  lives, exibidos entre Autoridade e Ancoragem.
-- **Bloco de ancoragem:** texto "Quanto custa uma Black mal planejada?" seguido
-  de uma conta de duas linhas — "desconto dado no ano passado" e "investimento
-  em anúncio em novembro" — com os valores em branco, alinhados à direita, para
-  o visitante preencher mentalmente; fecho com "O workshop custa menos que um
-  pedido mínimo da sua marca."
-- **Caixa de oferta:** caixa fechada com borda destacada e centralizada,
-  contendo: título "WORKSHOP BLACK EXPONENCIAL — 09/09 · 19h · 2 horas ao vivo";
-  lista de seis itens com check (2 horas ao vivo com Felipe Santos; Planner da
-  Black Atacado; Mapa mental do método; Calendário Black Atacado 2026; Pack de
-  mensagens de WhatsApp; Os 3 checklists); valor cheio de R$ 297 riscado, menor
-  e apagado; valor do lote vigente em tamanho grande; rótulo do lote vigente;
-  botão "Garantir minha vaga por R$ [valor do lote]"; linha de aviso do próximo
-  valor.
-- **Faixa de garantia:** faixa horizontal com selo à esquerda e o texto dos 7
-  dias de reembolso à direita, sobre fundo levemente diferente do bloco
-  anterior.
-- **Bloco de urgência:** texto explicando por que existe prazo (o pico 1
-  acontece na primeira quinzena de outubro, a campanha precisa estar montada em
-  setembro) e que cada lote que passa aumenta o valor, sem mudar conteúdo nem
-  materiais. Termina com botão "Quero garantir minha vaga".
-- **FAQ:** sanfona com seis perguntas, todas fechadas por padrão (preciso já
-  vender no atacado; e se eu não puder assistir ao vivo; serve para o meu nicho;
-  já estou atrasada; quanto tempo dura; e se eu não gostar).
-- **Fechamento:** frase "Duas opções para outubro: chegar com a campanha montada
-  em setembro ou improvisar quando o lojista já tiver comprado." e botão "Quero
-  minha vaga".
-- **Rodapé padrão do site.**
+- **Filtro de grupo:** compara o `group_jid` do evento com o JID da live semanal (`120363427499061913@g.us`), constante nomeada no módulo 2.
+- **Detector de linha nova:** lê, do resultado do `batch` do D1, o `meta.changes` de **cada** `INSERT OR IGNORE` — os resultados voltam na mesma ordem em que os comandos foram enfileirados, então cada linha de `evento.linhas` sabe se entrou agora (`changes = 1`) ou se era reentrega (`changes = 0`).
+- **Despacho da ponte:** uma chamada `waitUntil` própria para a ponte do ManyChat, separada do `waitUntil` que já registra horário.
+- **Contadores da resposta:** quantas linhas novas, quantas foram encaminhadas à ponte, quantas sem telefone, quantas puladas por serem da equipe.
 
 **Comportamentos:**
 
-*Estrutura e navegação*
-
-- Exibir os blocos sempre nesta ordem: Hero → Dor → Problema real → Antes e
-  depois → **CTA** → Solução → Cronograma → Entregáveis → **CTA** →
-  Autoridade → Prova social → Ancoragem → Oferta → Garantia → Urgência →
-  **CTA** → FAQ → Fechamento → **CTA**.
-- Manter no celular exatamente a mesma ordem de blocos do desktop, sem
-  reordenar, esconder ou trocar nada de lugar.
-- Manter a barra fixa visível durante toda a rolagem da página, sobreposta ao
-  conteúdo, sem cobrir o botão de compra de nenhum bloco.
-- No celular, a barra fixa quebra em duas linhas ou omite o nome do evento,
-  preservando sempre a data e o botão.
-- Empilhar em uma coluna, no celular, todos os blocos de duas colunas (problema
-  real, antes e depois, autoridade, entregáveis).
-- No celular, no bloco de entregáveis, exibir a imagem de cada card acima do
-  texto do card.
-- Apresentar a página com a identidade visual do restante do site (mesma fonte,
-  mesma paleta, mesmos formatos de seção, selo, título e botão já usados nas
-  outras páginas).
-- Carregar a página sem vídeo e sem elementos pesados; imagens entram
-  comprimidas e as que estão abaixo da primeira dobra só carregam quando o
-  visitante se aproxima delas.
-- Descrever a página, para buscadores e compartilhamentos, como o workshop de
-  Black Friday para marcas de atacado, com data e horário.
-
-*Preço e lote (calculados pela data)*
-
-- Determinar o lote vigente a partir da data e hora correntes no fuso de
-  Brasília, segundo a tabela: **Lote 0 — R$ 47**, de 10/08 a 20/08; **Lote 1 —
-  R$ 97**, de 20/08 a 30/08; **Lote 2 — R$ 147**, de 30/08 até 09/09 às 18h.
-- Exibir o valor do lote vigente em todos os pontos da página que mostram preço
-  (linha abaixo do botão do hero, caixa de oferta e texto do botão da caixa de
-  oferta), sempre com o mesmo número.
-- Exibir o rótulo do lote vigente ("Lote 0", "Lote 1", "Lote 2") junto ao valor
-  no hero e na caixa de oferta.
-- Exibir sempre o valor cheio de R$ 297 riscado como ancoragem, menor e mais
-  apagado que o valor vigente.
-- Exibir, abaixo da caixa de oferta, a linha "Depois do Lote [N], o valor sobe
-  para R$ [próximo valor]" enquanto existir um lote seguinte.
-- Substituir ou omitir essa linha quando o lote vigente for o último — nunca
-  anunciar um próximo valor que não existe.
-- Definir um comportamento explícito para as datas fora da tabela: antes de
-  10/08 a página apresenta o primeiro lote; depois de 09/09 às 18h a página
-  apresenta o encerramento das vendas, sem preço inventado.
-- Tratar as fronteiras de data sem ambiguidade: em cada dia de virada (20/08 e
-  30/08) apenas um lote pode estar vigente, e o valor exibido em todos os
-  lugares da página é o mesmo.
-- Escrever todos os valores no formato brasileiro, com "R$" e sem centavos.
-
-*Destino de compra*
-
-- Ler o destino de compra de um único ponto de configuração da página, usado por
-  todos os botões — barra fixa, hero, os quatro CTAs do corpo e o botão da caixa
-  de oferta.
-- Enquanto a URL real do checkout não existir, apontar todos os botões para o
-  destino placeholder configurado, sem quebrar a navegação nem exibir erro ao
-  visitante.
-- Trocar o destino real exige alterar apenas esse ponto de configuração, sem
-  tocar em nenhum bloco da página.
-- Usar exatamente o mesmo texto e a mesma cor em todos os botões do corpo da
-  página.
-
-*Rastreamento*
-
-- Registrar a visita da página com os mesmos dados de origem já registrados nas
-  demais páginas do site (origem, campanha, conteúdo e identificadores de
-  clique), pelo mesmo mecanismo compartilhado — sem tratamento especial.
-- Criar, na chegada do visitante, um identificador de compra para esta visita e
-  registrá-lo junto com os dados de origem, de modo que uma venda confirmada
-  depois pelo checkout possa ser atribuída a esta visita.
-- Reaproveitar o mesmo identificador de compra enquanto o visitante estiver na
-  mesma visita, mesmo que recarregue a página.
-- Registrar o evento de "início de checkout" quando o visitante aciona qualquer
-  botão de compra, de forma que o registro sobreviva à saída da página.
-- Enviar esse identificador de compra junto com o visitante ao destino de
-  compra, no formato exigido pela plataforma de checkout escolhida.
-- Registrar o mesmo evento de início de checkout uma única vez por clique, sem
-  contagem dupla entre o registro do navegador e o registro do servidor.
-- Fazer a página aparecer, sem configuração extra, na visão de desempenho por
-  landing page já existente no painel.
-- Manter a página compatível com o mecanismo de teste A/B existente: se um dia
-  uma variante desta página for criada, ela entra pelo mesmo caminho das demais,
-  sem alteração nesta página.
-
-*Prova social*
-
-- Exibir o bloco de prova social usando o mesmo conjunto de depoimentos já
-  publicado na página das lives.
-- Omitir o bloco inteiro caso não haja material de depoimento disponível —
-  nunca exibir um espaço vazio, um placeholder ou um aviso de "em breve".
-
-*FAQ*
-
-- Exibir todas as perguntas fechadas quando a página carrega.
-- Abrir a resposta quando o visitante aciona uma pergunta e fechá-la quando
-  aciona de novo.
-- Permitir que mais de uma pergunta fique aberta ao mesmo tempo, sem que abrir
-  uma feche a outra.
-- Responder, na pergunta sobre não assistir ao vivo, que a gravação vitalícia é
-  **adicional no checkout, por R$ 27** — e em nenhum outro lugar da página
-  prometer a gravação como incluída no ingresso.
-
-*Garantia*
-
-- Informar prazo de 7 dias após o workshop, com a data limite explícita de 16 de
-  setembro, e reembolso integral sem formulário e sem pergunta.
+- **Evento de grupo que não é a live semanal:** grava como hoje e responde como hoje; a ponte do ManyChat **não é chamada** e nada aparece no log sobre ManyChat.
+- **Evento da live semanal com linhas novas:** grava, responde 200 e **só então** chama a ponte, uma vez, com a lista das linhas novas (ação, JID do participante, instante do evento).
+- **Reentrega do mesmo evento pelo n8n:** o `INSERT OR IGNORE` não insere nada (`changes = 0` em todas as linhas), a ponte **não é chamada** e a resposta diz `manychat: 'reentrega'`. É este o mecanismo que garante "o fluxo nunca é disparado duas vezes para o mesmo evento".
+- **Evento misto (algumas linhas novas, outras já existentes):** só as linhas novas vão para a ponte.
+- **Ação `removido`:** tratada como saída para efeito do ManyChat — a pessoa não está mais no grupo, e o contato precisa refletir isso. (Continua gravada como `removido` no D1; a distinção "saiu × removido" não muda no banco.)
+- **Falha ao ler `meta.changes`** (resposta do D1 em formato inesperado): a ponte **não** é chamada e o log registra `manychat: 'sem_confirmacao_de_linha_nova'`. Preferir não mandar a arriscar mensagem duplicada.
+- **Falha na gravação do D1:** o comportamento atual manda — a ponte nunca chega a ser chamada.
+- **A ponte demora, falha ou lança exceção:** a resposta 200 já saiu; nada disso altera status, corpo ou latência da resposta ao n8n.
 
 ---
 
-## Fora de escopo
+### 2. Ponte grupo da live → ManyChat (arquivo novo: `functions/api/_grupo-live-manychat.js`)
 
-- **Checkout real:** a criação, configuração ou integração da página de
-  pagamento. A página aponta para um placeholder até a URL existir.
-- **Formulário de captura:** esta página não coleta nome, e-mail, telefone nem
-  qualquer outro dado do visitante; não há modal, chat nem campo de entrada.
-- **Contador de vagas:** nenhuma exibição de vagas restantes, lotadas ou
-  esgotando.
-- ~~**Contador regressivo de horas:** proibido explicitamente.~~ **REVOGADO em
-  2026-08-12 pela usuária.** A proibição original era decisão de copy (commit
-  4a7bb78), não restrição técnica. A página passou a ter um contador de uma
-  linha no hero, abaixo do preço, marcando a virada do lote vigente — e, no
-  último lote, o encerramento das vendas. Duas consequências que vieram junto:
-  a hora agora vem do servidor (`GET /api/hora`) em vez do relógio do aparelho,
-  e o preço se atualiza sozinho quando a virada acontece com a aba aberta. O
-  contador de **vagas** segue proibido: não existe limite de vagas num workshop
-  online, então exibi-lo seria mentira.
-- **Produção das artes e imagens:** o mockup do planner, a foto do Felipe e
-  qualquer arte dos cards de entregáveis não são produzidos aqui.
-- **Criação dos materiais entregáveis:** o planner, o mapa mental, o calendário,
-  o pack de mensagens e os checklists são produtos do workshop — a página apenas
-  os anuncia.
-- **Configuração do webhook de venda** na plataforma de checkout e a validação
-  ponta a ponta da compra.
-- **Página de obrigado pós-compra** específica do workshop.
-- **Upsell da gravação vitalícia:** vive no checkout, não nesta página.
-- **Criação de uma variante de teste A/B** desta página.
+**Descrição:** Módulo novo, com prefixo `_` (o Pages não o transforma em rota), no mesmo lugar dos outros helpers de integração (`_manychat.js`, `_clickup.js`, `_grupo-conversao.js`). Concentra **toda** a regra desta feature: os identificadores da live semanal, quem é pulado, a ordem das chamadas ao ManyChat e o registro do resultado. Nunca lança: quem chama está num caminho best-effort.
+
+**Componentes:**
+
+- **Identificadores da live semanal** (constantes nomeadas e comentadas, no topo do arquivo, com a data em que foram criadas na conta e como descobrir as novas — `GET /fb/page/getTags` e `GET /fb/page/getFlows`):
+  - grupo: `120363427499061913@g.us`;
+  - tag de pertencimento: `grupo-live-semanal` = **96802043**;
+  - fluxo de boas-vindas: `content20260917172557_668685`;
+  - tag de controle: `boas-vindas-enviada-live` = **96802947**;
+  - tag de saída: `saiu-grupo-live` = **96802046**;
+  - tag **intocável**: `grupolive-manual` = **96185696** — citada só para deixar registrado que não é lida nem escrita.
+- **Lista de exclusão da equipe:** telefones (dígitos com DDI) das pessoas da casa que administram o grupo — os **6 admins** que foram excluídos à mão na importação de 09/09/2026. Mora neste arquivo, comentada com a origem, porque o payload **não** permite deduzir isso (ver Decisões, item 2).
+- **Extração do telefone:** `telefoneDoJid` (de `_grupo-conversao.js`) para tirar o número do JID, seguido de `padronizarTelefone`/`comNonoDigito` (regra única de telefone da casa, `spec-protecoes-integracoes.md`) para chegar ao formato que o ManyChat aceita.
+- **Mascaramento para log:** função que devolve só os 4 últimos dígitos (`•••••7857`).
+- **Teto de lote:** número máximo de participantes tratados num mesmo evento (padrão **30**). Acima disso os excedentes só aparecem no log.
+- **Registro do desfecho:** grava o resultado de cada tentativa na tabela do módulo 4.
+
+**Comportamentos (entrada):**
+
+- **Entrou, com telefone, não é da equipe, ainda não registrada:** inscreve no ManyChat pelo telefone, aplica `grupo-live-semanal`, dispara o fluxo de boas-vindas e, **só se o fluxo for aceito**, aplica `boas-vindas-enviada-live`. Desfecho `inscrito`.
+- **Entrou e o WhatsApp já existe na conta** (pessoa que já era contato, inclusive quem tem `grupolive-manual`): o contato existente é procurado pelo `phone`; achado, recebe a tag, o fluxo e a tag de controle no contato que já existe — nenhum contato duplicado é criado. Desfecho `ja_existia_tagueado`.
+- **Entrou, o WhatsApp já existe, mas o contato é inencontrável** (nasceu só com WhatsApp, `phone` vazio): nada é aplicado, e o log registra `ja_existia` com o telefone mascarado — é a única forma de saber que isso aconteceu, em vez de a pessoa sumir calada.
+- **Entrou e a pessoa está com `saiu-grupo-live` ("voltou"):** a tag de saída é **removida** do contato. A remoção acontece no mesmo tratamento da entrada, depois de a tag de pertencimento ter sido aplicada; falhar na remoção **não** cancela nem repete o fluxo — só vira log.
+- **Entrou sem telefone (`@lid` puro):** não inscreve, não tagueia, não dispara fluxo. Registra no log com ação, grupo e o motivo `sem_telefone`, e conta no contador da resposta.
+- **Entrou e é da equipe:** pulado por inteiro, com log `equipe`. Nenhuma chamada ao ManyChat é feita.
+- **Participante que chega com o campo `admin` preenchido** (`admin`/`superadmin`): também pulado, mesmo motivo `equipe`. É barato e correto, embora raro numa adição.
+- **Tag aplicada mas fluxo recusado:** a pessoa fica com `grupo-live-semanal` e **sem** `boas-vindas-enviada-live`. Desfecho `fluxo_falhou`, com o começo da resposta do ManyChat no log. Não há retentativa automática — a tag de controle ausente é o que permite reenviar à mão depois.
+- **Fluxo aceito mas tag de controle recusada:** a mensagem foi entregue; desfecho `controle_falhou`, registrado no log. Não se reenvia o fluxo por causa disso.
+
+**Comportamentos (saída):**
+
+- **Saiu (ou foi removido), com telefone, não é da equipe:** procura o inscrito pelo `phone`; achado, aplica `saiu-grupo-live` e **não mexe** em `grupo-live-semanal` nem em `boas-vindas-enviada-live`. Nenhum fluxo é disparado. Desfecho `saida_tagueada`.
+- **Saiu e a pessoa não existe no ManyChat** (nunca foi inscrita, ou é inencontrável pela API): **não cria contato nenhum**. Desfecho `saida_sem_inscrito`, no log com telefone mascarado.
+- **Saiu sem telefone (`@lid` puro):** só log, motivo `sem_telefone`.
+- **Saiu e é da equipe:** pulado, log `equipe`.
+
+**Comportamentos (gerais e de erro):**
+
+- **`MANYCHAT_API` ausente ou vazia:** a ponte desiste de imediato, com um único log `sem_config`, sem tentar nenhuma chamada.
+- **Vários participantes no mesmo evento:** tratados **um a um, em sequência** (a API não tem operação em lote e o disparo em série evita estourar a taxa da conta). O resultado de cada um é independente: o erro de um não interrompe os demais.
+- **Evento com mais participantes que o teto de lote:** os primeiros 30 são tratados normalmente; os excedentes ficam registrados no log como `lote_grande_nao_processado`, com a contagem — sinal de que houve importação em massa no grupo e de que aquilo precisa de decisão humana, não de 200 mensagens automáticas.
+- **Erro de rede ou 5xx do ManyChat:** desfecho `erro`, com o motivo e os primeiros 200 caracteres da resposta no log. Sem retentativa automática, sem fila.
+- **Exceção inesperada em qualquer ponto:** capturada dentro da ponte; a ponte termina em silêncio no que diz respeito ao chamador e ruidosa no log.
+- **A ponte nunca escreve em `whatsapp_group_events`** nem em `whatsapp_group_conversions`: as duas tabelas seguem sendo assunto do webhook e do sync `EntrouGrupo`.
 
 ---
 
-## Pendências / Decisões em aberto
+### 3. Novas capacidades no helper do ManyChat (`functions/api/_manychat.js`)
 
-1. **URL real do checkout** — depende da usuária. Sem ela, os botões ficam no
-   placeholder. Junto da URL é preciso saber **qual plataforma** de checkout
-   será usada, porque o nome do parâmetro que carrega o identificador de compra
-   muda de plataforma para plataforma.
-2. **Imagem do mockup do planner** — elemento visual preferido do hero e imagem
-   do card largo de entregáveis. Sem ela, o hero cai para a alternativa já
-   decidida (foto do Felipe) e o card do planner fica sem imagem.
-3. **Foto do Felipe** — confirmar se a foto já usada nas outras páginas serve
-   para o bloco de autoridade desta página ou se haverá uma nova.
-4. **Política de reembolso pós-evento** — confirmar a redação final (7 dias
-   após o workshop, com data limite 16 de setembro) e por qual canal o pedido de
-   reembolso é feito, já que o texto promete "manda uma mensagem".
-5. **Comportamento após 09/09 às 18h** — confirmar o que a página deve mostrar
-   quando as vendas encerram: aviso de encerramento, convite para uma lista de
-   espera, ou redirecionamento.
-6. **Comportamento antes de 10/08** — confirmar se a página fica no ar antes da
-   abertura do Lote 0 e, se ficar, se já mostra o preço do Lote 0.
-7. **Depoimentos** — confirmar que os depoimentos da página das lives podem ser
-   reaproveitados nesta oferta paga, já que falam do método e não do workshop.
-8. **Identificador de funil** — definir com qual nome esta página aparece nos
-   relatórios do painel, para não se misturar aos funis de captura já
-   existentes.
+**Descrição:** O helper já cobre "inscrever + taguear + fluxo + tag de controle" (é exatamente o caminho da entrada). Faltam duas operações que a saída e o caso "voltou" exigem. Elas entram **aqui**, com os mesmos contratos do arquivo (nunca lançam, devolvem motivo legível), e passam a estar disponíveis para outras pontes.
+
+**Componentes:**
+
+- **Busca pública de inscrito:** o `buscarInscrito` que hoje é interno passa a ser exportado (ou ganha uma função irmã com nome próprio), para achar alguém pelo `phone` **sem criar contato**.
+- **Remoção de tag:** operação que remove uma tag de um contato existente (`/fb/subscriber/removeTag`, mesmo par `subscriber_id` + `tag_id` do `addTag`).
+- **Aplicação de tag em contato existente:** taguear alguém já encontrado, sem passar pelo caminho de criação.
+
+**Comportamentos:**
+
+- **Buscar por telefone que existe:** devolve o id do inscrito.
+- **Buscar por telefone que não existe** (resposta `success` com `data: []`): devolve vazio — ausência, não erro.
+- **Buscar com a API fora do ar:** devolve vazio e o chamador trata como "não achei"; nunca lança.
+- **Remover tag de quem tem a tag:** o ManyChat aceita e a operação devolve sucesso.
+- **Remover tag de quem não tem a tag:** tratado como sucesso silencioso — o estado desejado ("sem a tag") é o que importa.
+- **Remover tag com id inválido ou API recusando:** devolve a descrição da falha para o chamador logar; não lança.
+- **Nada do comportamento atual de `inscreverComTag` muda** — a ponte da Greenn continua funcionando igual, com os mesmos desfechos (`inscrito`, `ja_existia_tagueado`, `ja_existia`, `sem_config`, `sem_telefone`, `erro`).
+- **O texto de consentimento gravado na criação** deixa de ser fixo em "compra do Workshop Black Exponencial" quando quem chama é o grupo da live: cada ponte informa o seu (aqui, entrada no grupo da live semanal). É o registro de origem do opt-in.
+
+---
+
+### 4. Registro dos envios (tabela nova, migration `0043`)
+
+**Descrição:** Uma tabela pequena que guarda **o que a ponte fez** para cada linha tratada. Não é a dedup principal (essa é o `meta.changes` do módulo 1) — é a segunda trava e, principalmente, a memória: sem ela, "esta pessoa recebeu boas-vindas?" só é respondível abrindo o ManyChat contato por contato.
+
+**Componentes:**
+
+- **Uma linha por tentativa**, com: grupo, telefone padronizado, ação (`entrou`/`saiu`), instante do evento (`occurred_at`, o mesmo gravado em `whatsapp_group_events`), desfecho, detalhe curto do erro (sem dado pessoal), id do inscrito no ManyChat quando houver, e o horário da tentativa.
+- **Chave natural única:** grupo + telefone + ação + instante do evento. É a mesma chave de dedup de `whatsapp_group_events` (que também já arredonda o instante ao minuto), então uma reentrega que escapasse do `meta.changes` ainda colidiria aqui.
+- **Índice por telefone**, para responder "o que já aconteceu com esta pessoa" sem varrer a tabela (a casa já estourou o limite de leitura do D1 duas vezes por varredura).
+
+**Comportamentos:**
+
+- **Antes de chamar o ManyChat**, a ponte confere se já existe registro para aquela chave natural; se existir, **não chama nada** e encerra com `ja_registrado`.
+- **Depois de cada tentativa**, grava o desfecho — inclusive os desfechos ruins (`sem_telefone`, `equipe`, `ja_existia`, `fluxo_falhou`, `erro`). O que não foi feito é tão importante quanto o que foi.
+- **Falha ao gravar o registro:** vira log e nada mais; a mensagem já foi enviada e não se desfaz.
+- **Falha ao consultar o registro:** a ponte **não** prossegue para o disparo da entrada (o risco é mensagem duplicada) e registra `sem_confirmacao_de_registro`; para a **saída**, prossegue (aplicar duas vezes a mesma tag é inofensivo).
+- **A tabela não é lida por nenhuma tela do dash** nesta entrega. É consulta de diagnóstico.
+- **A migration não mexe em nenhuma tabela existente** — só cria a nova. (Lembrete da casa: `d1 migrations apply --remote` não roda neste projeto; a migration é aplicada pelo caminho já usado nas últimas.)
+
+---
+
+### 5. Observabilidade
+
+**Descrição:** O que fica visível sem abrir o ManyChat: o corpo da resposta do webhook (que o n8n guarda na execução) e os `console.error` dos logs do Pages. Nenhuma tela nova.
+
+**Componentes:**
+
+- **Resposta do endpoint** (a de hoje, acrescida dos contadores da ponte).
+- **Linhas de log**, todas prefixadas `grupo-live-manychat —`, para serem filtráveis nos logs do Pages.
+
+**Comportamentos:**
+
+- **Resposta em evento gravado da live semanal:** mantém `ok`, `status`, `linhas` e `sem_telefone` como hoje, e acrescenta: `linhas_novas` (quantas entraram agora), `manychat` (`'despachado'`, `'reentrega'`, `'nao_e_o_grupo'`, `'sem_config'` ou `'sem_confirmacao_de_linha_nova'`), `equipe` (quantas foram puladas). Os contadores descrevem o **despacho**, não o resultado — a ponte roda depois da resposta, e prometer resultado ali seria mentira.
+- **Resposta em qualquer outro grupo:** idêntica à de hoje, com `manychat: 'nao_e_o_grupo'`.
+- **Log por desfecho não-feliz:** uma linha com grupo, ação, telefone **mascarado**, desfecho e detalhe curto. `sem_telefone`, `equipe`, `ja_existia`, `saida_sem_inscrito`, `fluxo_falhou`, `controle_falhou`, `erro`, `lote_grande_nao_processado` e `sem_config` todos aparecem.
+- **Log do caminho feliz:** uma linha de resumo por evento (quantos inscritos, quantos já existiam, quantas saídas tagueadas, quantos pulados) — resumo, não uma linha por pessoa, para o log não virar lista de telefones.
+- **Nunca no log:** telefone inteiro, JID inteiro, nome do participante, payload cru, valor de segredo.
+
+---
+
+## Decisões tomadas (os quatro pontos em aberto)
+
+1. **Como evitar disparo duplicado em reentrega.** Sim, dá para saber se a linha é nova: o `batch` do D1 devolve um resultado por comando, na ordem em que foram enfileirados, e o `meta.changes` de cada `INSERT OR IGNORE` diz se aquela linha entrou (`1`) ou foi ignorada (`0`) — é o mesmo mecanismo que a ponte da Greenn já usa (`gravou?.meta?.changes ? ... : null`). Esse é o **gate principal**, e ele é gratuito. Ele funciona porque `occurred_at` é arredondado ao minuto desde a revisão de 13/09, então a reentrega do n8n colide de propósito. Ainda assim a feature cria a **tabela de registro** do módulo 4: o `meta.changes` protege contra reentrega, mas não responde "quem já recebeu boas-vindas" nem protege um reprocessamento manual futuro. Consequência aceita de propósito: quem **sai e volta em outro minuto** gera linha nova e **recebe boas-vindas de novo** — isso é reentrada de verdade, não reentrega, e é o comportamento pedido (a regra "voltou" existe justamente para esse caso).
+2. **Equipe/admins de fora.** Ficam de fora, por **lista fixa de telefones** no arquivo novo, semeada com os 6 admins excluídos à mão em 09/09. **Não** dá para deduzir isso do que existe hoje: o campo `admin` do participante vem `null` justamente para quem está entrando (ninguém entra já admin), `whatsapp_group_events` não guarda papel, `actor_jid` identifica quem **adicionou**, não quem entrou, e não existe no projeto nenhuma lista de telefones da equipe para reusar (a exclusão de equipe dos Workshops é por `google_user_id`, e a da Greenn é por endereço de e-mail — nenhuma serve aqui). Inventar heurística arriscaria pular lead real, que é o erro caro. Como rede extra e de graça, o participante que chegar com `admin` preenchido também é pulado.
+3. **Observabilidade.** Módulo 5: a resposta ganha `linhas_novas`, `manychat` e `equipe` (descrevendo o **despacho**, já que a ponte roda depois da resposta); o log ganha uma linha por desfecho não-feliz e um resumo por evento, sempre com telefone mascarado nos 4 últimos dígitos e sem nome, JID inteiro ou payload.
+4. **Arquivos.** Um arquivo novo: **`functions/api/_grupo-live-manychat.js`** (ponte + constantes + lista da equipe), no padrão `_nome.js` de `functions/api/`. Além dele: alterações pontuais em `functions/api/webhooks/whatsapp-grupo.js` (gatilho) e em `functions/api/_manychat.js` (buscar sem criar, remover tag, taguear existente), e a migration nova `migrations/0043_manychat_grupo_live.sql`.
+
+---
+
+## Fora de escopo (explicitamente)
+
+- Backfill ou reprocessamento de qualquer entrada anterior ao deploy.
+- Grupo de Workshops e qualquer outro grupo monitorado.
+- Tela, aba ou relatório no dashboard sobre estes envios.
+- Retentativa automática, fila ou cron de recuperação de falhas do ManyChat.
+- Qualquer alteração na conversão `EntrouGrupo`, na aba Grupos ou na tag `grupolive-manual`.
+- Mensagem de despedida para quem sai.

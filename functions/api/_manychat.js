@@ -51,7 +51,7 @@ function manychatFetch(path, body, env) {
 // Procura um inscrito pelo campo `phone` ou `email`. Devolve o id ou ''.
 // Só acha quem tem o campo preenchido — quem nasceu só com WhatsApp continua
 // inencontrável (item 3 acima).
-async function buscarInscrito(campo, valor, env) {
+export async function buscarInscrito(campo, valor, env) {
   if (!valor) return '';
   try {
     const res = await fetch(
@@ -67,7 +67,7 @@ async function buscarInscrito(campo, valor, env) {
   }
 }
 
-async function aplicarTag(subscriberId, tagId, env) {
+export async function aplicarTag(subscriberId, tagId, env) {
   const tagRes = await manychatFetch('/fb/subscriber/addTag', {
     subscriber_id: subscriberId,
     tag_id: tagId,
@@ -75,6 +75,21 @@ async function aplicarTag(subscriberId, tagId, env) {
   if (tagRes.ok) return '';
   const t = await tagRes.text().catch(() => '');
   return `tag falhou: ${t.slice(0, 200)}`;
+}
+
+// Tira uma tag de quem já é inscrito. Existe para o caso "voltou" do grupo da
+// live (functions/api/_grupo-live-manychat.js): quem tinha a tag de saída e
+// entrou de novo precisa perdê-la, senão a tag para de descrever a situação
+// atual. Remover tag que a pessoa não tem é sucesso silencioso na API —
+// o que importa é o estado final.
+export async function removerTag(subscriberId, tagId, env) {
+  const res = await manychatFetch('/fb/subscriber/removeTag', {
+    subscriber_id: subscriberId,
+    tag_id: tagId,
+  }, env);
+  if (res.ok) return '';
+  const t = await res.text().catch(() => '');
+  return `remover tag falhou: ${t.slice(0, 200)}`;
 }
 
 // Dispara um fluxo direto no inscrito. Existe porque o gatilho "Tag aplicada"
@@ -142,7 +157,7 @@ function separarNome(nome) {
  *   'sem_telefone' — sem número não há como inscrever por WhatsApp
  *   'erro'         — qualquer outra falha (detalhe no log de quem chama)
  */
-export async function inscreverComTag({ nome, telefone, email, tagId, flowNs, tagEnviadoId, env }) {
+export async function inscreverComTag({ nome, telefone, email, tagId, flowNs, tagEnviadoId, consentimento, env }) {
   if (!env.MANYCHAT_API || !tagId) {
     return { ok: false, motivo: 'sem_config', subscriberId: null };
   }
@@ -200,7 +215,9 @@ export async function inscreverComTag({ nome, telefone, email, tagId, flowNs, ta
       subscriber_id: subscriberId,
       phone: telefone,
       has_opt_in_sms: true,
-      consent_phrase: 'compra do Workshop Black Exponencial',
+      // Registro da origem do opt-in. Cada ponte informa a sua; o padrão é a
+      // da Greenn, que foi a primeira a usar este helper.
+      consent_phrase: consentimento || 'compra do Workshop Black Exponencial',
     }, env);
   } catch (e) {
     /* segue para a tag */
