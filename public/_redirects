@@ -16,3 +16,11 @@
 /obrigado-workshop/ /video-workshop-instagram 301
 /ae-video-workshop /video-workshop-instagram 301
 /ae-video-workshop/ /video-workshop-instagram 301
+
+# A /se-v2 virou a HOME em 17/09/2026 (src/pages/index.astro). Os anúncios no
+# ar apontam para /se-v2, então o endereço continua valendo e manda para a
+# home; o Pages preserva a query string, então as UTMs seguem intactas.
+# As duas formas são obrigatórias: o matching é exato e o tráfego real chega
+# com barra final (308 do Astro).
+/se-v2 / 301
+/se-v2/ / 301
