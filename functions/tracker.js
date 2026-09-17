@@ -5,6 +5,7 @@ import { motivoBloqueio } from './_lead-bloqueio.js';
 import { registrarPrimeiraTentativa } from './api/_meta-fila.js';
 import { fbcValido } from './_fbc.js';
 import { normalizarSituacaoAviso } from './_aviso-cookies.js';
+import { padronizarTelefone } from './_telefone.js';
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -19,6 +20,7 @@ import {
   toClickUpPhone,
   clickupFetch,
   searchClickUpTask,
+  searchClickUpTaskPorTelefone,
   clickupWrite,
   addClickUpTag,
 } from './api/_clickup.js';
@@ -782,13 +784,16 @@ function mapProdutoToOption(funnel) {
 // ClickUp; o desfecho atualiza a mesma linha. O que ficar pendente/falha é
 // re-tentado pelo /api/sync/crm-retry usando o lead_json guardado.
 // Best-effort: falha aqui nunca afeta o lead nem o envio em si.
-async function criarDispatchPendente(env, { eventId, email, phone, funnel, leadJson }) {
+async function criarDispatchPendente(env, { eventId, email, phone, funnel, leadJson, telefoneOriginal = '' }) {
   try {
     if (!env.DB) return null;
+    // Original e situação do telefone (spec-protecoes-integracoes.md): o número
+    // impossível segue o fluxo, mas fica consultável aqui.
+    const tel = padronizarTelefone(telefoneOriginal || phone);
     const r = await env.DB.prepare(
-      `INSERT INTO lead_dispatch (event_id, email, phone, funnel, resultado, lead_json, criado_em)
-       VALUES (?, ?, ?, ?, 'pendente', ?, strftime('%s','now'))`
-    ).bind(eventId || '', email || '', phone || '', funnel || '', leadJson || null).run();
+      `INSERT INTO lead_dispatch (event_id, email, phone, funnel, resultado, lead_json, criado_em, telefone_original, telefone_situacao)
+       VALUES (?, ?, ?, ?, 'pendente', ?, strftime('%s','now'), ?, ?)`
+    ).bind(eventId || '', email || '', phone || '', funnel || '', leadJson || null, tel.original || null, tel.situacao).run();
     return r.meta.last_row_id;
   } catch (e) {
     console.error('lead_dispatch insert error:', e.message);
@@ -937,7 +942,7 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
   // 126). No retry, a linha já existe e chega via dispatchId.
   if (!dispatchId) {
     dispatchId = await criarDispatchPendente(env, {
-      eventId, email, phone: phoneE164, funnel,
+      eventId, email, phone: phoneE164, funnel, telefoneOriginal: leadData.telefone,
       leadJson: JSON.stringify({
         leadData,
         sessionData: { utm_source: utmSource, utm_medium: utmMedium, utm_content: utmContent, utm_campaign: utmCampaign },
@@ -948,7 +953,7 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
   // --- Dedup (telefone OU email). Read-only: falha vira "não achou". ---
   let existing = null;
   try {
-    existing = await searchClickUpTask(CU_FIELD.whatsapp, phoneE164, env);
+    existing = await searchClickUpTaskPorTelefone(CU_FIELD.whatsapp, phoneE164, env);
     if (!existing && email) existing = await searchClickUpTask(CU_FIELD.email, email, env);
   } catch (e) {
     console.error('ClickUp search error:', e.message);

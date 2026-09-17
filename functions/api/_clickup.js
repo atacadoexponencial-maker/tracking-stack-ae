@@ -14,6 +14,8 @@
 // tracker.js. Elas traduzem o funil do SITE para a opção do dropdown, que é
 // assunto do fluxo de leads, não da API.
 
+import { padronizarTelefone, variantesTelefone } from '../_telefone.js';
+
 export const CLICKUP_API = 'https://api.clickup.com/api/v2';
 
 // IDs dos custom fields da lista (🤑 CRM). Ver spec 2026-07-02.
@@ -54,10 +56,22 @@ export const CU_FUNIL_ISCAS = 'b1d0bc63-3d66-41f0-ad31-4a74d7b541ed'; // ISCAS (
 export const CU_FUNIL_WO_PAGO = '420877c7-44de-4d46-a934-718889443f49';
 
 // Mesma normalização do n8n: dígitos, sem zeros à esquerda, prefixa 55, com '+'.
+// Telefone no formato do campo do ClickUp (+DDI...), a partir da regra única
+// (spec-protecoes-integracoes.md): completa o nono dígito do celular.
 export function toClickUpPhone(ph) {
-  const digits = (ph || '').toString().replace(/\D/g, '').replace(/^0+/, '');
-  if (!digits) return '';
-  return '+' + (digits.startsWith('55') ? digits : '55' + digits);
+  const { digitos } = padronizarTelefone(ph);
+  return digitos ? '+' + digitos : '';
+}
+
+// Busca pelo telefone em todas as formas em que o mesmo celular pode estar
+// gravado num card antigo (com e sem o nono dígito). Sem isso, o lead que já
+// existe como +551187654321 e chega como +5511987654321 ganharia card novo.
+export async function searchClickUpTaskPorTelefone(fieldId, telefone, env) {
+  for (const variante of variantesTelefone(telefone)) {
+    const achou = await searchClickUpTask(fieldId, '+' + variante, env);
+    if (achou) return achou;
+  }
+  return null;
 }
 
 export function clickupFetch(path, options, env) {

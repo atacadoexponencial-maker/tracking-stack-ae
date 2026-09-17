@@ -8,6 +8,8 @@
 // da tabela whatsapp_group_conversions. Regra de banco não perde corrida entre
 // duas execuções do cron; checagem em memória perderia.
 
+import { padronizarTelefone } from '../_telefone.js';
+
 const SUFIXO_TELEFONE = '@s.whatsapp.net';
 
 // Telefone dentro do JID do participante. A Evolution entrega
@@ -42,11 +44,9 @@ export function eventIdDaEntrada(groupJid, phone) {
 // começando em 6–9. Fixo (2–5), número estrangeiro e número já com o 9 passam
 // intactos.
 export function comNonoDigito(phone) {
-  const digitos = (phone == null ? '' : String(phone)).replace(/\D/g, '');
-  if (/^55[1-9]\d[6-9]\d{7}$/.test(digitos)) {
-    return digitos.slice(0, 4) + '9' + digitos.slice(4);
-  }
-  return digitos;
+  // Regra única de telefone (spec-protecoes-integracoes.md). O event_id e a
+  // chave UNIQUE da fila continuam usando o telefone CRU (telefoneDoJid).
+  return padronizarTelefone(phone).digitos;
 }
 
 // Sufixo usado para procurar o mesmo telefone entre os leads conhecidos. Os

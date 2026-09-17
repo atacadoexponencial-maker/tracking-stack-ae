@@ -12,6 +12,7 @@
 // -----------------------------------------------------------------------------
 
 import { processPurchase } from '../_core.js';
+import { registrarHorario } from '../../api/_horario-registro.js';
 import { guardSlug } from '../_utils.js';
 
 export async function onRequestPost(context) {
@@ -25,6 +26,8 @@ export async function onRequestPost(context) {
 
     // Eduzz wraps the payload as { event_name, data: {...} }
     const body = rawPayload.data || rawPayload;
+    // Horário suspeito (spec-protecoes-integracoes.md): só observação.
+    context.waitUntil(registrarHorario(env, 'eduzz', body.trans_paiddate || body.paid_at || body.trans_createdate || body.created_at || null, { ref: String(body.trans_cod || body.id || '') }));
     const firstItem = body.items?.[0] || {};
 
     // Only process paid sales. Other statuses (pending, refunded, chargeback)

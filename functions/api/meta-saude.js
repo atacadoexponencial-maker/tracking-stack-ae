@@ -3,6 +3,8 @@
 // GET  ?from=&to=&key=                         painel do período + números de agora
 // GET  ?view=falhas&from=&to=&tipo=&categoria=&pagina=&key=
 // GET  ?view=detalhe&origem=&id=&key=
+// GET  ?view=horario-detalhe&fonte=&key=       suspeitos recentes de uma fonte (sem dado pessoal)
+// POST ?key=  { acao: 'checar-credenciais' }   "Checar agora" (spec-protecoes-integracoes.md)
 // POST ?key=  { acao: 'tentar-de-novo', id }   devolve uma falha para a fila
 // POST ?key=  { acao: 'alerta-teste' }         mensagem de teste no canal
 //
@@ -18,6 +20,10 @@ import { avaliarCondicoes, estadoGeral, dentroDaJanela, JANELA_SEGUNDOS, MOTIVOS
 import { canalConfigurado, enviarTeste } from './_meta-alerta.js';
 import { FUSO_BRT } from './_data-brt.js';
 import { clausulasBotSql, clausulasBotIpSql } from '../_bots.js';
+import { lerCredenciais, executarChecagem } from './_credenciais-checagem.js';
+import { avaliarFontes, suspeitosDaFonte } from './_horario-registro.js';
+import { verificarAlertas } from './_saude-alertas.js';
+import { FONTES } from './_horario-fontes.js';
 
 const MAX_DIAS = 92;
 const POR_PAGINA = 20;
@@ -49,6 +55,11 @@ export async function onRequestGet(context) {
     const view = url.searchParams.get('view');
     if (view === 'falhas') return json(await falhas(env, url, de, ate, agora));
     if (view === 'detalhe') return json(await detalhe(env, url, agora));
+    if (view === 'horario-detalhe') {
+      const fonte = url.searchParams.get('fonte') || '';
+      if (!FONTES[fonte] || FONTES[fonte].oculta) return json({ error: 'Fonte desconhecida.' }, 404);
+      return json({ fonte, rotulo: FONTES[fonte].rotulo, suspeitos: await suspeitosDaFonte(env, fonte) });
+    }
     return json(await painel(env, de, ate, agora));
   } catch (e) {
     console.error('meta-saude:', e.message);
@@ -59,7 +70,13 @@ export async function onRequestGet(context) {
 async function painel(env, de, ate, agora) {
   const metricas = await metricasSaude(env, agora);
   const condicoes = avaliarCondicoes(metricas, agora);
-  const estado = estadoGeral(metricas, condicoes, agora, dataHora);
+  const estadoMeta = estadoGeral(metricas, condicoes, agora, dataHora);
+
+  // Proteções nas integrações: cada bloco falha sozinho, sem derrubar o painel.
+  let credenciais = null, credenciaisErro = null, horarios = null, horariosErro = null;
+  try { credenciais = await lerCredenciais(env); } catch (e) { credenciaisErro = 'Não foi possível carregar as credenciais agora.'; }
+  try { horarios = await avaliarFontes(env, agora); } catch (e) { horariosErro = 'Não foi possível carregar o horário das integrações agora.'; }
+  const estado = combinarEstado(estadoMeta, credenciais, horarios);
 
   // --- aceitação por tipo (pelo horário original do evento) ---
   const { results: tipos } = await env.DB.prepare(
@@ -165,6 +182,7 @@ async function painel(env, de, ate, agora) {
   return {
     agora,
     estado: { ...estado, condicoes },
+    credenciais, credenciaisErro, horarios, horariosErro,
     ultimaAceita,
     porTipo: { linhas, totais },
     diario,
@@ -177,6 +195,22 @@ async function painel(env, de, ate, agora) {
     antesDaAtivacao: !ativacaoEm || de < ativacaoEm,
     semSituacao,
   };
+}
+
+// Faixa de estado com o motivo mais grave entre Meta, credenciais e horário.
+// Incidente do Meta vem primeiro; credencial com problema é incidente; horário
+// suspeito é atenção.
+function combinarEstado(meta, credenciais, horarios) {
+  if (meta.estado === 'incidente') return meta;
+  const problema = (credenciais?.itens || []).find((c) => c.situacao === 'problema');
+  if (problema) {
+    return { estado: 'incidente', frase: `Credencial ${problema.nome}: ${problema.motivos[0] || 'com problema'} Desde ${dataHora(problema.desde)}.` };
+  }
+  const suspeita = (horarios || []).find((f) => f.situacao === 'suspeito');
+  if (suspeita) {
+    return { estado: 'atencao', frase: meta.estado === 'atencao' ? `${meta.frase} · Horário suspeito: ${suspeita.rotulo}` : `Horário suspeito: ${suspeita.rotulo} — ${suspeita.diagnostico}` };
+  }
+  return meta;
 }
 
 // Visitas de anúncio com identificador de clique (issue 283). Mesma regra de
@@ -278,6 +312,14 @@ export async function onRequestPost(context) {
   if (!env.DB) return json({ error: 'DB unavailable' }, 500);
   const corpo = await request.json().catch(() => ({}));
   const agora = Math.floor(Date.now() / 1000);
+
+  if (corpo.acao === 'checar-credenciais') {
+    const r = await executarChecagem(env, { origem: 'manual', agora });
+    if (!r.executada) return json({ ok: false, error: r.motivo }, 429);
+    // O alerta sai na hora, sem esperar a próxima rodada do cron.
+    try { await verificarAlertas(env, agora); } catch (e) { console.error('checar-credenciais: alerta falhou', e.message); }
+    return json({ ok: true, mensagem: r.problemas ? `${r.problemas} ${r.problemas === 1 ? 'credencial com problema' : 'credenciais com problema'}.` : 'Nenhum problema nas credenciais.' });
+  }
 
   if (corpo.acao === 'alerta-teste') {
     const r = await enviarTeste(env, agora);

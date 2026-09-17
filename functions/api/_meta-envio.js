@@ -149,6 +149,9 @@ export const TITULOS_CONDICAO = {
   sem_aceitas: 'Nenhuma conversão aceita pelo Meta nas últimas 6 h',
   sem_lead_aceita: 'Nenhum Lead aceito pelo Meta há mais de 24 h',
   pendentes_expirando: 'Conversões pendentes prestes a expirar',
+  // spec-protecoes-integracoes.md
+  credencial_problema: 'Credencial de integração com problema',
+  horario_suspeito: 'Horário suspeito numa integração',
 };
 
 /**

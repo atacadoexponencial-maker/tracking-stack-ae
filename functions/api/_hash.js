@@ -6,6 +6,8 @@
 // EXATAMENTE como o do formulário, senão o Meta trata a mesma pessoa como duas.
 // O tracker importa daqui — não existem duas cópias.
 
+import { padronizarTelefone } from '../_telefone.js';
+
 export async function sha256(value) {
   if (!value) return '';
   const normalized = value.toLowerCase().trim();
@@ -27,23 +29,12 @@ export async function sha256(value) {
 // audience mixes country codes (rare for the target audience) gets
 // marginal mismatches; fixing that requires a real phone-parsing
 // library which is too heavy for an edge worker.
+// Regra única de telefone (spec-protecoes-integracoes.md): 55 + DDD + nono dígito
+// para celular brasileiro, estrangeiro preservado, impossível como veio.
+// `countryCode` fica na assinatura por compatibilidade com quem chama; a regra
+// já trata o Brasil como padrão.
 export function normalizePhone(ph, countryCode) {
-  if (!ph) return '';
-  const cc = String(countryCode || '55');
-  const digits = ph.replace(/\D/g, '').replace(/^0+/, '');
-  if (!digits) return '';
-  // Already starts with the configured country code at a plausible
-  // total length → leave as-is.
-  if (digits.startsWith(cc) && digits.length >= cc.length + 8 && digits.length <= cc.length + 11) {
-    return digits;
-  }
-  // Plausibly a locally-formatted number (no country code yet) → prepend.
-  if (digits.length >= 8 && digits.length <= 11) {
-    return cc + digits;
-  }
-  // Any other length (likely an already-international foreign number
-  // whose country code isn't our default) → leave untouched.
-  return digits;
+  return padronizarTelefone(ph).digitos;
 }
 
 // Meta Advanced Matching spec for fn/ln is lowercase only — do NOT

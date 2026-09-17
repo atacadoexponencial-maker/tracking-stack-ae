@@ -15,6 +15,7 @@
 // telefone/email, retry, lead_dispatch e notificação ao comercial vive lá.
 
 import { sendToClickUp, sendToGHL, isInternalTestEmail } from '../../tracker.js';
+import { registrarHorario } from '../_horario-registro.js';
 
 const FUNNEL = 'sessao-estrategica'; // conta junto com os leads de SE do site
 const ORIGIN = 'meta_form';          // "tag própria" no dashboard
@@ -59,6 +60,8 @@ export async function onRequestPost(context) {
          LIMIT 1`
       ).bind(eventId, eventId).first();
       if (seen) { skipped++; continue; }
+      // Horário suspeito (spec-protecoes-integracoes.md): criação na planilha × sincronização.
+      context.waitUntil(registrarHorario(env, 'meta-formulario', Number.isFinite(lead.created_ts) ? lead.created_ts : null, { ref: eventId }));
 
       const email = (lead.email || '').toString().trim();
       const telefone = (lead.telefone || '').toString().trim();

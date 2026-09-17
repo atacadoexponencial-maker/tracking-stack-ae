@@ -12,6 +12,9 @@ import { ALERTA, TITULOS_CONDICAO } from './_meta-envio.js';
 import { FUSO_BRT } from './_data-brt.js';
 
 const CONDICOES = Object.keys(TITULOS_CONDICAO);
+// Condições que carregam uma lista de itens (credenciais, fontes): item novo
+// numa condição já ativa gera alerta só com o item novo.
+const CONDICOES_COM_ITENS = new Set(['credencial_problema', 'horario_suspeito']);
 const REENTREGA_JANELA_SEG = 24 * 3600;
 const LINK_PADRAO = 'https://tracking-ae.pages.dev/dash/#saude-meta';
 
@@ -38,23 +41,29 @@ function numeros(m) {
 }
 
 /** Texto das mensagens (puro, testável). */
-export function montarMensagem(tipo, { condicoes = [], metricas = {}, estados = {}, recuperadas = 0, motivoFrequente = '', agora, link = LINK_PADRAO }) {
+export function montarMensagem(tipo, { condicoes = [], metricas = {}, estados = {}, recuperadas = 0, motivoFrequente = '', agora, link = LINK_PADRAO, itens = {} }) {
   const lista = condicoes.map((c) => {
     const desde = estados[c]?.desde;
     const sufixo = !desde ? ''
       : tipo === 'lembrete' ? ` — há ${duracao(agora - desde)}`
         : tipo === 'recuperacao' ? ` (durou ${duracao(agora - desde)})` : '';
-    return `• ${TITULOS_CONDICAO[c] || c}${sufixo}`;
+    // Credenciais e fontes: só nome e tipo do problema — nunca valor de segredo.
+    const sub = (itens[c] || []).map((i) => `\n    – ${i}`).join('');
+    return `• ${TITULOS_CONDICAO[c] || c}${sufixo}${sub}`;
   }).join('\n');
+  const soDoMeta = condicoes.some((c) => !CONDICOES_COM_ITENS.has(c));
   if (tipo === 'alerta') {
-    return `:rotating_light: *Envio de conversões ao Meta com problema*\n${lista}\n\n${numeros(metricas)}`
-      + (motivoFrequente ? `\n• Motivo mais frequente: ${motivoFrequente}` : '') + `\n\nDetalhes: ${link}`;
+    return `:rotating_light: *${soDoMeta ? 'Envio de conversões ao Meta com problema' : 'Integração do tracking com problema'}*\n${lista}`
+      + (soDoMeta ? `\n\n${numeros(metricas)}` : '')
+      + (soDoMeta && motivoFrequente ? `\n• Motivo mais frequente: ${motivoFrequente}` : '') + `\n\nDetalhes: ${link}`;
   }
   if (tipo === 'lembrete') {
-    return `:warning: *Ainda acontecendo: envio ao Meta com problema*\n${lista}\n\n${numeros(metricas)}\n\nDetalhes: ${link}`;
+    return `:warning: *Ainda acontecendo: ${soDoMeta ? 'envio ao Meta' : 'integração do tracking'} com problema*\n${lista}`
+      + (soDoMeta ? `\n\n${numeros(metricas)}` : '') + `\n\nDetalhes: ${link}`;
   }
   if (tipo === 'recuperacao') {
-    return `:white_check_mark: *Envio ao Meta normalizado*\n${lista}\n\n• Conversões recuperadas pelo reenvio: ${recuperadas}\n\nDetalhes: ${link}`;
+    return `:white_check_mark: *${soDoMeta ? 'Envio ao Meta normalizado' : 'Integração do tracking normalizada'}*\n${lista}`
+      + (soDoMeta ? `\n\n• Conversões recuperadas pelo reenvio: ${recuperadas}` : '') + `\n\nDetalhes: ${link}`;
   }
   return `:test_tube: *Teste do alerta do tracking* — se esta mensagem chegou, o canal de avisos do Meta está funcionando. (${dataHora(agora)})`;
 }
@@ -107,8 +116,8 @@ async function registrarEEntregar(env, tipo, condicoes, texto, agora, fetchImpl)
  * Verificação periódica (issues 284–286): manda alerta, lembrete e
  * recuperação conforme as condições, e reentrega o que ficou pendente.
  */
-export async function processarAlertas(env, { condicoes, metricas, agora = Math.floor(Date.now() / 1000), fetchImpl = fetch }) {
-  const { results } = await env.DB.prepare('SELECT condicao, ativa, desde, ultimo_aviso_em FROM meta_alertas_estado').all();
+export async function processarAlertas(env, { condicoes, metricas, agora = Math.floor(Date.now() / 1000), fetchImpl = fetch, itens = {} }) {
+  const { results } = await env.DB.prepare('SELECT condicao, ativa, desde, ultimo_aviso_em, itens FROM meta_alertas_estado').all();
   const estados = Object.fromEntries(results.map((e) => [e.condicao, e]));
   const { novas, lembrar, resolvidas } = planejarAvisos(condicoes, estados, agora, metricas);
   const enviados = [];
@@ -132,23 +141,54 @@ export async function processarAlertas(env, { condicoes, metricas, agora = Math.
       GROUP BY motivo ORDER BY n DESC LIMIT 1`
   ).bind(agora - 6 * 3600).first().catch(() => null);
 
+  // Item novo numa condição que já estava ativa (ex.: uma segunda credencial
+  // quebrou): alerta só com o item novo, sem esperar o lembrete.
+  const jaAvisados = (c) => { try { return JSON.parse(estados[c]?.itens || '[]'); } catch { return []; } };
+  const itensNovos = {};
+  for (const c of condicoes) {
+    if (!CONDICOES_COM_ITENS.has(c) || !estados[c]?.ativa) continue;
+    const novosDaCondicao = (itens[c] || []).filter((i) => !jaAvisados(c).includes(i));
+    if (novosDaCondicao.length) itensNovos[c] = novosDaCondicao;
+  }
+  const gravarItens = async (c) => {
+    if (CONDICOES_COM_ITENS.has(c)) {
+      await env.DB.prepare('UPDATE meta_alertas_estado SET itens = ? WHERE condicao = ?').bind(JSON.stringify(itens[c] || []), c).run();
+    }
+  };
+
   // 2. Condição nova: um alerta só, listando todas as que estão ativas.
   if (novas.length) {
-    const texto = montarMensagem('alerta', { condicoes, metricas, agora, link, motivoFrequente: motivoFrequente?.motivo || '' });
+    const texto = montarMensagem('alerta', { condicoes, metricas, agora, link, itens, motivoFrequente: motivoFrequente?.motivo || '' });
     enviados.push({ tipo: 'alerta', ...(await registrarEEntregar(env, 'alerta', condicoes, texto, agora, fetchImpl)) });
     for (const c of condicoes) {
       await env.DB.prepare(
         `INSERT INTO meta_alertas_estado (condicao, ativa, desde, ultimo_aviso_em) VALUES (?, 1, ?, ?)
          ON CONFLICT(condicao) DO UPDATE SET ativa = 1, desde = COALESCE(CASE WHEN meta_alertas_estado.ativa = 1 THEN meta_alertas_estado.desde END, excluded.desde), ultimo_aviso_em = excluded.ultimo_aviso_em`
       ).bind(c, agora, agora).run();
+      await gravarItens(c);
+    }
+  } else if (Object.keys(itensNovos).length) {
+    const conds = Object.keys(itensNovos);
+    const texto = montarMensagem('alerta', { condicoes: conds, metricas, agora, link, itens: itensNovos });
+    enviados.push({ tipo: 'alerta', ...(await registrarEEntregar(env, 'alerta', conds, texto, agora, fetchImpl)) });
+    for (const c of conds) {
+      await env.DB.prepare('UPDATE meta_alertas_estado SET ultimo_aviso_em = ? WHERE condicao = ?').bind(agora, c).run();
+      await gravarItens(c);
     }
   } else if (lembrar.length) {
     // 3. Persistente há mais que o intervalo de lembrete.
-    const texto = montarMensagem('lembrete', { condicoes: lembrar, metricas, estados, agora, link });
+    const texto = montarMensagem('lembrete', { condicoes: lembrar, metricas, estados, agora, link, itens });
     enviados.push({ tipo: 'lembrete', ...(await registrarEEntregar(env, 'lembrete', lembrar, texto, agora, fetchImpl)) });
     for (const c of lembrar) {
       await env.DB.prepare('UPDATE meta_alertas_estado SET ultimo_aviso_em = ? WHERE condicao = ?').bind(agora, c).run();
+      await gravarItens(c);
     }
+  }
+
+  // Item que saiu de uma condição ainda ativa: guarda a lista atual, para que ele
+  // volte a alertar se quebrar de novo.
+  for (const c of condicoes) {
+    if (CONDICOES_COM_ITENS.has(c) && estados[c]?.ativa && !itensNovos[c] && !lembrar.includes(c)) await gravarItens(c);
   }
 
   // 4. Condição que deixou de valer: recuperação uma única vez.
@@ -157,7 +197,8 @@ export async function processarAlertas(env, { condicoes, metricas, agora = Math.
     const rec = await env.DB.prepare(
       'SELECT COUNT(*) AS n FROM meta_envios WHERE aceita_por_reenvio = 1 AND aceita_em >= ?'
     ).bind(desde).first();
-    const texto = montarMensagem('recuperacao', { condicoes: resolvidas, estados, agora, link, recuperadas: Number(rec?.n) || 0 });
+    const texto = montarMensagem('recuperacao', { condicoes: resolvidas, estados, agora, link, recuperadas: Number(rec?.n) || 0,
+      itens: Object.fromEntries(resolvidas.map((c) => [c, jaAvisados(c)])) });
     enviados.push({ tipo: 'recuperacao', ...(await registrarEEntregar(env, 'recuperacao', resolvidas, texto, agora, fetchImpl)) });
     for (const c of resolvidas) {
       await env.DB.prepare('UPDATE meta_alertas_estado SET ativa = 0 WHERE condicao = ?').bind(c).run();
