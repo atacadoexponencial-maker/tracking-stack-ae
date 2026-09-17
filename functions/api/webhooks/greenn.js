@@ -25,8 +25,8 @@ import { registrarHorario } from '../_horario-registro.js';
 
 // ID da tag do ManyChat que marca o comprador desta EDIÇÃO — a tag
 // `compradores-wopago-2309` (edição de 23/09), criada na conta em 2026-09-14.
-// A anterior era `compradores_wopago-0909` (94144582). É ela que dispara o
-// fluxo de WhatsApp lá dentro.
+// A anterior era `compradores_wopago-0909` (94144582). Serve de
+// filtro dos disparos em massa (NÃO aciona automação — ver MANYCHAT_FLOW_NS).
 //
 // A API exige o ID numérico; o nome não serve. Para descobrir o de uma tag nova:
 //   GET https://api.manychat.com/fb/page/getTags  (header Authorization: Bearer)
@@ -34,6 +34,19 @@ import { registrarHorario } from '../_horario-registro.js';
 // Costuma mudar junto com TAG_EDICAO quando a turma vira. Em 2026-09-14 só a
 // do ManyChat foi trocada, a pedido da usuária; TAG_EDICAO segue `wo-pago-09-09`.
 const MANYCHAT_TAG_ID = 96512510;
+
+// Fluxo "Confirmação Compra | Wo Pago 23/09", disparado pela API logo depois da
+// tag. A tag sozinha NUNCA acionou a automação: o gatilho "Tag aplicada" do
+// ManyChat ignora tag vinda da API (confirmado em 2026-09-17). Para achar o
+// `ns` de um fluxo novo: GET https://api.manychat.com/fb/page/getFlows
+// Muda junto com a tag quando a turma vira.
+const MANYCHAT_FLOW_NS = 'content20260901144339_376930';
+
+// Tag `confirmacao-enviada-wopago-2309`, criada em 2026-09-17 a pedido da
+// usuária: marca quem teve o fluxo de confirmação ACEITO pelo ManyChat, para
+// controle no painel. A automação por tag foi desativada por ela no mesmo dia
+// (evita envio duplo se o ManyChat passar a acionar tag vinda da API).
+const MANYCHAT_TAG_ENVIADO_ID = 96772754;
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -352,7 +365,7 @@ async function pontearParaGHL(env, payload) {
 // PONTE GREENN → MANYCHAT (WhatsApp pela API oficial)
 //
 // Mesmo gatilho das outras duas, waitUntil próprio. Inscreve o comprador e
-// aplica a tag da edição — é a tag que dispara o fluxo de WhatsApp no ManyChat.
+// aplica a tag da edição e dispara o fluxo de confirmação da compra.
 //
 // O telefone é normalizado com o MESMO `normalizePhone` do resto do projeto
 // (dígitos com DDI, sem `+`). Formato confirmado contra a API deles em
@@ -371,6 +384,8 @@ async function pontearParaManyChat(env, payload) {
       telefone: normalizePhone(cliente.cellphone, env.DEFAULT_COUNTRY_CODE || '55'),
       email: (cliente.email || '').trim().toLowerCase(),
       tagId: MANYCHAT_TAG_ID,
+      flowNs: MANYCHAT_FLOW_NS,
+      tagEnviadoId: MANYCHAT_TAG_ENVIADO_ID,
       env,
     });
 
