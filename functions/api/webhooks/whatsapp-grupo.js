@@ -16,6 +16,7 @@ import { classificarEvento } from './_classificar.js';
 import { registrarHorario } from '../_horario-registro.js';
 import { telefoneDoJid } from '../_grupo-conversao.js';
 import { pontearGrupoLive, GRUPO_LIVE_JID } from '../_grupo-live-manychat.js';
+import { registrarNoCrm } from '../_grupo-live-crm.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -133,6 +134,11 @@ export async function onRequestPost(context) {
       manychat = 'despachado';
       context.waitUntil(pontearGrupoLive(env, novas).catch((e) => {
         console.error('grupo-live-manychat — ponte falhou por inteiro:', e?.message || e);
+      }));
+      // Comentário no card de quem já é lead, para o comercial. Independente da
+      // ponte do ManyChat: uma falhar não pode levar a outra junto.
+      context.waitUntil(registrarNoCrm(env, novas, evento.occurredAt).catch((e) => {
+        console.error('grupo-live-crm — ponte falhou por inteiro:', e?.message || e);
       }));
     } else {
       manychat = 'reentrega';
