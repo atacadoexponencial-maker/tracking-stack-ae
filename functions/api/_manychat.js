@@ -1,8 +1,8 @@
 // Acesso à API do ManyChat — inscrever alguém e aplicar uma tag.
 //
-// Existe para a ponte da Greenn (functions/api/webhooks/greenn.js): a tag é o
-// que dispara o fluxo de WhatsApp, então "inscrever + taguear" é a operação
-// inteira do ponto de vista de quem chama.
+// Existe para a ponte da Greenn (functions/api/webhooks/greenn.js): a tag
+// filtra os compradores e o fluxo manda a confirmação, então "inscrever + taguear" é a operação
+// (+ fluxo) inteira do ponto de vista de quem chama.
 //
 // Prefixo "_": o Cloudflare Pages não transforma em rota. Mora em
 // functions/api/ pelo mesmo motivo de _clickup.js e _hash.js.
@@ -77,6 +77,36 @@ async function aplicarTag(subscriberId, tagId, env) {
   return `tag falhou: ${t.slice(0, 200)}`;
 }
 
+// Dispara um fluxo direto no inscrito. Existe porque o gatilho "Tag aplicada"
+// do ManyChat NÃO roda quando a tag vem pela API — só quando é aplicada à mão
+// no painel (confirmado pela usuária em 2026-09-17: nenhuma compra jamais acionou a
+// automação, mas a tag manual dispara na hora).
+// `sendFlow` pode responder 200 com `status: "error"` no corpo, por isso o
+// corpo também é conferido.
+async function dispararFluxo(subscriberId, flowNs, env) {
+  const res = await manychatFetch('/fb/sending/sendFlow', {
+    subscriber_id: subscriberId,
+    flow_ns: flowNs,
+  }, env);
+  const t = await res.text().catch(() => '');
+  let status = '';
+  try { status = JSON.parse(t)?.status || ''; } catch (e) { /* corpo ilegível */ }
+  if (res.ok && status !== 'error') return '';
+  return `fluxo falhou: ${t.slice(0, 200)}`;
+}
+
+// Tag e, se houver `flowNs`, o fluxo. Com `tagEnviadoId`, a tag de controle
+// só entra DEPOIS de o fluxo ter sido aceito — é o registro, visível no
+// ManyChat, de quem recebeu a confirmação. Devolve '' ou a descrição da falha.
+async function taguearEDisparar(subscriberId, tagId, flowNs, tagEnviadoId, env) {
+  const falhaTag = await aplicarTag(subscriberId, tagId, env);
+  if (falhaTag || !flowNs) return falhaTag;
+  const falhaFluxo = await dispararFluxo(subscriberId, flowNs, env);
+  if (falhaFluxo || !tagEnviadoId) return falhaFluxo;
+  const falhaControle = await aplicarTag(subscriberId, tagEnviadoId, env);
+  return falhaControle ? `fluxo enviado, mas a tag de controle falhou: ${falhaControle}` : '';
+}
+
 // Divide "Fulana de Tal Silva" em primeiro e último nome. O ManyChat guarda os
 // dois separados, e mandar o nome inteiro no primeiro campo deixa a saudação do
 // fluxo esquisita ("Oi, Fulana de Tal Silva!").
@@ -89,6 +119,12 @@ function separarNome(nome) {
 
 /**
  * Inscreve alguém no ManyChat pelo WhatsApp e aplica uma tag.
+ *
+ * `flowNs` (opcional) é o fluxo disparado logo depois da tag — necessário
+ * porque tag aplicada pela API não aciona automação (ver `dispararFluxo`).
+ * Só a criação de um inscrito NOVO ou o achado de um existente disparam; quem
+ * chama é responsável por não chamar duas vezes para a mesma venda.
+ * `tagEnviadoId` (opcional) é aplicada só quando o fluxo foi aceito.
  *
  * `telefone` precisa vir NORMALIZADO em dígitos com DDI (use `normalizePhone`
  * de ./_hash.js). `tagId` é o ID numérico da tag — o nome não serve.
@@ -106,7 +142,7 @@ function separarNome(nome) {
  *   'sem_telefone' — sem número não há como inscrever por WhatsApp
  *   'erro'         — qualquer outra falha (detalhe no log de quem chama)
  */
-export async function inscreverComTag({ nome, telefone, email, tagId, env }) {
+export async function inscreverComTag({ nome, telefone, email, tagId, flowNs, tagEnviadoId, env }) {
   if (!env.MANYCHAT_API || !tagId) {
     return { ok: false, motivo: 'sem_config', subscriberId: null };
   }
@@ -138,7 +174,7 @@ export async function inscreverComTag({ nome, telefone, email, tagId, env }) {
     if (!existenteId) {
       return { ok: false, motivo: 'ja_existia', subscriberId: null, detalhe: criaTexto.slice(0, 200) };
     }
-    const falhaTag = await aplicarTag(existenteId, tagId, env);
+    const falhaTag = await taguearEDisparar(existenteId, tagId, flowNs, tagEnviadoId, env);
     if (falhaTag) {
       return { ok: false, motivo: 'erro', subscriberId: existenteId, detalhe: falhaTag };
     }
@@ -170,8 +206,8 @@ export async function inscreverComTag({ nome, telefone, email, tagId, env }) {
     /* segue para a tag */
   }
 
-  // 3. A tag — é ela que dispara o fluxo de WhatsApp no ManyChat.
-  const falhaTag = await aplicarTag(subscriberId, tagId, env);
+  // 3. A tag (filtro dos disparos em massa) e o fluxo de confirmação.
+  const falhaTag = await taguearEDisparar(subscriberId, tagId, flowNs, tagEnviadoId, env);
   if (falhaTag) {
     return { ok: false, motivo: 'erro', subscriberId, detalhe: falhaTag };
   }
