@@ -256,6 +256,7 @@ const KNOWN_PAGE_PATHS = new Set([
   '/trafego-atacado',
   '/se-v1',
   '/se-v2',
+  '/se-v3',
   '/consultoria-gratuita-atacado',
   '/video-workshop-instagram',
   '/vsl',
