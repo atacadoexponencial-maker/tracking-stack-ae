@@ -351,8 +351,14 @@ const titulo =
     gap: 0.75rem;
     color: #f7f3ee;
   }
-  .hero--foto .hero__title { font-size: clamp(1.5rem, 6.2vw, 2rem); line-height: 1.14; }
-  .hero--foto .hero__sub { color: rgba(247, 243, 238, 0.85); font-size: 0.85rem; line-height: 1.4; }
+  /* O tamanho acompanha a LARGURA da tela: num 390px o título fica grande
+     como a usuária pediu, e num 360px ele encolhe sozinho em vez de empurrar
+     o texto por cima do rosto. */
+  .hero--foto .hero__title { font-size: clamp(1.5rem, 7.2vw, 2.35rem); line-height: 1.15; }
+  /* O marca-texto amarelo é claro: com o texto branco do hero sobre a foto,
+     a palavra destacada sumia. Sobre o amarelo o texto volta a ser escuro. */
+  .hero--foto .hero__hl { color: #1e1e1e; }
+  .hero--foto .hero__sub { color: rgba(247, 243, 238, 0.88); font-size: clamp(0.88rem, 3.7vw, 1rem); line-height: 1.45; }
   /* Botão claro: sobre o degradê escuro, o pill preto padrão sumiria. Menor
      que o padrão e com largura pelo conteúdo: em duas linhas e ocupando a
      largura toda, ele dominava a tela (ajuste pedido em 17/09). */
@@ -362,9 +368,9 @@ const titulo =
     margin-top: 0.15rem;
     align-self: center;
     width: auto;
-    font-size: 0.75rem;
-    letter-spacing: 0.06em;
-    padding: 0.7rem 1.15rem;
+    font-size: clamp(0.72rem, 3vw, 0.82rem);
+    letter-spacing: 0.05em;
+    padding: 0.8rem 1.25rem;
     gap: 0.5rem;
   }
   /* A bolinha da seta tem 2,25rem no hero padrão e é ela que deixava o botão
@@ -375,7 +381,7 @@ const titulo =
     font-size: 0.75rem;
     background: rgba(30, 30, 30, 0.12);
   }
-  .hero--foto .hero__trust { font-size: 0.72rem; gap: 0.75rem; }
+  .hero--foto .hero__trust { font-size: clamp(0.72rem, 3vw, 0.8rem); gap: 0.9rem; }
   /* O selo sai no celular: é a linha menos essencial das quatro e é ela que
      libera a altura para o rosto aparecer acima do texto. */
   .hero--foto .hero__badge { display: none; }
@@ -396,6 +402,7 @@ const titulo =
     }
     .hero--foto .hero__texto { color: inherit; }
     .hero--foto .hero__title { font-size: clamp(2.25rem, 4vw, 3.25rem); }
+    .hero--foto .hero__hl { color: inherit; }
     .hero--foto .hero__sub { color: rgba(30, 30, 30, 0.7); font-size: 1rem; }
     .hero--foto .hero__badge {
       display: inline-block;
