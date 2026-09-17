@@ -22,6 +22,7 @@
 // -----------------------------------------------------------------------------
 
 import { processPurchase } from '../_core.js';
+import { registrarHorario } from '../../api/_horario-registro.js';
 import { guardSlug } from '../_utils.js';
 
 export async function onRequestPost(context) {
@@ -33,6 +34,8 @@ export async function onRequestPost(context) {
   try {
     const rawPayload = await request.json();
     const body = rawPayload.order || {};
+    // Horário suspeito (spec-protecoes-integracoes.md): só observação.
+    context.waitUntil(registrarHorario(env, 'kiwify', body.approved_date || body.created_at || null, { ref: String(body.order_id || '') }));
 
     // Only process approved orders. subscription renewals fire the same
     // event type with a new `order_id` per cycle — those are legitimately

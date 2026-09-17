@@ -13,6 +13,7 @@
 // Evolution não pode ficar pendurada por causa daqui.
 
 import { classificarEvento } from './_classificar.js';
+import { registrarHorario } from '../_horario-registro.js';
 import { telefoneDoJid } from '../_grupo-conversao.js';
 
 export async function onRequestPost(context) {
@@ -34,7 +35,17 @@ export async function onRequestPost(context) {
     return json({ ok: true, status: 'ignorado', motivo: 'json_invalido' });
   }
 
-  const evento = classificarEvento(body, Date.now());
+  const chegadaMs = Date.now();
+  const evento = classificarEvento(body, chegadaMs);
+  // Horário suspeito (spec-protecoes-integracoes.md): o informado pela Evolution
+  // ANTES da correção mede o defeito da fonte; o corrigido confirma que a
+  // correção funciona. Só observação — não muda nada no evento.
+  if (evento) {
+    context.waitUntil(Promise.all([
+      registrarHorario(env, 'grupos-whatsapp', body.date_time, { chegadaMs, ref: evento.groupJid }),
+      registrarHorario(env, 'grupos-whatsapp:corrigido', evento.occurredAt, { chegadaMs, ref: evento.groupJid }),
+    ]));
+  }
   if (!evento) {
     // Nunca o corpo cru no log: ele carrega os JIDs (telefones) dos
     // participantes, inclusive de grupos de terceiros que a feature

@@ -30,6 +30,7 @@
 // -----------------------------------------------------------------------------
 
 import { processPurchase } from '../_core.js';
+import { registrarHorario } from '../../api/_horario-registro.js';
 import { guardSlug } from '../_utils.js';
 
 export async function onRequestPost(context) {
@@ -41,6 +42,8 @@ export async function onRequestPost(context) {
   try {
     const rawPayload = await request.json();
     const body = rawPayload.data || {};
+    // Horário suspeito (spec-protecoes-integracoes.md): só observação.
+    context.waitUntil(registrarHorario(env, 'hotmart', (body.purchase && (body.purchase.approved_date || body.purchase.order_date)) || rawPayload.creation_date || null, { ref: String((body.purchase && body.purchase.transaction) || '') }));
     const eventName = rawPayload.event || '';
 
     // Only process approved purchases. Every other event (PURCHASE_COMPLETE,

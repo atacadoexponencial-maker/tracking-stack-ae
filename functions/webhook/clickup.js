@@ -7,6 +7,7 @@
 // pelo MESMO pipeline dos gateways (webhook/_core.processPurchase) — Receita/
 // ROAS do dash e conversão na Meta saem de graça.
 import { processPurchase } from './_core.js';
+import { registrarHorario } from '../api/_horario-registro.js';
 
 const CU_API = 'https://api.clickup.com/api/v2';
 const CAMPO_ARRECADADO = '85ef1a33-01f7-4ea4-9f24-f742b660a04e'; // 💰 Arrecadado (currency)
@@ -56,6 +57,8 @@ export async function onRequestPost(context) {
   const histId = histItem && histItem.id ? String(histItem.id) : null;
   const histDateMs = histItem ? Number(histItem.date) : NaN;
   const histDate = Number.isFinite(histDateMs) && histDateMs > 0 ? Math.floor(histDateMs / 1000) : null;
+  // Horário suspeito (spec-protecoes-integracoes.md): só observação.
+  context.waitUntil(registrarHorario(env, 'clickup', histDate ? histDateMs : null, { ref: histId || taskId }));
 
   let gravouNovo = true;
   if (status) {

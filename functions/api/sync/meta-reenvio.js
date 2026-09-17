@@ -1,13 +1,14 @@
-// POST /api/sync/meta-reenvio            — rodada de reenvio + verificação de alertas
+// POST /api/sync/meta-reenvio            — rodada de reenvio + checagens + alertas
 // POST /api/sync/meta-reenvio?acao=recuperar — coloca na fila as recusas dos últimos 6 dias
 //
 // Chamado por cron na VPS a cada 15 minutos, como os demais syncs
-// (spec-capi-reenvio-monitoramento.md, issues 272–276 e 284–286).
+// (spec-capi-reenvio-monitoramento.md e spec-protecoes-integracoes.md).
 // Auth: header `x-sync-secret: <env.SYNC_SECRET>`.
 
-import { executarRodada, metricasSaude, recuperarRecentes } from '../_meta-fila.js';
-import { avaliarCondicoes } from '../_meta-envio.js';
-import { processarAlertas } from '../_meta-alerta.js';
+import { executarRodada, recuperarRecentes } from '../_meta-fila.js';
+import { talvezChecarAutomatico } from '../_credenciais-checagem.js';
+import { limparHorarioAntigo } from '../_horario-registro.js';
+import { verificarAlertas } from '../_saude-alertas.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -32,18 +33,26 @@ export async function onRequestPost(context) {
     rodada = { erro: e.message };
   }
 
+  // Checagem das credenciais: 1 vez por dia (a própria função decide se é hora).
+  // Na mesma janela, a limpeza dos resumos de horário com mais de 30 dias.
+  let credenciais = null;
+  try {
+    credenciais = await talvezChecarAutomatico(env, agora);
+    if (credenciais.executada) await limparHorarioAntigo(env, agora);
+  } catch (e) {
+    console.error('meta-reenvio: checagem de credenciais falhou', e.message);
+    credenciais = { erro: e.message };
+  }
+
   let alertas = null;
   try {
-    const metricas = await metricasSaude(env, agora);
-    const condicoes = avaliarCondicoes(metricas, agora);
-    alertas = await processarAlertas(env, { condicoes, metricas, agora });
-    alertas.condicoes = condicoes;
+    alertas = await verificarAlertas(env, agora);
   } catch (e) {
     console.error('meta-reenvio: verificação de alertas falhou', e.message);
     alertas = { erro: e.message };
   }
 
-  return json({ ok: !rodada.erro && !alertas.erro, rodada, alertas });
+  return json({ ok: !rodada.erro && !alertas.erro && !credenciais?.erro, rodada, credenciais, alertas });
 }
 
 function json(data, status = 200) {

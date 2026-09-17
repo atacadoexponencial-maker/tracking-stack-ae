@@ -21,6 +21,7 @@ import { deveCriarCard, montarCard, TAG_EDICAO } from './_greenn-clickup.js';
 import { sendToGHL } from '../../tracker.js';
 import { inscreverComTag } from '../_manychat.js';
 import { normalizePhone } from '../_hash.js';
+import { registrarHorario } from '../_horario-registro.js';
 
 // ID da tag do ManyChat que marca o comprador desta EDIÇÃO — a tag
 // `compradores-wopago-2309` (edição de 23/09), criada na conta em 2026-09-14.
@@ -38,9 +39,9 @@ import {
   CU_DEFAULT_LIST,
   clickupFetch,
   searchClickUpTask,
+  searchClickUpTaskPorTelefone,
   clickupWrite,
   addClickUpTag,
-  toClickUpPhone,
 } from '../_clickup.js';
 
 // GET/HEAD respondem 200 só para dizer "esta URL existe".
@@ -117,6 +118,8 @@ export async function onRequestPost(context) {
   // Íntegro, sem truncar: o raw_json é a fonte da verdade desta tabela, e um
   // corte no meio produziria JSON inválido.
   const cru = JSON.stringify(body);
+  // Horário suspeito (spec-protecoes-integracoes.md): só observação.
+  context.waitUntil(registrarHorario(env, 'greenn', evento.entity_updated, { ref: `${evento.entity_type}:${evento.entity_id}` }));
 
   let linhaId = null;
   try {
@@ -243,7 +246,7 @@ async function pontearParaClickUp(env, payload, linhaId) {
     let existente = null;
     try {
       existente =
-        (await searchClickUpTask(CU_FIELD.whatsapp, toClickUpPhone(cliente.cellphone), env)) ||
+        (await searchClickUpTaskPorTelefone(CU_FIELD.whatsapp, cliente.cellphone, env)) ||
         (await searchClickUpTask(CU_FIELD.email, cliente.email || '', env));
     } catch (e) {
       console.error('greenn — busca no ClickUp falhou, seguindo como novo:', e?.message || e);

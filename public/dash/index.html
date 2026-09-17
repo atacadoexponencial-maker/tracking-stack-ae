@@ -294,7 +294,7 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
         <span class="nav-rotulo" id="nav-diagnostico">Diagnóstico</span>
         <a href="#jornada" data-secao="jornada">Jornada</a>
         <a href="#eventos" data-secao="eventos">Eventos</a>
-        <a href="#saude-meta" data-secao="saude-meta">Saúde do Meta</a>
+        <a href="#saude-meta" data-secao="saude-meta">Saúde das integrações</a>
       </div>
     </nav>
   </aside>
@@ -589,6 +589,21 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
         </div>
       </div>
       <div class="card"><h2>Captura de identificadores de clique <small>visitas vindas de anúncio, sem bots</small></h2><div class="grid-kpi" id="saude-captura" style="margin-bottom:0"></div></div>
+      <!-- Proteções nas integrações (spec-protecoes-integracoes.md): sempre o
+           momento atual, independentes do período do topo. -->
+      <div class="card">
+        <h2>Credenciais <small id="cred-rodada">conferidas 1 vez por dia · nunca mostra o valor</small></h2>
+        <div class="saude-acoes" style="margin-bottom:0.7rem">
+          <button class="btn sec" type="button" id="cred-checar">Checar agora</button>
+          <span class="mini" id="cred-resultado" role="status" aria-live="polite"></span>
+        </div>
+        <div class="tabela-wrap" id="cred-tabela"></div>
+        <details id="cred-nao-se-aplica" hidden style="margin-top:0.7rem"><summary class="mini" style="cursor:pointer"></summary><div class="tabela-wrap" id="cred-nao-se-aplica-tabela"></div></details>
+      </div>
+      <div class="card">
+        <h2>Horário das integrações <small>últimas 24 h · clique numa fonte para ver os eventos suspeitos</small></h2>
+        <div class="tabela-wrap" id="horario-tabela"></div>
+      </div>
       <div class="duas-colunas">
         <div class="card"><h2>Últimas rodadas de reenvio</h2><div class="tabela-wrap" id="saude-rodadas"></div></div>
         <div class="card"><h2>Alertas enviados</h2><div class="tabela-wrap" id="saude-alertas"></div></div>
@@ -2099,6 +2114,9 @@ function htmlToque(t) {
 const SAUDE_CATEGORIAS = { credencial: 'Credencial', evento: 'Evento recusado', passageira: 'Falha passageira', esgotou: 'Esgotou as tentativas', expirou: 'Expirou', EntrouGrupo: 'EntrouGrupo (fila própria)' };
 const SAUDE_ESTADOS = { saudavel: 'Saudável', atencao: 'Atenção', incidente: 'Incidente' };
 const SAUDE_ALERTAS = { alerta: 'Alerta', lembrete: 'Lembrete', recuperacao: 'Recuperação', teste: 'Teste' };
+const CRED_SITUACOES = { problema: 'Problema', nao_confirmado: 'Não confirmado', ok: 'OK', nao_se_aplica: 'Não se aplica' };
+const HORARIO_SITUACOES = { normal: 'Normal', suspeito: 'Suspeito', corrigido: 'Defeito conhecido, corrigido', pouco_volume: 'Pouco volume para avaliar' };
+const minutosTxt = (m) => (m == null ? '—' : m >= 120 ? `${Math.round(m / 60)} h` : `${m} min`);
 const taxaTxt = (t) => (t === null || t === undefined ? '<span class="semdado">—</span>' : fmtPct(t * 100, 1));
 const idade = (seg) => { if (seg == null) return '—'; const h = Math.floor(seg / 3600); return h >= 48 ? `${Math.floor(h / 24)} dias` : h >= 1 ? `${h} h` : `${Math.max(1, Math.floor(seg / 60))} min`; };
 let saudeFalhasPagina = 1;
@@ -2185,11 +2203,87 @@ R['saude-meta'] = async () => {
       ${d.alertas.map((a) => `<tr><td><span class="mini">${fmtData(a.criado_em)}</span></td><td>${esc(SAUDE_ALERTAS[a.tipo] || a.tipo)}</td><td>${a.entregue ? '<span class="mini">entregue</span>' : `<span class="falha" title="${esc(a.erro || '')}">não entregue</span>`}</td></tr>`).join('')}
     </tbody></table>`;
 
+  desenharCredenciais(d);
+  desenharHorarios(d);
+
   const selTipo = $('#saude-falhas-tipo'), atual = selTipo.value;
   selTipo.innerHTML = '<option value="">Todos os tipos</option>' + linhas.map((l) => `<option value="${esc(l.tipo)}">${esc(l.tipo)}</option>`).join('');
   selTipo.value = [...selTipo.options].some((o) => o.value === atual) ? atual : '';
   await carregarFalhasSaude();
 };
+
+// ---------- credenciais e horário (spec-protecoes-integracoes.md) ----------
+function desenharCredenciais(d) {
+  const alvo = $('#cred-tabela');
+  if (d.credenciaisErro) { alvo.innerHTML = `<div class="aviso falha">${esc(d.credenciaisErro)}</div>`; return; }
+  const itens = (d.credenciais && d.credenciais.itens) || [];
+  const rodada = d.credenciais && d.credenciais.ultimaRodada;
+  $('#cred-rodada').textContent = rodada
+    ? `última checagem ${fmtData(rodada.iniciada_em)} (${rodada.origem === 'manual' ? 'manual' : 'automática'}) · nunca mostra o valor`
+    : 'conferidas 1 vez por dia · nunca mostra o valor';
+  if (!itens.length) { alvo.innerHTML = '<div class="aviso">Ainda não houve checagem.</div>'; $('#cred-nao-se-aplica').hidden = true; return; }
+  const linha = (c) => `<tr><td>${esc(c.integracao)}</td><td><code>${esc(c.nome)}</code></td>
+    <td>${c.situacao === 'problema' ? `<span class="falha">${CRED_SITUACOES[c.situacao]}</span>` : c.situacao === 'nao_confirmado' ? `<span style="color:var(--warn)">${CRED_SITUACOES[c.situacao]}</span>` : esc(CRED_SITUACOES[c.situacao] || c.situacao)}</td>
+    <td><span class="mini">${esc((c.motivos || []).join(' ') || c.nota || '')}</span></td>
+    <td><span class="mini">${fmtData(c.desde)}</span></td><td><span class="mini">${fmtData(c.checado_em)}</span></td></tr>`;
+  const cab = '<thead><tr><th>Integração</th><th>Nome</th><th>Situação</th><th>Motivo</th><th>Desde</th><th>Checada</th></tr></thead>';
+  const principais = itens.filter((c) => c.situacao !== 'nao_se_aplica');
+  const recolhidos = itens.filter((c) => c.situacao === 'nao_se_aplica');
+  alvo.innerHTML = `<table>${cab}<tbody>${principais.map(linha).join('')}</tbody></table>`;
+  const det = $('#cred-nao-se-aplica');
+  det.hidden = !recolhidos.length;
+  det.querySelector('summary').textContent = `${recolhidos.length} opcionais não configuradas`;
+  $('#cred-nao-se-aplica-tabela').innerHTML = `<table>${cab}<tbody>${recolhidos.map(linha).join('')}</tbody></table>`;
+}
+
+function desenharHorarios(d) {
+  const alvo = $('#horario-tabela');
+  if (d.horariosErro) { alvo.innerHTML = `<div class="aviso falha">${esc(d.horariosErro)}</div>`; return; }
+  const fontes = d.horarios || [];
+  tabela(alvo, [
+    { titulo: 'Fonte', campo: 'rotulo', render: (f) => esc(f.rotulo) },
+    { titulo: 'Eventos 24 h', num: true, campo: 'eventos', render: (f) => fmtInt(f.eventos) },
+    { titulo: 'Sem horário', num: true, campo: 'semHorario', render: (f) => fmtInt(f.semHorario) },
+    { titulo: 'Desvio típico', num: true, campo: 'medianaMin', render: (f) => minutosTxt(f.medianaMin) + (f.depoisDaCorrecao ? `<br><span class="mini">depois da correção: ${minutosTxt(f.depoisDaCorrecao.medianaMin)}</span>` : '') },
+    { titulo: 'Suspeitos', num: true, campo: 'fracaoSuspeitos', render: (f) => (f.eventos - f.semHorario ? fmtPct(f.fracaoSuspeitos * 100, 0) : '—') },
+    { titulo: 'Situação', campo: 'situacao', render: (f) => f.situacao === 'suspeito' ? `<span class="falha">${HORARIO_SITUACOES[f.situacao]}</span>` : esc(HORARIO_SITUACOES[f.situacao] || f.situacao) },
+    { titulo: 'Diagnóstico', render: (f) => `<span class="mini">${esc(f.diagnostico)}</span>` + (f.ultimoSuspeito ? `<br><span class="mini">último suspeito: informado ${fmtData(f.ultimoSuspeito.informado)}, chegou ${fmtData(f.ultimoSuspeito.chegada)} (${minutosTxt(Math.abs(f.ultimoSuspeito.desvio_min))})</span>` : '') },
+  ], fontes, (f) => abrirDetalheHorario(f));
+}
+
+async function abrirDetalheHorario(fonte) {
+  $('#modal-titulo').textContent = `Horário: ${fonte.rotulo}`;
+  $('#modal-sub').textContent = 'eventos suspeitos recentes · sem dados pessoais';
+  $('#modal-corpo').innerHTML = '<div class="aviso">Carregando…</div>';
+  focoAntesDoModal = document.activeElement;
+  $('#modal-fundo').hidden = false;
+  $('#modal-fechar').focus();
+  try {
+    const d = await saudeApi(`/api/meta-saude?view=horario-detalhe&fonte=${encodeURIComponent(fonte.fonte)}`);
+    const s = d.suspeitos || [];
+    $('#modal-corpo').innerHTML = !s.length ? '<div class="aviso">Nenhum evento suspeito registrado.</div>'
+      : `<div class="tabela-wrap"><table><thead><tr><th>Informado</th><th>Chegou</th><th class="num">Desvio</th><th>Evento</th></tr></thead><tbody>
+        ${s.map((x) => `<tr><td><span class="mini">${fmtData(x.informado)}</span></td><td><span class="mini">${fmtData(x.chegada)}</span></td><td class="num">${x.desvio_min < 0 ? '−' : ''}${minutosTxt(Math.abs(x.desvio_min))}</td><td><span class="mini">${esc(x.ref || '—')}</span></td></tr>`).join('')}
+      </tbody></table></div>`;
+  } catch (e) {
+    $('#modal-corpo').innerHTML = `<div class="aviso falha">${esc(e.mensagemUsuario || 'Não foi possível carregar os eventos suspeitos.')}</div>`;
+  }
+}
+
+$('#cred-checar').addEventListener('click', async () => {
+  const btn = $('#cred-checar');
+  btn.disabled = true;
+  $('#cred-resultado').textContent = 'Checando…';
+  try {
+    const r = await saudeApi('/api/meta-saude', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'checar-credenciais' }) });
+    $('#cred-resultado').textContent = r.mensagem;
+    await render();
+  } catch (e) {
+    $('#cred-resultado').textContent = e.mensagemUsuario || 'Não foi possível checar as credenciais agora.';
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 async function carregarFalhasSaude() {
   const p = intervalo();
@@ -2391,7 +2485,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde do Meta' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.

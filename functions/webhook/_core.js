@@ -37,6 +37,7 @@
 
 import PRODUCTS_CONFIG from '../../config/products.js';
 import { registrarPrimeiraTentativa } from '../api/_meta-fila.js';
+import { padronizarTelefone } from '../_telefone.js';
 
 // Module-scope OAuth2 access token cache for Google Ads API.
 // Reused across warm worker invocations to skip the refresh round-trip.
@@ -762,23 +763,10 @@ async function sha256(value) {
 // detect and prepend as needed. `countryCode` defaults to 55 (Brazil);
 // recipients elsewhere set `env.DEFAULT_COUNTRY_CODE` — see the
 // "decisions the recipient must make" table in CLAUDE.md.
+// Regra única de telefone (spec-protecoes-integracoes.md). Antes esta era uma
+// cópia do normalizePhone do _hash.js, que não completava o nono dígito.
 function normalizePhone(ph, countryCode) {
-  if (!ph) return '';
-  const cc = String(countryCode || '55');
-  const digits = ph.replace(/\D/g, '').replace(/^0+/, '');
-  if (!digits) return '';
-  // Already starts with the configured country code at a plausible
-  // total length → leave as-is.
-  if (digits.startsWith(cc) && digits.length >= cc.length + 8 && digits.length <= cc.length + 11) {
-    return digits;
-  }
-  // Plausibly a locally-formatted number (no country code yet) → prepend.
-  if (digits.length >= 8 && digits.length <= 11) {
-    return cc + digits;
-  }
-  // Any other length (likely an already-international foreign number
-  // whose country code isn't our default) → leave untouched.
-  return digits;
+  return padronizarTelefone(ph).digitos;
 }
 
 // Meta Advanced Matching spec for fn/ln is lowercase only — do NOT strip

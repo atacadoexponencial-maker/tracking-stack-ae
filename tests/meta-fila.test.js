@@ -1,6 +1,6 @@
 // Fila de reenvio ao Meta contra SQLite de verdade, com a migration 0041 real
 // (spec-capi-reenvio-monitoramento.md, critérios de aceite 1–10, 16–20).
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
@@ -35,8 +35,11 @@ function novoBanco() {
       criado_em INTEGER, enviado_em INTEGER);
     CREATE TABLE sessions (session_id TEXT PRIMARY KEY, utm_source TEXT, utm_medium TEXT, fbclid TEXT, gclid TEXT,
       ip_address TEXT, user_agent TEXT, created_at INTEGER);
+    CREATE TABLE lead_dispatch (id INTEGER PRIMARY KEY, event_id TEXT, email TEXT, phone TEXT, funnel TEXT,
+      resultado TEXT, task_id TEXT, task_url TEXT, erro TEXT, criado_em INTEGER, lead_json TEXT, tentativas INTEGER DEFAULT 0);
   `);
   db.exec(readFileSync(new URL('../migrations/0041_meta_envios.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0042_protecoes_integracoes.sql', import.meta.url), 'utf8'));
   return db;
 }
 
@@ -342,12 +345,21 @@ test('critério 20: "Tentar de novo" devolve a falha à fila dentro da janela e 
   assert.equal((await post(f2.id)).status, 400);
 });
 
-test('sync: exige x-sync-secret e roda rodada + alertas', async () => {
+test('sync: exige x-sync-secret e roda rodada + checagem de credenciais + alertas', async () => {
   const db = novoBanco(); const env = { ...envCom(db), SYNC_SECRET: 's' };
+  // A checagem de credenciais consulta Meta e ClickUp: aqui, respostas simuladas.
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => new Response('{}', { status: 200 });
+  after(() => { globalThis.fetch = original; });
   assert.equal((await reenvioPost({ request: req('/api/sync/meta-reenvio', { method: 'POST' }), env })).status, 401);
   const r = await reenvioPost({ request: req('/api/sync/meta-reenvio', { method: 'POST', headers: { 'x-sync-secret': 's' } }), env });
   const d = await r.json();
   assert.equal(r.status, 200);
   assert.equal(d.rodada.vazia, true);
-  assert.deepEqual(d.alertas.condicoes, []);
+  assert.equal(d.credenciais.executada, true, 'primeira rodada do dia checa as credenciais');
+  // Credenciais obrigatórias ausentes no ambiente de teste viram condição de alerta.
+  assert.ok(d.alertas.condicoes.includes('credencial_problema'));
+  const valorQueNaoPodeVazar = 'tok';
+  const gravado = JSON.stringify(db.prepare('SELECT * FROM credenciais_estado').all());
+  assert.ok(!gravado.includes(valorQueNaoPodeVazar), 'valor de credencial nunca é gravado');
 });
