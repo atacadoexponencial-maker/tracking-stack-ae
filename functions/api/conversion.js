@@ -247,7 +247,7 @@ export async function onRequestGet(context) {
 // sondas de scanner) porque a lista de sondas sem ponto (/env, /login,
 // /admin, /graphql, /rest/*, hashes aleatórios...) é grande demais e
 // sempre incompleta — whitelist é o menor conjunto estável.
-const KNOWN_PAGE_PATHS = new Set([
+export const KNOWN_PAGE_PATHS = new Set([
   '/',
   '/lives-semanais-v1',
   '/lives-semanais-v2',

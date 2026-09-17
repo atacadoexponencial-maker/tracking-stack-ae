@@ -9,6 +9,7 @@
 // sessions.landing_url: o denominador do teste é quem foi SORTEADO.
 
 import { avaliarTeste } from './_ab-estatistica.js';
+import { KNOWN_PAGE_PATHS } from './conversion.js';
 import { clausulasBotSql, clausulasBotIpSql } from '../_bots.js';
 import { invalidarCacheAb, normalizarPath } from '../_ab-consulta.js';
 
@@ -117,7 +118,10 @@ export async function onRequestGet(context) {
     };
   });
 
-  return json({ agora, rows });
+  // As páginas que a tela oferece nos dois seletores. Vem do backend porque a
+  // whitelist já existe lá (conversion.js) e tela com lista própria é lista que
+  // um dia diverge das páginas que existem de verdade.
+  return json({ agora, rows, paginas: [...KNOWN_PAGE_PATHS].filter((p) => !EXCLUIR_DOS_SELETORES.has(p)) });
 }
 
 export async function onRequestPost(context) {
@@ -185,9 +189,12 @@ export async function onRequestPost(context) {
   const nome = str(corpo.nome);
   if (!nome) return json({ error: 'Dê um nome ao teste (ex.: "Home — oferta nova").' }, 400);
 
-  const slug = str(corpo.slug).toLowerCase();
-  if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(slug)) {
-    return json({ error: 'Identificador inválido: use letras minúsculas, números e hífens (ex.: home-oferta-2026-08).' }, 400);
+  // O identificador não é mais digitado: sai do nome. Ele só existe para o
+  // cookie que segura a pessoa na mesma variante, e pedir isso na tela era mais
+  // um campo sem significado para quem usa.
+  const slug = slugDoNome(nome);
+  if (!slug) {
+    return json({ error: 'O nome do teste precisa ter letras ou números.' }, 400);
   }
 
   // Validar ANTES de normalizar: normalizarPath('') devolve '/', então um campo
@@ -201,6 +208,29 @@ export async function onRequestPost(context) {
   const caminho = normalizarPath(pathCru);
   if (!caminho.startsWith('/') || caminho === '/ab' || caminho.startsWith('/ab/')) {
     return json({ error: 'Informe a página testada começando com / (ex.: /aplicacao-mentoria).' }, 400);
+  }
+
+  // Página B: o que muda de verdade nesta revisão. Antes era sempre
+  // `/ab/<slug>/b`, um arquivo que só existia se eu criasse no código — e a
+  // tela nem perguntava por ela, o que deixou a aba incompreensível para quem
+  // ia usá-la (relato da usuária em 2026-09-17). Agora é uma página que já
+  // existe no site, escolhida na tela.
+  const pathBCru = str(corpo.path_b);
+  if (!pathBCru) {
+    return json({ error: 'Escolha a página B (a nova), começando com / (ex.: /se-v3).' }, 400);
+  }
+  const caminhoB = normalizarPath(pathBCru);
+  if (!caminhoB.startsWith('/') || caminhoB === '/ab' || caminhoB.startsWith('/ab/')) {
+    return json({ error: 'Escolha a página B (a nova), começando com / (ex.: /se-v3).' }, 400);
+  }
+  if (caminhoB === caminho) {
+    return json({ error: 'A página B precisa ser diferente da página A — senão não há o que comparar.' }, 400);
+  }
+  if (!KNOWN_PAGE_PATHS.has(caminhoB)) {
+    return json({ error: `A página ${caminhoB} não existe no site. Escolha uma da lista.` }, 400);
+  }
+  if (!KNOWN_PAGE_PATHS.has(caminho)) {
+    return json({ error: `A página ${caminho} não existe no site. Escolha uma da lista.` }, 400);
   }
 
   const metaLeads = parseInt(corpo.meta_leads_variante, 10);
@@ -237,14 +267,17 @@ export async function onRequestPost(context) {
     await env.DB.prepare("UPDATE ab_variants SET peso = ? WHERE test_id = ? AND chave = 'a'")
       .bind(pesoA, id).run();
     await env.DB.prepare("UPDATE ab_variants SET peso = ?, page_path = ? WHERE test_id = ? AND chave = 'b'")
-      .bind(pesoB, `/ab/${slug}/b`, id).run();
+      .bind(pesoB, caminhoB, id).run();
 
     invalidarCacheAb();
     return json({ ok: true, id });
   }
 
   const jaExiste = await env.DB.prepare('SELECT id FROM ab_tests WHERE slug = ?').bind(slug).first();
-  if (jaExiste) return json({ error: 'Já existe um teste com esse identificador.' }, 400);
+  // A mensagem fala do NOME porque o identificador não aparece mais na tela:
+  // dizer "identificador repetido" para quem só digitou um nome é mandar a
+  // pessoa procurar um campo que não existe.
+  if (jaExiste) return json({ error: 'Já existe um teste com esse nome. Escolha outro nome.' }, 400);
 
   const r = await env.DB.prepare(`
     INSERT INTO ab_tests (slug, nome, path, status, meta_leads_variante, meta_dias, criado_em, atualizado_em)
@@ -257,7 +290,7 @@ export async function onRequestPost(context) {
     env.DB.prepare("INSERT INTO ab_variants (test_id, chave, page_path, peso) VALUES (?, 'a', '', ?)")
       .bind(novoId, pesoA),
     env.DB.prepare("INSERT INTO ab_variants (test_id, chave, page_path, peso) VALUES (?, 'b', ?, ?)")
-      .bind(novoId, `/ab/${slug}/b`, pesoB),
+      .bind(novoId, caminhoB, pesoB),
   ]);
 
   invalidarCacheAb();
@@ -265,6 +298,27 @@ export async function onRequestPost(context) {
 }
 
 const str = (v) => (v == null ? '' : String(v)).trim();
+
+// Páginas que nunca fazem sentido como A ou B num teste: agradecimentos,
+// redirects legados e o endpoint do grupo. Deixá-las na lista só daria chance
+// de escolher errado.
+const EXCLUIR_DOS_SELETORES = new Set([
+  '/obrigada', '/obrigado', '/obrigado-workshop', '/ae-video-workshop',
+  '/grupo-da-live', '/obrigado-black-exponencial',
+  '/calculadora-atacado/perguntas', '/calculadora-atacado/resultado',
+]);
+
+// "Home × SE v3" → "home-se-v3". Sufixo numérico é responsabilidade de quem
+// chama (o nome repetido devolve erro de identificador já existente).
+function slugDoNome(nome) {
+  return nome
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50)
+    .replace(/-+$/g, '');
+}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {

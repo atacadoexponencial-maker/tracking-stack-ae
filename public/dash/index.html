@@ -519,20 +519,36 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 
       <div class="card">
         <h2 id="ab-form-titulo">Novo teste</h2>
+        <ol class="mini" style="margin:0 0 0.9rem; padding-left:1.1rem; line-height:1.6">
+          <li><b>Crie</b> o teste escolhendo as duas páginas que vão disputar.</li>
+          <li><b>Ative</b>. Só criar não liga nada — enquanto não ativar, o site segue mostrando só a página A.</li>
+          <li><b>Espere o veredito.</b> Ele só sai quando as DUAS metas forem atingidas: os leads por página E os dias.
+            Parar antes disso, no meio de um número bonito, é o erro que transforma sorte em decisão.</li>
+        </ol>
+        <p class="mini" style="margin:0 0 0.9rem">
+          Atingidas as metas, a aba diz "vence a B", "vence a A" ou "sem diferença" — empate também é resposta.
+          <b>Nada é automático:</b> quem encerra o teste é você, e trocar a página vencedora de lugar
+          (por exemplo, a nova virar a home) continua sendo uma mudança feita no código.
+        </p>
         <form id="ab-form" style="display:grid; gap:0.6rem; max-width:640px">
           <input type="hidden" id="ab-id">
-          <input type="text" id="ab-nome" aria-label="Nome do teste" placeholder="Nome do teste (ex.: Home — oferta nova)" required>
-          <input type="text" id="ab-slug" aria-label="Identificador do teste" placeholder="Identificador (ex.: home-oferta-2026-08)" required>
-          <input type="text" id="ab-path" aria-label="Página testada" placeholder="Página testada (ex.: /aplicacao-mentoria)" required>
+          <label>Nome do teste
+            <input type="text" id="ab-nome" placeholder="ex.: Home × SE v3 (hero com foto)" required style="width:100%"></label>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap">
-            <label style="flex:1; min-width:180px">Leads por variante
+            <label style="flex:1; min-width:220px">Página A — a que está no ar hoje
+              <select id="ab-path" required style="width:100%"></select></label>
+            <label style="flex:1; min-width:220px">Página B — a nova
+              <select id="ab-path-b" required style="width:100%"></select></label>
+          </div>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap">
+            <label style="flex:1; min-width:180px">Leads em cada página antes de decidir
               <input type="number" id="ab-leads" min="10" step="1" value="60" style="width:100%"></label>
-            <label style="flex:1; min-width:180px">Dias (semanas inteiras)
+            <label style="flex:1; min-width:180px">Dias no mínimo (de 7 em 7)
               <input type="number" id="ab-dias" min="14" step="7" value="14" style="width:100%"></label>
-            <label style="flex:1; min-width:180px">Fatia da variante B (%)
+            <label style="flex:1; min-width:180px">Quanto do tráfego vai para a B (%)
               <input type="number" id="ab-peso" min="1" max="99" step="1" value="50" style="width:100%"></label>
           </div>
-          <p class="mini">A variante B precisa existir em <code>src/pages/ab/&lt;identificador&gt;/b.astro</code> antes de ativar.</p>
+          <p class="mini">Quem entra uma vez continua vendo a mesma página nas próximas visitas, para o teste medir a página e não a novidade.</p>
           <div id="ab-erro" class="aviso falha" hidden></div>
           <div style="display:flex; gap:0.5rem">
             <button class="btn" type="submit">Salvar</button>
@@ -1609,11 +1625,16 @@ $('#links-form').addEventListener('submit', async (ev) => {
 // da real — e aqui a regra existe justamente para conter a vontade de decidir
 // cedo demais.
 const AB_ESTADOS = {
-  rodando: 'Ainda rodando — não decida agora',
-  'sem-diferenca': 'Sem diferença detectável entre as versões',
-  conclusivo: 'Resultado confiável (95%)',
+  rodando: 'Ainda rodando — não dá para decidir agora',
+  'sem-diferenca': 'As duas páginas empataram: a diferença que apareceu cabe no acaso',
+  conclusivo: 'Pode decidir: a diferença é real (95% de confiança)',
 };
-const AB_STATUS = { rascunho: 'rascunho', ativo: 'ATIVO', pausado: 'pausado', encerrado: 'encerrado' };
+const AB_STATUS = {
+  rascunho: 'rascunho (ainda não está no ar)',
+  ativo: 'NO AR',
+  pausado: 'pausado',
+  encerrado: 'encerrado',
+};
 const pct = (n) => (n * 100).toFixed(2).replace('.', ',') + '%';
 
 // ---------- bloqueios ----------
@@ -1958,6 +1979,7 @@ $('#funisrel-form').addEventListener('submit', async (ev) => {
 R.ab = async () => {
   const dados = await fetchJson('/api/ab-tests');
   const linhas = dados.rows || [];
+  preencherPaginasAb(dados.paginas || []);
 
   if (!linhas.length) {
     $('#ab-lista').innerHTML = '<p class="mini">Nenhum teste cadastrado ainda.</p>';
@@ -1970,7 +1992,8 @@ R.ab = async () => {
 
     const corpo = [a, b].map((x) => `
       <tr>
-        <td>${x.chave === 'a' ? 'A (atual)' : 'B (nova)'} <span class="mini">${x.peso}%</span></td>
+        <td>${x.chave === 'a' ? 'A — atual' : 'B — nova'}
+          <span class="mini">${esc(x.chave === 'a' ? t.path : x.page_path)} · ${x.peso}% do tráfego</span></td>
         <td class="num">${x.visitas}</td>
         <td class="num">${x.form_starts}</td>
         <td class="num">${x.leads}</td>
@@ -1978,9 +2001,9 @@ R.ab = async () => {
       </tr>`).join('');
 
     const progresso = t.status === 'encerrado'
-      ? `<p class="mini">Encerrado — vencedor declarado: <b>${esc(t.vencedor || 'nenhum')}</b></p>`
-      : `<p class="mini">Progresso: faltam ${v.faltamLeads} leads na variante mais atrasada e ${v.faltamDias} dias · alvo ${v.metaLeads} leads/variante em ${v.metaDias} dias</p>
-         <p class="nota-estado${v.estado === 'conclusivo' ? ' ok' : ''}">${AB_ESTADOS[v.estado] || ''}${v.estado === 'conclusivo' && v.vencedor ? ` — vence a variante <b>${v.vencedor.toUpperCase()}</b>` : ''}</p>`;
+      ? `<p class="mini">Encerrado — vencedor declarado: <b>${esc(t.vencedor === 'a' ? t.path : t.vencedor === 'b' ? ((t.variantes.find((x) => x.chave === 'b') || {}).page_path || 'B') : 'nenhum')}</b>. Trocar a página de lugar é uma mudança no código, e não acontece sozinha.</p>`
+      : `<p class="mini">Para o veredito sair faltam <b>${v.faltamLeads} leads</b> na página mais atrasada e <b>${v.faltamDias} dias</b> — a meta é ${v.metaLeads} leads em cada página e ${v.metaDias} dias no mínimo.</p>
+         <p class="nota-estado${v.estado === 'conclusivo' ? ' ok' : ''}">${AB_ESTADOS[v.estado] || ''}${v.estado === 'conclusivo' && v.vencedor ? ` — vence a página <b>${esc(v.vencedor === 'a' ? t.path : (t.variantes.find((x) => x.chave === 'b') || {}).page_path || 'B')}</b>` : ''}</p>`;
 
     const srm = v.srm.alerta
       ? '<div class="aviso falha">A divisão do tráfego está torta (bug, bot ou cache). Enquanto isso não for resolvido, o resultado deste teste não vale.</div>'
@@ -1990,7 +2013,7 @@ R.ab = async () => {
       ${t.status !== 'ativo' ? `<button class="btn sec" type="button" data-ab-ativar="${t.id}">ativar</button>` : ''}
       ${t.status === 'ativo' ? `<button class="btn sec" type="button" data-ab-pausar="${t.id}">pausar</button>` : ''}
       ${t.status === 'rascunho' ? `<button class="btn sec" type="button" data-ab-editar="${t.id}">editar</button>` : ''}
-      <a class="btn sec" href="${esc(t.url_preview)}" target="_blank" rel="noopener">ver variante B</a>
+      <a class="btn sec" href="${esc(t.url_preview)}" target="_blank" rel="noopener">abrir a página B</a>
       <button class="btn perigo" type="button" data-ab-encerrar="${t.id}">encerrar</button>`;
 
     return `
@@ -2026,8 +2049,8 @@ R.ab = async () => {
       const t = linhas.find((x) => String(x.id) === editar.dataset.abEditar);
       $('#ab-id').value = t.id;
       $('#ab-nome').value = t.nome;
-      $('#ab-slug').value = t.slug;
       $('#ab-path').value = t.path;
+      $('#ab-path-b').value = (t.variantes.find((x) => x.chave === 'b') || {}).page_path || '';
       $('#ab-leads').value = t.meta_leads_variante;
       $('#ab-dias').value = t.meta_dias;
       $('#ab-peso').value = (t.variantes.find((x) => x.chave === 'b') || {}).peso ?? 50;
@@ -2036,6 +2059,21 @@ R.ab = async () => {
     }
   };
 };
+
+// Monta os dois seletores de página com a lista que o backend manda. Preserva
+// o que já estava escolhido: a lista é recarregada a cada atualização da aba, e
+// sem isso a escolha sumiria no meio do preenchimento.
+function preencherPaginasAb(paginas) {
+  for (const id of ['#ab-path', '#ab-path-b']) {
+    const sel = $(id);
+    if (!sel) continue;
+    const escolhido = sel.value;
+    const rotulo = id === '#ab-path' ? 'Escolha a página atual' : 'Escolha a página nova';
+    sel.innerHTML = `<option value="">${rotulo}</option>`
+      + paginas.map((p) => `<option value="${esc(p)}">${esc(p === '/' ? '/ (home)' : p)}</option>`).join('');
+    if (escolhido) sel.value = escolhido;
+  }
+}
 
 async function salvarAb(corpo) {
   const erro = $('#ab-erro');
@@ -2070,8 +2108,8 @@ $('#ab-form').addEventListener('submit', async (ev) => {
   await salvarAb({
     id: $('#ab-id').value || undefined,
     nome: $('#ab-nome').value,
-    slug: $('#ab-slug').value,
     path: $('#ab-path').value,
+    path_b: $('#ab-path-b').value,
     meta_leads_variante: $('#ab-leads').value,
     meta_dias: $('#ab-dias').value,
     peso_b: $('#ab-peso').value,
