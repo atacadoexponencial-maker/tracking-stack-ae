@@ -288,56 +288,143 @@ const titulo =
     align-items: center;
     gap: 1.25rem;
   }
-  /* No celular o hero com foto é COMPACTO de propósito: o botão precisa
-     aparecer sem rolar, e a tela útil de um celular com a barra do navegador
-     aberta é ~660px de altura, não os 844 do aparelho. Por isso o padding
-     menor, o título menor e o selo mais discreto — a foto vem depois do CTA e
-     por isso não disputa a dobra. */
-  .hero--foto .hero__body {
-    max-width: 72rem;
-    gap: 0.9rem;
-    padding: 1.25rem 1.5rem 2rem;
-  }
-  .hero--foto { min-height: 0; }
-  .hero--foto .hero__nav { padding-block: 0.75rem; }
-  .hero--foto .hero__badge {
-    font-size: 0.62rem;
-    padding: 0.35rem 0.9rem;
-  }
-  .hero--foto .hero__title { font-size: clamp(1.6rem, 6.4vw, 3.25rem); }
-  .hero--foto .hero__sub { font-size: 0.95rem; }
-  .hero--foto .hero__cta { margin-top: 0.15rem; }
-  .hero__foto {
-    width: 100%;
-    height: auto;
-    max-width: 22rem;
-    border-radius: 1rem;
-  }
-  .hero__visual {
-    display: flex;
-    justify-content: center;
-  }
-
   @media (min-width: 768px) {
     .hero__nav-cta { display: inline-flex; }
     .hero__stats { grid-template-columns: repeat(4, 1fr); }
   }
 
-  /* Celular pequeno (360x600 com a barra do navegador, ainda comum): aqui o
-     aviso de cookies come a parte de baixo da tela, então o hero encolhe mais
-     para o botão sobrar inteiro acima dele. */
-  @media (max-width: 480px) {
-    .hero--foto .hero__body { gap: 0.7rem; padding: 0.75rem 1.25rem 1.5rem; }
-    .hero--foto .hero__title { font-size: 1.5rem; line-height: 1.15; }
-    .hero--foto .hero__sub { font-size: 0.88rem; line-height: 1.45; }
-    .hero--foto .hero__badge { font-size: 0.58rem; letter-spacing: 0.08em; }
-    .hero--foto .hero__cta { padding-block: 0.9rem; }
+  /* ---- Celular: foto ocupando o hero, texto por cima ----------------------
+     Formato pedido pela usuária em 17/09 (referência: a LP do Rise). A foto
+     preenche o hero e o texto fica sobre ela, no rodapé, com um degradê escuro
+     que garante a leitura. O título, a frase e o botão cabem na primeira tela
+     mesmo num celular de 600px de altura útil.
+     Acima de 900px isto some e volta o hero em duas colunas, sobre o bege. */
+  .hero--foto { min-height: 0; }
+  /* Sem a faixa do logo no celular (pedido em 17/09): a foto começa no topo da
+     tela e ganha a altura que a faixa ocupava. O logo volta no desktop. */
+  .hero--foto .hero__nav { display: none; }
+  .hero--foto .hero__body {
+    position: relative;
+    max-width: none;
+    margin-inline: 0;
+    min-height: 88svh;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1.25rem 1.25rem 1.75rem;
+    overflow: hidden;
   }
+  .hero--foto .hero__visual {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  .hero--foto .hero__foto {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    border-radius: 0;
+    object-fit: cover;
+    /* O rosto fica no terço de cima da foto; sem isto o corte do `cover`
+       centraliza e corta a testa em tela estreita. */
+    object-position: 50% 12%;
+  }
+  /* Degradê por cima da foto: transparente onde está o rosto, escuro onde
+     entra o texto. É o que torna o texto branco legível sem tapar a imagem. */
+  .hero--foto .hero__visual::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(20, 18, 16, 0) 26%,
+      rgba(20, 18, 16, 0.35) 44%,
+      rgba(20, 18, 16, 0.82) 62%,
+      rgba(20, 18, 16, 0.96) 80%
+    );
+  }
+  .hero--foto .hero__texto {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    color: #f7f3ee;
+  }
+  .hero--foto .hero__title { font-size: clamp(1.5rem, 6.2vw, 2rem); line-height: 1.14; }
+  .hero--foto .hero__sub { color: rgba(247, 243, 238, 0.85); font-size: 0.85rem; line-height: 1.4; }
+  /* Botão claro: sobre o degradê escuro, o pill preto padrão sumiria. Menor
+     que o padrão e com largura pelo conteúdo: em duas linhas e ocupando a
+     largura toda, ele dominava a tela (ajuste pedido em 17/09). */
+  .hero--foto .hero__cta {
+    background: #f7f3ee;
+    color: #1e1e1e;
+    margin-top: 0.15rem;
+    align-self: center;
+    width: auto;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    padding: 0.7rem 1.15rem;
+    gap: 0.5rem;
+  }
+  /* A bolinha da seta tem 2,25rem no hero padrão e é ela que deixava o botão
+     alto no celular. */
+  .hero--foto .hero__cta-arrow {
+    width: 1.4rem;
+    height: 1.4rem;
+    font-size: 0.75rem;
+    background: rgba(30, 30, 30, 0.12);
+  }
+  .hero--foto .hero__trust { font-size: 0.72rem; gap: 0.75rem; }
+  /* O selo sai no celular: é a linha menos essencial das quatro e é ela que
+     libera a altura para o rosto aparecer acima do texto. */
+  .hero--foto .hero__badge { display: none; }
+  .hero--foto .hero__trust,
+  .hero--foto .hero__trust-item { color: rgba(247, 243, 238, 0.75); }
 
   @media (min-width: 900px) {
-    /* No desktop o hero com foto volta ao respiro normal do hero padrão. */
+    .hero--foto .hero__nav { display: flex; }
+    /* No desktop volta o hero em duas colunas sobre o bege: sem degradê, sem
+       texto por cima da foto, com a foto numa coluna própria. */
     .hero--foto { min-height: 100vh; }
+    .hero--foto .hero__visual { position: static; }
+    .hero--foto .hero__visual::after { content: none; }
+    .hero--foto .hero__foto {
+      height: auto;
+      border-radius: 1rem;
+      object-fit: contain;
+    }
+    .hero--foto .hero__texto { color: inherit; }
+    .hero--foto .hero__title { font-size: clamp(2.25rem, 4vw, 3.25rem); }
+    .hero--foto .hero__sub { color: rgba(30, 30, 30, 0.7); font-size: 1rem; }
+    .hero--foto .hero__badge {
+      display: inline-block;
+      border-color: rgba(30, 30, 30, 0.15);
+      color: rgba(30, 30, 30, 0.7);
+      font-size: 0.7rem;
+    }
+    .hero--foto .hero__cta {
+      background: #1e1e1e;
+      color: #f5f0eb;
+      font-size: 0.875rem;
+      letter-spacing: 0.1em;
+      padding: 1.1rem 2.25rem;
+      gap: 0.75rem;
+    }
+    .hero--foto .hero__cta-arrow {
+      width: 2.25rem;
+      height: 2.25rem;
+      font-size: inherit;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .hero--foto .hero__trust { font-size: inherit; }
+    .hero--foto .hero__trust,
+    .hero--foto .hero__trust-item { color: inherit; }
     .hero--foto .hero__body {
+      position: static;
+      min-height: 0;
+      overflow: visible;
+      margin-inline: auto;
       gap: 2.5rem;
       padding: 4rem 1.5rem;
       display: grid;
@@ -346,6 +433,7 @@ const titulo =
       text-align: left;
     }
     .hero--foto .hero__texto { align-items: flex-start; }
+    .hero--foto .hero__cta { align-self: flex-start; }
     .hero--foto .hero__foto { max-width: 26rem; }
   }
 </style>
