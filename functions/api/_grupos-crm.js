@@ -1,7 +1,7 @@
-// Ponte: movimentação no grupo da live semanal → comentário no card do ClickUp.
+// Ponte: movimentação nos grupos de WhatsApp → comentário no card do ClickUp.
 //
-// Existe para o COMERCIAL: quando um lead que já está no CRM entra (ou sai) do
-// grupo da live, o card dele ganha um comentário dizendo isso, com data e hora.
+// Existe para o COMERCIAL: quando um lead que já está no CRM entra (ou sai) de
+// um grupo, o card dele ganha um comentário dizendo isso, com data e hora.
 // O comentário notifica quem é responsável pelo card e fica no histórico — é a
 // jornada do lead, que hoje só existia no dashboard.
 //
@@ -12,11 +12,14 @@
 //   - NUNCA cria card. Quem entrou no grupo e não é lead fica de fora — a LP
 //     nova da live não tem formulário, então isso é comum e é esperado.
 //
+// Os grupos participantes são os mesmos de `_grupos-manychat.js` (GRUPOS).
+//
 // Roda no mesmo `waitUntil` da ponte do ManyChat, depois da gravação no D1.
 // Nada aqui lança: falha no ClickUp não pode custar o evento.
 
 import { searchClickUpTaskPorTelefone, clickupFetch, clickupWrite, CU_FIELD } from './_clickup.js';
 import { telefoneDoJid, comNonoDigito } from './_grupo-conversao.js';
+import { configDoGrupo } from './_grupos-manychat.js';
 
 const FUSO_BRT = 'America/Sao_Paulo';
 
@@ -31,12 +34,12 @@ function momentoBrt(iso) {
   return `${data} às ${hora.replace(':', 'h')}`;
 }
 
-function textoDoComentario(action, iso) {
+function textoDoComentario(action, iso, rotulo) {
   const quando = momentoBrt(iso);
   const quandoTexto = quando ? ` em ${quando}` : '';
   return action === 'entrou'
-    ? `📥 Entrou no grupo de WhatsApp da live semanal${quandoTexto}.`
-    : `📤 Saiu do grupo de WhatsApp da live semanal${quandoTexto}.`;
+    ? `📥 Entrou no grupo de WhatsApp ${rotulo}${quandoTexto}.`
+    : `📤 Saiu do grupo de WhatsApp ${rotulo}${quandoTexto}.`;
 }
 
 function mascarar(telefone) {
@@ -44,22 +47,29 @@ function mascarar(telefone) {
   return t ? `•••••${t.slice(-4)}` : '(sem telefone)';
 }
 
-function log(desfecho, detalhe) {
-  console.error('grupo-live-crm —', desfecho, detalhe);
+function log(rotulo, desfecho, detalhe) {
+  console.error(`grupos-crm [${rotulo}] —`, desfecho, detalhe);
 }
 
 /**
  * Comenta no card de quem já é lead. `linhas` é o que o webhook acabou de
- * gravar (só as linhas novas), `occurredAt` é o instante do evento em ISO.
+ * gravar (só as linhas novas), `occurredAt` é o instante do evento em ISO e
+ * `groupJid` diz de qual grupo se trata (o rótulo entra no texto).
  *
  * Devolve o resumo por desfecho, usado no log. Nunca lança.
  */
-export async function registrarNoCrm(env, linhas, occurredAt) {
+export async function registrarNoCrm(env, linhas, occurredAt, groupJid) {
   const resumo = {};
   const conta = (d) => { resumo[d] = (resumo[d] || 0) + 1; };
 
+  // Rótulo do grupo: a mesma configuração que a ponte do ManyChat usa, para os
+  // dois nunca discordarem sobre quais grupos participam.
+  const cfg = configDoGrupo(groupJid);
+  if (!cfg) return {};
+  const rotulo = cfg.rotuloComArtigo;
+
   if (!env?.CLICKUP_API_TOKEN) {
-    log('sem_config', { motivo: 'CLICKUP_API_TOKEN ausente', linhas: linhas?.length || 0 });
+    log(cfg.rotulo, 'sem_config', { motivo: 'CLICKUP_API_TOKEN ausente', linhas: linhas?.length || 0 });
     return { sem_config: linhas?.length || 0 };
   }
 
@@ -85,12 +95,12 @@ export async function registrarNoCrm(env, linhas, occurredAt) {
 
       await clickupWrite(() => clickupFetch(`/task/${card.id}/comment`, {
         method: 'POST',
-        body: JSON.stringify({ comment_text: textoDoComentario(linha.action, occurredAt) }),
+        body: JSON.stringify({ comment_text: textoDoComentario(linha.action, occurredAt, rotulo) }),
       }, env));
       conta('comentado');
     } catch (e) {
       conta('erro');
-      log('erro', {
+      log(cfg.rotulo, 'erro', {
         acao: linha.action,
         telefone: mascarar(telefone),
         erro: String(e?.message || e).slice(0, 200),
@@ -98,6 +108,6 @@ export async function registrarNoCrm(env, linhas, occurredAt) {
     }
   }
 
-  log('resumo', resumo);
+  log(cfg.rotulo, 'resumo', resumo);
   return resumo;
 }
