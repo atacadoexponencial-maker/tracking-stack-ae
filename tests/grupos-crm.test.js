@@ -1,6 +1,9 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { registrarNoCrm } from '../functions/api/_grupo-live-crm.js';
+import { registrarNoCrm } from '../functions/api/_grupos-crm.js';
+
+const LIVE = '120363427499061913@g.us';
+const WORKSHOP = '120363380235066572@g.us';
 
 // A API do ClickUp é simulada; toda chamada fica registrada. O log da ponte vai
 // para console.error, silenciado para a saída do teste não virar ruído.
@@ -35,7 +38,7 @@ const comentarios = (chamadas) => chamadas.filter((c) => c.caminho.includes('/co
 test('lead que já existe no CRM: comentário com data e hora de Brasília', async () => {
   const chamadas = simularClickUp({ achar: () => card });
 
-  const resumo = await registrarNoCrm(env, [entrou('5521999990000')], quando);
+  const resumo = await registrarNoCrm(env, [entrou('5521999990000')], quando, LIVE);
 
   assert.deepEqual(resumo, { comentado: 1 });
   assert.deepEqual(comentarios(chamadas), [
@@ -46,7 +49,7 @@ test('lead que já existe no CRM: comentário com data e hora de Brasília', asy
 
 test('saída também vira comentário', async () => {
   const chamadas = simularClickUp({ achar: () => card });
-  const resumo = await registrarNoCrm(env, [saiu('5521999990000')], quando);
+  const resumo = await registrarNoCrm(env, [saiu('5521999990000')], quando, LIVE);
   assert.deepEqual(resumo, { comentado: 1 });
   assert.deepEqual(comentarios(chamadas), [
     '📤 Saiu do grupo de WhatsApp da live semanal em 17/09/2026 às 14h59.',
@@ -55,7 +58,7 @@ test('saída também vira comentário', async () => {
 
 test('quem não é lead: NENHUM card é criado', async () => {
   const chamadas = simularClickUp({ achar: () => null });
-  const resumo = await registrarNoCrm(env, [entrou('5521999990000')], quando);
+  const resumo = await registrarNoCrm(env, [entrou('5521999990000')], quando, LIVE);
   assert.deepEqual(resumo, { nao_e_lead: 1 });
   assert.equal(chamadas.every((c) => c.metodo === 'GET'), true);
 });
@@ -71,7 +74,7 @@ test('telefone sem o nono dígito acha o card gravado com o 9', async () => {
     },
   });
 
-  const resumo = await registrarNoCrm(env, [entrou('558496078857')], quando);
+  const resumo = await registrarNoCrm(env, [entrou('558496078857')], quando, LIVE);
 
   assert.deepEqual(resumo, { comentado: 1 });
   assert.equal(buscas.some((b) => b.includes('+5584996078857')), true);
@@ -79,14 +82,14 @@ test('telefone sem o nono dígito acha o card gravado com o 9', async () => {
 
 test('participante só com @lid: nenhuma chamada ao ClickUp', async () => {
   const chamadas = simularClickUp({ achar: () => card });
-  const resumo = await registrarNoCrm(env, [{ participantJid: '48249931051224@lid', action: 'entrou' }], quando);
+  const resumo = await registrarNoCrm(env, [{ participantJid: '48249931051224@lid', action: 'entrou' }], quando, LIVE);
   assert.deepEqual(resumo, { sem_telefone: 1 });
   assert.equal(chamadas.length, 0);
 });
 
 test('toda entrada comenta de novo: a recorrência é o que o comercial quer ver', async () => {
   const chamadas = simularClickUp({ achar: () => card });
-  const resumo = await registrarNoCrm(env, [entrou('5521999990000'), entrou('5521999990000')], quando);
+  const resumo = await registrarNoCrm(env, [entrou('5521999990000'), entrou('5521999990000')], quando, LIVE);
   assert.deepEqual(resumo, { comentado: 2 });
   assert.equal(comentarios(chamadas).length, 2);
 });
@@ -100,20 +103,36 @@ test('erro no ClickUp não derruba os outros participantes do evento', async () 
     comentar: () => { n += 1; return n <= 2 ? [500, {}] : [200, {}]; },
   });
 
-  const resumo = await registrarNoCrm(env, [entrou('5521999990000'), entrou('5521999990001')], quando);
+  const resumo = await registrarNoCrm(env, [entrou('5521999990000'), entrou('5521999990001')], quando, LIVE);
 
   assert.deepEqual(resumo, { erro: 1, comentado: 1 });
 });
 
 test('sem CLICKUP_API_TOKEN: desiste sem chamar nada', async () => {
   const chamadas = simularClickUp({ achar: () => card });
-  const resumo = await registrarNoCrm({}, [entrou('5521999990000')], quando);
+  const resumo = await registrarNoCrm({}, [entrou('5521999990000')], quando, LIVE);
   assert.deepEqual(resumo, { sem_config: 1 });
   assert.equal(chamadas.length, 0);
 });
 
 test('sem instante do evento, o comentário sai sem a data em vez de sair errado', async () => {
   const chamadas = simularClickUp({ achar: () => card });
-  await registrarNoCrm(env, [entrou('5521999990000')], null);
+  await registrarNoCrm(env, [entrou('5521999990000')], null, LIVE);
   assert.deepEqual(comentarios(chamadas), ['📥 Entrou no grupo de WhatsApp da live semanal.']);
+});
+
+test('comentário do workshop diz "do workshop", não "da live semanal"', async () => {
+  const chamadas = simularClickUp({ achar: () => card });
+  const resumo = await registrarNoCrm(env, [entrou('5521999990000')], quando, WORKSHOP);
+  assert.deepEqual(resumo, { comentado: 1 });
+  assert.deepEqual(comentarios(chamadas), [
+    '📥 Entrou no grupo de WhatsApp do workshop em 17/09/2026 às 14h59.',
+  ]);
+});
+
+test('grupo sem automação configurada: nenhuma chamada ao ClickUp', async () => {
+  const chamadas = simularClickUp({ achar: () => card });
+  const resumo = await registrarNoCrm(env, [entrou('5521999990000')], quando, '120363999999999999@g.us');
+  assert.deepEqual(resumo, {});
+  assert.equal(chamadas.length, 0);
 });

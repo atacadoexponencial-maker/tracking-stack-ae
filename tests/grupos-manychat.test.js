@@ -1,6 +1,10 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { pontearGrupoLive, TAG_GRUPO_LIVE, TAG_SAIU_GRUPO, TAG_BOAS_VINDAS_ENVIADA, FLUXO_BOAS_VINDAS } from '../functions/api/_grupo-live-manychat.js';
+import { pontearGrupo, GRUPOS } from '../functions/api/_grupos-manychat.js';
+
+const LIVE = '120363427499061913@g.us';
+const WORKSHOP = '120363380235066572@g.us';
+const cfgLive = GRUPOS[LIVE];
 
 // Mesmo padrão de tests/manychat.test.js: a API do ManyChat é simulada e toda
 // chamada fica registrada. O log da ponte vai para console.error, silenciado
@@ -37,7 +41,7 @@ test('entrou: inscreve, tagueia, dispara o fluxo e só então marca a tag de con
     '/fb/subscriber/removeTag': () => [200, {}],
   });
 
-  const resumo = await pontearGrupoLive(env, [entrou('5521999990000')]);
+  const resumo = await pontearGrupo(env, [entrou('5521999990000')], LIVE);
 
   assert.deepEqual(resumo, { inscrito: 1 });
   assert.deepEqual(caminhos(chamadas), [
@@ -49,15 +53,15 @@ test('entrou: inscreve, tagueia, dispara o fluxo e só então marca a tag de con
     '/fb/subscriber/removeTag',
   ]);
   assert.deepEqual(corpoDe(chamadas, '/fb/subscriber/addTag'), [
-    { subscriber_id: '777', tag_id: TAG_GRUPO_LIVE },
-    { subscriber_id: '777', tag_id: TAG_BOAS_VINDAS_ENVIADA },
+    { subscriber_id: '777', tag_id: cfgLive.tagGrupo },
+    { subscriber_id: '777', tag_id: cfgLive.tagBoasVindasEnviada },
   ]);
   assert.deepEqual(corpoDe(chamadas, '/fb/sending/sendFlow'), [
-    { subscriber_id: '777', flow_ns: FLUXO_BOAS_VINDAS },
+    { subscriber_id: '777', flow_ns: cfgLive.fluxoBoasVindas },
   ]);
   // "Voltou": a tag de saída sai de quem entrou.
   assert.deepEqual(corpoDe(chamadas, '/fb/subscriber/removeTag'), [
-    { subscriber_id: '777', tag_id: TAG_SAIU_GRUPO },
+    { subscriber_id: '777', tag_id: cfgLive.tagSaiu },
   ]);
 });
 
@@ -70,11 +74,11 @@ test('entrou e o fluxo é recusado: fica sem a tag de controle', async () => {
     '/fb/sending/sendFlow': () => [200, { status: 'error', message: 'template not approved' }],
   });
 
-  const resumo = await pontearGrupoLive(env, [entrou('5521999990000')]);
+  const resumo = await pontearGrupo(env, [entrou('5521999990000')], LIVE);
 
   assert.deepEqual(resumo, { entrada_erro: 1 });
   assert.deepEqual(corpoDe(chamadas, '/fb/subscriber/addTag'), [
-    { subscriber_id: '777', tag_id: TAG_GRUPO_LIVE },
+    { subscriber_id: '777', tag_id: cfgLive.tagGrupo },
   ]);
 });
 
@@ -84,12 +88,12 @@ test('saiu: aplica a tag de saída e NÃO mexe na tag de pertencimento nem cria 
     '/fb/subscriber/addTag': () => [200, {}],
   });
 
-  const resumo = await pontearGrupoLive(env, [saiu('5521999990000')]);
+  const resumo = await pontearGrupo(env, [saiu('5521999990000')], LIVE);
 
   assert.deepEqual(resumo, { saida_tagueada: 1 });
   assert.deepEqual(caminhos(chamadas), ['/fb/subscriber/findBySystemField', '/fb/subscriber/addTag']);
   assert.deepEqual(corpoDe(chamadas, '/fb/subscriber/addTag'), [
-    { subscriber_id: '555', tag_id: TAG_SAIU_GRUPO },
+    { subscriber_id: '555', tag_id: cfgLive.tagSaiu },
   ]);
 });
 
@@ -98,7 +102,7 @@ test('saiu quem não está no ManyChat: nenhum contato é criado', async () => {
     '/fb/subscriber/findBySystemField': () => [200, { status: 'success', data: [] }],
   });
 
-  const resumo = await pontearGrupoLive(env, [saiu('5521999990000')]);
+  const resumo = await pontearGrupo(env, [saiu('5521999990000')], LIVE);
 
   assert.deepEqual(resumo, { saida_sem_inscrito: 1 });
   assert.deepEqual(caminhos(chamadas), ['/fb/subscriber/findBySystemField']);
@@ -106,7 +110,7 @@ test('saiu quem não está no ManyChat: nenhum contato é criado', async () => {
 
 test('participante só com @lid: nenhuma chamada ao ManyChat', async () => {
   const chamadas = simularApi({});
-  const resumo = await pontearGrupoLive(env, [{ participantJid: '48249931051224@lid', action: 'entrou' }]);
+  const resumo = await pontearGrupo(env, [{ participantJid: '48249931051224@lid', action: 'entrou' }], LIVE);
   assert.deepEqual(resumo, { sem_telefone: 1 });
   assert.equal(chamadas.length, 0);
 });
@@ -120,14 +124,14 @@ test('telefone antigo sem o nono dígito recebe o 9 antes de ir ao ManyChat', as
     '/fb/subscriber/removeTag': () => [200, {}],
   });
 
-  await pontearGrupoLive(env, [entrou('558496078857')]);
+  await pontearGrupo(env, [entrou('558496078857')], LIVE);
 
   assert.equal(chamadas[0].body.whatsapp_phone, '5584996078857');
 });
 
 test('sem MANYCHAT_API: desiste sem chamar nada', async () => {
   const chamadas = simularApi({});
-  const resumo = await pontearGrupoLive({}, [entrou('5521999990000')]);
+  const resumo = await pontearGrupo({}, [entrou('5521999990000')], LIVE);
   assert.deepEqual(resumo, { sem_config: 1 });
   assert.equal(chamadas.length, 0);
 });
@@ -145,7 +149,41 @@ test('um participante que falha não interrompe os outros do mesmo evento', asyn
     '/fb/subscriber/removeTag': () => [200, {}],
   });
 
-  const resumo = await pontearGrupoLive(env, [entrou('5521999990000'), entrou('5521999990001')]);
+  const resumo = await pontearGrupo(env, [entrou('5521999990000'), entrou('5521999990001')], LIVE);
 
   assert.deepEqual(resumo, { entrada_erro: 1, inscrito: 1 });
+});
+
+test('grupo do workshop usa as tags e o fluxo dele, não os da live', async () => {
+  const chamadas = simularApi({
+    '/fb/subscriber/createSubscriber': () => [200, { data: { id: '777' } }],
+    '/fb/subscriber/updateSubscriber': () => [200, {}],
+    '/fb/subscriber/addTag': () => [200, {}],
+    '/fb/sending/sendFlow': () => [200, { status: 'success' }],
+    '/fb/subscriber/removeTag': () => [200, {}],
+  });
+  const cfg = GRUPOS[WORKSHOP];
+
+  const resumo = await pontearGrupo(env, [entrou('5521999990000')], WORKSHOP);
+
+  assert.deepEqual(resumo, { inscrito: 1 });
+  assert.deepEqual(corpoDe(chamadas, '/fb/subscriber/addTag'), [
+    { subscriber_id: '777', tag_id: cfg.tagGrupo },
+    { subscriber_id: '777', tag_id: cfg.tagBoasVindasEnviada },
+  ]);
+  assert.deepEqual(corpoDe(chamadas, '/fb/sending/sendFlow'), [
+    { subscriber_id: '777', flow_ns: cfg.fluxoBoasVindas },
+  ]);
+  assert.deepEqual(corpoDe(chamadas, '/fb/subscriber/removeTag'), [
+    { subscriber_id: '777', tag_id: cfg.tagSaiu },
+  ]);
+  // As tags dos dois grupos são distintas — o filtro de disparo não se mistura.
+  assert.notEqual(cfg.tagGrupo, cfgLive.tagGrupo);
+});
+
+test('grupo sem automação configurada: nenhuma chamada ao ManyChat', async () => {
+  const chamadas = simularApi({});
+  const resumo = await pontearGrupo(env, [entrou('5521999990000')], '120363999999999999@g.us');
+  assert.deepEqual(resumo, {});
+  assert.equal(chamadas.length, 0);
 });

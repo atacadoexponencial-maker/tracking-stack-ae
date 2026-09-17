@@ -15,8 +15,8 @@
 import { classificarEvento } from './_classificar.js';
 import { registrarHorario } from '../_horario-registro.js';
 import { telefoneDoJid } from '../_grupo-conversao.js';
-import { pontearGrupoLive, GRUPO_LIVE_JID } from '../_grupo-live-manychat.js';
-import { registrarNoCrm } from '../_grupo-live-crm.js';
+import { pontearGrupo, configDoGrupo } from '../_grupos-manychat.js';
+import { registrarNoCrm } from '../_grupos-crm.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -105,8 +105,9 @@ export async function onRequestPost(context) {
 
   const resultados = await env.DB.batch(stmts);
 
-  // Ponte para o ManyChat, só no grupo da live semanal. Roda DEPOIS da
-  // gravação e fora do caminho da resposta: o n8n não espera por ela e uma
+  // Pontes para o ManyChat e para o ClickUp, só nos grupos configurados em
+  // `_grupos-manychat.js` (hoje a live semanal e o workshop). Rodam DEPOIS da
+  // gravação e fora do caminho da resposta: o n8n não espera por elas e uma
   // falha do ManyChat não custa o evento.
   //
   // Só as linhas que o `INSERT OR IGNORE` acabou de inserir são encaminhadas —
@@ -114,8 +115,8 @@ export async function onRequestPost(context) {
   // enfileirados, e o primeiro é o upsert de whatsapp_groups_seen). É isso que
   // impede a reentrega do mesmo evento pelo n8n de mandar a mensagem de
   // boas-vindas duas vezes.
-  let manychat = 'nao_e_o_grupo';
-  if (evento.groupJid === GRUPO_LIVE_JID) {
+  let manychat = 'grupo_sem_automacao';
+  if (configDoGrupo(evento.groupJid)) {
     // Participante que já chega como admin é da equipe — fora da automação.
     const admins = new Set(
       (Array.isArray(body?.data?.participants) ? body.data.participants : [])
@@ -132,13 +133,13 @@ export async function onRequestPost(context) {
       console.error('whatsapp-grupo — D1 não devolveu meta.changes; ponte do ManyChat não foi chamada');
     } else if (novas.length) {
       manychat = 'despachado';
-      context.waitUntil(pontearGrupoLive(env, novas).catch((e) => {
-        console.error('grupo-live-manychat — ponte falhou por inteiro:', e?.message || e);
+      context.waitUntil(pontearGrupo(env, novas, evento.groupJid).catch((e) => {
+        console.error('grupos-manychat — ponte falhou por inteiro:', e?.message || e);
       }));
       // Comentário no card de quem já é lead, para o comercial. Independente da
       // ponte do ManyChat: uma falhar não pode levar a outra junto.
-      context.waitUntil(registrarNoCrm(env, novas, evento.occurredAt).catch((e) => {
-        console.error('grupo-live-crm — ponte falhou por inteiro:', e?.message || e);
+      context.waitUntil(registrarNoCrm(env, novas, evento.occurredAt, evento.groupJid).catch((e) => {
+        console.error('grupos-crm — ponte falhou por inteiro:', e?.message || e);
       }));
     } else {
       manychat = 'reentrega';
