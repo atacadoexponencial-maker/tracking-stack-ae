@@ -1,6 +1,7 @@
 ---
 import { Image } from 'astro:assets';
 import logo from '../../assets/brand/logo.png';
+import felipe from '../../assets/brand/felipe.webp';
 
 interface Props {
   headline?: string;
@@ -17,6 +18,12 @@ interface Props {
   ctaHref?: string;
   trust?: string[];
   stats?: { value: string; label: string }[];
+  /**
+   * Variação com a foto do Felipe ao lado do texto, como no hero da
+   * /workshop-black-exponencial-2026. Sem ela o hero segue centralizado, que
+   * é o formato de todas as outras páginas.
+   */
+  comFoto?: boolean;
 }
 const {
   headline,
@@ -27,6 +34,7 @@ const {
   ctaLabel = 'Quero meu diagnóstico gratuito',
   ctaHref,
   trust = ['100% gratuito', 'Sem cartão', '35 min'],
+  comFoto = false,
   stats = [
     { value: '+100', label: 'marcas atacado atendidas' },
     { value: '35 min', label: 'sessão individual' },
@@ -48,7 +56,7 @@ const titulo =
     : null;
 ---
 
-<header class="hero">
+<header class:list={['hero', comFoto && 'hero--foto']}>
   <nav class="hero__nav container">
     <Image src={logo} alt="Atacado Exponencial" height={72} class="hero__logo" />
     {ctaHref ? (
@@ -63,6 +71,7 @@ const titulo =
   </nav>
 
   <div class="hero__body">
+    <div class="hero__texto">
     <span class="hero__badge">{badge}</span>
     {headline && titulo ? (
       <h1 class="hero__title">
@@ -97,6 +106,12 @@ const titulo =
     <div class="hero__trust">
       {trust.map((t) => <span class="hero__trust-item">{t}</span>)}
     </div>
+    </div>
+    {comFoto && (
+      <div class="hero__visual">
+        <Image src={felipe} alt="Felipe Santos" class="hero__foto" loading="eager" />
+      </div>
+    )}
   </div>
 
   <div class="hero__stats container">
@@ -260,8 +275,47 @@ const titulo =
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
+  /* ---- Variação com foto (hero--foto) -------------------------------------
+     Mesmo hero, em duas colunas, com a foto do Felipe à direita — o formato do
+     hero da /workshop-black-exponencial-2026. No celular a foto vai para
+     baixo do texto, para o título continuar sendo a primeira coisa na tela. */
+  .hero__texto {
+    display: contents;
+  }
+  .hero--foto .hero__texto {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .hero--foto .hero__body {
+    max-width: 72rem;
+    gap: 2.5rem;
+  }
+  .hero__foto {
+    width: 100%;
+    height: auto;
+    max-width: 22rem;
+    border-radius: 1rem;
+  }
+  .hero__visual {
+    display: flex;
+    justify-content: center;
+  }
+
   @media (min-width: 768px) {
     .hero__nav-cta { display: inline-flex; }
     .hero__stats { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  @media (min-width: 900px) {
+    .hero--foto .hero__body {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      align-items: center;
+      text-align: left;
+    }
+    .hero--foto .hero__texto { align-items: flex-start; }
+    .hero--foto .hero__foto { max-width: 26rem; }
   }
 </style>

@@ -1,18 +1,16 @@
 ---
 /**
- * LP Sessão Estratégica v2.
+ * LP Sessão Estratégica v3.
  *
- * Variação da /se-v1 para teste A/B. O ângulo muda: no lugar da promessa de
- * faturamento no hero, a página nomeia o gargalo (entrada de revendedor novo
- * versus recompra) e vende o diagnóstico como o jeito de descobrir qual dos
- * dois é o seu. O número grande só aparece na seção de resultados, com o
- * contexto ao redor.
+ * Mesma copy da home (a antiga /se-v2) — texto por texto, seção por seção. A
+ * ÚNICA diferença é o hero: usa a variação `comFoto` do componente `Hero`, que
+ * põe a foto do Felipe ao lado do texto, como no hero da
+ * /workshop-black-exponencial-2026. Criada em 2026-09-17 a pedido da usuária.
  *
- * Escopo desta versão: copy e estrutura. O chat de qualificação, a oferta e os
- * depoimentos continuam iguais aos da v1 de propósito, para o teste medir a
- * página e não três mudanças ao mesmo tempo.
- *
- * O teste A/B em si é cadastrado pela aba Testes A/B do dashboard, não aqui.
+ * É assim de propósito: com uma variável só mudando, a diferença de conversão
+ * entre esta página e a home mede o hero, e não três coisas ao mesmo tempo.
+ * Quando a copy da home mudar, esta página NÃO acompanha sozinha — são dois
+ * arquivos, e manter as duas iguais é trabalho manual.
  */
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/sections/Hero.astro';
@@ -46,6 +44,7 @@ const depoimentos = [
   showHeader={false}
 >
   <Hero
+    comFoto
     badge="Para marcas de atacado que já faturam acima de R$ 20 mil por mês"
     headline="Descubra em 35 minutos qual dos 2 gargalos está travando o seu atacado"
     highlight="atacado"
