@@ -288,10 +288,25 @@ const titulo =
     align-items: center;
     gap: 1.25rem;
   }
+  /* No celular o hero com foto é COMPACTO de propósito: o botão precisa
+     aparecer sem rolar, e a tela útil de um celular com a barra do navegador
+     aberta é ~660px de altura, não os 844 do aparelho. Por isso o padding
+     menor, o título menor e o selo mais discreto — a foto vem depois do CTA e
+     por isso não disputa a dobra. */
   .hero--foto .hero__body {
     max-width: 72rem;
-    gap: 2.5rem;
+    gap: 0.9rem;
+    padding: 1.25rem 1.5rem 2rem;
   }
+  .hero--foto { min-height: 0; }
+  .hero--foto .hero__nav { padding-block: 0.75rem; }
+  .hero--foto .hero__badge {
+    font-size: 0.62rem;
+    padding: 0.35rem 0.9rem;
+  }
+  .hero--foto .hero__title { font-size: clamp(1.6rem, 6.4vw, 3.25rem); }
+  .hero--foto .hero__sub { font-size: 0.95rem; }
+  .hero--foto .hero__cta { margin-top: 0.15rem; }
   .hero__foto {
     width: 100%;
     height: auto;
@@ -308,8 +323,23 @@ const titulo =
     .hero__stats { grid-template-columns: repeat(4, 1fr); }
   }
 
+  /* Celular pequeno (360x600 com a barra do navegador, ainda comum): aqui o
+     aviso de cookies come a parte de baixo da tela, então o hero encolhe mais
+     para o botão sobrar inteiro acima dele. */
+  @media (max-width: 480px) {
+    .hero--foto .hero__body { gap: 0.7rem; padding: 0.75rem 1.25rem 1.5rem; }
+    .hero--foto .hero__title { font-size: 1.5rem; line-height: 1.15; }
+    .hero--foto .hero__sub { font-size: 0.88rem; line-height: 1.45; }
+    .hero--foto .hero__badge { font-size: 0.58rem; letter-spacing: 0.08em; }
+    .hero--foto .hero__cta { padding-block: 0.9rem; }
+  }
+
   @media (min-width: 900px) {
+    /* No desktop o hero com foto volta ao respiro normal do hero padrão. */
+    .hero--foto { min-height: 100vh; }
     .hero--foto .hero__body {
+      gap: 2.5rem;
+      padding: 4rem 1.5rem;
       display: grid;
       grid-template-columns: 1.15fr 0.85fr;
       align-items: center;
