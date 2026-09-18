@@ -7,7 +7,8 @@
 //
 // Prefixo "_": o Cloudflare Pages não transforma o arquivo em rota.
 
-import { enviarTexto, renomear } from './_evolution-grupos.js';
+import { enviarTexto, renomear, enviarMidia, enviarAudio, aquecerGrupo } from './_evolution-grupos.js';
+import { ficha, urlPublica, apagar } from './_midia.js';
 
 // Passado isto da hora marcada, a ação NÃO dispara mais. Um aviso de live
 // chegando quatro horas depois é pior que não chegar: a live já acabou, e
@@ -20,7 +21,17 @@ export const MAX_TENTATIVAS = 3;
 export const TEXTO_MAX = 4000;
 export const TITULO_MAX = 100;
 
-const TIPOS = new Set(['mensagem', 'renomear']);
+// Arquivo de ação encerrada há mais de isto é apagado do armazenamento. O
+// histórico continua inteiro; só o arquivo some.
+export const EXPURGO_DIAS = 30;
+
+const TIPOS = new Set(['mensagem', 'imagem', 'video', 'audio', 'documento', 'renomear']);
+
+// Cada tipo de ação exige um mediatype específico na ficha: agendar um vídeo
+// apontando para um PDF é erro de quem agendou, e é barato pegar na hora.
+const MEDIATYPE_DO_TIPO = { imagem: 'image', video: 'video', audio: 'audio', documento: 'document' };
+
+export const ehMidia = (tipo) => tipo in MEDIATYPE_DO_TIPO;
 
 /**
  * Regras de uma ação nova. Pura de propósito: é onde a validação fica
@@ -43,6 +54,19 @@ export function validarAcao(corpo, grupo, agora) {
     if (!texto) return { erro: 'Escreva o texto da mensagem.' };
     if (texto.length > TEXTO_MAX) return { erro: `A mensagem passou de ${TEXTO_MAX} caracteres.` };
     payload = { texto };
+  } else if (ehMidia(tipo)) {
+    const midiaId = parseInt(corpo?.midia_id, 10);
+    if (!Number.isFinite(midiaId)) return { erro: 'Escolha o arquivo antes de agendar.' };
+
+    // Áudio guarda `texto` e não `caption` porque o WhatsApp NÃO aceita legenda
+    // em nota de voz: o que for escrito vira uma segunda mensagem. Chamar de
+    // "legenda" aqui esconderia isso de quem lê o payload depois.
+    const acompanha = String((tipo === 'audio' ? corpo?.texto : corpo?.caption) ?? '').trim();
+    if (acompanha.length > TEXTO_MAX) return { erro: `O texto passou de ${TEXTO_MAX} caracteres.` };
+
+    payload = tipo === 'audio'
+      ? { midia_id: midiaId, texto: acompanha }
+      : { midia_id: midiaId, caption: acompanha };
   } else {
     const titulo = String(corpo?.titulo ?? '').trim();
     if (!titulo) return { erro: 'Escreva o novo título do grupo.' };
@@ -71,6 +95,19 @@ export async function criarAcao(env, corpo, agora) {
   const grupo = await grupoMonitorado(env, corpo?.group_jid);
   const v = validarAcao(corpo, grupo, agora);
   if (v.erro) return { erro: v.erro, status: 400 };
+
+  // O arquivo é conferido AGORA, não na hora do envio: ficha inexistente ou já
+  // expurgada vira um agendamento que só falharia às 12h da live.
+  if (ehMidia(v.acao.tipo)) {
+    const midiaId = JSON.parse(v.acao.payload).midia_id;
+    const f = await ficha(env, midiaId);
+    if (!f) return { erro: 'Arquivo não encontrado. Envie o arquivo de novo.', status: 400 };
+    if (f.apagada_em) return { erro: 'Esse arquivo já foi apagado do armazenamento. Envie de novo.', status: 400 };
+    const esperado = MEDIATYPE_DO_TIPO[v.acao.tipo];
+    if (f.mediatype !== esperado) {
+      return { erro: `O arquivo enviado é ${f.mediatype}, mas a ação é de ${v.acao.tipo}.`, status: 400 };
+    }
+  }
 
   const r = await env.DB.prepare(
     `INSERT INTO whatsapp_group_actions (group_jid, tipo, payload, agendada_para, status, criada_em)
@@ -160,10 +197,18 @@ export async function executarAcao(env, id, agora, fetchImpl = fetch) {
   let payload = {};
   try { payload = JSON.parse(acao.payload || '{}'); } catch { payload = {}; }
 
+  // Aquecimento: a Evolution devolve `404 Group not found` para grupo que
+  // EXISTE quando o cache de metadados dela está frio. Consultar o grupo antes
+  // esquenta esse cache. O resultado é ignorado de propósito — isto evita uma
+  // falha, não pode causar outra.
+  await aquecerGrupo(env, acao.group_jid, fetchImpl);
+
   let resultado;
   if (acao.tipo === 'mensagem') {
     resultado = await enviarTexto(env, acao.group_jid, payload.texto, fetchImpl);
     if (resultado.ok) resultado.resumo = 'Mensagem enviada.';
+  } else if (ehMidia(acao.tipo)) {
+    resultado = await enviarArquivo(env, acao, payload, fetchImpl);
   } else if (acao.tipo === 'renomear') {
     resultado = await renomearGrupo(env, acao, payload, fetchImpl);
   } else {
@@ -171,6 +216,46 @@ export async function executarAcao(env, id, agora, fetchImpl = fetch) {
   }
 
   return finalizar(env, acao, agora, resultado);
+}
+
+/**
+ * Manda o arquivo. A Evolution baixa pela URL pública — nunca mandamos os
+ * bytes embutidos, porque vídeo em base64 derruba a Evolution (bug #1885).
+ *
+ * Áudio é o caso especial do WhatsApp: nota de voz não aceita legenda. Então
+ * texto junto de áudio vira DUAS mensagens, nesta ordem. E se o áudio falha, o
+ * texto NÃO é enviado: uma legenda solta, sem o áudio que ela explica, deixa o
+ * grupo sem entender nada.
+ */
+async function enviarArquivo(env, acao, payload, fetchImpl) {
+  const f = await ficha(env, payload.midia_id);
+  if (!f) return { ok: false, erro: 'O arquivo não está mais no armazenamento.' };
+  if (f.apagada_em) return { ok: false, erro: 'O arquivo foi apagado do armazenamento antes do envio.' };
+
+  const url = urlPublica(env, f.chave);
+
+  if (acao.tipo === 'audio') {
+    const audio = await enviarAudio(env, acao.group_jid, url, fetchImpl);
+    if (!audio.ok) return audio;
+    if (!payload.texto) return { ok: true, resumo: 'Áudio enviado.' };
+
+    const texto = await enviarTexto(env, acao.group_jid, payload.texto, fetchImpl);
+    if (!texto.ok) {
+      // O áudio JÁ saiu. Dizer só "falhou" faria alguém reenviar tudo e
+      // duplicar a nota de voz no grupo.
+      return { ok: false, erro: `O áudio foi enviado, mas o texto que vinha depois não: ${texto.erro}` };
+    }
+    return { ok: true, resumo: 'Áudio e texto enviados.' };
+  }
+
+  const r = await enviarMidia(env, acao.group_jid, {
+    mediatype: MEDIATYPE_DO_TIPO[acao.tipo],
+    url,
+    fileName: f.nome,
+    caption: payload.caption,
+  }, fetchImpl);
+
+  return r.ok ? { ok: true, resumo: `${f.nome} enviado.` } : r;
 }
 
 // Renomeia o grupo e, se pedido, o par da Comunidade. Os dois grupos vêm com
@@ -255,4 +340,46 @@ export async function executarVencidas(env, agora, fetchImpl = fetch) {
     total: executadas.filter((e) => e.status !== 'ignorada').length,
     falhas: executadas.filter((e) => e.status === 'falhou').length,
   };
+}
+
+/**
+ * Apaga o arquivo de ações já encerradas há mais de EXPURGO_DIAS.
+ *
+ * Só o ARQUIVO some — a ação e o histórico ficam, porque "o que foi enviado em
+ * setembro" continua sendo uma pergunta legítima em dezembro. Sem isto, o
+ * armazenamento só cresce, e ninguém nunca vai lembrar de limpar à mão.
+ *
+ * Mídia que nenhuma ação usa ainda (subiu e não foi agendada) também entra,
+ * pela data de criação: senão um arquivo escolhido e abandonado ficaria para
+ * sempre.
+ */
+export async function expurgarMidiaAntiga(env, agora) {
+  const limite = agora - EXPURGO_DIAS * 24 * 3600;
+
+  const { results } = await env.DB.prepare(`
+    SELECT m.id, m.chave
+    FROM whatsapp_group_media m
+    WHERE m.apagada_em IS NULL
+      AND m.criada_em <= ?
+      AND NOT EXISTS (
+        SELECT 1 FROM whatsapp_group_actions a
+        WHERE a.payload LIKE '%"midia_id":' || m.id || '%'
+          AND (a.status IN ('agendada','executando') OR COALESCE(a.executada_em, a.agendada_para) > ?)
+      )
+    LIMIT 50
+  `).bind(limite, limite).all();
+
+  let apagadas = 0;
+  for (const m of results || []) {
+    try {
+      await apagar(env, m.chave);
+      await env.DB.prepare('UPDATE whatsapp_group_media SET apagada_em = ? WHERE id = ?')
+        .bind(agora, m.id).run();
+      apagadas++;
+    } catch (e) {
+      console.error('grupos-acoes: expurgo da mídia', m.id, 'falhou:', e?.message || e);
+    }
+  }
+
+  return { apagadas };
 }
