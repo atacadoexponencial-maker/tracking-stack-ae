@@ -86,9 +86,10 @@ export async function talvezAtualizar(env, agora, fetchImpl = fetch) {
  * A cópia local cruzada com a allowlist. É LEITURA DE BANCO, instantânea —
  * a tela nunca espera a Evolution.
  *
- * Ordenada por tamanho porque os grupos da operação têm centenas de pessoas e
- * os de terceiros costumam ser pequenos: o que interessa sobe sozinho, antes
- * de qualquer busca.
+ * Ordenada por tamanho, mas sem ilusão: medido em produção, os maiores são de
+ * TERCEIROS (1.134 e 1.025 membros) e os da operação vêm depois (533 e 207).
+ * Quem realmente encontra o grupo é a busca e o filtro de Comunidades — a
+ * ordem serve só para não começar pelos grupos de 3 pessoas.
  */
 export async function catalogo(env) {
   const { results } = await env.DB.prepare(`

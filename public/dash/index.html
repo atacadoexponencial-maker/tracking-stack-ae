@@ -475,7 +475,7 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
           <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; margin-bottom:0.7rem">
             <input type="search" id="cat-busca" placeholder="Buscar grupo pelo nome…" style="flex:1; min-width:220px; background:var(--card); color:var(--fg); border:1px solid var(--border); border-radius:0.5rem; padding:0.45rem 0.6rem; font:inherit; font-size:0.86rem">
             <label style="display:flex; gap:0.4rem; align-items:center; font-size:0.84rem; color:var(--muted)">
-              <input type="checkbox" id="cat-so-comunidades"> só Comunidades
+              <input type="checkbox" id="cat-so-comunidades" checked> só Comunidades
             </label>
             <button class="btn sec" type="button" id="cat-recarregar">Atualizar lista</button>
             <span class="mini" id="cat-quando" style="width:100%"></span>
@@ -1844,8 +1844,15 @@ function catDesenhar() {
 
   const termo = normalizarBusca($('#cat-busca').value);
   const soCom = $('#cat-so-comunidades').checked;
+
+  // Cada Comunidade aparece DUAS vezes na lista do WhatsApp: ela e o grupo de
+  // Avisos dela, com o mesmo nome. Mostrar os dois é ruído — e escolher o
+  // Avisos direto não é necessário, porque clicar na Comunidade já cadastra o
+  // Avisos certo. Some da lista quem tem a Comunidade aqui para representá-lo.
+  const comunidades = new Set(todos.filter((g) => g.tipo === 'comunidade').map((g) => g.group_jid));
   const candidatos = todos
     .filter((g) => !g.monitorado)
+    .filter((g) => !(g.tipo === 'avisos' && comunidades.has(g.linkedParent)))
     .filter((g) => (soCom ? g.tipo !== 'comum' : true))
     .filter((g) => (termo ? (g.busca || '').includes(termo) : true));
 
@@ -1860,7 +1867,7 @@ function catDesenhar() {
     return;
   }
   if (!candidatos.length) {
-    $('#cat-lista').innerHTML = `<p class="mini">${termo || soCom ? 'Nenhum grupo com esse filtro.' : 'Todos os grupos já estão monitorados.'}</p>`;
+    $('#cat-lista').innerHTML = `<p class="mini">${termo || soCom ? 'Nenhum grupo com esse filtro. Desmarque "só Comunidades" para ver os grupos comuns.' : 'Todos os grupos já estão monitorados.'}</p>`;
     return;
   }
 
