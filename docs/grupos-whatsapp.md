@@ -329,3 +329,61 @@ quando algo for recusado com `bad-request`.
 
 **Como testar um renomear sem mudar nada:** agendar um renomear com o título
 **igual ao nome atual**. Se concluir, o caminho funciona e ninguém vê diferença.
+
+---
+
+# Escolher os grupos monitorados pelo painel (18/09/2026)
+
+Até aqui, incluir um grupo na medição era um `INSERT` no D1. Agora há um card
+**Grupos monitorados** na aba Grupos: a lista dos grupos do número aparece com
+nome, tamanho e tipo, e um clique liga ou desliga.
+
+## A cópia local, e por que ela existe
+
+`fetchAllGroups` na Evolution leva **~46 segundos para 123 grupos** (medido em
+produção). Consultar ao abrir a aba faria a tela travar quase um minuto, e
+ficaria perto do teto de tempo da plataforma.
+
+Por isso a lista é copiada para `whatsapp_groups_catalogo` (migration 0045):
+
+- o **cron** renova a cópia no máximo de 6 em 6 horas (`VALIDADE_SEG`);
+- a **tela lê do banco** — instantânea;
+- **"Atualizar lista"** força a busca lenta, avisando que leva ~1 min. É o
+  caminho para um grupo criado agora aparecer sem esperar as 6 horas.
+
+Evolution fora do ar **não apaga** a cópia que já funcionava: a atualização
+desiste antes de mexer na tabela.
+
+## A regra que evita o erro caro
+
+Escolher uma **Comunidade** cadastra o **grupo de Avisos** dela, não o pai. É
+no Avisos que as pessoas estão e de onde vêm os eventos; monitorar o pai daria
+um gráfico eternamente plano, sem erro nenhum na tela. A tela avisa quando
+corrige.
+
+Por isso os grupos de Avisos **não aparecem** na lista de escolha quando a
+Comunidade deles está lá: cada Comunidade apareceria duas vezes, com o mesmo
+nome.
+
+## Ordem e busca
+
+Ordenado por tamanho, mas sem ilusão: os maiores são de **terceiros** (1.134 e
+1.025 membros); os da operação têm 533 e 207. Quem encontra o grupo é a busca —
+que ignora acento e caixa, porque `sessao` precisa achar "Sessão" — e o filtro
+**"só Comunidades", ligado por padrão**, que corta de 123 para ~10.
+
+Números reais em 18/09: 123 grupos, sendo 10 Comunidades, 10 Avisos e 103
+grupos comuns.
+
+## Conversão ao Meta
+
+Nasce **desligada** e tem botão próprio, com confirmação: ligar manda
+`EntrouGrupo` ao Pixel e mexe na otimização das campanhas — não pode ser efeito
+colateral de marcar uma caixinha.
+
+Ao ligar, grava `conversion_since` com o horário de agora. Sem isso, a primeira
+rodada do sync varreria o histórico e despejaria meses de entradas antigas no
+Pixel de uma vez. Ao desligar, `conversion_since` é preservado.
+
+**Parar de medir não apaga** a linha (`enabled = 0`): o histórico de entradas e
+saídas aponta para ela. E derruba a conversão ao Meta junto.
