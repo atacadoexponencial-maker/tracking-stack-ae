@@ -69,7 +69,19 @@ async function diagnosticar(env, fetchImpl) {
     const r = await infoGrupo(env, g.group_jid, fetchImpl);
     if (!r.ok) return { label: g.label, group_jid: g.group_jid, erro: r.erro };
     const d = r.dados || {};
+    // O pai também: é ele que provavelmente precisa ser renomeado, e antes de
+    // tentar é preciso saber o nome que ele já tem (para um teste idempotente,
+    // que não muda nada para os 200+ membros).
+    let pai = null;
+    if (d.linkedParent) {
+      const p = await infoGrupo(env, d.linkedParent, fetchImpl);
+      pai = p.ok
+        ? { jid: d.linkedParent, subject: p.dados?.subject ?? null, size: p.dados?.size ?? null,
+            isCommunity: p.dados?.isCommunity ?? null, restrict: p.dados?.restrict ?? null }
+        : { jid: d.linkedParent, erro: p.erro };
+    }
     return {
+      pai,
       label: g.label,
       group_jid: g.group_jid,
       subject: d.subject ?? null,
