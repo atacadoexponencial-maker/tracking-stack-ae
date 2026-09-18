@@ -15,7 +15,7 @@ export const TIMEOUT_MS = 5000;
 
 // Listar TODOS os grupos é bem mais caro que consultar um: a usuária participa
 // de dezenas, e a Evolution monta a lista inteira antes de responder.
-export const TIMEOUT_LISTA_MS = 25000;
+export const TIMEOUT_LISTA_MS = 55000;
 
 /**
  * Credenciais da Evolution, ou null se faltar qualquer uma.
