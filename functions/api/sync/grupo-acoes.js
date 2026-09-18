@@ -7,7 +7,7 @@
 // Auth: header `x-sync-secret: <env.SYNC_SECRET>`.
 
 import { executarVencidas, expurgarMidiaAntiga } from '../_grupos-acoes.js';
-import { infoGrupo } from '../_evolution-grupos.js';
+import { infoGrupo, listarGrupos } from '../_evolution-grupos.js';
 import { FUSO_BRT } from '../_data-brt.js';
 
 export async function onRequestPost(context) {
@@ -25,7 +25,18 @@ export async function onRequestPost(context) {
   // monitorado. Sem isto, qualquer correção seria chute: o mesmo erro aparece
   // tanto quando o alvo é o grupo de Avisos quanto quando é o próprio pai.
   if (new URL(request.url).searchParams.get('acao') === 'diagnostico') {
-    return json({ ok: true, grupos: await diagnosticar(env, fetchImpl) });
+    // A listagem completa entra aqui porque é a parte mais frágil do catálogo:
+    // com dezenas de grupos ela pode estourar o tempo, e o sintoma seria uma
+    // aba que abre vazia sem explicar por quê.
+    const t0 = Date.now();
+    const lista = await listarGrupos(env, fetchImpl);
+    return json({
+      ok: true,
+      catalogo: lista.ok
+        ? { total: (lista.grupos || []).length, ms: Date.now() - t0 }
+        : { erro: lista.erro, ms: Date.now() - t0 },
+      grupos: await diagnosticar(env, fetchImpl),
+    });
   }
 
   let rodada;
