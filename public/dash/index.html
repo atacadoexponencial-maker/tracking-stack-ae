@@ -402,6 +402,42 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
     <section class="secao" id="secao-grupos">
       <div class="card" id="grupos-conexao-card"><h2>Conexão do WhatsApp <small id="grupos-conexao-nota"></small></h2><div id="grupos-conexao"></div></div>
       <div id="grupos-aviso"></div>
+      <div class="card">
+        <h2>Agenda do grupo <small>o que vai acontecer sozinho</small></h2>
+        <div class="tabela-wrap" id="acoes-agenda"></div>
+      </div>
+      <div class="card">
+        <h2>Agendar ação</h2>
+        <form id="acoes-form" style="display:grid; gap:0.6rem; max-width:640px">
+          <label>Grupo <select id="acoes-grupo" style="width:100%"></select></label>
+          <label>O que fazer
+            <select id="acoes-tipo" style="width:100%">
+              <option value="mensagem">Mandar mensagem</option>
+              <option value="renomear">Renomear o grupo</option>
+            </select>
+          </label>
+          <label id="acoes-campo-texto">Mensagem
+            <textarea id="acoes-texto" rows="4" style="width:100%" placeholder="Começou! Entra aqui: …"></textarea>
+          </label>
+          <label id="acoes-campo-titulo" hidden>Novo título
+            <input type="text" id="acoes-titulo" style="width:100%" placeholder="24/09 às 12h | O jogo da escala">
+          </label>
+          <label id="acoes-campo-par" hidden style="display:flex; gap:0.4rem; align-items:center">
+            <input type="checkbox" id="acoes-par" checked>
+            <span>Renomear também o grupo par da Comunidade</span>
+          </label>
+          <label>Quando <input type="datetime-local" id="acoes-quando" style="width:100%"></label>
+          <div id="acoes-erro" class="aviso falha" hidden></div>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap">
+            <button class="btn" type="submit">Agendar</button>
+            <button class="btn sec" type="button" id="acoes-agora">Fazer agora</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Histórico <small>o que já foi executado</small></h2>
+        <div class="tabela-wrap" id="acoes-historico"></div>
+      </div>
       <div class="card"><h2>Conversão no Meta <small>entrada no grupo → EntrouGrupo</small></h2><div id="grupos-conversao"></div></div>
       <div id="grupos-blocos"></div>
       <div class="card"><h2>Eventos recentes <small>quem entrou e quem saiu</small></h2><div class="tabela-wrap" id="grupos-eventos"></div></div>
@@ -1505,6 +1541,13 @@ R.grupos = async () => {
     { titulo: 'Telefone', campo: 'participant_jid', render: (r) => esc(telefone(r.participant_jid)) },
     { titulo: 'O quê', campo: 'action', render: (r) => acoes[r.action] || esc(r.action) },
   ], dados.recentes || []);
+
+  // Agenda de ações: requisição própria, depois do resto já desenhado. Ela não
+  // depende do período selecionado (o que está agendado está agendado), e uma
+  // falha aqui não pode apagar os números acima.
+  desenharAcoes().catch(() => {
+    $('#acoes-agenda').innerHTML = '<p class="mini">Não foi possível carregar a agenda.</p>';
+  });
 };
 
 // ---------- links ----------
@@ -1618,6 +1661,148 @@ $('#links-form').addEventListener('submit', async (ev) => {
     ends_at: padrao ? null : paraUnixBRT($('#links-ate').value),
   });
 });
+
+// ---------- ações de grupo (spec 2026-09-17) ----------
+// Toda a validação é do backend: o formulário só mostra o erro que volta. É a
+// mesma escolha da aba Links, e é o que impede a tela e o servidor de
+// discordarem sobre o que é um agendamento válido.
+const ACOES_TIPOS = { mensagem: 'Mensagem', renomear: 'Renomear' };
+
+async function desenharAcoes() {
+  const dados = await fetchJson('/api/grupos-acoes');
+
+  const sel = $('#acoes-grupo');
+  const selecionado = sel.value;
+  sel.innerHTML = (dados.grupos || [])
+    .map((g) => `<option value="${esc(g.group_jid)}" data-par="${g.tem_par ? 1 : 0}">${esc(g.label)}</option>`).join('');
+  if (selecionado) sel.value = selecionado;
+  acoesAtualizarCampos();
+
+  const resumo = (a) => (a.tipo === 'mensagem' ? (a.payload.texto || '') : (a.payload.titulo || ''));
+  const agendadas = dados.agendadas || [];
+
+  if (agendadas.length) {
+    tabela($('#acoes-agenda'), [
+      { titulo: 'Quando', campo: 'agendada_para', render: (a) => `<span class="mini">${quandoBRT(a.agendada_para)}</span>` },
+      { titulo: 'Grupo', campo: 'label', render: (a) => esc(a.label) },
+      { titulo: 'Ação', campo: 'tipo', render: (a) => ACOES_TIPOS[a.tipo] || esc(a.tipo) },
+      { titulo: 'Conteúdo', render: (a) => esc(resumo(a).slice(0, 80)) },
+      { titulo: '', render: (a) => (a.status === 'agendada'
+        ? `<button class="btn sec" type="button" data-cancelar="${a.id}">cancelar</button>`
+        : '<span class="mini">executando…</span>') },
+    ], agendadas);
+  } else {
+    $('#acoes-agenda').innerHTML = '<p class="mini">Nada agendado. O grupo só muda se alguém mexer nele à mão.</p>';
+  }
+
+  // Listener no contêiner porque `tabela()` redesenha a tabela ao ordenar.
+  // Cancelar não tem desfazer, então pede confirmação na própria linha —
+  // `confirm()` do navegador travaria a página inteira.
+  $('#acoes-agenda').onclick = (ev) => {
+    const btn = ev.target.closest('[data-cancelar]');
+    if (!btn) return;
+    const acao = agendadas.find((a) => String(a.id) === btn.dataset.cancelar);
+    pedirConfirmacao(btn, 'Cancelar esta ação?', async () => {
+      const r = await fetch(`/api/grupos-acoes?key=${encodeURIComponent(key)}&acao=cancelar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: Number(btn.dataset.cancelar) }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        acoesErro(j.error || 'Não foi possível cancelar.');
+      } else {
+        // "Editar" é cancelar e agendar de novo: o formulário volta preenchido
+        // com o que estava marcado, para não redigitar a mensagem inteira.
+        preencherAcao(acao);
+      }
+      await desenharAcoes();
+    });
+  };
+
+  const hist = dados.historico || [];
+  if (hist.length) {
+    tabela($('#acoes-historico'), [
+      { titulo: 'Quando', campo: 'executada_em', render: (a) => `<span class="mini">${quandoBRT(a.executada_em || a.agendada_para)}</span>` },
+      { titulo: 'Grupo', campo: 'label', render: (a) => esc(a.label) },
+      { titulo: 'Ação', campo: 'tipo', render: (a) => ACOES_TIPOS[a.tipo] || esc(a.tipo) },
+      { titulo: 'Conteúdo', render: (a) => esc(resumo(a).slice(0, 60)) },
+      // Falha em vermelho COM o motivo: é aqui que se descobre que o aviso da
+      // live não saiu, e um rótulo sem motivo não ajudaria a consertar nada.
+      { titulo: 'Situação', campo: 'status', render: (a) => (a.status === 'concluida'
+        ? '<span style="color:var(--up)">Feita</span>'
+        : a.status === 'cancelada'
+          ? '<span class="mini">Cancelada</span>'
+          : `<span style="color:var(--down)">Falhou</span> <span class="mini">${esc(a.erro || '')}</span>`) },
+    ], hist);
+  } else {
+    $('#acoes-historico').innerHTML = '<p class="mini">Nada executado ainda.</p>';
+  }
+}
+
+// Devolve ao formulário uma ação que acabou de ser cancelada.
+function preencherAcao(a) {
+  if (!a) return;
+  $('#acoes-grupo').value = a.group_jid;
+  $('#acoes-tipo').value = a.tipo;
+  $('#acoes-texto').value = a.payload?.texto || '';
+  $('#acoes-titulo').value = a.payload?.titulo || '';
+  $('#acoes-quando').value = deUnixBRT(a.agendada_para);
+  acoesAtualizarCampos();
+  if (a.payload?.aplicar_no_par) $('#acoes-par').checked = true;
+}
+
+// Campos conforme o tipo. O "renomear o par" só aparece quando o grupo
+// escolhido tem par conhecido — oferecer o que o backend vai recusar seria
+// prometer o que não dá.
+function acoesAtualizarCampos() {
+  const tipo = $('#acoes-tipo').value;
+  const opt = $('#acoes-grupo').selectedOptions[0];
+  $('#acoes-campo-texto').hidden = tipo !== 'mensagem';
+  $('#acoes-campo-titulo').hidden = tipo !== 'renomear';
+  $('#acoes-campo-par').hidden = tipo !== 'renomear' || opt?.dataset.par !== '1';
+}
+
+function acoesErro(msg) {
+  $('#acoes-erro').textContent = msg;
+  $('#acoes-erro').hidden = false;
+}
+
+function acoesCorpo() {
+  return {
+    group_jid: $('#acoes-grupo').value,
+    tipo: $('#acoes-tipo').value,
+    texto: $('#acoes-texto').value,
+    titulo: $('#acoes-titulo').value,
+    aplicar_no_par: !$('#acoes-campo-par').hidden && $('#acoes-par').checked,
+    agendada_para: paraUnixBRT($('#acoes-quando').value),
+  };
+}
+
+async function acoesEnviar(qs) {
+  $('#acoes-erro').hidden = true;
+  const r = await fetch(`/api/grupos-acoes?key=${encodeURIComponent(key)}${qs}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(acoesCorpo()),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.erro) {
+    acoesErro(j.error || j.erro || 'Não foi possível concluir.');
+    await desenharAcoes();
+    return;
+  }
+  $('#acoes-form').reset();
+  acoesAtualizarCampos();
+  await desenharAcoes();
+}
+
+$('#acoes-tipo').onchange = acoesAtualizarCampos;
+$('#acoes-grupo').onchange = acoesAtualizarCampos;
+$('#acoes-form').onsubmit = (ev) => { ev.preventDefault(); return acoesEnviar(''); };
+// "Fazer agora" manda de verdade, no grupo de verdade: confirmação inline
+// (o confirm() do navegador travaria a página e o painel já tem a sua).
+$('#acoes-agora').onclick = (ev) => {
+  const alvo = $('#acoes-grupo').selectedOptions[0]?.textContent || 'o grupo';
+  pedirConfirmacao(ev.target, `Executar agora em "${alvo}"?`, () => acoesEnviar('&acao=agora'));
+};
 
 // ---------- testes A/B ----------
 // A aba NÃO decide nada: veredito, alerta de divisão torta e progresso vêm
