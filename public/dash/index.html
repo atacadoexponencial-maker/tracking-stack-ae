@@ -508,11 +508,6 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
               <input type="text" id="d-titulo" placeholder="24/09 às 12h | O jogo da escala">
             </label>
 
-            <label class="campo" id="d-campo-par" hidden style="display:flex; flex-direction:row; align-items:center; gap:0.45rem">
-              <input type="checkbox" id="d-par" checked style="width:auto">
-              <span style="text-transform:none; letter-spacing:0; color:var(--fg); font-size:0.84rem">Renomear também o grupo par da Comunidade</span>
-            </label>
-
             <label class="campo"><span>Quando</span><input type="datetime-local" id="d-quando"></label>
 
             <div id="d-erro" class="aviso falha" hidden></div>
@@ -1805,9 +1800,6 @@ function dCampos() {
   if (t.campoTexto) $('#d-rotulo-texto').textContent = t.campoTexto;
   $('#d-campo-titulo').hidden = D.tipo !== 'renomear';
 
-  const opt = $('#d-grupo').selectedOptions[0];
-  $('#d-campo-par').hidden = D.tipo !== 'renomear' || opt?.dataset.par !== '1';
-
   dPrevia();
 }
 
@@ -1829,7 +1821,10 @@ function dPrevia() {
     alvo.innerHTML = `<div class="balao"><div class="corpo">${titulo
       ? `O grupo passa a se chamar<br><strong>${esc(titulo)}</strong>`
       : '<span class="mini">Escreva o novo título.</span>'}</div></div>`;
-    nota.textContent = $('#d-campo-par').hidden ? '' : 'O grupo par da Comunidade é renomeado junto.';
+    // O grupo monitorado é o de Avisos, e o nome dele espelha o da
+    // Comunidade. Quem é renomeado é a Comunidade — dizer isso evita a
+    // surpresa de "renomeei o grupo e mudou outra coisa".
+    nota.textContent = titulo ? 'Renomeia a Comunidade; o grupo de avisos acompanha.' : '';
     return;
   }
 
@@ -1985,7 +1980,6 @@ function dCorpo() {
   const c = { group_jid: $('#d-grupo').value, tipo: D.tipo, agendada_para: paraUnixBRT($('#d-quando').value) };
   if (D.tipo === 'renomear') {
     c.titulo = $('#d-titulo').value;
-    c.aplicar_no_par = !$('#d-campo-par').hidden && $('#d-par').checked;
   } else if (D.tipo === 'mensagem') {
     c.texto = $('#d-texto').value;
   } else {
@@ -2089,7 +2083,6 @@ function dPreencher(a) {
   $('#d-titulo').value = a.payload?.titulo || '';
   $('#d-quando').value = deUnixBRT(a.agendada_para);
   dCampos();
-  if (a.payload?.aplicar_no_par) $('#d-par').checked = true;
 }
 
 $('#d-form').onsubmit = (ev) => { ev.preventDefault(); return dEnviar(''); };

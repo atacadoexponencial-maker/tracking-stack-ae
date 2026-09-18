@@ -7,7 +7,7 @@
 //
 // Prefixo "_": o Cloudflare Pages não transforma o arquivo em rota.
 
-import { enviarTexto, renomear, enviarMidia, enviarAudio, aquecerGrupo } from './_evolution-grupos.js';
+import { enviarTexto, renomear, enviarMidia, enviarAudio, aquecerGrupo, infoGrupo } from './_evolution-grupos.js';
 import { ficha, urlPublica, apagar } from './_midia.js';
 
 // Passado isto da hora marcada, a ação NÃO dispara mais. Um aviso de live
@@ -71,14 +71,10 @@ export function validarAcao(corpo, grupo, agora) {
     const titulo = String(corpo?.titulo ?? '').trim();
     if (!titulo) return { erro: 'Escreva o novo título do grupo.' };
     if (titulo.length > TITULO_MAX) return { erro: `O título passou de ${TITULO_MAX} caracteres.` };
-    const noPar = !!corpo?.aplicar_no_par;
-    // Sem parent_jid conferido, aplicar no par seria adivinhar qual é o outro
-    // grupo — e renomear o grupo errado é justamente o dano que a allowlist
-    // existe para impedir.
-    if (noPar && !grupo.parent_jid) {
-      return { erro: 'O grupo par (Comunidade) ainda não foi identificado para este grupo. Renomeie só este por enquanto.' };
-    }
-    payload = { titulo, aplicar_no_par: noPar };
+    // Não existe escolha de "onde" renomear: quem descobre o alvo certo é o
+    // executor, perguntando à Evolution quem é o pai da Comunidade. Guardar
+    // uma opção aqui seria oferecer uma decisão que não é de quem agenda.
+    payload = { titulo };
   }
 
   return { acao: { group_jid: grupo.group_jid, tipo, payload: JSON.stringify(payload), agendada_para: quando } };
@@ -264,19 +260,58 @@ async function enviarArquivo(env, acao, payload, fetchImpl) {
 // diferentes. Sequencial, não em paralelo: são duas escritas no mesmo número,
 // e a Evolution responde melhor a uma de cada vez.
 async function renomearGrupo(env, acao, payload, fetchImpl) {
-  const alvos = [acao.group_jid];
-  if (payload.aplicar_no_par) {
-    const grupo = await grupoMonitorado(env, acao.group_jid);
-    if (!grupo?.parent_jid) return { ok: false, erro: 'O grupo par não está identificado — renomeio só este.' };
-    alvos.push(grupo.parent_jid);
+  const { jid, via } = await alvoDoRenomear(env, acao.group_jid, fetchImpl);
+  const r = await renomear(env, jid, payload.titulo, fetchImpl);
+  if (!r.ok) return r;
+  return { ok: true, resumo: via === 'proprio' ? 'Grupo renomeado.' : 'Comunidade renomeada.' };
+}
+
+/**
+ * Descobre QUEM precisa ser renomeado.
+ *
+ * Os grupos monitorados são os de **Avisos** de Comunidades, e o nome do
+ * Avisos espelha o da Comunidade — ele não tem nome próprio. Pedir ao WhatsApp
+ * para renomear o Avisos devolve `bad-request` (confirmado em produção em
+ * 18/09/2026: `isCommunityAnnounce: true`, e o pai com o subject idêntico).
+ * Quem é renomeado é o **pai**; o Avisos acompanha, e é isso que os membros
+ * veem.
+ *
+ * A descoberta é feita pela própria Evolution (`linkedParent`) e não por
+ * cadastro manual, para continuar funcionando quando a Comunidade for
+ * recriada — o que já aconteceu antes neste projeto.
+ */
+async function alvoDoRenomear(env, jid, fetchImpl) {
+  const info = await infoGrupo(env, jid, fetchImpl);
+
+  if (info.ok) {
+    const d = info.dados || {};
+    if (d.isCommunityAnnounce && d.linkedParent) {
+      // Guarda o pai descoberto: vira a reserva do dia em que a Evolution
+      // estiver fora do ar na hora do disparo.
+      await lembrarPai(env, jid, d.linkedParent);
+      return { jid: d.linkedParent, via: 'descoberto' };
+    }
+    // Grupo comum (ou a própria Comunidade): renomeia ele mesmo.
+    return { jid, via: 'proprio' };
   }
-  const feitos = [];
-  for (const jid of alvos) {
-    const r = await renomear(env, jid, payload.titulo, fetchImpl);
-    if (!r.ok) return { ok: false, erro: `${r.erro} (já renomeados: ${feitos.length} de ${alvos.length})` };
-    feitos.push(jid);
+
+  // Evolution não respondeu. O pai guardado numa descoberta anterior é melhor
+  // palpite do que o Avisos, que se sabe que o WhatsApp recusa.
+  const grupo = await grupoMonitorado(env, jid);
+  if (grupo?.parent_jid) return { jid: grupo.parent_jid, via: 'guardado' };
+
+  return { jid, via: 'proprio' };
+}
+
+async function lembrarPai(env, jid, parentJid) {
+  try {
+    await env.DB.prepare(
+      'UPDATE whatsapp_groups_tracked SET parent_jid = ? WHERE group_jid = ? AND (parent_jid IS NULL OR parent_jid <> ?)'
+    ).bind(parentJid, jid, parentJid).run();
+  } catch (e) {
+    // Memória é conveniência, não requisito: não pode derrubar o renomear.
+    console.error('grupos-acoes: não consegui guardar o pai de', jid, e?.message || e);
   }
-  return { ok: true, resumo: feitos.length > 1 ? 'Grupo e par renomeados.' : 'Grupo renomeado.' };
 }
 
 /**

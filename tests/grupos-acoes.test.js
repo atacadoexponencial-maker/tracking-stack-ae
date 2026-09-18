@@ -91,12 +91,6 @@ test('aceita agendar para daqui a pouco e guarda o payload como JSON', () => {
   assert.deepEqual(JSON.parse(r.acao.payload), { texto: 'Começou!' });
 });
 
-test('aplicar_no_par é recusado quando o grupo não tem par conhecido', () => {
-  const semPar = { group_jid: AVISOS, label: 'x', parent_jid: null };
-  const r = validarAcao({ tipo: 'renomear', titulo: 'Novo', aplicar_no_par: true, agendada_para: AGORA + 600 }, semPar, AGORA);
-  assert.match(r.erro, /par/i);
-});
-
 test('criarAcao recusa grupo fora da allowlist e grupo desligado', async () => {
   const env = { DB: d1(novoBanco()) };
   const fora = await criarAcao(env, { group_jid: 'inventado@g.us', tipo: 'mensagem', texto: 'oi', agendada_para: AGORA + 600 }, AGORA);
@@ -113,7 +107,7 @@ test('criarAcao grava a ação como agendada', async () => {
   const l = db.prepare('SELECT * FROM whatsapp_group_actions WHERE id = ?').get(r.id);
   assert.equal(l.status, 'agendada');
   assert.equal(l.agendada_para, AGORA + 600);
-  assert.deepEqual(JSON.parse(l.payload), { titulo: '24/09 às 12h', aplicar_no_par: true });
+  assert.deepEqual(JSON.parse(l.payload), { titulo: '24/09 às 12h' }, 'a escolha do alvo nao e de quem agenda');
 });
 
 test('cancelar só vale enquanto está agendada', async () => {
@@ -233,26 +227,109 @@ test('renomear que falha volta para a fila até 3 tentativas', async () => {
   assert.equal(l.tentativas, 3);
 });
 
-test('renomear com aplicar_no_par renomeia os dois grupos', async () => {
+// --- renomear resolve o grupo pai da Comunidade (bug de 18/09) ---
+//
+// O grupo monitorado é o de AVISOS da Comunidade, e o nome dele espelha o do
+// grupo pai. Pedir ao WhatsApp para renomear o Avisos devolve `bad-request`:
+// o campo não é dele. Quem precisa ser renomeado é o pai — e o Avisos segue.
+
+const RESP_ANUNCIO = { isCommunityAnnounce: true, isCommunity: false, linkedParent: PAI, subject: 'velho' };
+const RESP_COMUM = { isCommunityAnnounce: false, isCommunity: false, linkedParent: null, subject: 'velho' };
+
+// Responde o findGroupInfos com `meta` e grava os renomeados em `alvos`.
+function evolucaoFalsa(meta, alvos, { metaFalha = false } = {}) {
+  return async (url) => {
+    const u = String(url);
+    if (u.includes('findGroupInfos')) {
+      return metaFalha
+        ? new Response('erro', { status: 500 })
+        : new Response(JSON.stringify(meta), { status: 200 });
+    }
+    if (u.includes('updateGroupSubject')) {
+      alvos.push(new URL(u).searchParams.get('groupJid'));
+      return new Response('{}', { status: 200 });
+    }
+    return new Response('{}', { status: 200 });
+  };
+}
+
+async function agendarRenomear(env, extra = {}) {
+  const r = await criarAcao(env, { group_jid: AVISOS, tipo: 'renomear', titulo: 'Live | O jogo da escala', agendada_para: AGORA + 300, ...extra }, AGORA);
+  assert.ok(r.id, r.erro);
+  return r.id;
+}
+
+test('renomear no grupo de Avisos renomeia o PAI, não o Avisos', async () => {
   const db = novoBanco(); const env = envCom(db);
-  const id = await criarAcao(env, { group_jid: AVISOS, tipo: 'renomear', titulo: '24/09 às 12h', aplicar_no_par: true, agendada_para: AGORA + 300 }, AGORA).then((r) => r.id);
-  const jids = [];
-  await executarAcao(env, id, AGORA + 300, async (url) => {
-    if (!ehAquecimento(url)) jids.push(new URL(url).searchParams.get('groupJid'));
-    return okFetch();
-  });
-  assert.deepEqual(jids.sort(), [PAI, AVISOS].sort());
+  const id = await agendarRenomear(env);
+  const alvos = [];
+  const r = await executarAcao(env, id, AGORA + 300, evolucaoFalsa(RESP_ANUNCIO, alvos));
+  assert.equal(r.status, 'concluida');
+  assert.deepEqual(alvos, [PAI], 'o Avisos nunca deve ser alvo: o WhatsApp recusa com bad-request');
 });
 
-test('se um dos dois do par falha, a ação falha inteira', async () => {
+test('grupo comum continua sendo renomeado nele mesmo', async () => {
   const db = novoBanco(); const env = envCom(db);
-  const id = await criarAcao(env, { group_jid: AVISOS, tipo: 'renomear', titulo: 'x', aplicar_no_par: true, agendada_para: AGORA + 300 }, AGORA).then((r) => r.id);
-  let n = 0;
-  const r = await executarAcao(env, id, AGORA + 300, async (url) => {
-    if (ehAquecimento(url)) return okFetch();
-    return ++n === 1 ? okFetch() : new Response('x', { status: 500 });
-  });
-  assert.notEqual(r.status, 'concluida');
+  const id = await agendarRenomear(env);
+  const alvos = [];
+  const r = await executarAcao(env, id, AGORA + 300, evolucaoFalsa(RESP_COMUM, alvos));
+  assert.equal(r.status, 'concluida');
+  assert.deepEqual(alvos, [AVISOS]);
+});
+
+test('o pai descoberto é guardado, para servir de reserva depois', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  db.prepare('UPDATE whatsapp_groups_tracked SET parent_jid = NULL WHERE group_jid = ?').run(AVISOS);
+  const id = await agendarRenomear(env);
+  await executarAcao(env, id, AGORA + 300, evolucaoFalsa(RESP_ANUNCIO, []));
+  assert.equal(db.prepare('SELECT parent_jid FROM whatsapp_groups_tracked WHERE group_jid=?').get(AVISOS).parent_jid, PAI);
+});
+
+test('se a consulta de metadados falha, usa o pai guardado', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const id = await agendarRenomear(env);
+  const alvos = [];
+  const r = await executarAcao(env, id, AGORA + 300, evolucaoFalsa(null, alvos, { metaFalha: true }));
+  assert.equal(r.status, 'concluida');
+  assert.deepEqual(alvos, [PAI], 'o pai guardado é a reserva quando a Evolution não responde');
+});
+
+test('sem metadados e sem pai guardado, tenta o proprio grupo', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  db.prepare('UPDATE whatsapp_groups_tracked SET parent_jid = NULL WHERE group_jid = ?').run(AVISOS);
+  const id = await agendarRenomear(env);
+  const alvos = [];
+  await executarAcao(env, id, AGORA + 300, evolucaoFalsa(null, alvos, { metaFalha: true }));
+  assert.deepEqual(alvos, [AVISOS]);
+});
+
+test('aplicar_no_par deixou de mudar o comportamento: o pai e resolvido sozinho', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  // A caixinha antiga existia porque ninguem sabia quem era o pai. Agora a
+  // propria Evolution responde isso, e marcar ou nao marcar da no mesmo.
+  const comFlag = await agendarRenomear(env, { aplicar_no_par: true });
+  const semFlag = await agendarRenomear(env, { aplicar_no_par: false, agendada_para: AGORA + 400 });
+
+  const a = []; const b = [];
+  await executarAcao(env, comFlag, AGORA + 300, evolucaoFalsa(RESP_ANUNCIO, a));
+  await executarAcao(env, semFlag, AGORA + 400, evolucaoFalsa(RESP_ANUNCIO, b));
+  assert.deepEqual(a, [PAI]);
+  assert.deepEqual(b, [PAI]);
+});
+
+test('renomear que falha de verdade continua retentando ate 3 vezes', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const id = await agendarRenomear(env);
+  const falha = async (url) => (String(url).includes('findGroupInfos')
+    ? new Response(JSON.stringify(RESP_ANUNCIO), { status: 200 })
+    : new Response('bad-request', { status: 500 }));
+  await executarAcao(env, id, AGORA + 300, falha);
+  assert.equal(db.prepare('SELECT status FROM whatsapp_group_actions WHERE id=?').get(id).status, 'agendada');
+  await executarAcao(env, id, AGORA + 310, falha);
+  await executarAcao(env, id, AGORA + 320, falha);
+  const l = db.prepare('SELECT status,tentativas FROM whatsapp_group_actions WHERE id=?').get(id);
+  assert.equal(l.status, 'falhou');
+  assert.equal(l.tentativas, 3);
 });
 
 test('executarVencidas pega só o que venceu e ignora cancelada e futura', async () => {
