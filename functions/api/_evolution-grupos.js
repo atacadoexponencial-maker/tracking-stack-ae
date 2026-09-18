@@ -13,6 +13,10 @@
 
 export const TIMEOUT_MS = 5000;
 
+// Listar TODOS os grupos é bem mais caro que consultar um: a usuária participa
+// de dezenas, e a Evolution monta a lista inteira antes de responder.
+export const TIMEOUT_LISTA_MS = 25000;
+
 /**
  * Credenciais da Evolution, ou null se faltar qualquer uma.
  *
@@ -139,6 +143,38 @@ export async function infoGrupo(env, jid, fetchImpl = fetch) {
     return { ok: true, dados: await res.json() };
   } catch (e) {
     return { ok: false, erro: `rede/timeout: ${e?.message || e}` };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Todos os grupos de que o número participa.
+ *
+ * `getParticipants=false` de propósito: a lista serve para ESCOLHER um grupo,
+ * e trazer os participantes de dezenas de grupos seria pesado sem servir a
+ * nada aqui.
+ *
+ * Timeout próprio e maior: é uma ação manual, de uma pessoa esperando na tela,
+ * e a Evolution demora bem mais para montar esta lista do que para responder
+ * sobre um grupo só. Os 5s do resto derrubariam a chamada sempre.
+ */
+export async function listarGrupos(env, fetchImpl = fetch) {
+  const c = credenciais(env);
+  if (!c) return { ok: false, erro: faltando(env) };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_LISTA_MS);
+  try {
+    const url = `${c.base}/group/fetchAllGroups/${encodeURIComponent(c.instancia)}?getParticipants=false`;
+    const res = await fetchImpl(url, { headers: { apikey: c.apikey }, signal: ctrl.signal });
+    if (!res.ok) {
+      const detalhe = (await res.text().catch(() => '')).slice(0, 200);
+      return { ok: false, erro: `A Evolution recusou listar os grupos (HTTP ${res.status}). ${detalhe}`.trim() };
+    }
+    const dados = await res.json();
+    return { ok: true, grupos: Array.isArray(dados) ? dados : [] };
+  } catch (e) {
+    return { ok: false, erro: `Não foi possível listar os grupos: ${e?.message || e}` };
   } finally {
     clearTimeout(timer);
   }

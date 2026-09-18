@@ -468,6 +468,21 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
     <section class="secao" id="secao-grupos">
       <div class="card" id="grupos-conexao-card"><h2>Conexão do WhatsApp <small id="grupos-conexao-nota"></small></h2><div id="grupos-conexao"></div></div>
       <div id="grupos-aviso"></div>
+      <div class="card">
+        <h2>Grupos monitorados <small>quais grupos o tracking mede e pode disparar</small></h2>
+        <div id="cat-monitorados"></div>
+        <div style="margin-top:1rem; border-top:1px solid var(--border); padding-top:0.9rem">
+          <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; margin-bottom:0.7rem">
+            <input type="search" id="cat-busca" placeholder="Buscar grupo pelo nome…" style="flex:1; min-width:220px; background:var(--card); color:var(--fg); border:1px solid var(--border); border-radius:0.5rem; padding:0.45rem 0.6rem; font:inherit; font-size:0.86rem">
+            <label style="display:flex; gap:0.4rem; align-items:center; font-size:0.84rem; color:var(--muted)">
+              <input type="checkbox" id="cat-so-comunidades"> só Comunidades
+            </label>
+            <button class="btn sec" type="button" id="cat-recarregar">Atualizar lista</button>
+          </div>
+          <div id="cat-erro" class="aviso falha" hidden></div>
+          <div class="tabela-wrap" id="cat-lista"></div>
+        </div>
+      </div>
       <div class="card"><h2>Conversão no Meta <small>entrada no grupo → EntrouGrupo</small></h2><div id="grupos-conversao"></div></div>
       <div id="grupos-blocos"></div>
       <div class="card"><h2>Eventos recentes <small>quem entrou e quem saiu</small></h2><div class="tabela-wrap" id="grupos-eventos"></div></div>
@@ -1640,6 +1655,13 @@ R.grupos = async () => {
     { titulo: 'Telefone', campo: 'participant_jid', render: (r) => esc(telefone(r.participant_jid)) },
     { titulo: 'O quê', campo: 'action', render: (r) => acoes[r.action] || esc(r.action) },
   ], dados.recentes || []);
+
+  // Catálogo em requisição própria e sem travar a aba: listar todos os grupos
+  // na Evolution leva segundos, e os números acima não podem esperar por isso.
+  // A lista fica guardada, então só a primeira visita paga.
+  catCarregar().catch(() => {
+    $('#cat-lista').innerHTML = '<p class="mini">Não foi possível carregar os grupos.</p>';
+  });
 };
 
 // ---------- links ----------
@@ -1753,6 +1775,125 @@ $('#links-form').addEventListener('submit', async (ev) => {
     ends_at: padrao ? null : paraUnixBRT($('#links-ate').value),
   });
 });
+
+// ---------- catálogo de grupos (18/09/2026) ----------
+// A lista vem da Evolution e é LENTA (dezenas de grupos), então é carregada
+// sob demanda e guardada aqui: trocar de aba e voltar não paga o custo de novo.
+// "Atualizar lista" existe para quando um grupo novo foi criado no WhatsApp.
+const CAT = { grupos: null, carregando: false, erro: null };
+
+const CAT_TIPOS = { comunidade: 'Comunidade', avisos: 'Avisos', comum: 'grupo' };
+
+async function catCarregar(forcar = false) {
+  if (CAT.carregando) return;
+  if (CAT.grupos && !forcar) return catDesenhar();
+  CAT.carregando = true;
+  CAT.erro = null;
+  $('#cat-lista').innerHTML = '<p class="mini">Consultando os grupos no WhatsApp… isso leva alguns segundos.</p>';
+  try {
+    const d = await fetchJson('/api/grupos-catalogo');
+    CAT.grupos = d.grupos || [];
+    CAT.erro = d.ok ? null : (d.error || 'Não foi possível consultar.');
+  } catch (e) {
+    CAT.grupos = [];
+    CAT.erro = 'Não foi possível consultar os grupos.';
+  } finally {
+    CAT.carregando = false;
+  }
+  catDesenhar();
+}
+
+function catDesenhar() {
+  $('#cat-erro').textContent = CAT.erro || '';
+  $('#cat-erro').hidden = !CAT.erro;
+
+  const todos = CAT.grupos || [];
+  const monitorados = todos.filter((g) => g.monitorado);
+
+  // Os monitorados ficam sempre visíveis, fora do filtro: é o que está ligado
+  // agora, e perdê-los de vista ao digitar seria perder a única resposta que
+  // importa — "o que o tracking está medindo?".
+  $('#cat-monitorados').innerHTML = monitorados.length
+    ? monitorados.map((g) => `
+        <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; padding:0.45rem 0; border-bottom:1px solid var(--border)">
+          <strong style="flex:1; min-width:180px">${esc(g.subject || g.group_jid)}</strong>
+          <span class="mini">${CAT_TIPOS[g.tipo] || g.tipo} · ${fmtInt(g.size)} membros</span>
+          <span class="mini" style="color:${g.envia_meta ? 'var(--up)' : 'var(--muted)'}">Meta: ${g.envia_meta ? 'ligado' : 'desligado'}</span>
+          <button class="btn sec" type="button" data-meta="${esc(g.group_jid)}" data-ligar="${g.envia_meta ? '0' : '1'}">${g.envia_meta ? 'desligar Meta' : 'ligar Meta'}</button>
+          <button class="btn sec" type="button" data-desligar="${esc(g.group_jid)}">parar de medir</button>
+        </div>`).join('')
+    : '<p class="mini">Nenhum grupo monitorado. Busque abaixo e clique em "monitorar".</p>';
+
+  const termo = normalizarBusca($('#cat-busca').value);
+  const soCom = $('#cat-so-comunidades').checked;
+  const candidatos = todos
+    .filter((g) => !g.monitorado)
+    .filter((g) => (soCom ? g.tipo !== 'comum' : true))
+    .filter((g) => (termo ? (g.busca || '').includes(termo) : true));
+
+  if (!todos.length && !CAT.erro) {
+    $('#cat-lista').innerHTML = '<p class="mini">Clique em "Atualizar lista" para carregar os grupos do WhatsApp.</p>';
+    return;
+  }
+  if (!candidatos.length) {
+    $('#cat-lista').innerHTML = `<p class="mini">${termo || soCom ? 'Nenhum grupo com esse filtro.' : 'Todos os grupos já estão monitorados.'}</p>`;
+    return;
+  }
+
+  tabela($('#cat-lista'), [
+    { titulo: 'Grupo', campo: 'subject', render: (g) => esc(g.subject || '(sem nome)') },
+    { titulo: 'Tipo', campo: 'tipo', render: (g) => `<span class="mini">${CAT_TIPOS[g.tipo] || esc(g.tipo)}</span>` },
+    { titulo: 'Membros', num: true, campo: 'size', render: (g) => fmtInt(g.size) },
+    { titulo: '', render: (g) => `<button class="btn sec" type="button" data-monitorar="${esc(g.group_jid)}">monitorar</button>` },
+  ], candidatos.slice(0, 60));
+}
+
+// Espelha o normalizar() do backend: busca em português sem tirar acento
+// falharia em metade dos nomes ("Sessão", "Estratégica").
+const normalizarBusca = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+async function catAcao(corpo, btn) {
+  btn.disabled = true;
+  const r = await fetch(`/api/grupos-catalogo?key=${encodeURIComponent(key)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    CAT.erro = j.error || 'Não foi possível concluir.';
+  } else if (j.corrigido) {
+    // Avisar é obrigatório: quem clicou na Comunidade precisa saber que o
+    // monitorado é o grupo de avisos, senão vai procurá-la na lista e não achar.
+    CAT.erro = `Monitorando o grupo de avisos desta Comunidade (${j.label}) — é nele que as pessoas entram.`;
+  } else {
+    CAT.erro = null;
+  }
+  await catCarregar(true);
+}
+
+$('#cat-busca').oninput = catDesenhar;
+$('#cat-so-comunidades').onchange = catDesenhar;
+$('#cat-recarregar').onclick = () => catCarregar(true);
+
+$('#cat-monitorados').onclick = (ev) => {
+  const meta = ev.target.closest('[data-meta]');
+  if (meta) {
+    const ligar = meta.dataset.ligar === '1';
+    // Ligar manda evento ao Pixel e mexe na otimização das campanhas: pergunta
+    // antes, na própria linha.
+    return pedirConfirmacao(meta, ligar ? 'Mandar as entradas deste grupo ao Meta?' : 'Parar de mandar ao Meta?',
+      () => catAcao({ group_jid: meta.dataset.meta, acao: 'meta', ligar }, meta));
+  }
+  const off = ev.target.closest('[data-desligar]');
+  if (off) {
+    return pedirConfirmacao(off, 'Parar de medir este grupo?',
+      () => catAcao({ group_jid: off.dataset.desligar, acao: 'desligar' }, off));
+  }
+};
+
+$('#cat-lista').onclick = (ev) => {
+  const b = ev.target.closest('[data-monitorar]');
+  if (b) catAcao({ group_jid: b.dataset.monitorar, acao: 'monitorar' }, b);
+};
 
 // ---------- Disparos (spec 2026-09-18) ----------
 // Toda a validação é do backend: a tela só mostra o erro que volta. O upload é
