@@ -123,3 +123,104 @@ Em ordem:
 Nenhuma dessas três fontes reentrega evento perdido — a Evolution não reenvia.
 Um buraco identificado é irrecuperável; o valor do diagnóstico é parar de
 perder, não recuperar o que já passou.
+
+---
+
+# Agenda de ações — agendar mensagem e renomear
+
+A aba Grupos deixou de só observar em 17/09/2026: ela agora **age** no grupo.
+Spec: `docs/superpowers/specs/2026-09-17-gestao-grupos-whatsapp-design.md`.
+
+Não é um agendador de mensagens, é uma fila de **ações**. Renomear e enviar são
+a mesma coisa com hora marcada, e por isso a semana inteira da live cabe numa
+tela só. Tipo novo (trancar o grupo, revogar o link) entra sem tabela nova.
+
+## Por onde o dado passa
+
+```
+Painel (aba Grupos) ──POST /api/grupos-acoes──▶ D1 whatsapp_group_actions
+                                                  ▲
+cron VPS (5/5 min) ──POST /api/sync/grupo-acoes───┘
+                       │
+                       ▼
+              _grupos-acoes.js   (executor)
+                       │
+                       ▼
+            _evolution-grupos.js (ÚNICA porta para a Evolution)
+```
+
+O botão "fazer agora" do painel entra pelo **mesmo** executor. Um caminho de
+código, dois gatilhos: o que se testa clicando é o que roda às 12h.
+
+`_evolution-grupos.js` é o único arquivo desta feature que conhece a Evolution.
+Quando ela for aposentada, é ele que muda — não a funcionalidade.
+
+## As quatro regras que seguram o risco
+
+1. **Trava de corrida** — a reserva é `UPDATE ... WHERE status='agendada'`. Zero
+   linhas mudadas significa que outra passada do cron já pegou. Sem isto, um
+   cron lento sobrepondo o seguinte manda a mesma mensagem duas vezes para o
+   grupo inteiro.
+2. **Ação vencida não sai** — passados 30 min da hora marcada, vira
+   `falhou: atrasada` sem disparar. Aviso de live que chega depois da live é
+   pior que aviso nenhum. A constante é `ATRASO_MAX_SEG`.
+3. **Mensagem nunca retenta sozinha** — falhou, fica vermelha no painel e a
+   decisão é humana. `renomear` retenta até 3 vezes porque é idempotente.
+4. **Falha grita** — alerta no Slack pelo `SLACK_WEBHOOK_META` (mesmo canal do
+   CAPI). ⚠️ Enquanto esse secret não existir, a resposta do sync traz
+   `alerta: {"erro":"sem_canal"}` e o único aviso é o vermelho no painel.
+
+## Cron
+
+```
+*/5 * * * * /root/scripts/grupo-acoes-sync/sync.sh >> /var/log/tracking-grupo-acoes.log 2>&1
+```
+
+Cinco minutos é a granularidade prometida: 12:00 sai entre 12:00 e 12:05. O
+script reusa o `.env` do `meta-leads-sync` (mesmo `SYNC_SECRET`), como os
+demais. O Cloudflare **Pages** não tem Cron Triggers — só Workers — e por isso
+o relógio mora na VPS, como nos outros sete syncs.
+
+## `parent_jid`: o par da Comunidade
+
+Os grupos da Comunidade vêm **em par com o mesmo nome** (grupo de avisos +
+grupo pai). Renomear só um deixa metade com o título velho, e isso passa
+despercebido. A coluna `whatsapp_groups_tracked.parent_jid` guarda o par.
+
+**Ela nasce nula, de propósito.** Nulo significa "não sei", e nesse caso a
+opção "renomear também o par" nem aparece na tela e é recusada no backend —
+adivinhar qual é o outro grupo levaria a renomear o grupo errado.
+
+Para preencher, identificar o par contra a Evolution (os dois vêm com o mesmo
+`subject`; o de muitos membros é o de avisos, o de poucos é o pai):
+
+```bash
+curl -s "{EVOLUTION_BASE_URL}/group/fetchAllGroups/{EVOLUTION_INSTANCE}?getParticipants=false" \
+  -H "apikey: <EVOLUTION_APIKEY_NOTIF>" | jq '.[] | {id, subject, size}'
+
+npx wrangler d1 execute tracking-ae-db --remote \
+  --command="UPDATE whatsapp_groups_tracked SET parent_jid='<JID_DO_PAI>' WHERE group_jid='<JID_DOS_AVISOS>';"
+```
+
+Refazer sempre que a Comunidade for recriada — ela não é permanente.
+
+## Quando uma ação falha
+
+O motivo fica no histórico da aba, em vermelho, junto da linha. Os casos:
+
+| Motivo no painel | O que aconteceu |
+|---|---|
+| `venceu há N min e passou da janela` | a fila ficou parada (VPS, deploy). A ação **não** foi executada |
+| `A Evolution recusou … (HTTP 4xx/5xx)` | chegou na Evolution e ela negou — número desconectado, sem permissão de admin, grupo inexistente |
+| `Não foi possível falar com a Evolution` | timeout de 5s ou rede. **Não se sabe** se a ação aconteceu do outro lado |
+
+O terceiro caso é o que exige olho: não dá para saber se a mensagem saiu. Por
+isso ela não é retentada automaticamente — conferir no WhatsApp antes de
+reagendar.
+
+## Fora de escopo (Fase 1)
+
+Adicionar e remover participantes, criar grupo, link de convite e roster ao
+vivo ficaram desenhados na spec e **não** foram implementados. O `add` em
+especial é a operação que queima número — add de estranho, em lote, com timing
+de máquina — e vai precisar de throttle próprio e de fallback por convite.
