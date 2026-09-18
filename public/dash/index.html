@@ -478,6 +478,7 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
               <input type="checkbox" id="cat-so-comunidades"> só Comunidades
             </label>
             <button class="btn sec" type="button" id="cat-recarregar">Atualizar lista</button>
+            <span class="mini" id="cat-quando" style="width:100%"></span>
           </div>
           <div id="cat-erro" class="aviso falha" hidden></div>
           <div class="tabela-wrap" id="cat-lista"></div>
@@ -1780,27 +1781,44 @@ $('#links-form').addEventListener('submit', async (ev) => {
 // A lista vem da Evolution e é LENTA (dezenas de grupos), então é carregada
 // sob demanda e guardada aqui: trocar de aba e voltar não paga o custo de novo.
 // "Atualizar lista" existe para quando um grupo novo foi criado no WhatsApp.
-const CAT = { grupos: null, carregando: false, erro: null };
+const CAT = { grupos: null, atualizado_em: null, erro: null };
 
 const CAT_TIPOS = { comunidade: 'Comunidade', avisos: 'Avisos', comum: 'grupo' };
 
-async function catCarregar(forcar = false) {
-  if (CAT.carregando) return;
-  if (CAT.grupos && !forcar) return catDesenhar();
-  CAT.carregando = true;
-  CAT.erro = null;
-  $('#cat-lista').innerHTML = '<p class="mini">Consultando os grupos no WhatsApp… isso leva alguns segundos.</p>';
+async function catCarregar() {
   try {
     const d = await fetchJson('/api/grupos-catalogo');
     CAT.grupos = d.grupos || [];
-    CAT.erro = d.ok ? null : (d.error || 'Não foi possível consultar.');
+    CAT.atualizado_em = d.atualizado_em || null;
+    CAT.erro = null;
   } catch (e) {
     CAT.grupos = [];
-    CAT.erro = 'Não foi possível consultar os grupos.';
-  } finally {
-    CAT.carregando = false;
+    CAT.erro = 'Não foi possível carregar a lista de grupos.';
   }
   catDesenhar();
+}
+
+// Rebuscar a lista na Evolution leva ~46 segundos (123 grupos). É explícito e
+// avisado: só acontece quando alguém clica, para criar um grupo novo e
+// encontrá-lo aqui sem esperar as 6 horas do cron.
+async function catAtualizar(btn) {
+  btn.disabled = true;
+  const antes = btn.textContent;
+  btn.textContent = 'Atualizando… ~1 min';
+  CAT.erro = null;
+  try {
+    const r = await fetch(`/api/grupos-catalogo?key=${encodeURIComponent(key)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'atualizar' }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) CAT.erro = j.error || 'Não foi possível atualizar a lista.';
+  } catch (e) {
+    CAT.erro = 'Não foi possível falar com o WhatsApp para atualizar a lista.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = antes;
+  }
+  await catCarregar();
 }
 
 function catDesenhar() {
@@ -1831,8 +1849,14 @@ function catDesenhar() {
     .filter((g) => (soCom ? g.tipo !== 'comum' : true))
     .filter((g) => (termo ? (g.busca || '').includes(termo) : true));
 
+  // Quando a lista foi vista pela última vez: sem isso, um grupo criado hoje
+  // e ausente daqui pareceria um defeito, e não uma lista de 6 horas atrás.
+  $('#cat-quando').textContent = CAT.atualizado_em
+    ? `lista do WhatsApp vista em ${quandoBRT(CAT.atualizado_em)}`
+    : 'lista ainda não carregada';
+
   if (!todos.length && !CAT.erro) {
-    $('#cat-lista').innerHTML = '<p class="mini">Clique em "Atualizar lista" para carregar os grupos do WhatsApp.</p>';
+    $('#cat-lista').innerHTML = '<p class="mini">Lista ainda não carregada. Clique em "Atualizar lista".</p>';
     return;
   }
   if (!candidatos.length) {
@@ -1867,12 +1891,12 @@ async function catAcao(corpo, btn) {
   } else {
     CAT.erro = null;
   }
-  await catCarregar(true);
+  await catCarregar();
 }
 
 $('#cat-busca').oninput = catDesenhar;
 $('#cat-so-comunidades').onchange = catDesenhar;
-$('#cat-recarregar').onclick = () => catCarregar(true);
+$('#cat-recarregar').onclick = (ev) => catAtualizar(ev.target);
 
 $('#cat-monitorados').onclick = (ev) => {
   const meta = ev.target.closest('[data-meta]');

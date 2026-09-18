@@ -25,23 +25,20 @@ function tipoDe(g) {
   return 'comum';
 }
 
+// A cada quanto tempo o cron atualiza a cópia local sozinho. Seis horas porque
+// a lista de grupos quase não muda, e cada atualização custa ~46s da Evolution.
+export const VALIDADE_SEG = 6 * 3600;
+
 /**
- * A lista da Evolution cruzada com a allowlist do D1.
- *
- * Ordenada por tamanho porque os grupos da operação têm centenas de pessoas e
- * os de terceiros costumam ser pequenos: o que interessa sobe sozinho, antes
- * de qualquer busca.
+ * Busca a lista na Evolution e grava a cópia local. É a operação LENTA
+ * (~46s para 123 grupos), e por isso só roda em segundo plano ou quando
+ * alguém pede explicitamente — nunca ao abrir a tela.
  */
-export async function catalogo(env, fetchImpl = fetch) {
+export async function atualizarCatalogo(env, agora, fetchImpl = fetch) {
   const lista = await listarGrupos(env, fetchImpl);
   if (!lista.ok) return { ok: false, erro: lista.erro };
 
-  const { results } = await env.DB.prepare(
-    'SELECT group_jid, label, enabled, send_conversion, parent_jid FROM whatsapp_groups_tracked'
-  ).all();
-  const guardados = new Map((results || []).map((r) => [r.group_jid, r]));
-
-  const grupos = await Promise.all((lista.grupos || []).map(async (g) => {
+  const linhas = await Promise.all((lista.grupos || []).map(async (g) => {
     // Bug conhecido da Evolution: `fetchAllGroups` às vezes devolve o grupo
     // sem `subject`. Mostrar um item em branco seria pior que gastar uma
     // consulta a mais — mas só para quem veio sem nome.
@@ -50,43 +47,91 @@ export async function catalogo(env, fetchImpl = fetch) {
       const info = await infoGrupo(env, g.id, fetchImpl);
       subject = info.ok ? (info.dados?.subject ?? null) : null;
     }
-    const guardado = guardados.get(g.id);
     return {
       group_jid: g.id,
       subject: subject || null,
       size: Number.isFinite(Number(g.size)) ? Number(g.size) : 0,
       tipo: tipoDe(g),
-      linkedParent: g.linkedParent || null,
-      monitorado: !!guardado && !!guardado.enabled,
-      envia_meta: !!guardado?.send_conversion,
-      // Já normalizado no backend: a tela só compara, não precisa saber que
-      // busca em português exige tirar acento.
+      linked_parent: g.linkedParent || null,
       busca: `${normalizar(subject)} ${g.id}`,
     };
   }));
 
-  grupos.sort((a, b) => b.size - a.size);
-  return { ok: true, grupos };
+  for (const l of linhas) {
+    await env.DB.prepare(`
+      INSERT INTO whatsapp_groups_catalogo (group_jid, subject, size, tipo, linked_parent, busca, atualizado_em)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(group_jid) DO UPDATE SET
+        subject = excluded.subject, size = excluded.size, tipo = excluded.tipo,
+        linked_parent = excluded.linked_parent, busca = excluded.busca,
+        atualizado_em = excluded.atualizado_em
+    `).bind(l.group_jid, l.subject, l.size, l.tipo, l.linked_parent, l.busca, agora).run();
+  }
+
+  // Grupo do qual o número saiu some da lista: manter seria oferecer para
+  // monitorar algo que não existe mais.
+  await env.DB.prepare('DELETE FROM whatsapp_groups_catalogo WHERE atualizado_em < ?').bind(agora).run();
+
+  return { ok: true, total: linhas.length };
+}
+
+/** Atualiza só se a cópia local já estiver velha. Usado pelo cron. */
+export async function talvezAtualizar(env, agora, fetchImpl = fetch) {
+  const r = await env.DB.prepare('SELECT MAX(atualizado_em) AS em FROM whatsapp_groups_catalogo').first();
+  if (r?.em && agora - r.em < VALIDADE_SEG) return { pulou: true };
+  return atualizarCatalogo(env, agora, fetchImpl);
+}
+
+/**
+ * A cópia local cruzada com a allowlist. É LEITURA DE BANCO, instantânea —
+ * a tela nunca espera a Evolution.
+ *
+ * Ordenada por tamanho porque os grupos da operação têm centenas de pessoas e
+ * os de terceiros costumam ser pequenos: o que interessa sobe sozinho, antes
+ * de qualquer busca.
+ */
+export async function catalogo(env) {
+  const { results } = await env.DB.prepare(`
+    SELECT c.group_jid, c.subject, c.size, c.tipo, c.linked_parent, c.busca, c.atualizado_em,
+           t.enabled, t.send_conversion
+    FROM whatsapp_groups_catalogo c
+    LEFT JOIN whatsapp_groups_tracked t ON t.group_jid = c.group_jid
+    ORDER BY c.size DESC
+  `).all();
+
+  const grupos = (results || []).map((g) => ({
+    group_jid: g.group_jid,
+    subject: g.subject,
+    size: g.size,
+    tipo: g.tipo,
+    linkedParent: g.linked_parent,
+    busca: g.busca,
+    monitorado: !!g.enabled,
+    envia_meta: !!g.send_conversion,
+  }));
+
+  return { ok: true, grupos, atualizado_em: results?.[0]?.atualizado_em ?? null };
 }
 
 /**
  * Passa a monitorar um grupo. Devolve o JID REALMENTE cadastrado, que pode
  * não ser o que foi pedido (Comunidade → seu grupo de Avisos).
  */
-export async function monitorar(env, jidPedido, agora, fetchImpl = fetch) {
-  const lista = await listarGrupos(env, fetchImpl);
-  if (!lista.ok) return { ok: false, erro: lista.erro };
-
-  const pedido = (lista.grupos || []).find((g) => g.id === jidPedido);
-  if (!pedido) return { ok: false, erro: 'Grupo não encontrado na lista do WhatsApp. Atualize a lista e tente de novo.' };
+export async function monitorar(env, jidPedido, agora) {
+  const pedido = await env.DB.prepare('SELECT * FROM whatsapp_groups_catalogo WHERE group_jid = ?')
+    .bind(String(jidPedido || '')).first();
+  if (!pedido) return { ok: false, erro: 'Grupo não encontrado na lista. Clique em "Atualizar lista" e tente de novo.' };
 
   let alvo = pedido;
   let corrigido = false;
 
-  if (tipoDe(pedido) === 'comunidade') {
+  if (pedido.tipo === 'comunidade') {
     // Quem mede é o Avisos. O pai tem meia dúzia de admins e não recebe as
-    // entradas — monitorá-lo daria um gráfico eternamente plano.
-    const avisos = (lista.grupos || []).find((g) => g.isCommunityAnnounce && g.linkedParent === pedido.id);
+    // entradas — monitorá-lo daria um gráfico eternamente plano, sem erro
+    // nenhum na tela.
+    const avisos = await env.DB.prepare(
+      "SELECT * FROM whatsapp_groups_catalogo WHERE tipo = 'avisos' AND linked_parent = ?"
+    ).bind(pedido.group_jid).first();
     if (!avisos) {
       return { ok: false, erro: 'Não achei o grupo de avisos desta Comunidade. Escolha o grupo de avisos diretamente na lista.' };
     }
@@ -94,8 +139,8 @@ export async function monitorar(env, jidPedido, agora, fetchImpl = fetch) {
     corrigido = true;
   }
 
-  const parentJid = alvo.linkedParent || null;
-  const label = alvo.subject || pedido.subject || alvo.id;
+  const parentJid = alvo.linked_parent || null;
+  const label = alvo.subject || pedido.subject || alvo.group_jid;
 
   // UPSERT: religar um grupo desligado atualiza a linha e aproveita o nome
   // atual; duplicar criaria duas verdades sobre o mesmo grupo.
@@ -107,9 +152,9 @@ export async function monitorar(env, jidPedido, agora, fetchImpl = fetch) {
       label = excluded.label,
       group_name = excluded.group_name,
       parent_jid = COALESCE(excluded.parent_jid, whatsapp_groups_tracked.parent_jid)
-  `).bind(alvo.id, label, alvo.subject || null, parentJid).run();
+  `).bind(alvo.group_jid, label, alvo.subject || null, parentJid).run();
 
-  return { ok: true, group_jid: alvo.id, label, tipo: tipoDe(alvo), corrigido, parent_jid: parentJid };
+  return { ok: true, group_jid: alvo.group_jid, label, tipo: alvo.tipo, corrigido, parent_jid: parentJid };
 }
 
 /**

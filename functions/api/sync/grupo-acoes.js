@@ -8,6 +8,7 @@
 
 import { executarVencidas, expurgarMidiaAntiga } from '../_grupos-acoes.js';
 import { infoGrupo, listarGrupos } from '../_evolution-grupos.js';
+import { talvezAtualizar } from '../_grupos-catalogo.js';
 import { FUSO_BRT } from '../_data-brt.js';
 
 export async function onRequestPost(context) {
@@ -68,7 +69,18 @@ export async function onRequestPost(context) {
     expurgo = { erro: String(e?.message || e) };
   }
 
-  return json({ ok: rodada.falhas === 0, ...rodada, alerta, expurgo });
+  // Cópia local da lista de grupos, no máximo de 6 em 6 horas. Fica por
+  // último e com a falha engolida, como o expurgo: é conveniência da tela de
+  // cadastro, não pode atrasar nem derrubar um disparo.
+  let catalogo = null;
+  try {
+    catalogo = await talvezAtualizar(env, agora, fetchImpl);
+  } catch (e) {
+    console.error('grupo-acoes: atualização do catálogo falhou', e?.message || e);
+    catalogo = { erro: String(e?.message || e) };
+  }
+
+  return json({ ok: rodada.falhas === 0, ...rodada, alerta, expurgo, catalogo });
 }
 
 async function diagnosticar(env, fetchImpl) {

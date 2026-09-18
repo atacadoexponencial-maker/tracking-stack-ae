@@ -12,16 +12,16 @@
 //
 // A apikey da Evolution nunca chega ao navegador — as consultas acontecem aqui.
 
-import { catalogo, monitorar, desligar, alternarMeta } from './_grupos-catalogo.js';
+import { catalogo, monitorar, desligar, alternarMeta, atualizarCatalogo } from './_grupos-catalogo.js';
 
 export async function onRequestGet(context) {
-  const { request, env, fetchImpl = fetch } = context;
+  const { request, env } = context;
   if (!autorizado(request, env)) return json({ error: 'Unauthorized' }, 401);
 
-  const r = await catalogo(env, fetchImpl);
-  // 200 mesmo com erro da Evolution: a tela precisa distinguir "não consegui
-  // falar com o WhatsApp" de "você não tem permissão", e mostrar o motivo.
-  return json(r.ok ? { ok: true, grupos: r.grupos } : { ok: false, error: r.erro, grupos: [] });
+  // Leitura de banco, instantânea. Perguntar à Evolution aqui faria a tela
+  // esperar ~46 segundos (123 grupos, medido em produção) a cada abertura.
+  const r = await catalogo(env);
+  return json({ ok: true, grupos: r.grupos, atualizado_em: r.atualizado_em });
 }
 
 export async function onRequestPost(context) {
@@ -49,11 +49,18 @@ export async function onRequestPost(context) {
   }
 
   if (corpo?.acao === 'monitorar') {
-    const r = await monitorar(env, jid, agora, fetchImpl);
+    const r = await monitorar(env, jid, agora);
     return r.ok ? json(r) : json({ error: r.erro }, 400);
   }
 
-  return json({ error: 'Ação desconhecida. Use monitorar, desligar ou meta.' }, 400);
+  // A operação LENTA, e por isso explícita: só acontece quando alguém clica
+  // em "Atualizar lista", nunca ao abrir a aba.
+  if (corpo?.acao === 'atualizar') {
+    const r = await atualizarCatalogo(env, agora, fetchImpl);
+    return r.ok ? json(r) : json({ error: r.erro }, 502);
+  }
+
+  return json({ error: 'Ação desconhecida. Use monitorar, desligar, meta ou atualizar.' }, 400);
 }
 
 function autorizado(request, env) {
