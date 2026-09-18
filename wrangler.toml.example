@@ -18,12 +18,17 @@ database_id = "__REPLACE_ME_DB_ID__"
 # exists so that (a) `wrangler d1 migrations apply` can find your database,
 # and (b) `wrangler pages dev` works for local development.
 #
-# Secrets and the PRODUCTION D1 binding are configured manually in the
+# Secrets and the PRODUCTION bindings are configured manually in the
 # Cloudflare dashboard — Pages project → Settings → Environment variables
 # (for secrets) and Settings → Bindings (for the D1 binding, which MUST be
 # named `DB` to match the code). The `deploy-stack` skill walks you through
 # the dashboard UI; it only generates `DASH_KEY` and webhook slugs locally
 # and prints them for you to paste.
+#
+# BINDINGS required in the dashboard (Settings → Bindings):
+#   DB     D1 database  → tracking-ae-db
+#   MIDIA  KV namespace → MIDIA (arquivos agendados da aba Disparos;
+#          sem ele o upload responde 500 e nenhum disparo com mídia sai)
 #
 # Required environment variables (set in the Cloudflare dashboard):
 #   META_PIXEL_ID_2         Meta Pixel numeric ID (o par `_2` é o único em uso;
