@@ -13,6 +13,8 @@ import {
   validarAcao, criarAcao, cancelarAcao, listarAcoes,
   executarAcao, executarVencidas, ATRASO_MAX_SEG,
 } from '../functions/api/_grupos-acoes.js';
+import { onRequestGet as acoesGet, onRequestPost as acoesPost } from '../functions/api/grupos-acoes.js';
+import { onRequestPost as syncPost } from '../functions/api/sync/grupo-acoes.js';
 
 // --- D1 mínimo em cima do node:sqlite (mesmo adaptador de meta-fila.test.js) ---
 function d1(db) {
@@ -245,4 +247,118 @@ test('executarVencidas conta falhas e não para na primeira', async () => {
   const r = await executarVencidas(env, AGORA + 200, async () => (++n === 1 ? new Response('x', { status: 500 }) : okFetch()));
   assert.equal(r.total, 2, 'a segunda ação precisa ser tentada mesmo com a primeira falhando');
   assert.equal(r.falhas, 1);
+});
+
+// --- endpoint do painel ---
+
+const req = (url, init) => new Request('https://exemplo.com' + url, init);
+const post = (qs, corpo) => req('/api/grupos-acoes?key=k' + qs, { method: 'POST', body: JSON.stringify(corpo) });
+const daquiAPouco = () => Math.floor(Date.now() / 1000) + 3600;
+
+test('sem a chave do dash, 401', async () => {
+  const env = { DB: d1(novoBanco()), DASH_KEY: 'k' };
+  assert.equal((await acoesGet({ request: req('/api/grupos-acoes'), env })).status, 401);
+  const errada = req('/api/grupos-acoes?key=errada', { method: 'POST', body: '{}' });
+  assert.equal((await acoesPost({ request: errada, env })).status, 401);
+});
+
+test('GET devolve os grupos que aceitam ação, com o par sinalizado', async () => {
+  const env = { DB: d1(novoBanco()), DASH_KEY: 'k' };
+  const j = await (await acoesGet({ request: req('/api/grupos-acoes?key=k'), env })).json();
+  assert.equal(j.grupos.length, 1, 'grupo desligado não pode aparecer');
+  assert.equal(j.grupos[0].group_jid, AVISOS);
+  assert.equal(j.grupos[0].tem_par, true);
+  assert.equal(j.grupos[0].parent_jid, undefined, 'o JID do par não precisa chegar ao navegador');
+});
+
+test('POST agenda e o erro de validação volta como 400 legível', async () => {
+  const env = { DB: d1(novoBanco()), DASH_KEY: 'k', ...ENV_EVO };
+  const bom = await acoesPost({ request: post('', { group_jid: AVISOS, tipo: 'mensagem', texto: 'oi', agendada_para: daquiAPouco() }), env });
+  assert.equal(bom.status, 200);
+  assert.ok((await bom.json()).id);
+  const ruim = await acoesPost({ request: post('', { group_jid: AVISOS, tipo: 'mensagem', texto: '', agendada_para: daquiAPouco() }), env });
+  assert.equal(ruim.status, 400);
+  assert.match((await ruim.json()).error, /texto/i);
+});
+
+test('POST com JSON quebrado responde 400, não 500', async () => {
+  const env = { DB: d1(novoBanco()), DASH_KEY: 'k' };
+  const r = await acoesPost({ request: req('/api/grupos-acoes?key=k', { method: 'POST', body: 'nao é json' }), env });
+  assert.equal(r.status, 400);
+});
+
+test('acao=agora cria, executa e deixa rastro no histórico', async () => {
+  const db = novoBanco();
+  const env = { DB: d1(db), DASH_KEY: 'k', ...ENV_EVO };
+  let chamou = 0;
+  const r = await acoesPost({
+    request: post('&acao=agora', { group_jid: AVISOS, tipo: 'mensagem', texto: 'teste' }),
+    env,
+    fetchImpl: async () => { chamou++; return new Response('{}', { status: 200 }); },
+  });
+  const j = await r.json();
+  assert.equal(chamou, 1);
+  assert.equal(j.status, 'concluida');
+  assert.equal(db.prepare('SELECT status FROM whatsapp_group_actions WHERE id=?').get(j.id).status, 'concluida');
+});
+
+test('acao=cancelar responde 409 quando já não dá mais', async () => {
+  const env = { DB: d1(novoBanco()), DASH_KEY: 'k' };
+  const criada = await acoesPost({ request: post('', { group_jid: AVISOS, tipo: 'mensagem', texto: 'oi', agendada_para: daquiAPouco() }), env });
+  const { id } = await criada.json();
+  assert.equal((await acoesPost({ request: post('&acao=cancelar', { id }), env })).status, 200);
+  assert.equal((await acoesPost({ request: post('&acao=cancelar', { id }), env })).status, 409);
+});
+
+// --- endpoint do cron ---
+
+const syncReq = (secret) => new Request('https://exemplo.com/api/sync/grupo-acoes', {
+  method: 'POST', headers: secret ? { 'x-sync-secret': secret } : {},
+});
+
+function comVencida(db) {
+  const passado = Math.floor(Date.now() / 1000) - 60;
+  db.prepare("INSERT INTO whatsapp_group_actions (group_jid,tipo,payload,agendada_para,status,criada_em) VALUES (?,?,?,?,'agendada',?)")
+    .run(AVISOS, 'mensagem', JSON.stringify({ texto: 'oi' }), passado, passado);
+}
+
+test('sync exige o x-sync-secret', async () => {
+  const env = { DB: d1(novoBanco()), SYNC_SECRET: 's' };
+  assert.equal((await syncPost({ request: syncReq(), env })).status, 401);
+  assert.equal((await syncPost({ request: syncReq('errado'), env })).status, 401);
+});
+
+test('sync executa as vencidas e responde o resumo', async () => {
+  const db = novoBanco();
+  const env = { DB: d1(db), SYNC_SECRET: 's', ...ENV_EVO };
+  comVencida(db);
+  const r = await syncPost({ request: syncReq('s'), env, fetchImpl: async () => new Response('{}', { status: 200 }) });
+  const j = await r.json();
+  assert.equal(j.ok, true);
+  assert.equal(j.total, 1);
+  assert.equal(j.falhas, 0);
+});
+
+test('falha avisa no Slack quando o canal existe', async () => {
+  const db = novoBanco();
+  const env = { DB: d1(db), SYNC_SECRET: 's', SLACK_WEBHOOK_META: 'https://hooks.slack.com/x', ...ENV_EVO };
+  comVencida(db);
+  const urls = [];
+  const r = await syncPost({
+    request: syncReq('s'), env,
+    fetchImpl: async (url) => { urls.push(String(url)); return new Response('x', { status: String(url).includes('slack') ? 200 : 500 }); },
+  });
+  assert.ok(urls.some((u) => u.includes('slack')), 'falha precisa gritar no Slack');
+  assert.equal((await r.json()).falhas, 1);
+});
+
+test('Slack fora do ar não derruba a rodada', async () => {
+  const db = novoBanco();
+  const env = { DB: d1(db), SYNC_SECRET: 's', SLACK_WEBHOOK_META: 'https://hooks.slack.com/x', ...ENV_EVO };
+  comVencida(db);
+  const r = await syncPost({
+    request: syncReq('s'), env,
+    fetchImpl: async (url) => { if (String(url).includes('slack')) throw new Error('rede'); return new Response('x', { status: 500 }); },
+  });
+  assert.equal(r.status, 200, 'alerta é extra: não pode fazer a rodada falhar');
 });
