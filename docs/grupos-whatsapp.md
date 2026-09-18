@@ -280,3 +280,52 @@ todos abaixo do teto de 25 MB por valor do KV.
 Arquivo de ação encerrada há mais de 30 dias é apagado do KV na mesma passada
 do cron, e a ficha marca `apagada_em`. O histórico fica inteiro; só o arquivo
 some. Mídia que subiu e nunca foi agendada também entra, pela data de criação.
+
+---
+
+# Renomear renomeia a COMUNIDADE, não o grupo de avisos (18/09/2026)
+
+Sintoma: renomear devolvia
+`HTTP 500 {"message":["Error updating group subject","Error: bad-request"]}`.
+
+**Causa raiz:** os grupos monitorados são os **grupos de Avisos** de
+Comunidades, e o nome do Avisos **espelha** o da Comunidade — ele não tem nome
+próprio. Pedir ao WhatsApp para editar esse campo devolve `bad-request`.
+
+Confirmado em produção, não deduzido:
+
+```
+avisos 120363427499061913  isCommunityAnnounce: true   isCommunity: false
+                           restrict: false   size: 207
+                           linkedParent: 120363429583787754
+pai    120363429583787754  isCommunity: true           size: 6
+                           subject IDÊNTICO ao do avisos
+```
+
+`restrict: false` descarta permissão; 23 caracteres descartam o limite (que é
+100); duas tentativas com o mesmo erro descartam rede e limite de taxa.
+
+**Correção:** o executor pergunta à Evolution quem é o `linkedParent` e
+renomeia o **pai**. O grupo de avisos acompanha, e é isso que os membros veem.
+O pai descoberto é guardado em `whatsapp_groups_tracked.parent_jid`, que passa
+a ser só **reserva** para quando a Evolution não responder.
+
+A descoberta é automática de propósito: cadastrar o pai à mão quebraria de novo
+quando a Comunidade fosse recriada.
+
+A opção "renomear também o par" saiu da tela — a escolha do alvo não é de quem
+agenda.
+
+## Diagnóstico de estrutura de grupo
+
+```bash
+curl -s -X POST "https://atacadoexponencial.com/api/sync/grupo-acoes?acao=diagnostico"   -H "x-sync-secret: $SYNC_SECRET" | jq
+```
+
+Só leitura. Devolve, para cada grupo monitorado e para o pai dele: `subject`,
+`size`, `isCommunity`, `isCommunityAnnounce`, `linkedParent`, `announce`,
+`restrict`. É o caminho mais rápido para responder "que tipo de grupo é este"
+quando algo for recusado com `bad-request`.
+
+**Como testar um renomear sem mudar nada:** agendar um renomear com o título
+**igual ao nome atual**. Se concluir, o caminho funciona e ninguém vê diferença.
