@@ -224,3 +224,59 @@ Adicionar e remover participantes, criar grupo, link de convite e roster ao
 vivo ficaram desenhados na spec e **não** foram implementados. O `add` em
 especial é a operação que queima número — add de estranho, em lote, com timing
 de máquina — e vai precisar de throttle próprio e de fallback por convite.
+
+---
+
+# Aba Disparos — mídia agendada (18/09/2026)
+
+A composição saiu da aba Grupos e virou aba própria, **Disparos**. A aba Grupos
+voltou a ser só medição. Spec:
+`docs/superpowers/specs/2026-09-18-disparos-midia-design.md`.
+
+Cinco tipos: texto, imagem, vídeo, áudio (nota de voz) e documento, mais o
+renomear. A tela tem três andares: compor com prévia ao vivo, a semana em sete
+colunas, e o histórico.
+
+## Onde o arquivo mora
+
+No **KV** da Cloudflare (binding `MIDIA`), não no D1: o D1 limita 1 MB por
+valor e um vídeo não caberia. A ficha (nome, mimetype, tamanho) fica no D1, em
+`whatsapp_group_media`; os bytes ficam no KV.
+
+⚠️ **O binding `MIDIA` é configurado no PAINEL da Cloudflare**, não no
+`wrangler.toml` — o Pages com integração git ignora esse arquivo. Pages project
+→ Settings → Bindings → KV namespace, nome `MIDIA`. Sem ele, o upload responde
+500 e nenhum disparo com mídia sai.
+
+A Evolution baixa o arquivo de `GET /m/<chave>`, uma rota **pública** de
+propósito: quem baixa é o servidor dela, que não tem como se autenticar. A
+proteção é a chave de 32 hex, que não se adivinha.
+
+## Regras que vêm do comportamento real da Evolution
+
+| Regra | Por quê |
+|---|---|
+| Sempre URL, **nunca** base64 | vídeo em base64 derruba a Evolution (bug aberto #1885, sem correção) |
+| Sempre `fileName` com extensão certa, **nunca** `mimetype` junto | o service sobrescreve o mimetype pela extensão; extensão desconhecida vira a string `"false"` e entrega o arquivo corrompido |
+| Aquecer o grupo antes de enviar | com o cache de metadados frio, a Evolution responde `404 Group not found` para grupo que existe |
+| `delay` sempre 0 | ele é implementado com "digitando…" e segura a requisição HTTP inteira |
+
+Por isso a lista de extensões aceitas é **fechada** (`_midia.js`): arquivo com
+extensão fora dela é recusado no upload, e não na hora do envio.
+
+## Áudio são duas mensagens
+
+Nota de voz não aceita legenda no WhatsApp. Se houver texto, ele vai como uma
+segunda mensagem, depois do áudio. E se o **áudio falha, o texto não é
+enviado** — legenda solta sem o áudio que ela explica confunde o grupo. Se o
+áudio foi e o texto falhou, o histórico diz isso com todas as letras, para
+ninguém reenviar tudo e duplicar a nota de voz.
+
+## Limites e expurgo
+
+Imagem 5 MB, vídeo e áudio 16 MB, documento 20 MB — tetos práticos do WhatsApp,
+todos abaixo do teto de 25 MB por valor do KV.
+
+Arquivo de ação encerrada há mais de 30 dias é apagado do KV na mesma passada
+do cron, e a ficha marca `apagada_em`. O histórico fica inteiro; só o arquivo
+some. Mídia que subiu e nunca foi agendada também entra, pela data de criação.
