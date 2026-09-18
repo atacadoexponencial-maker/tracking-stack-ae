@@ -7,6 +7,7 @@
 // Auth: header `x-sync-secret: <env.SYNC_SECRET>`.
 
 import { executarVencidas, expurgarMidiaAntiga } from '../_grupos-acoes.js';
+import { infoGrupo } from '../_evolution-grupos.js';
 import { FUSO_BRT } from '../_data-brt.js';
 
 export async function onRequestPost(context) {
@@ -16,6 +17,16 @@ export async function onRequestPost(context) {
   if (!env.DB) return json({ error: 'DB unavailable' }, 500);
 
   const agora = Math.floor(Date.now() / 1000);
+
+  // `?acao=diagnostico` — SÓ LEITURA, não executa nada.
+  //
+  // Existe porque renomear o grupo da Comunidade falha com `bad-request`, e
+  // para saber por quê é preciso enxergar QUE TIPO de grupo é cada JID
+  // monitorado. Sem isto, qualquer correção seria chute: o mesmo erro aparece
+  // tanto quando o alvo é o grupo de Avisos quanto quando é o próprio pai.
+  if (new URL(request.url).searchParams.get('acao') === 'diagnostico') {
+    return json({ ok: true, grupos: await diagnosticar(env, fetchImpl) });
+  }
 
   let rodada;
   try {
@@ -47,6 +58,30 @@ export async function onRequestPost(context) {
   }
 
   return json({ ok: rodada.falhas === 0, ...rodada, alerta, expurgo });
+}
+
+async function diagnosticar(env, fetchImpl) {
+  const { results } = await env.DB.prepare(
+    'SELECT group_jid, label, parent_jid FROM whatsapp_groups_tracked WHERE enabled = 1 ORDER BY label'
+  ).all();
+
+  return Promise.all((results || []).map(async (g) => {
+    const r = await infoGrupo(env, g.group_jid, fetchImpl);
+    if (!r.ok) return { label: g.label, group_jid: g.group_jid, erro: r.erro };
+    const d = r.dados || {};
+    return {
+      label: g.label,
+      group_jid: g.group_jid,
+      subject: d.subject ?? null,
+      size: d.size ?? null,
+      isCommunity: d.isCommunity ?? null,
+      isCommunityAnnounce: d.isCommunityAnnounce ?? null,
+      linkedParent: d.linkedParent ?? null,
+      announce: d.announce ?? null,
+      restrict: d.restrict ?? null,
+      parent_jid_guardado: g.parent_jid,
+    };
+  }));
 }
 
 async function avisarNoSlack(env, rodada, agora, fetchImpl) {

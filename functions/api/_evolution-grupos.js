@@ -108,16 +108,37 @@ export async function enviarAudio(env, jid, url, fetchImpl = fetch) {
  * tentativa de evitar uma falha, não uma etapa que possa causar outra.
  */
 export async function aquecerGrupo(env, jid, fetchImpl = fetch) {
+  const r = await infoGrupo(env, jid, fetchImpl);
+  return { ok: r.ok };
+}
+
+/**
+ * Metadados do grupo. Mesma chamada do aquecimento, mas devolvendo o corpo.
+ *
+ * Os campos que importam aqui são os que dizem QUE TIPO de grupo é este:
+ *   isCommunity          → é a Comunidade em si (o grupo "pai")
+ *   isCommunityAnnounce  → é o grupo de Avisos (o `default_sub_group`)
+ *   linkedParent         → o JID da Comunidade a que ele pertence
+ *
+ * Essa distinção não é detalhe: operações que valem num grupo comum são
+ * recusadas pelo servidor do WhatsApp com `bad-request` quando o alvo é o
+ * Avisos ou o pai.
+ */
+export async function infoGrupo(env, jid, fetchImpl = fetch) {
   const c = credenciais(env);
-  if (!c) return { ok: false };
+  if (!c) return { ok: false, erro: faltando(env) };
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     const url = `${c.base}/group/findGroupInfos/${encodeURIComponent(c.instancia)}?groupJid=${encodeURIComponent(jid)}`;
     const res = await fetchImpl(url, { headers: { apikey: c.apikey }, signal: ctrl.signal });
-    return { ok: res.ok };
-  } catch {
-    return { ok: false };
+    if (!res.ok) {
+      const detalhe = (await res.text().catch(() => '')).slice(0, 200);
+      return { ok: false, erro: `HTTP ${res.status} ${detalhe}`.trim() };
+    }
+    return { ok: true, dados: await res.json() };
+  } catch (e) {
+    return { ok: false, erro: `rede/timeout: ${e?.message || e}` };
   } finally {
     clearTimeout(timer);
   }
