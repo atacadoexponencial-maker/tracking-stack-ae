@@ -50,6 +50,79 @@ export async function renomear(env, jid, titulo, fetchImpl = fetch) {
   );
 }
 
+/**
+ * Manda imagem, vídeo, documento ou áudio-como-arquivo.
+ *
+ * Duas escolhas aqui não são estilo, são defesa:
+ *
+ * 1. `media` é sempre uma URL, nunca base64. Vídeo em base64 derruba a
+ *    Evolution com "Maximum call stack size exceeded" (bug aberto #1885, sem
+ *    correção desde a 2.3.1).
+ * 2. NÃO mandamos `mimetype`. O service faz `mimeTypes.lookup(fileName)` e
+ *    sobrescreve o que viesse — e quando não reconhece a extensão devolve
+ *    `false`, que vira a STRING "false" e entrega o arquivo corrompido, sem
+ *    erro. Por isso a extensão do `fileName` é validada lá no upload.
+ *
+ * `delay` fica em 0 porque ele é implementado com "digitando…" e segura a
+ * requisição HTTP inteira. Quem controla horário aqui é o cron.
+ */
+export async function enviarMidia(env, jid, { mediatype, url, fileName, caption }, fetchImpl = fetch) {
+  const c = credenciais(env);
+  if (!c) return { ok: false, erro: faltando(env) };
+
+  const corpo = { number: jid, mediatype, media: url, fileName, delay: 0 };
+  if (caption) corpo.caption = caption;
+
+  return chamar(
+    `${c.base}/message/sendMedia/${encodeURIComponent(c.instancia)}`,
+    corpo, c.apikey, fetchImpl, 'enviar o arquivo',
+  );
+}
+
+/**
+ * Manda uma nota de voz (PTT).
+ *
+ * Endpoint separado porque `sendWhatsAppAudio` força `ptt: true` e
+ * `audio/ogg; codecs=opus`. Ele NÃO aceita legenda — se houver texto, quem
+ * chama manda uma segunda mensagem.
+ *
+ * `encoding` fica no default (ligado): a Evolution converte com ffmpeg, então
+ * mp3 e m4a entram e saem como nota de voz de verdade.
+ */
+export async function enviarAudio(env, jid, url, fetchImpl = fetch) {
+  const c = credenciais(env);
+  if (!c) return { ok: false, erro: faltando(env) };
+  return chamar(
+    `${c.base}/message/sendWhatsAppAudio/${encodeURIComponent(c.instancia)}`,
+    { number: jid, audio: url, delay: 0 },
+    c.apikey, fetchImpl, 'enviar o áudio',
+  );
+}
+
+/**
+ * Consulta o grupo só para deixar o cache de metadados da Evolution quente.
+ *
+ * Existe por um motivo específico: quando esse cache está frio, o envio para
+ * grupo falha com `404 Group not found` mesmo o grupo existindo no WhatsApp.
+ * O resultado não interessa e o erro é engolido de propósito — isto é uma
+ * tentativa de evitar uma falha, não uma etapa que possa causar outra.
+ */
+export async function aquecerGrupo(env, jid, fetchImpl = fetch) {
+  const c = credenciais(env);
+  if (!c) return { ok: false };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const url = `${c.base}/group/findGroupInfos/${encodeURIComponent(c.instancia)}?groupJid=${encodeURIComponent(jid)}`;
+    const res = await fetchImpl(url, { headers: { apikey: c.apikey }, signal: ctrl.signal });
+    return { ok: res.ok };
+  } catch {
+    return { ok: false };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function faltando(env) {
   const nomes = ['EVOLUTION_BASE_URL', 'EVOLUTION_INSTANCE', 'EVOLUTION_APIKEY_NOTIF']
     .filter((n) => !String(env?.[n] || '').trim());

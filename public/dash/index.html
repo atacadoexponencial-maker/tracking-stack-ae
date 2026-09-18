@@ -202,6 +202,71 @@ body { background: radial-gradient(1100px 520px at 28% -8%, rgba(245,240,235,0.0
 
 .kpi, .card { background: linear-gradient(180deg, #292929 0%, var(--card) 55%); transition: border-color 0.2s ease-out; }
 .kpi:hover { border-color: #4f4a4b; }
+
+/* ---------- aba Disparos (spec 2026-09-18) ---------- */
+/* Compor e ver o que vai sair, lado a lado. Abaixo de 980px vira uma coluna,
+   e a prévia vem PRIMEIRO no celular: numa tela estreita, ver o resultado
+   antes de rolar o formulário inteiro é o que dá utilidade à prévia. */
+.compor { display: grid; grid-template-columns: 1fr 300px; gap: 1.4rem; align-items: start; }
+@media (max-width: 980px) { .compor { grid-template-columns: 1fr; } .compor .previa-col { order: -1; } }
+
+.campo { display: grid; gap: 0.3rem; margin-bottom: 0.7rem; }
+.campo > span { font-size: 0.72rem; color: var(--taupe); text-transform: uppercase; letter-spacing: 0.06em; }
+.campo input, .campo select, .campo textarea {
+  background: var(--card); color: var(--fg); border: 1px solid var(--border);
+  border-radius: 0.5rem; padding: 0.45rem 0.6rem; font: inherit; font-size: 0.86rem; width: 100%;
+}
+.campo textarea { resize: vertical; min-height: 5.5rem; }
+/* Falta um anel de foco próprio no sistema (o DESIGN.md registra isso); aqui
+   fica um, para quem navega por teclado não se perder no formulário. */
+.campo :focus-visible, .tipo-pill:focus-visible, .dia:focus-visible { outline: 2px solid var(--bege); outline-offset: 2px; }
+
+/* Tipo em pílulas: cinco opções cabem numa linha e ficam todas visíveis, o que
+   um <select> esconderia. */
+.tipos { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.tipo-pill {
+  background: transparent; color: var(--muted); border: 1px solid var(--border);
+  border-radius: 999px; padding: 0.3rem 0.75rem; font: inherit; font-size: 0.8rem; cursor: pointer;
+}
+.tipo-pill[aria-pressed="true"] { background: var(--card-2); color: var(--fg); font-weight: 700; border-color: #4f4a4b; }
+
+/* Área de soltar arquivo. Tracejado porque é o único lugar do painel onde se
+   larga alguma coisa — a borda diz isso sem precisar de texto extra. */
+.solta { border: 1px dashed var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; color: var(--muted); font-size: 0.84rem; cursor: pointer; }
+.solta.sobre { border-color: var(--bege); color: var(--fg); }
+.solta input[type="file"] { display: none; }
+
+/* A prévia NÃO imita o WhatsApp: verde e branco quebrariam "Noite Sempre" e
+   "Cor Com Motivo". O que precisa ser fiel é o conteúdo — mídia, legenda,
+   ordem e tamanho do texto —, não a marca de outra empresa. */
+.previa-col > span { font-size: 0.72rem; color: var(--taupe); text-transform: uppercase; letter-spacing: 0.06em; }
+.balao { background: var(--card-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.55rem; margin-top: 0.5rem; }
+.balao + .balao { margin-top: 0.4rem; }
+.balao img, .balao video { width: 100%; border-radius: 0.5rem; display: block; background: var(--bg); }
+.balao .arquivo { display: flex; gap: 0.5rem; align-items: center; padding: 0.6rem; background: var(--bg); border-radius: 0.5rem; font-size: 0.82rem; }
+.balao .corpo { font-size: 0.86rem; white-space: pre-wrap; word-break: break-word; margin-top: 0.4rem; }
+.balao .hora { font-size: 0.68rem; color: var(--muted); text-align: right; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+.previa-nota { font-size: 0.72rem; color: var(--muted); margin-top: 0.5rem; }
+
+/* Semana em sete colunas. Grade de hora × dia ficaria quase toda vazia com dois
+   a cinco disparos por semana; a coluna por dia mostra a mesma coisa
+   (concentração e buraco) e lê melhor. */
+.semana-topo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.7rem; }
+.semana { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.4rem; }
+@media (max-width: 980px) { .semana { grid-template-columns: repeat(3, 1fr); } }
+/* flex-start explícito porque <button> centraliza o conteúdo verticalmente por
+   padrão, e o número do dia acabava colado no rodapé da célula vazia. */
+.dia { background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.5rem 0.45rem; min-height: 6.5rem; text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
+.dia:hover { border-color: #4f4a4b; }
+.dia .cab { font-size: 0.68rem; color: var(--taupe); text-transform: uppercase; letter-spacing: 0.06em; }
+.dia .num { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* "hoje" leva a palavra além da cor: o bege é quase branco, e a regra da casa
+   é que nada se comunique só por cor. */
+.dia.hoje { border-color: #4f4a4b; }
+.dia.hoje .cab, .dia.hoje .num { color: var(--bege); }
+.item { background: var(--card-2); border-radius: 0.4rem; padding: 0.3rem 0.4rem; margin-top: 0.35rem; font-size: 0.74rem; }
+.item .h { font-variant-numeric: tabular-nums; color: var(--muted); }
+.item.falhou { border-left: 2px solid var(--down); }
 .kpi .rotulo { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--taupe); }
 .kpi .valor { font-size: 1.55rem; margin-top: 0.2rem; letter-spacing: -0.01em; }
 .kpi .delta { margin-top: 0.3rem; }
@@ -285,6 +350,7 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
       </div>
       <div class="nav-grupo" role="group" aria-labelledby="nav-operacao">
         <span class="nav-rotulo" id="nav-operacao">Operação</span>
+        <a href="#disparos" data-secao="disparos">Disparos</a>
         <a href="#links" data-secao="links">Links</a>
         <a href="#bloqueios" data-secao="bloqueios">Bloqueios</a>
         <a href="#funis-relatorio" data-secao="funis-relatorio">Funis do relatório</a>
@@ -402,45 +468,83 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
     <section class="secao" id="secao-grupos">
       <div class="card" id="grupos-conexao-card"><h2>Conexão do WhatsApp <small id="grupos-conexao-nota"></small></h2><div id="grupos-conexao"></div></div>
       <div id="grupos-aviso"></div>
-      <div class="card">
-        <h2>Agenda do grupo <small>o que vai acontecer sozinho</small></h2>
-        <div class="tabela-wrap" id="acoes-agenda"></div>
-      </div>
-      <div class="card">
-        <h2>Agendar ação</h2>
-        <form id="acoes-form" style="display:grid; gap:0.6rem; max-width:640px">
-          <label>Grupo <select id="acoes-grupo" style="width:100%"></select></label>
-          <label>O que fazer
-            <select id="acoes-tipo" style="width:100%">
-              <option value="mensagem">Mandar mensagem</option>
-              <option value="renomear">Renomear o grupo</option>
-            </select>
-          </label>
-          <label id="acoes-campo-texto">Mensagem
-            <textarea id="acoes-texto" rows="4" style="width:100%" placeholder="Começou! Entra aqui: …"></textarea>
-          </label>
-          <label id="acoes-campo-titulo" hidden>Novo título
-            <input type="text" id="acoes-titulo" style="width:100%" placeholder="24/09 às 12h | O jogo da escala">
-          </label>
-          <label id="acoes-campo-par" hidden style="display:flex; gap:0.4rem; align-items:center">
-            <input type="checkbox" id="acoes-par" checked>
-            <span>Renomear também o grupo par da Comunidade</span>
-          </label>
-          <label>Quando <input type="datetime-local" id="acoes-quando" style="width:100%"></label>
-          <div id="acoes-erro" class="aviso falha" hidden></div>
-          <div style="display:flex; gap:0.5rem; flex-wrap:wrap">
-            <button class="btn" type="submit">Agendar</button>
-            <button class="btn sec" type="button" id="acoes-agora">Fazer agora</button>
-          </div>
-        </form>
-      </div>
-      <div class="card">
-        <h2>Histórico <small>o que já foi executado</small></h2>
-        <div class="tabela-wrap" id="acoes-historico"></div>
-      </div>
       <div class="card"><h2>Conversão no Meta <small>entrada no grupo → EntrouGrupo</small></h2><div id="grupos-conversao"></div></div>
       <div id="grupos-blocos"></div>
       <div class="card"><h2>Eventos recentes <small>quem entrou e quem saiu</small></h2><div class="tabela-wrap" id="grupos-eventos"></div></div>
+    </section>
+
+    <section class="secao" id="secao-disparos">
+      <div class="card">
+        <h2>Compor <small>o que vai ser enviado no grupo</small></h2>
+        <form id="d-form" class="compor">
+          <div>
+            <label class="campo"><span>Grupo</span><select id="d-grupo"></select></label>
+
+            <div class="campo">
+              <span>O que enviar</span>
+              <div class="tipos" id="d-tipos" role="group" aria-label="Tipo de disparo">
+                <button type="button" class="tipo-pill" data-tipo="mensagem" aria-pressed="true">Texto</button>
+                <button type="button" class="tipo-pill" data-tipo="imagem" aria-pressed="false">Imagem</button>
+                <button type="button" class="tipo-pill" data-tipo="video" aria-pressed="false">Vídeo</button>
+                <button type="button" class="tipo-pill" data-tipo="audio" aria-pressed="false">Áudio</button>
+                <button type="button" class="tipo-pill" data-tipo="documento" aria-pressed="false">Documento</button>
+                <button type="button" class="tipo-pill" data-tipo="renomear" aria-pressed="false">Renomear</button>
+              </div>
+            </div>
+
+            <div class="campo" id="d-campo-arquivo" hidden>
+              <span>Arquivo</span>
+              <label class="solta" id="d-solta">
+                <input type="file" id="d-arquivo">
+                <span id="d-solta-texto">Arraste o arquivo aqui ou clique para escolher</span>
+              </label>
+            </div>
+
+            <label class="campo" id="d-campo-texto"><span id="d-rotulo-texto">Mensagem</span>
+              <textarea id="d-texto" placeholder="Começou! Entra aqui: …"></textarea>
+            </label>
+
+            <label class="campo" id="d-campo-titulo" hidden><span>Novo título do grupo</span>
+              <input type="text" id="d-titulo" placeholder="24/09 às 12h | O jogo da escala">
+            </label>
+
+            <label class="campo" id="d-campo-par" hidden style="display:flex; flex-direction:row; align-items:center; gap:0.45rem">
+              <input type="checkbox" id="d-par" checked style="width:auto">
+              <span style="text-transform:none; letter-spacing:0; color:var(--fg); font-size:0.84rem">Renomear também o grupo par da Comunidade</span>
+            </label>
+
+            <label class="campo"><span>Quando</span><input type="datetime-local" id="d-quando"></label>
+
+            <div id="d-erro" class="aviso falha" hidden></div>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.3rem">
+              <button class="btn" type="submit">Agendar</button>
+              <button class="btn sec" type="button" id="d-agora">Fazer agora</button>
+            </div>
+          </div>
+
+          <div class="previa-col">
+            <span>Prévia</span>
+            <div id="d-previa"></div>
+            <div class="previa-nota" id="d-previa-nota"></div>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Semana <small>o que está agendado</small></h2>
+        <div class="semana-topo">
+          <button class="btn sec" type="button" id="d-semana-ant" aria-label="Semana anterior">←</button>
+          <strong id="d-semana-rotulo"></strong>
+          <button class="btn sec" type="button" id="d-semana-prox" aria-label="Próxima semana">→</button>
+          <span class="mini" style="margin-left:auto">clique num dia para agendar nele</span>
+        </div>
+        <div class="semana" id="d-semana"></div>
+      </div>
+
+      <div class="card">
+        <h2>Já foram <small>histórico dos disparos executados</small></h2>
+        <div class="tabela-wrap" id="d-historico"></div>
+      </div>
     </section>
 
     <section class="secao" id="secao-links">
@@ -1541,13 +1645,6 @@ R.grupos = async () => {
     { titulo: 'Telefone', campo: 'participant_jid', render: (r) => esc(telefone(r.participant_jid)) },
     { titulo: 'O quê', campo: 'action', render: (r) => acoes[r.action] || esc(r.action) },
   ], dados.recentes || []);
-
-  // Agenda de ações: requisição própria, depois do resto já desenhado. Ela não
-  // depende do período selecionado (o que está agendado está agendado), e uma
-  // falha aqui não pode apagar os números acima.
-  desenharAcoes().catch(() => {
-    $('#acoes-agenda').innerHTML = '<p class="mini">Não foi possível carregar a agenda.</p>';
-  });
 };
 
 // ---------- links ----------
@@ -1662,146 +1759,343 @@ $('#links-form').addEventListener('submit', async (ev) => {
   });
 });
 
-// ---------- ações de grupo (spec 2026-09-17) ----------
-// Toda a validação é do backend: o formulário só mostra o erro que volta. É a
-// mesma escolha da aba Links, e é o que impede a tela e o servidor de
-// discordarem sobre o que é um agendamento válido.
-const ACOES_TIPOS = { mensagem: 'Mensagem', renomear: 'Renomear' };
+// ---------- Disparos (spec 2026-09-18) ----------
+// Toda a validação é do backend: a tela só mostra o erro que volta. O upload é
+// separado do agendamento de propósito — o arquivo sobe quando é escolhido,
+// para o erro de "grande demais" aparecer ali, e não às 12h da live.
 
-async function desenharAcoes() {
+const D_TIPOS = {
+  mensagem: { rotulo: 'Texto', arquivo: false, campoTexto: 'Mensagem' },
+  imagem: { rotulo: 'Imagem', arquivo: true, campoTexto: 'Legenda (opcional)' },
+  video: { rotulo: 'Vídeo', arquivo: true, campoTexto: 'Legenda (opcional)' },
+  audio: { rotulo: 'Áudio', arquivo: true, campoTexto: 'Mensagem depois do áudio (opcional)' },
+  documento: { rotulo: 'Documento', arquivo: true, campoTexto: 'Legenda (opcional)' },
+  renomear: { rotulo: 'Renomear', arquivo: false, campoTexto: null },
+};
+
+// Estado da composição. `midia` só existe depois do upload terminar.
+const D = { tipo: 'mensagem', midia: null, previaUrl: null, semana: null, agendadas: [] };
+
+R.disparos = async () => {
   const dados = await fetchJson('/api/grupos-acoes');
 
-  const sel = $('#acoes-grupo');
-  const selecionado = sel.value;
+  const sel = $('#d-grupo');
+  const antes = sel.value;
   sel.innerHTML = (dados.grupos || [])
     .map((g) => `<option value="${esc(g.group_jid)}" data-par="${g.tem_par ? 1 : 0}">${esc(g.label)}</option>`).join('');
-  if (selecionado) sel.value = selecionado;
-  acoesAtualizarCampos();
+  if (antes) sel.value = antes;
 
-  const resumo = (a) => (a.tipo === 'mensagem' ? (a.payload.texto || '') : (a.payload.titulo || ''));
-  const agendadas = dados.agendadas || [];
+  D.agendadas = dados.agendadas || [];
+  if (!D.semana) D.semana = inicioDaSemana(new Date());
 
-  if (agendadas.length) {
-    tabela($('#acoes-agenda'), [
-      { titulo: 'Quando', campo: 'agendada_para', render: (a) => `<span class="mini">${quandoBRT(a.agendada_para)}</span>` },
-      { titulo: 'Grupo', campo: 'label', render: (a) => esc(a.label) },
-      { titulo: 'Ação', campo: 'tipo', render: (a) => ACOES_TIPOS[a.tipo] || esc(a.tipo) },
-      { titulo: 'Conteúdo', render: (a) => esc(resumo(a).slice(0, 80)) },
-      { titulo: '', render: (a) => (a.status === 'agendada'
-        ? `<button class="btn sec" type="button" data-cancelar="${a.id}">cancelar</button>`
-        : '<span class="mini">executando…</span>') },
-    ], agendadas);
-  } else {
-    $('#acoes-agenda').innerHTML = '<p class="mini">Nada agendado. O grupo só muda se alguém mexer nele à mão.</p>';
+  dCampos();
+  dSemana();
+  dHistorico(dados.historico || []);
+};
+
+// --- formulário ---
+
+function dCampos() {
+  const t = D_TIPOS[D.tipo];
+  for (const b of document.querySelectorAll('#d-tipos .tipo-pill')) {
+    b.setAttribute('aria-pressed', String(b.dataset.tipo === D.tipo));
+  }
+  $('#d-campo-arquivo').hidden = !t.arquivo;
+  $('#d-campo-texto').hidden = t.campoTexto === null;
+  if (t.campoTexto) $('#d-rotulo-texto').textContent = t.campoTexto;
+  $('#d-campo-titulo').hidden = D.tipo !== 'renomear';
+
+  const opt = $('#d-grupo').selectedOptions[0];
+  $('#d-campo-par').hidden = D.tipo !== 'renomear' || opt?.dataset.par !== '1';
+
+  dPrevia();
+}
+
+/**
+ * A prévia mostra o CONTEÚDO fielmente, não a marca do WhatsApp: balão verde
+ * quebraria "Noite Sempre" e "Cor Com Motivo" do DESIGN.md. O que precisa ser
+ * fiel é a mídia, a legenda, a ordem e o tamanho do texto.
+ */
+function dPrevia() {
+  const alvo = $('#d-previa');
+  const nota = $('#d-previa-nota');
+  const t = D_TIPOS[D.tipo];
+  const texto = $('#d-texto').value.trim();
+  const quando = $('#d-quando').value;
+  const hora = quando ? quando.slice(11, 16) : '--:--';
+
+  if (D.tipo === 'renomear') {
+    const titulo = $('#d-titulo').value.trim();
+    alvo.innerHTML = `<div class="balao"><div class="corpo">${titulo
+      ? `O grupo passa a se chamar<br><strong>${esc(titulo)}</strong>`
+      : '<span class="mini">Escreva o novo título.</span>'}</div></div>`;
+    nota.textContent = $('#d-campo-par').hidden ? '' : 'O grupo par da Comunidade é renomeado junto.';
+    return;
   }
 
-  // Listener no contêiner porque `tabela()` redesenha a tabela ao ordenar.
-  // Cancelar não tem desfazer, então pede confirmação na própria linha —
-  // `confirm()` do navegador travaria a página inteira.
-  $('#acoes-agenda').onclick = (ev) => {
-    const btn = ev.target.closest('[data-cancelar]');
-    if (!btn) return;
-    const acao = agendadas.find((a) => String(a.id) === btn.dataset.cancelar);
-    pedirConfirmacao(btn, 'Cancelar esta ação?', async () => {
-      const r = await fetch(`/api/grupos-acoes?key=${encodeURIComponent(key)}&acao=cancelar`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: Number(btn.dataset.cancelar) }),
-      });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        acoesErro(j.error || 'Não foi possível cancelar.');
-      } else {
-        // "Editar" é cancelar e agendar de novo: o formulário volta preenchido
-        // com o que estava marcado, para não redigitar a mensagem inteira.
-        preencherAcao(acao);
-      }
-      await desenharAcoes();
-    });
-  };
-
-  const hist = dados.historico || [];
-  if (hist.length) {
-    tabela($('#acoes-historico'), [
-      { titulo: 'Quando', campo: 'executada_em', render: (a) => `<span class="mini">${quandoBRT(a.executada_em || a.agendada_para)}</span>` },
-      { titulo: 'Grupo', campo: 'label', render: (a) => esc(a.label) },
-      { titulo: 'Ação', campo: 'tipo', render: (a) => ACOES_TIPOS[a.tipo] || esc(a.tipo) },
-      { titulo: 'Conteúdo', render: (a) => esc(resumo(a).slice(0, 60)) },
-      // Falha em vermelho COM o motivo: é aqui que se descobre que o aviso da
-      // live não saiu, e um rótulo sem motivo não ajudaria a consertar nada.
-      { titulo: 'Situação', campo: 'status', render: (a) => (a.status === 'concluida'
-        ? '<span style="color:var(--up)">Feita</span>'
-        : a.status === 'cancelada'
-          ? '<span class="mini">Cancelada</span>'
-          : `<span style="color:var(--down)">Falhou</span> <span class="mini">${esc(a.erro || '')}</span>`) },
-    ], hist);
-  } else {
-    $('#acoes-historico').innerHTML = '<p class="mini">Nada executado ainda.</p>';
+  // Estado vazio explícito: um balão vazio com a hora solta parece campo
+  // quebrado, e não ensina nada a quem abriu a aba pela primeira vez.
+  if (!texto && (!t.arquivo || !D.previaUrl)) {
+    alvo.innerHTML = '<div class="balao"><div class="corpo"><span class="mini">'
+      + (t.arquivo ? 'Escolha o arquivo e escreva a legenda para ver aqui como vai chegar.'
+                   : 'Escreva a mensagem para ver aqui como vai chegar.')
+      + '</span></div></div>';
+    nota.textContent = '';
+    return;
   }
+
+  const blocos = [];
+  let miolo = '';
+
+  if (t.arquivo) {
+    if (!D.previaUrl) {
+      miolo = '<div class="arquivo"><span class="mini">Escolha o arquivo para ver aqui.</span></div>';
+    } else if (D.tipo === 'imagem') {
+      miolo = `<img src="${D.previaUrl}" alt="Prévia da imagem">`;
+    } else if (D.tipo === 'video') {
+      miolo = `<video src="${D.previaUrl}" controls></video>`;
+    } else if (D.tipo === 'audio') {
+      miolo = `<audio src="${D.previaUrl}" controls style="width:100%"></audio>`;
+    } else {
+      miolo = `<div class="arquivo">📄 ${esc(D.midia?.nome || 'arquivo')}</div>`;
+    }
+  }
+
+  // Áudio com texto são DUAS mensagens: nota de voz não aceita legenda no
+  // WhatsApp. A prévia mostra os dois blocos porque é isso que vai chegar.
+  if (D.tipo === 'audio') {
+    blocos.push(`<div class="balao">${miolo}<div class="hora">${hora}</div></div>`);
+    if (texto) blocos.push(`<div class="balao"><div class="corpo">${esc(texto)}</div><div class="hora">${hora}</div></div>`);
+    nota.textContent = texto
+      ? 'Nota de voz não aceita legenda: o texto vai como uma segunda mensagem, logo depois.'
+      : 'A Evolution converte mp3 e m4a para nota de voz sozinha.';
+  } else {
+    blocos.push(`<div class="balao">${miolo}${texto ? `<div class="corpo">${esc(texto)}</div>` : ''}<div class="hora">${hora}</div></div>`);
+    nota.textContent = D.midia ? `${esc(D.midia.nome)} · ${(D.midia.tamanho / 1024 / 1024).toFixed(1).replace('.', ',')} MB` : '';
+  }
+
+  alvo.innerHTML = blocos.join('');
 }
 
-// Devolve ao formulário uma ação que acabou de ser cancelada.
-function preencherAcao(a) {
-  if (!a) return;
-  $('#acoes-grupo').value = a.group_jid;
-  $('#acoes-tipo').value = a.tipo;
-  $('#acoes-texto').value = a.payload?.texto || '';
-  $('#acoes-titulo').value = a.payload?.titulo || '';
-  $('#acoes-quando').value = deUnixBRT(a.agendada_para);
-  acoesAtualizarCampos();
-  if (a.payload?.aplicar_no_par) $('#acoes-par').checked = true;
+// --- upload ---
+
+async function dEscolherArquivo(arquivo) {
+  if (!arquivo) return;
+  dErro('');
+
+  // A prévia sai do arquivo local, antes de subir: arquivo trocado é o erro
+  // mais comum, e esperar o upload para descobrir seria tempo perdido.
+  if (D.previaUrl) URL.revokeObjectURL(D.previaUrl);
+  D.previaUrl = URL.createObjectURL(arquivo);
+  D.midia = null;
+  $('#d-solta-texto').textContent = `${arquivo.name} — enviando…`;
+  dPrevia();
+
+  const fd = new FormData();
+  fd.append('arquivo', arquivo);
+  const r = await fetch(`/api/grupos-midia?key=${encodeURIComponent(key)}`, { method: 'POST', body: fd });
+  const j = await r.json().catch(() => ({}));
+
+  if (!r.ok) {
+    D.midia = null;
+    $('#d-solta-texto').textContent = 'Arraste o arquivo aqui ou clique para escolher';
+    dErro(j.error || 'Não foi possível enviar o arquivo.');
+    return;
+  }
+
+  D.midia = j;
+  $('#d-solta-texto').textContent = `${j.nome} — pronto`;
+  dPrevia();
 }
 
-// Campos conforme o tipo. O "renomear o par" só aparece quando o grupo
-// escolhido tem par conhecido — oferecer o que o backend vai recusar seria
-// prometer o que não dá.
-function acoesAtualizarCampos() {
-  const tipo = $('#acoes-tipo').value;
-  const opt = $('#acoes-grupo').selectedOptions[0];
-  $('#acoes-campo-texto').hidden = tipo !== 'mensagem';
-  $('#acoes-campo-titulo').hidden = tipo !== 'renomear';
-  $('#acoes-campo-par').hidden = tipo !== 'renomear' || opt?.dataset.par !== '1';
+// --- semana ---
+
+const inicioDaSemana = (d) => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - x.getDay()); // domingo
+  return x;
+};
+const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+function dSemana() {
+  const ini = D.semana;
+  const fim = new Date(ini); fim.setDate(fim.getDate() + 6);
+  $('#d-semana-rotulo').textContent =
+    `${ini.getDate()} de ${ini.toLocaleDateString('pt-BR', { month: 'long' })} a ${fim.getDate()} de ${fim.toLocaleDateString('pt-BR', { month: 'long' })}`;
+
+  const hojeYmd = ymdLocal(new Date());
+  // Agrupa por dia de Brasília, não pelo fuso de quem abre o painel: o disparo
+  // é marcado em horário daqui.
+  const porDia = {};
+  for (const a of D.agendadas) {
+    const dia = new Date(a.agendada_para * 1000).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    (porDia[dia] = porDia[dia] || []).push(a);
+  }
+
+  const celulas = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(ini); d.setDate(d.getDate() + i);
+    const ymd = ymdLocal(d);
+    const itens = (porDia[ymd] || []).sort((a, b) => a.agendada_para - b.agendada_para);
+    celulas.push(`
+      <button type="button" class="dia${ymd === hojeYmd ? ' hoje' : ''}" data-dia="${ymd}">
+        <div class="cab">${DIAS[d.getDay()]}${ymd === hojeYmd ? ' · hoje' : ''}</div>
+        <div class="num">${d.getDate()}</div>
+        ${itens.map((a) => `<div class="item" data-acao="${a.id}">
+            <span class="h">${new Date(a.agendada_para * 1000).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}</span>
+            ${esc(D_TIPOS[a.tipo]?.rotulo || a.tipo)}<br>${esc(dResumo(a).slice(0, 28))}
+          </div>`).join('')}
+      </button>`);
+  }
+  $('#d-semana').innerHTML = celulas.join('');
 }
 
-function acoesErro(msg) {
-  $('#acoes-erro').textContent = msg;
-  $('#acoes-erro').hidden = false;
+const dResumo = (a) => (a.tipo === 'renomear' ? (a.payload.titulo || '') : (a.payload.caption || a.payload.texto || ''));
+
+function dHistorico(hist) {
+  if (!hist.length) {
+    $('#d-historico').innerHTML = '<p class="mini">Nada executado ainda. O que você agendar aparece aqui depois de sair.</p>';
+    return;
+  }
+  tabela($('#d-historico'), [
+    { titulo: 'Quando', campo: 'executada_em', render: (a) => `<span class="mini">${quandoBRT(a.executada_em || a.agendada_para)}</span>` },
+    { titulo: 'Grupo', campo: 'label', render: (a) => esc(a.label) },
+    { titulo: 'O quê', campo: 'tipo', render: (a) => esc(D_TIPOS[a.tipo]?.rotulo || a.tipo) },
+    { titulo: 'Conteúdo', render: (a) => esc(dResumo(a).slice(0, 60)) },
+    // Falha em coral COM o motivo: é aqui que se descobre que o aviso da live
+    // não saiu, e um rótulo sem motivo não ajudaria a consertar nada.
+    { titulo: 'Situação', campo: 'status', render: (a) => (a.status === 'concluida'
+      ? '<span style="color:var(--up)">✓ feita</span>'
+      : a.status === 'cancelada'
+        ? '<span class="mini">cancelada</span>'
+        : `<span style="color:var(--down)">✕ falhou</span> <span class="mini">${esc(a.erro || '')}</span>`) },
+  ], hist);
 }
 
-function acoesCorpo() {
-  return {
-    group_jid: $('#acoes-grupo').value,
-    tipo: $('#acoes-tipo').value,
-    texto: $('#acoes-texto').value,
-    titulo: $('#acoes-titulo').value,
-    aplicar_no_par: !$('#acoes-campo-par').hidden && $('#acoes-par').checked,
-    agendada_para: paraUnixBRT($('#acoes-quando').value),
-  };
+// --- envio ---
+
+function dErro(msg) {
+  $('#d-erro').textContent = msg || '';
+  $('#d-erro').hidden = !msg;
 }
 
-async function acoesEnviar(qs) {
-  $('#acoes-erro').hidden = true;
+function dCorpo() {
+  const c = { group_jid: $('#d-grupo').value, tipo: D.tipo, agendada_para: paraUnixBRT($('#d-quando').value) };
+  if (D.tipo === 'renomear') {
+    c.titulo = $('#d-titulo').value;
+    c.aplicar_no_par = !$('#d-campo-par').hidden && $('#d-par').checked;
+  } else if (D.tipo === 'mensagem') {
+    c.texto = $('#d-texto').value;
+  } else {
+    c.midia_id = D.midia?.id;
+    if (D.tipo === 'audio') c.texto = $('#d-texto').value;
+    else c.caption = $('#d-texto').value;
+  }
+  return c;
+}
+
+async function dEnviar(qs) {
+  dErro('');
   const r = await fetch(`/api/grupos-acoes?key=${encodeURIComponent(key)}${qs}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(acoesCorpo()),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dCorpo()),
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || j.erro) {
-    acoesErro(j.error || j.erro || 'Não foi possível concluir.');
-    await desenharAcoes();
+    dErro(j.error || j.erro || 'Não foi possível concluir.');
+    await R.disparos();
     return;
   }
-  $('#acoes-form').reset();
-  acoesAtualizarCampos();
-  await desenharAcoes();
+  dLimpar();
+  await R.disparos();
 }
 
-$('#acoes-tipo').onchange = acoesAtualizarCampos;
-$('#acoes-grupo').onchange = acoesAtualizarCampos;
-$('#acoes-form').onsubmit = (ev) => { ev.preventDefault(); return acoesEnviar(''); };
-// "Fazer agora" manda de verdade, no grupo de verdade: confirmação inline
-// (o confirm() do navegador travaria a página e o painel já tem a sua).
-$('#acoes-agora').onclick = (ev) => {
-  const alvo = $('#acoes-grupo').selectedOptions[0]?.textContent || 'o grupo';
-  pedirConfirmacao(ev.target, `Executar agora em "${alvo}"?`, () => acoesEnviar('&acao=agora'));
+function dLimpar() {
+  $('#d-texto').value = '';
+  $('#d-titulo').value = '';
+  $('#d-arquivo').value = '';
+  if (D.previaUrl) URL.revokeObjectURL(D.previaUrl);
+  D.previaUrl = null;
+  D.midia = null;
+  $('#d-solta-texto').textContent = 'Arraste o arquivo aqui ou clique para escolher';
+  dCampos();
+}
+
+// --- ligações ---
+
+$('#d-tipos').onclick = (ev) => {
+  const b = ev.target.closest('[data-tipo]');
+  if (!b) return;
+  D.tipo = b.dataset.tipo;
+  // Trocar de tipo descarta o arquivo: um PDF escolhido como "documento" não
+  // serve para "vídeo", e o backend recusaria de qualquer forma.
+  if (!D_TIPOS[D.tipo].arquivo) dLimpar(); else dCampos();
+};
+$('#d-grupo').onchange = dCampos;
+$('#d-texto').oninput = dPrevia;
+$('#d-titulo').oninput = dPrevia;
+$('#d-quando').oninput = dPrevia;
+$('#d-arquivo').onchange = (ev) => dEscolherArquivo(ev.target.files[0]);
+
+const solta = $('#d-solta');
+solta.addEventListener('dragover', (ev) => { ev.preventDefault(); solta.classList.add('sobre'); });
+solta.addEventListener('dragleave', () => solta.classList.remove('sobre'));
+solta.addEventListener('drop', (ev) => {
+  ev.preventDefault();
+  solta.classList.remove('sobre');
+  dEscolherArquivo(ev.dataTransfer.files[0]);
+});
+
+$('#d-semana-ant').onclick = () => { D.semana.setDate(D.semana.getDate() - 7); dSemana(); };
+$('#d-semana-prox').onclick = () => { D.semana.setDate(D.semana.getDate() + 7); dSemana(); };
+
+$('#d-semana').onclick = (ev) => {
+  const item = ev.target.closest('[data-acao]');
+  if (item) {
+    ev.stopPropagation();
+    const acao = D.agendadas.find((a) => String(a.id) === item.dataset.acao);
+    // Cancelar não tem desfazer: confirmação na própria linha, nunca o
+    // confirm() do navegador, que trava a página inteira.
+    pedirConfirmacao(item, 'Cancelar este disparo?', async () => {
+      const r = await fetch(`/api/grupos-acoes?key=${encodeURIComponent(key)}&acao=cancelar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: Number(item.dataset.acao) }),
+      });
+      if (!r.ok) dErro((await r.json().catch(() => ({}))).error || 'Não foi possível cancelar.');
+      else if (acao) dPreencher(acao);
+      await R.disparos();
+    });
+    return;
+  }
+  const dia = ev.target.closest('[data-dia]');
+  if (!dia) return;
+  // Clicar num dia preenche a data mantendo a hora já escolhida: quem monta a
+  // semana costuma repetir o horário e mudar só o dia.
+  const hora = ($('#d-quando').value || '').slice(11, 16) || '12:00';
+  $('#d-quando').value = `${dia.dataset.dia}T${hora}`;
+  dPrevia();
+  $('#d-quando').focus();
+};
+
+// "Editar" é cancelar e agendar de novo, com o formulário já preenchido. Mídia
+// não volta: o arquivo continua no servidor, mas escolher de novo é mais
+// honesto do que fingir que ele está anexado aqui.
+function dPreencher(a) {
+  if (!a) return;
+  $('#d-grupo').value = a.group_jid;
+  D.tipo = a.tipo;
+  $('#d-texto').value = a.payload?.caption || a.payload?.texto || '';
+  $('#d-titulo').value = a.payload?.titulo || '';
+  $('#d-quando').value = deUnixBRT(a.agendada_para);
+  dCampos();
+  if (a.payload?.aplicar_no_par) $('#d-par').checked = true;
+}
+
+$('#d-form').onsubmit = (ev) => { ev.preventDefault(); return dEnviar(''); };
+$('#d-agora').onclick = (ev) => {
+  const alvo = $('#d-grupo').selectedOptions[0]?.textContent || 'o grupo';
+  pedirConfirmacao(ev.target, `Enviar agora em "${alvo}"?`, () => dEnviar('&acao=agora'));
 };
 
 // ---------- testes A/B ----------
@@ -2708,7 +3002,7 @@ $('#funil').addEventListener('change', () => {
 });
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.

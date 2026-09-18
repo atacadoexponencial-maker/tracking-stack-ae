@@ -6,7 +6,7 @@
 //
 // Auth: header `x-sync-secret: <env.SYNC_SECRET>`.
 
-import { executarVencidas } from '../_grupos-acoes.js';
+import { executarVencidas, expurgarMidiaAntiga } from '../_grupos-acoes.js';
 import { FUSO_BRT } from '../_data-brt.js';
 
 export async function onRequestPost(context) {
@@ -36,7 +36,17 @@ export async function onRequestPost(context) {
     }
   }
 
-  return json({ ok: rodada.falhas === 0, ...rodada, alerta });
+  // Expurgo por último e com a falha engolida: limpeza é faxina, não pode
+  // fazer a rodada parecer quebrada nem atrasar disparo nenhum.
+  let expurgo = null;
+  try {
+    expurgo = await expurgarMidiaAntiga(env, agora);
+  } catch (e) {
+    console.error('grupo-acoes: expurgo falhou', e?.message || e);
+    expurgo = { erro: String(e?.message || e) };
+  }
+
+  return json({ ok: rodada.falhas === 0, ...rodada, alerta, expurgo });
 }
 
 async function avisarNoSlack(env, rodada, agora, fetchImpl) {

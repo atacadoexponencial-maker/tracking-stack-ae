@@ -12,6 +12,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   validarAcao, criarAcao, cancelarAcao, listarAcoes,
   executarAcao, executarVencidas, ATRASO_MAX_SEG,
+  expurgarMidiaAntiga, EXPURGO_DIAS,
 } from '../functions/api/_grupos-acoes.js';
 import { onRequestGet as acoesGet, onRequestPost as acoesPost } from '../functions/api/grupos-acoes.js';
 import { onRequestPost as syncPost } from '../functions/api/sync/grupo-acoes.js';
@@ -41,6 +42,7 @@ function novoBanco() {
       send_conversion INTEGER NOT NULL DEFAULT 0, conversion_since INTEGER);
   `);
   db.exec(readFileSync(new URL('../migrations/0043_grupos_acoes.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0044_grupos_midia.sql', import.meta.url), 'utf8'));
   db.prepare('INSERT INTO whatsapp_groups_tracked (group_jid, label, enabled, parent_jid) VALUES (?, ?, 1, ?)')
     .run(AVISOS, 'Live semanal', PAI);
   db.prepare('INSERT INTO whatsapp_groups_tracked (group_jid, label, enabled) VALUES (?, ?, 0)')
@@ -138,7 +140,27 @@ test('listarAcoes separa o que ainda vai acontecer do que já aconteceu', async 
 // --- executor: é aqui que mora todo o risco da feature ---
 
 const ENV_EVO = { EVOLUTION_BASE_URL: 'https://api.exemplo.com', EVOLUTION_INSTANCE: 'Marcelle', EVOLUTION_APIKEY_NOTIF: 'segredo' };
-const envCom = (db) => ({ DB: d1(db), ...ENV_EVO });
+// KV dublado: só o que _midia.js usa.
+function kvFalso() {
+  const m = new Map();
+  return { _m: m, put: async (k, v) => { m.set(k, v); }, get: async (k) => (m.has(k) ? m.get(k) : null), delete: async (k) => { m.delete(k); } };
+}
+const envCom = (db, extra = {}) => ({ DB: d1(db), MIDIA: kvFalso(), ...ENV_EVO, ...extra });
+
+// Toda execução de grupo começa aquecendo o cache da Evolution
+// (findGroupInfos). Quem conta ENVIOS precisa ignorar essa chamada, senão mede
+// o aquecimento junto.
+const ehAquecimento = (url) => String(url).includes('findGroupInfos');
+
+// Insere uma ficha de mídia direto, sem passar pelo upload.
+function midiaFalsa(db, env, { nome = 'aviso.mp4', mediatype = 'video', criada_em = AGORA } = {}) {
+  const chave = 'a'.repeat(31) + (midiaFalsa.n = (midiaFalsa.n || 0) + 1);
+  env.MIDIA._m.set(chave, new Uint8Array(4));
+  const r = db.prepare(
+    'INSERT INTO whatsapp_group_media (chave,nome,mimetype,mediatype,tamanho,criada_em) VALUES (?,?,?,?,?,?)'
+  ).run(chave, nome, 'video/mp4', mediatype, 4, criada_em);
+  return { id: Number(r.lastInsertRowid), chave };
+}
 const okFetch = () => new Response('{}', { status: 200 });
 
 async function agendar(env, extra = {}) {
@@ -151,7 +173,7 @@ test('mensagem na hora certa é enviada e fica concluída', async () => {
   const db = novoBanco(); const env = envCom(db);
   const id = await agendar(env);
   let chamadas = 0;
-  const r = await executarAcao(env, id, AGORA + 300, async () => { chamadas++; return okFetch(); });
+  const r = await executarAcao(env, id, AGORA + 300, async (url) => { if (!ehAquecimento(url)) chamadas++; return okFetch(); });
   assert.equal(r.status, 'concluida');
   assert.equal(chamadas, 1);
   const l = db.prepare('SELECT * FROM whatsapp_group_actions WHERE id=?').get(id);
@@ -180,7 +202,7 @@ test('trava de corrida: a segunda execução simultânea não faz nada', async (
   const db = novoBanco(); const env = envCom(db);
   const id = await agendar(env);
   let chamadas = 0;
-  const f = async () => { chamadas++; return okFetch(); };
+  const f = async (url) => { if (!ehAquecimento(url)) chamadas++; return okFetch(); };
   const [a, b] = await Promise.all([executarAcao(env, id, AGORA + 300, f), executarAcao(env, id, AGORA + 300, f)]);
   assert.equal(chamadas, 1, 'a mensagem não pode sair duas vezes');
   assert.deepEqual([a.status, b.status].sort(), ['concluida', 'ignorada']);
@@ -215,7 +237,10 @@ test('renomear com aplicar_no_par renomeia os dois grupos', async () => {
   const db = novoBanco(); const env = envCom(db);
   const id = await criarAcao(env, { group_jid: AVISOS, tipo: 'renomear', titulo: '24/09 às 12h', aplicar_no_par: true, agendada_para: AGORA + 300 }, AGORA).then((r) => r.id);
   const jids = [];
-  await executarAcao(env, id, AGORA + 300, async (url) => { jids.push(new URL(url).searchParams.get('groupJid')); return okFetch(); });
+  await executarAcao(env, id, AGORA + 300, async (url) => {
+    if (!ehAquecimento(url)) jids.push(new URL(url).searchParams.get('groupJid'));
+    return okFetch();
+  });
   assert.deepEqual(jids.sort(), [PAI, AVISOS].sort());
 });
 
@@ -223,7 +248,10 @@ test('se um dos dois do par falha, a ação falha inteira', async () => {
   const db = novoBanco(); const env = envCom(db);
   const id = await criarAcao(env, { group_jid: AVISOS, tipo: 'renomear', titulo: 'x', aplicar_no_par: true, agendada_para: AGORA + 300 }, AGORA).then((r) => r.id);
   let n = 0;
-  const r = await executarAcao(env, id, AGORA + 300, async () => (++n === 1 ? okFetch() : new Response('x', { status: 500 })));
+  const r = await executarAcao(env, id, AGORA + 300, async (url) => {
+    if (ehAquecimento(url)) return okFetch();
+    return ++n === 1 ? okFetch() : new Response('x', { status: 500 });
+  });
   assert.notEqual(r.status, 'concluida');
 });
 
@@ -244,7 +272,10 @@ test('executarVencidas conta falhas e não para na primeira', async () => {
   await agendar(env, { texto: 'a', agendada_para: AGORA + 100 });
   await agendar(env, { texto: 'b', agendada_para: AGORA + 110 });
   let n = 0;
-  const r = await executarVencidas(env, AGORA + 200, async () => (++n === 1 ? new Response('x', { status: 500 }) : okFetch()));
+  const r = await executarVencidas(env, AGORA + 200, async (url) => {
+    if (ehAquecimento(url)) return okFetch();
+    return ++n === 1 ? new Response('x', { status: 500 }) : okFetch();
+  });
   assert.equal(r.total, 2, 'a segunda ação precisa ser tentada mesmo com a primeira falhando');
   assert.equal(r.falhas, 1);
 });
@@ -294,7 +325,7 @@ test('acao=agora cria, executa e deixa rastro no histórico', async () => {
   const r = await acoesPost({
     request: post('&acao=agora', { group_jid: AVISOS, tipo: 'mensagem', texto: 'teste' }),
     env,
-    fetchImpl: async () => { chamou++; return new Response('{}', { status: 200 }); },
+    fetchImpl: async (url) => { if (!ehAquecimento(url)) chamou++; return new Response('{}', { status: 200 }); },
   });
   const j = await r.json();
   assert.equal(chamou, 1);
@@ -361,4 +392,197 @@ test('Slack fora do ar não derruba a rodada', async () => {
     fetchImpl: async (url) => { if (String(url).includes('slack')) throw new Error('rede'); return new Response('x', { status: 500 }); },
   });
   assert.equal(r.status, 200, 'alerta é extra: não pode fazer a rodada falhar');
+});
+
+// --- mídia: agendar ---
+
+test('recusa agendar mídia sem arquivo escolhido', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const r = await criarAcao(env, { group_jid: AVISOS, tipo: 'video', agendada_para: AGORA + 600 }, AGORA);
+  assert.equal(r.status, 400);
+  assert.match(r.erro, /arquivo/i);
+});
+
+test('recusa quando o tipo da ação não bate com o arquivo enviado', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { nome: 'catalogo.pdf', mediatype: 'document' });
+  const r = await criarAcao(env, { group_jid: AVISOS, tipo: 'video', midia_id: m.id, agendada_para: AGORA + 600 }, AGORA);
+  assert.equal(r.status, 400);
+  assert.match(r.erro, /document/i);
+});
+
+test('recusa arquivo inexistente e arquivo já expurgado', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const inexistente = await criarAcao(env, { group_jid: AVISOS, tipo: 'video', midia_id: 9999, agendada_para: AGORA + 600 }, AGORA);
+  assert.match(inexistente.erro, /encontrado/i);
+
+  const m = midiaFalsa(db, env);
+  db.prepare('UPDATE whatsapp_group_media SET apagada_em = ? WHERE id = ?').run(AGORA, m.id);
+  const expurgada = await criarAcao(env, { group_jid: AVISOS, tipo: 'video', midia_id: m.id, agendada_para: AGORA + 600 }, AGORA);
+  assert.match(expurgada.erro, /apagado/i);
+});
+
+test('áudio guarda texto, e os outros tipos guardam caption', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const aud = midiaFalsa(db, env, { nome: 'nota.mp3', mediatype: 'audio' });
+  const img = midiaFalsa(db, env, { nome: 'flyer.png', mediatype: 'image' });
+
+  const a = await criarAcao(env, { group_jid: AVISOS, tipo: 'audio', midia_id: aud.id, texto: 'ouve isso', agendada_para: AGORA + 600 }, AGORA);
+  assert.deepEqual(JSON.parse(db.prepare('SELECT payload FROM whatsapp_group_actions WHERE id=?').get(a.id).payload),
+    { midia_id: aud.id, texto: 'ouve isso' });
+
+  const i = await criarAcao(env, { group_jid: AVISOS, tipo: 'imagem', midia_id: img.id, caption: 'olha', agendada_para: AGORA + 600 }, AGORA);
+  assert.deepEqual(JSON.parse(db.prepare('SELECT payload FROM whatsapp_group_actions WHERE id=?').get(i.id).payload),
+    { midia_id: img.id, caption: 'olha' });
+});
+
+// --- mídia: executar ---
+
+test('vídeo é enviado por URL, com fileName e sem mimetype', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { nome: 'aviso.mp4', mediatype: 'video' });
+  const { id } = await criarAcao(env, { group_jid: AVISOS, tipo: 'video', midia_id: m.id, caption: 'Começou!', agendada_para: AGORA + 300 }, AGORA);
+
+  const chamadas = [];
+  const r = await executarAcao(env, id, AGORA + 300, async (url, init) => {
+    chamadas.push({ url: String(url), corpo: init?.body ? JSON.parse(init.body) : null });
+    return new Response('{}', { status: 200 });
+  });
+
+  assert.equal(r.status, 'concluida');
+  const envio = chamadas.find((c) => c.url.includes('/sendMedia/'));
+  assert.ok(envio, 'precisa chamar sendMedia');
+  assert.equal(envio.corpo.mediatype, 'video');
+  assert.equal(envio.corpo.fileName, 'aviso.mp4');
+  assert.equal(envio.corpo.caption, 'Começou!');
+  assert.match(envio.corpo.media, /\/m\/[0-9a-z]+$/);
+  assert.equal('mimetype' in envio.corpo, false);
+});
+
+test('o grupo é aquecido ANTES do envio', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env);
+  const { id } = await criarAcao(env, { group_jid: AVISOS, tipo: 'video', midia_id: m.id, agendada_para: AGORA + 300 }, AGORA);
+
+  const ordem = [];
+  await executarAcao(env, id, AGORA + 300, async (url) => {
+    ordem.push(String(url).includes('findGroupInfos') ? 'aquecer' : 'enviar');
+    return new Response('{}', { status: 200 });
+  });
+  assert.deepEqual(ordem, ['aquecer', 'enviar']);
+});
+
+test('aquecimento que falha não impede o envio', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env);
+  const { id } = await criarAcao(env, { group_jid: AVISOS, tipo: 'video', midia_id: m.id, agendada_para: AGORA + 300 }, AGORA);
+
+  const r = await executarAcao(env, id, AGORA + 300, async (url) => (String(url).includes('findGroupInfos')
+    ? new Response('x', { status: 500 })
+    : new Response('{}', { status: 200 })));
+  assert.equal(r.status, 'concluida');
+});
+
+test('áudio com texto vira duas mensagens, nesta ordem', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { nome: 'nota.mp3', mediatype: 'audio' });
+  const { id } = await criarAcao(env, { group_jid: AVISOS, tipo: 'audio', midia_id: m.id, texto: 'depois disso', agendada_para: AGORA + 300 }, AGORA);
+
+  const rotas = [];
+  const r = await executarAcao(env, id, AGORA + 300, async (url) => {
+    const u = String(url);
+    if (u.includes('sendWhatsAppAudio')) rotas.push('audio');
+    if (u.includes('sendText')) rotas.push('texto');
+    return new Response('{}', { status: 200 });
+  });
+  assert.equal(r.status, 'concluida');
+  assert.deepEqual(rotas, ['audio', 'texto']);
+});
+
+test('áudio sem texto manda só o áudio', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { nome: 'nota.mp3', mediatype: 'audio' });
+  const { id } = await criarAcao(env, { group_jid: AVISOS, tipo: 'audio', midia_id: m.id, agendada_para: AGORA + 300 }, AGORA);
+
+  let textos = 0;
+  await executarAcao(env, id, AGORA + 300, async (url) => {
+    if (String(url).includes('sendText')) textos++;
+    return new Response('{}', { status: 200 });
+  });
+  assert.equal(textos, 0);
+});
+
+test('áudio que falha NÃO manda o texto que vinha depois', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { nome: 'nota.mp3', mediatype: 'audio' });
+  const { id } = await criarAcao(env, { group_jid: AVISOS, tipo: 'audio', midia_id: m.id, texto: 'depois', agendada_para: AGORA + 300 }, AGORA);
+
+  let textos = 0;
+  const r = await executarAcao(env, id, AGORA + 300, async (url) => {
+    const u = String(url);
+    if (u.includes('sendText')) textos++;
+    if (u.includes('sendWhatsAppAudio')) return new Response('x', { status: 500 });
+    return new Response('{}', { status: 200 });
+  });
+  assert.equal(r.status, 'falhou');
+  assert.equal(textos, 0, 'texto solto sem o áudio confunde o grupo');
+});
+
+test('se o áudio foi e o texto falhou, o motivo diz que o áudio já saiu', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { nome: 'nota.mp3', mediatype: 'audio' });
+  const { id } = await criarAcao(env, { group_jid: AVISOS, tipo: 'audio', midia_id: m.id, texto: 'depois', agendada_para: AGORA + 300 }, AGORA);
+
+  const r = await executarAcao(env, id, AGORA + 300, async (url) => (String(url).includes('sendText')
+    ? new Response('x', { status: 500 })
+    : new Response('{}', { status: 200 })));
+  assert.equal(r.status, 'falhou');
+  assert.match(r.erro, /udio foi enviado/i);
+});
+
+test('mídia apagada entre agendar e enviar falha com motivo claro', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env);
+  const { id } = await criarAcao(env, { group_jid: AVISOS, tipo: 'video', midia_id: m.id, agendada_para: AGORA + 300 }, AGORA);
+  db.prepare('UPDATE whatsapp_group_media SET apagada_em = ? WHERE id = ?').run(AGORA + 10, m.id);
+
+  const r = await executarAcao(env, id, AGORA + 300, async () => new Response('{}', { status: 200 }));
+  assert.equal(r.status, 'falhou');
+  assert.match(r.erro, /apagado/i);
+});
+
+// --- expurgo ---
+
+const VELHO = AGORA - (EXPURGO_DIAS + 1) * 24 * 3600;
+
+test('expurgo apaga arquivo velho e marca a ficha', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { criada_em: VELHO });
+  const r = await expurgarMidiaAntiga(env, AGORA);
+  assert.equal(r.apagadas, 1);
+  assert.equal(env.MIDIA._m.has(m.chave), false, 'os bytes precisam sumir');
+  assert.equal(db.prepare('SELECT apagada_em FROM whatsapp_group_media WHERE id=?').get(m.id).apagada_em, AGORA);
+});
+
+test('expurgo não toca em arquivo recente', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { criada_em: AGORA - 3600 });
+  assert.equal((await expurgarMidiaAntiga(env, AGORA)).apagadas, 0);
+  assert.equal(env.MIDIA._m.has(m.chave), true);
+});
+
+test('expurgo não toca em arquivo de ação ainda agendada, por mais velho que seja', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { criada_em: VELHO });
+  await criarAcao(env, { group_jid: AVISOS, tipo: 'video', midia_id: m.id, agendada_para: AGORA + 86400 }, AGORA);
+  assert.equal((await expurgarMidiaAntiga(env, AGORA)).apagadas, 0);
+  assert.equal(env.MIDIA._m.has(m.chave), true);
+});
+
+test('expurgo não toca em arquivo de ação executada há pouco', async () => {
+  const db = novoBanco(); const env = envCom(db);
+  const m = midiaFalsa(db, env, { criada_em: VELHO });
+  const { id } = await criarAcao(env, { group_jid: AVISOS, tipo: 'video', midia_id: m.id, agendada_para: AGORA + 300 }, AGORA);
+  db.prepare("UPDATE whatsapp_group_actions SET status='concluida', executada_em=? WHERE id=?").run(AGORA - 3600, id);
+  assert.equal((await expurgarMidiaAntiga(env, AGORA)).apagadas, 0);
 });
