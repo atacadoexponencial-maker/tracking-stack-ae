@@ -985,9 +985,8 @@ export function montarRegistro({ rodadas = [], acoes = [] } = {}) {
       ultima_rodada_em: ultima ? ultima.iniciada_em : null,
       // `ok` nulo é rodada que abriu e não fechou: falha, não sucesso.
       ultima_falhou: ultima ? ultima.ok !== true : false,
-      origem_permissao: ultima?.leitura?.origem_permissao
-        ?? rodadas[0]?.leitura?.origem_permissao
-        ?? null,
+      // `lista` não carrega `leitura`, então a origem sai da linha crua.
+      origem_permissao: rodadas[0]?.leitura?.origem_permissao ?? null,
     },
   };
 }
