@@ -104,3 +104,47 @@ test('desfecho: aplicada false com status diferente de PAUSED vira não pausou',
   const r = montarRegistro(dados);
   assert.equal(r.rodadas[1].acoes[0].desfecho, DESFECHO_NAO_PAUSOU);
 });
+
+// Dado incompleto nunca vira categoria confiante: `aplicada` só é lido como
+// sucesso quando === true e como "nada mudou" quando === false. Qualquer
+// outro valor (null, ausente) é desfecho desconhecido — mesma regra do
+// `estado_posterior` nulo.
+test('desfecho: aplicada nula (mesmo com estado_posterior preenchido) vira desconhecido', () => {
+  const dados = cenario({
+    acoes: [
+      { id: 15, rodada_id: 1, tipo: 'pausar_campanha_trafego', alvo_nome: 'Campanha A', motivo: 'motivo', estado_posterior: { status: 'PAUSED' }, aplicada: null, desfeita_em: null },
+    ],
+  });
+  const r = montarRegistro(dados);
+  assert.equal(r.rodadas[1].acoes[0].desfecho, DESFECHO_DESCONHECIDO);
+});
+
+test('desfecho: aplicada ausente vira desconhecido', () => {
+  const dados = cenario({
+    acoes: [
+      { id: 16, rodada_id: 1, tipo: 'pausar_campanha_trafego', alvo_nome: 'Campanha B', motivo: 'motivo', estado_posterior: { status: 'PAUSED' }, desfeita_em: null },
+    ],
+  });
+  const r = montarRegistro(dados);
+  assert.equal(r.rodadas[1].acoes[0].desfecho, DESFECHO_DESCONHECIDO);
+});
+
+test('desfecho: estado_posterior sem chave status vira desconhecido, mesmo com aplicada false', () => {
+  const dados = cenario({
+    acoes: [
+      { id: 17, rodada_id: 1, tipo: 'pausar_campanha_trafego', alvo_nome: 'Campanha C', motivo: 'motivo', estado_posterior: {}, aplicada: false, desfeita_em: null },
+    ],
+  });
+  const r = montarRegistro(dados);
+  assert.equal(r.rodadas[1].acoes[0].desfecho, DESFECHO_DESCONHECIDO);
+});
+
+test('desfecho: estado_posterior sem status utilizavel (undefined explicito) vira desconhecido', () => {
+  const dados = cenario({
+    acoes: [
+      { id: 18, rodada_id: 1, tipo: 'pausar_campanha_trafego', alvo_nome: 'Campanha D', motivo: 'motivo', estado_posterior: { status: undefined }, aplicada: false, desfeita_em: null },
+    ],
+  });
+  const r = montarRegistro(dados);
+  assert.equal(r.rodadas[1].acoes[0].desfecho, DESFECHO_DESCONHECIDO);
+});
