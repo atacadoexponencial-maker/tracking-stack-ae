@@ -32,7 +32,7 @@ export async function onRequestGet({ request, env }) {
       : [];
 
     return Response.json(montarRegistro({ rodadas, acoes }));
-  } catch (erro) {
+  } catch {
     return Response.json(
       { erro: 'Não foi possível ler o registro do Argo agora.' },
       { status: 500 },
