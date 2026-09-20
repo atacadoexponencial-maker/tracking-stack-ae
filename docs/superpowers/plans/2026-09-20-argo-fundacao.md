@@ -129,57 +129,100 @@ VALUES (
 ON CONFLICT (conta) DO NOTHING;
 ```
 
-- [ ] **Step 2: Escrever o aplicador**
+> **Feito pelo controlador antes desta tarefa (não refaça):** o schema `argo`
+> já existe na Neon, e um papel dedicado `argo_rw` — com acesso **apenas** ao
+> schema `argo`, sem enxergar as tabelas do `gestor-exponencial` — já foi criado.
+> A string de conexão desse papel já está em `ARGO_DATABASE_URL`, tanto no
+> `.env` do profile na VPS quanto como secret do Cloudflare Pages. Você **nunca**
+> precisa ver, imprimir ou copiar nenhuma credencial nesta tarefa.
 
-Criar `migrations/argo/aplicar.sh`:
+- [ ] **Step 2: Preparar o Python da VPS**
 
-```bash
-#!/usr/bin/env bash
-# Aplica as migrations do schema `argo` na Neon.
-# Exige ARGO_DATABASE_URL no ambiente. Nunca imprime a string de conexão.
-set -euo pipefail
-
-if [ -z "${ARGO_DATABASE_URL:-}" ]; then
-  echo "ARGO_DATABASE_URL ausente no ambiente" >&2
-  exit 1
-fi
-
-for f in "$(dirname "$0")"/[0-9]*.sql; do
-  echo "aplicando $(basename "$f")"
-  psql "$ARGO_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
-done
-echo "migrations aplicadas"
-```
-
-- [ ] **Step 3: Colocar a string de conexão no `.env` do profile**
-
-A string está em `gestor-exponencial/.env.local`, na variável `DATABASE_URL`. Copiar o valor para a VPS **sem imprimi-lo**:
+A VPS **não tem `psql`** e o Python do sistema não tem driver de Postgres. Criar o venv do profile (usado também pelas tarefas seguintes):
 
 ```bash
-ssh root@31.97.241.169 'grep -q "^ARGO_DATABASE_URL=" /root/.hermes/profiles/gestor-ia/.env || echo "ARGO_DATABASE_URL=COLE_AQUI" >> /root/.hermes/profiles/gestor-ia/.env'
+ssh root@31.97.241.169 'python3 -m venv /root/.hermes/profiles/gestor-ia/.venv && /root/.hermes/profiles/gestor-ia/.venv/bin/pip install -q "psycopg[binary]" requests && /root/.hermes/profiles/gestor-ia/.venv/bin/python -c "import psycopg, requests; print(\"ok\", psycopg.__version__)"'
 ```
 
-Depois editar a linha na VPS com o valor real. Verificar sem vazar:
+Esperado: `ok 3.x.x`
+
+- [ ] **Step 3: Escrever o aplicador em Python**
+
+Criar `migrations/argo/aplicar.py`:
+
+```python
+#!/usr/bin/env python3
+"""Aplica as migrations do schema `argo` na Neon.
+
+Usa psycopg porque a VPS não tem psql. Lê ARGO_DATABASE_URL do ambiente ou do
+.env do profile. Nunca imprime a string de conexão.
+"""
+import os
+import sys
+from pathlib import Path
+
+ENV_PATH = Path("/root/.hermes/profiles/gestor-ia/.env")
+
+
+def dsn() -> str:
+    valor = os.environ.get("ARGO_DATABASE_URL", "")
+    if valor:
+        return valor
+    if ENV_PATH.exists():
+        for linha in ENV_PATH.read_text(errors="ignore").splitlines():
+            if linha.startswith("ARGO_DATABASE_URL="):
+                return linha.split("=", 1)[1].strip().strip("\"'")
+    print("ARGO_DATABASE_URL ausente", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def main() -> int:
+    import psycopg
+
+    aqui = Path(__file__).resolve().parent
+    arquivos = sorted(p for p in aqui.glob("*.sql") if p.name[0].isdigit())
+    if not arquivos:
+        print("nenhuma migration encontrada", file=sys.stderr)
+        return 1
+
+    with psycopg.connect(dsn(), connect_timeout=15) as con:
+        for caminho in arquivos:
+            print(f"aplicando {caminho.name}")
+            with con.cursor() as cur:
+                cur.execute(caminho.read_text(encoding="utf-8"))
+        con.commit()
+    print("migrations aplicadas")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+- [ ] **Step 4: Copiar os arquivos para a VPS, aplicar e verificar**
 
 ```bash
-ssh root@31.97.241.169 'grep -c "^ARGO_DATABASE_URL=postgresql://" /root/.hermes/profiles/gestor-ia/.env'
+ssh root@31.97.241.169 'mkdir -p /root/.hermes/profiles/gestor-ia/migrations/argo'
+scp ~/OneDrive/gestor-ae/migrations/argo/0001_schema_argo.sql ~/OneDrive/gestor-ae/migrations/argo/aplicar.py root@31.97.241.169:/root/.hermes/profiles/gestor-ia/migrations/argo/
+ssh root@31.97.241.169 '/root/.hermes/profiles/gestor-ia/.venv/bin/python /root/.hermes/profiles/gestor-ia/migrations/argo/aplicar.py'
 ```
 
-Esperado: `1`.
+Esperado: `aplicando 0001_schema_argo.sql` seguido de `migrations aplicadas`.
 
-- [ ] **Step 4: Aplicar e verificar**
+Verificar (sem psql, pelo venv):
 
 ```bash
-ssh root@31.97.241.169 'set -a; . /root/.hermes/profiles/gestor-ia/.env; set +a; bash /root/.hermes/profiles/gestor-ia/migrations/argo/aplicar.sh'
+ssh root@31.97.241.169 '/root/.hermes/profiles/gestor-ia/.venv/bin/python -c "
+import os, psycopg
+from pathlib import Path
+dsn = [l.split(\"=\",1)[1].strip() for l in Path(\"/root/.hermes/profiles/gestor-ia/.env\").read_text().splitlines() if l.startswith(\"ARGO_DATABASE_URL=\")][0]
+with psycopg.connect(dsn) as c, c.cursor() as k:
+    k.execute(\"SELECT conta, permissoes->>%s FROM argo.config_conta\", (\"pausar_campanha_trafego\",))
+    print(k.fetchall())
+"'
 ```
 
-Verificar:
-
-```bash
-ssh root@31.97.241.169 'set -a; . /root/.hermes/profiles/gestor-ia/.env; set +a; psql "$ARGO_DATABASE_URL" -t -c "SELECT conta, permissoes->>'"'"'pausar_campanha_trafego'"'"' FROM argo.config_conta;"'
-```
-
-Esperado: `atacado-exponencial | executar`
+Esperado: `[('atacado-exponencial', 'executar')]`
 
 - [ ] **Step 5: Commit**
 
@@ -207,15 +250,8 @@ O único ponto do Python que fala com a Neon. Isola a conexão para que o script
   - `fechar_rodada(rodada_id: int, ok: bool, conclusao: str | None, erro: str | None) -> None`
   - `registrar_acao(rodada_id, conta, tipo, alvo_tipo, alvo_id, alvo_nome, motivo, estado_anterior: dict, estado_posterior: dict | None, aplicada: bool) -> int`
 
-- [ ] **Step 1: Instalar o driver na VPS**
-
-Não há driver Postgres no Python da VPS. Instalar em venv próprio do profile, para não mexer no Python do sistema:
-
-```bash
-ssh root@31.97.241.169 'python3 -m venv /root/.hermes/profiles/gestor-ia/.venv && /root/.hermes/profiles/gestor-ia/.venv/bin/pip install -q "psycopg[binary]" requests && /root/.hermes/profiles/gestor-ia/.venv/bin/python -c "import psycopg, requests; print(\"ok\", psycopg.__version__)"'
-```
-
-Esperado: `ok 3.x.x`
+> O venv com `psycopg` já foi criado na Task 1, Step 2. Use sempre
+> `/root/.hermes/profiles/gestor-ia/.venv/bin/python`, nunca `python3` do sistema.
 
 - [ ] **Step 2: Escrever o teste que falha**
 
