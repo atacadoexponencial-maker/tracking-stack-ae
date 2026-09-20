@@ -30,7 +30,7 @@ Cria as quatro tabelas e a linha de configuração inicial da conta. Sem isso na
 
 **Files:**
 - Create: `migrations/argo/0001_schema_argo.sql` (no repositório `gestor-ae`)
-- Create: `migrations/argo/aplicar.sh` (no repositório `gestor-ae`)
+- Create: `migrations/argo/aplicar.py` (no repositório `gestor-ae`)
 
 **Interfaces:**
 - Consumes: nada.
@@ -41,7 +41,11 @@ Cria as quatro tabelas e a linha de configuração inicial da conta. Sem isso na
 Criar `migrations/argo/0001_schema_argo.sql`:
 
 ```sql
-CREATE SCHEMA IF NOT EXISTS argo;
+-- O schema `argo` NÃO é criado aqui: quem o cria é o dono do banco, no
+-- provisionamento. `CREATE SCHEMA IF NOT EXISTS` exige privilégio CREATE no
+-- BANCO mesmo quando o schema já existe, e o papel `argo_rw` não tem esse
+-- privilégio de propósito — é justamente o que o mantém longe das tabelas do
+-- gestor-exponencial. Esta migration só cria objetos DENTRO do schema.
 
 CREATE TABLE IF NOT EXISTS argo.rodadas (
   id            BIGSERIAL PRIMARY KEY,
@@ -228,7 +232,7 @@ Esperado: `[('atacado-exponencial', 'executar')]`
 
 ```bash
 cd ~/OneDrive/gestor-ae
-git add migrations/argo/0001_schema_argo.sql migrations/argo/aplicar.sh
+git add migrations/argo/0001_schema_argo.sql migrations/argo/aplicar.py
 git commit -m "feat(argo): schema argo na Neon com grade inicial da conta AE"
 ```
 
