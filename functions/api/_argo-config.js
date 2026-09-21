@@ -17,16 +17,44 @@
 //   vira `true`. Aqui, fora do formato exato — inteiro de verdade,
 //   booleano de verdade — é erro 400, nunca valor corrigido.
 
-export const ACOES = [
+export const ERRO_SEM_GRADE =
+  'A grade de permissões desta conta ainda não foi configurada.';
+
+export const ERRO_GRADE_MUDOU =
+  'A grade mudou desde que esta tela carregou. Recarregue antes de salvar.';
+
+export const ACOES = Object.freeze([
   'pausar_campanha_trafego',
   'pausar_anuncio',
   'pausar_conjunto',
   'realocar_verba',
   'reduzir_orcamento',
   'aumentar_orcamento',
-];
+]);
 
-export const ESTADOS = ['desligado', 'propor', 'executar'];
+export const ESTADOS = Object.freeze(['desligado', 'propor', 'executar']);
+
+// Quem de fato lê a grade hoje. `pausar_campanha_trafego` é a única ação com
+// consumidor (o laço de pausas que roda na VPS todo dia útil às 8h50); as
+// outras cinco vivem numa esteira que continua desligada. E dos três estados,
+// só `desligado` e `executar` têm destino: a tabela `argo.propostas` existe,
+// mas nada consulta `propor` ainda — marcar `propor` não propõe nada a
+// ninguém. A aba mostra essas listas como legenda para que ninguém saia da
+// tela achando que autorizou algo que não acontece. Vive aqui, e não na aba,
+// pelo mesmo motivo de ACOES/ESTADOS: uma fonte da verdade só.
+export const ACOES_COM_CONSUMIDOR = Object.freeze(['pausar_campanha_trafego']);
+export const ESTADOS_COM_CONSUMIDOR = Object.freeze(['desligado', 'executar']);
+
+// O contrato que o GET devolve à aba. A aba desenha a grade a partir DISTO,
+// nunca de uma cópia própria: uma sétima ação no backend passa a aparecer na
+// tela sozinha, em vez de a tela mandar seis e o POST recusar tudo — travando
+// a única tela de controle do agente.
+export const CONTRATO_GRADE = Object.freeze({
+  acoes: ACOES,
+  estados: ESTADOS,
+  acoes_com_consumidor: ACOES_COM_CONSUMIDOR,
+  estados_com_consumidor: ESTADOS_COM_CONSUMIDOR,
+});
 
 function ehObjetoSimples(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -84,6 +112,21 @@ export function validarConfig(corpo) {
     }
   }
 
+  // Carimbo da versão que a tela leu (controle de concorrência otimista).
+  // `null`/ausente = a tela não informou versão e o endpoint grava sem
+  // comparar — é o contrato de "sem dado" do resto do arquivo. Quando vem,
+  // tem que ser um carimbo legível; texto qualquer viraria comparação
+  // impossível e um 409 eterno, travando a tela.
+  let atualizadaEm = null;
+  if (corpo.atualizada_em !== undefined && corpo.atualizada_em !== null) {
+    const v = corpo.atualizada_em;
+    if (typeof v !== 'string' || v.trim() === '' || Number.isNaN(Date.parse(v))) {
+      erros.push('atualizada_em deve ser nulo ou o carimbo de data que a tela leu.');
+    } else {
+      atualizadaEm = v;
+    }
+  }
+
   let paradaGeral = false;
   if (corpo.parada_geral !== undefined) {
     if (typeof corpo.parada_geral !== 'boolean') {
@@ -103,6 +146,7 @@ export function validarConfig(corpo) {
       limite_por_acao_centavos: limite,
       max_pausas_por_rodada: maxPausas,
       parada_geral: paradaGeral,
+      atualizada_em: atualizadaEm,
     },
   };
 }

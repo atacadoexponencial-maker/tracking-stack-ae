@@ -2,11 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   montarRegistro,
-  ERRO_SEM_GRADE,
   DESFECHO_DESCONHECIDO,
   DESFECHO_PAUSADA_SUCESSO,
   DESFECHO_JA_ESTAVA_PAUSADA,
   DESFECHO_NAO_PAUSOU,
+  DESFECHO_DESFEITA,
   CAMPOS_ACAO,
 } from '../functions/api/_argo-registro.js';
 
@@ -59,8 +59,55 @@ test('permissao vinda do markdown e sinalizada', () => {
   assert.equal(r.cabecalho.origem_permissao, 'markdown');
 });
 
-test('constante de erro existe e e texto', () => {
-  assert.equal(typeof ERRO_SEM_GRADE, 'string');
+// `falhou` por rodada sai pronto daqui: antes a aba derivava "(nao concluiu)"
+// de `r.ok === true` por conta propria, e a mesma regra vivia em dois lugares.
+test('cada rodada carrega falhou, com a mesma regra do cabecalho', () => {
+  const dados = cenario();
+  dados.rodadas[0].ok = null;
+  dados.rodadas[1].ok = false;
+  const r = montarRegistro(dados);
+  assert.equal(r.rodadas[0].falhou, true);
+  assert.equal(r.rodadas[1].falhou, true);
+  assert.equal(r.cabecalho.ultima_falhou, true);
+  const ok = montarRegistro(cenario());
+  assert.equal(ok.rodadas[0].falhou, false);
+  assert.equal(ok.cabecalho.ultima_falhou, false);
+});
+
+// Acao desfeita nao pode continuar escrita "pausada com sucesso": a campanha
+// esta no ar de novo, e a tela estaria afirmando algo falso sobre dinheiro.
+// `desfeita_em` vem antes de qualquer outra leitura do desfecho.
+test('desfecho: desfeita_em preenchido vence "pausada com sucesso"', () => {
+  const dados = cenario({
+    acoes: [
+      { id: 20, rodada_id: 1, tipo: 'pausar_campanha_trafego', alvo_nome: 'Campanha E', motivo: 'motivo', estado_posterior: { status: 'PAUSED' }, aplicada: true, desfeita_em: '2026-09-19T14:00:00Z' },
+    ],
+  });
+  assert.equal(montarRegistro(dados).rodadas[1].acoes[0].desfecho, DESFECHO_DESFEITA);
+});
+
+test('desfecho: desfeita_em vence tambem os outros desfechos, inclusive o desconhecido', () => {
+  const casos = [
+    { estado_posterior: null, aplicada: false },
+    { estado_posterior: { status: 'ACTIVE' }, aplicada: false },
+    { estado_posterior: { status: 'PAUSED' }, aplicada: false },
+    { estado_posterior: { status: 'PAUSED' }, aplicada: null },
+  ];
+  for (const caso of casos) {
+    const dados = cenario({
+      acoes: [{ id: 21, rodada_id: 1, tipo: 'pausar_campanha_trafego', alvo_nome: 'Campanha F', motivo: 'motivo', desfeita_em: '2026-09-19T14:00:00Z', ...caso }],
+    });
+    assert.equal(montarRegistro(dados).rodadas[1].acoes[0].desfecho, DESFECHO_DESFEITA, JSON.stringify(caso));
+  }
+});
+
+test('desfecho: desfeita_em nulo ou ausente nao muda nada', () => {
+  const comNulo = cenario();
+  assert.equal(montarRegistro(comNulo).rodadas[1].acoes[0].desfecho, DESFECHO_PAUSADA_SUCESSO);
+  const semCampo = cenario({
+    acoes: [{ id: 22, rodada_id: 1, tipo: 'pausar_campanha_trafego', alvo_nome: 'Campanha G', motivo: 'motivo', estado_posterior: { status: 'PAUSED' }, aplicada: true }],
+  });
+  assert.equal(montarRegistro(semCampo).rodadas[1].acoes[0].desfecho, DESFECHO_PAUSADA_SUCESSO);
 });
 
 // Desfecho da ação: `estado_posterior` nulo é intenção registrada com

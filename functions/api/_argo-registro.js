@@ -9,8 +9,8 @@
 // `rodadas[0]` como a última rodada e não reordena. Reordenar aqui esconderia
 // um erro do endpoint em vez de revelá-lo.
 
-export const ERRO_SEM_GRADE =
-  'A grade de permissões desta conta ainda não foi configurada.';
+// `ERRO_SEM_GRADE` não mora aqui: é mensagem da grade de permissões e vive em
+// `_argo-config.js`, junto de quem a usa.
 
 // Fonte única dos campos de `argo.acoes` que este módulo lê e repassa.
 // `registro.js` monta o `SELECT` a partir desta lista — assim os dois nunca
@@ -51,12 +51,20 @@ export const CAMPOS_ACAO = Object.freeze([
 // não "nada mudou"); e `estado_posterior` só permite distinguir "já estava
 // pausada" de "não pausou" quando ele carrega uma chave `status` utilizável
 // (string não vazia) — objeto vazio ou sem `status` também é desconhecido.
+//
+// `desfeita_em` preenchido vem antes de tudo: a ação foi revertida, e seguir
+// dizendo "pausada com sucesso" seria a tela afirmando algo falso sobre
+// dinheiro — a campanha está no ar de novo. O desfazer ainda não existe na
+// tela, mas a coluna já é lida e repassada; tratá-la só quando o botão
+// chegar é contar com alguém lembrar disso depois.
 export const DESFECHO_DESCONHECIDO = 'desfecho desconhecido';
+export const DESFECHO_DESFEITA = 'desfeita';
 export const DESFECHO_PAUSADA_SUCESSO = 'pausada com sucesso';
 export const DESFECHO_JA_ESTAVA_PAUSADA = 'já estava pausada';
 export const DESFECHO_NAO_PAUSOU = 'não pausou';
 
 function desfechoDaAcao(acao) {
+  if (acao.desfeita_em != null) return DESFECHO_DESFEITA;
   if (acao.estado_posterior == null) return DESFECHO_DESCONHECIDO;
   if (acao.aplicada === true) return DESFECHO_PAUSADA_SUCESSO;
   if (acao.aplicada !== false) return DESFECHO_DESCONHECIDO;
@@ -77,6 +85,10 @@ export function montarRegistro({ rodadas = [], acoes = [] } = {}) {
     executor: r.executor,
     iniciada_em: r.iniciada_em,
     ok: r.ok,
+    // A mesma regra do cabeçalho, agora por rodada: `ok` nulo é rodada que
+    // abriu e não fechou — falha, não sucesso. Antes a aba derivava isto de
+    // `r.ok === true` por conta própria, e a regra existia em dois lugares.
+    falhou: r.ok !== true,
     conclusao: r.conclusao ?? null,
     acoes: porRodada.get(r.id) ?? [],
   }));
@@ -88,7 +100,7 @@ export function montarRegistro({ rodadas = [], acoes = [] } = {}) {
     cabecalho: {
       ultima_rodada_em: ultima ? ultima.iniciada_em : null,
       // `ok` nulo é rodada que abriu e não fechou: falha, não sucesso.
-      ultima_falhou: ultima ? ultima.ok !== true : false,
+      ultima_falhou: ultima ? ultima.falhou : false,
       // `lista` não carrega `leitura`, então a origem sai da linha crua.
       origem_permissao: rodadas[0]?.leitura?.origem_permissao ?? null,
     },

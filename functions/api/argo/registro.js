@@ -4,9 +4,18 @@
 // Janela limitada por construção: `limite` no máximo 50. A aba nunca pede
 // "tudo" e nunca consulta em laço.
 import { conectar, CONTA } from '../_argo-db.js';
+import { recusarSemChave } from '../_argo-auth.js';
 import { montarRegistro, CAMPOS_ACAO } from '../_argo-registro.js';
 
+// Teto explícito das ações. As rodadas já são limitadas; sem limite aqui uma
+// única rodada muito movimentada poderia devolver uma resposta sem tamanho
+// previsível. 50 rodadas × 20 ações é folgado para a tela, que mostra 20.
+const MAX_ACOES = 1000;
+
 export async function onRequestGet({ request, env }) {
+  const recusa = recusarSemChave(request, env);
+  if (recusa) return recusa;
+
   const url = new URL(request.url);
   const bruto = Number.parseInt(url.searchParams.get('limite') ?? '20', 10);
   const limite = Number.isFinite(bruto) ? Math.min(Math.max(bruto, 1), 50) : 20;
@@ -34,6 +43,7 @@ export async function onRequestGet({ request, env }) {
             FROM argo.acoes
            WHERE rodada_id = ANY(${ids})
            ORDER BY criada_em DESC
+           LIMIT ${MAX_ACOES}
         `
       : [];
 

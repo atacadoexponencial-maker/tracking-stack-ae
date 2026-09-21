@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validarConfig, ACOES, ESTADOS } from '../functions/api/_argo-config.js';
+import {
+  validarConfig,
+  ACOES,
+  ESTADOS,
+  ACOES_COM_CONSUMIDOR,
+  ESTADOS_COM_CONSUMIDOR,
+  CONTRATO_GRADE,
+  ERRO_SEM_GRADE,
+  ERRO_GRADE_MUDOU,
+} from '../functions/api/_argo-config.js';
 
 function grade(overrides = {}) {
   return {
@@ -179,4 +188,60 @@ test('lista todos os erros de uma vez, não só o primeiro', () => {
   const r = validarConfig({ permissoes: {}, teto_mensal_meta_centavos: -1, max_pausas_por_rodada: 'x' });
   assert.equal(r.ok, false);
   assert.ok(r.erros.length >= 3);
+});
+
+// --- Contrato devolvido no GET: a aba desenha a grade a partir DISTO ---
+// Uma sétima ação no backend precisa aparecer na tela sozinha. Enquanto a aba
+// mantinha a própria cópia da lista, ela mandaria seis, o POST recusaria e a
+// única tela de controle do agente travaria.
+test('o contrato exposto é exatamente ACOES/ESTADOS, sem segunda cópia', () => {
+  assert.deepEqual(CONTRATO_GRADE.acoes, ACOES);
+  assert.deepEqual(CONTRATO_GRADE.estados, ESTADOS);
+  assert.deepEqual(CONTRATO_GRADE.acoes_com_consumidor, ACOES_COM_CONSUMIDOR);
+  assert.deepEqual(CONTRATO_GRADE.estados_com_consumidor, ESTADOS_COM_CONSUMIDOR);
+});
+
+test('o contrato é congelado: ninguém edita a lista canônica em tempo de execução', () => {
+  assert.equal(Object.isFrozen(CONTRATO_GRADE), true);
+  assert.equal(Object.isFrozen(ACOES), true);
+  assert.equal(Object.isFrozen(ESTADOS), true);
+});
+
+// A legenda da aba sai daqui: ação/estado sem consumidor tem que ser um
+// subconjunto do que existe, senão a tela legenda uma linha que não desenha.
+test('ações e estados com consumidor são subconjuntos do que existe', () => {
+  for (const acao of ACOES_COM_CONSUMIDOR) assert.ok(ACOES.includes(acao), acao);
+  for (const estado of ESTADOS_COM_CONSUMIDOR) assert.ok(ESTADOS.includes(estado), estado);
+  // Hoje só a pausa de campanha de tráfego tem consumidor de verdade, e
+  // `propor` não tem destino nenhum. Se isto mudar, a legenda da aba muda
+  // junto — este teste é o lembrete.
+  assert.deepEqual([...ACOES_COM_CONSUMIDOR], ['pausar_campanha_trafego']);
+  assert.deepEqual([...ESTADOS_COM_CONSUMIDOR], ['desligado', 'executar']);
+});
+
+test('as mensagens da grade moram aqui, junto de quem as usa', () => {
+  assert.equal(typeof ERRO_SEM_GRADE, 'string');
+  assert.ok(ERRO_SEM_GRADE.length > 0);
+  assert.equal(typeof ERRO_GRADE_MUDOU, 'string');
+  assert.ok(/recarregue/i.test(ERRO_GRADE_MUDOU));
+});
+
+// --- atualizada_em: controle de concorrência otimista ---
+test('atualizada_em válido é repassado tal e qual', () => {
+  const r = validarConfig({ permissoes: grade(), atualizada_em: '2026-09-20T11:50:00.123Z' });
+  assert.equal(r.ok, true);
+  assert.equal(r.valores.atualizada_em, '2026-09-20T11:50:00.123Z');
+});
+
+test('atualizada_em ausente ou nulo vira null (grava sem comparar versão)', () => {
+  assert.equal(validarConfig({ permissoes: grade() }).valores.atualizada_em, null);
+  assert.equal(validarConfig({ permissoes: grade(), atualizada_em: null }).valores.atualizada_em, null);
+});
+
+test('atualizada_em ilegível é recusado, nunca ignorado em silêncio', () => {
+  for (const v of ['', '   ', 'ontem', 42, {}, true]) {
+    const r = validarConfig({ permissoes: grade(), atualizada_em: v });
+    assert.equal(r.ok, false, JSON.stringify(v));
+    assert.ok(r.erros.some((e) => /atualizada_em/.test(e)), JSON.stringify(v));
+  }
 });
