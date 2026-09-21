@@ -24,7 +24,7 @@ export async function onRequestGet({ request, env }) {
     const acoes = ids.length
       ? await sql`
           SELECT id, rodada_id, tipo, alvo_tipo, alvo_id, alvo_nome, motivo,
-                 aplicada, desfeita_em, criada_em
+                 estado_posterior, aplicada, desfeita_em, criada_em
             FROM argo.acoes
            WHERE rodada_id = ANY(${ids})
            ORDER BY criada_em DESC
