@@ -23,6 +23,11 @@ export async function onRequestGet({ request, env }) {
     const ids = rodadas.map((r) => r.id);
     // Colunas vêm de CAMPOS_ACAO (_argo-registro.js): fonte única, para o
     // SELECT nunca divergir dos campos que montarRegistro lê e repassa.
+    // `sql.unsafe` é seguro AQUI e só aqui: CAMPOS_ACAO é um array de
+    // literais fixos no código-fonte, nunca alimentado por requisição,
+    // variável de ambiente, rede ou banco. Nada computado de fora deste
+    // arquivo pode entrar nessa lista — não copie este padrão para um
+    // valor que venha de `request`, `env` ou de uma consulta anterior.
     const acoes = ids.length
       ? await sql`
           SELECT ${sql.unsafe(CAMPOS_ACAO.join(', '))}

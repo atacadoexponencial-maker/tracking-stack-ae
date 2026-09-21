@@ -18,7 +18,7 @@ export const ERRO_SEM_GRADE =
 // já aconteceu) faria toda ação real virar "desfecho desconhecido" em
 // silêncio; com a lista compartilhada não há o que divergir para quebrar
 // isso de novo. Se este módulo passar a ler outro campo, acrescente-o aqui.
-export const CAMPOS_ACAO = [
+export const CAMPOS_ACAO = Object.freeze([
   'id',
   'rodada_id',
   'tipo',
@@ -30,7 +30,7 @@ export const CAMPOS_ACAO = [
   'aplicada',
   'desfeita_em',
   'criada_em',
-];
+]);
 
 // Desfecho de uma ação. O agente grava a intenção antes de agir e completa o
 // registro depois — `estado_posterior` e `aplicada` se combinam em três

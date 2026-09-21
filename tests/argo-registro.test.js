@@ -153,14 +153,30 @@ test('desfecho: estado_posterior sem status utilizavel (undefined explicito) vir
 // Guarda contra a classe de defeito de 2026-09-20: o SELECT de
 // functions/api/argo/registro.js é MONTADO a partir de CAMPOS_ACAO (não
 // mais uma lista solta e independente), então os dois não têm como
-// divergir. O risco que sobra é este módulo esquecer de listar aqui um
-// campo que `desfechoDaAcao` precisa — este teste é a guarda para isso.
+// divergir. O risco que sobra é este módulo mudar CAMPOS_ACAO sem querer
+// — tanto removendo um campo que `desfechoDaAcao` precisa (estado_posterior,
+// aplicada, rodada_id) quanto um campo que só é repassado à aba via
+// `{...acao}` (alvo_nome, motivo, tipo, alvo_tipo, alvo_id, desfeita_em,
+// criada_em, id), que sumiria da API em silêncio do mesmo jeito. Por isso a
+// comparação é com a lista INTEIRA esperada, escrita aqui de propósito:
+// tirar ou acrescentar qualquer campo sem atualizar este teste quebra a
+// suíte — o lembrete certo para uma mudança que é, às vezes, intencional.
 // Já pegou uma vez: `estado_posterior` ficou fora do SELECT porque não
 // existia lista compartilhada; com CAMPOS_ACAO, removê-lo daqui quebra
 // este teste imediatamente, em vez de silenciosamente virar "desfecho
 // desconhecido" em produção.
-test('CAMPOS_ACAO inclui todo campo que desfechoDaAcao le, para o SELECT do endpoint nunca divergir', () => {
-  assert.ok(CAMPOS_ACAO.includes('estado_posterior'), 'estado_posterior ausente de CAMPOS_ACAO');
-  assert.ok(CAMPOS_ACAO.includes('aplicada'), 'aplicada ausente de CAMPOS_ACAO');
-  assert.ok(CAMPOS_ACAO.includes('rodada_id'), 'rodada_id (chave de agrupamento) ausente de CAMPOS_ACAO');
+test('CAMPOS_ACAO é exatamente a lista esperada, para o SELECT do endpoint nunca divergir nem perder campo em silêncio', () => {
+  assert.deepEqual(CAMPOS_ACAO, [
+    'id',
+    'rodada_id',
+    'tipo',
+    'alvo_tipo',
+    'alvo_id',
+    'alvo_nome',
+    'motivo',
+    'estado_posterior',
+    'aplicada',
+    'desfeita_em',
+    'criada_em',
+  ]);
 });
