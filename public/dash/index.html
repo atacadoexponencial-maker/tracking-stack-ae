@@ -113,6 +113,12 @@ tbody tr.clicavel { cursor: pointer; }
 tbody tr.clicavel:hover td { background: var(--card-2); }
 td .mini, .mini { color: var(--muted); font-size: 0.72rem; }
 .ok { color: var(--up); } .falha { color: var(--down); }
+/* Desfecho "desconhecido" do Argo (o banco caiu entre o agente agir e
+   confirmar): não é sucesso nem falha comum, é "vá olhar a conta" — por isso
+   não usa nem .ok nem .falha, e leva um selo além da cor para não depender só
+   de contraste de cor. */
+.alerta-desconhecido { color: var(--warn); font-weight: 700; }
+.alerta-desconhecido::before { content: "⚠ "; }
 .aviso { color: var(--muted); font-size: 0.84rem; padding: 1rem; text-align: center; }
 /* .aviso.explica: explicação permanente (cinza). O âmbar de .alerta fica só para
    o que pede ação — usado como explicação, ele deixava de chamar atenção. */
@@ -361,6 +367,7 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
         <a href="#jornada" data-secao="jornada">Jornada</a>
         <a href="#eventos" data-secao="eventos">Eventos</a>
         <a href="#saude-meta" data-secao="saude-meta">Saúde das integrações</a>
+        <a href="#argo" data-secao="argo">Argo</a>
       </div>
     </nav>
   </aside>
@@ -774,6 +781,27 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
       <div class="duas-colunas">
         <div class="card"><h2>Últimas rodadas de reenvio</h2><div class="tabela-wrap" id="saude-rodadas"></div></div>
         <div class="card"><h2>Alertas enviados</h2><div class="tabela-wrap" id="saude-alertas"></div></div>
+      </div>
+    </section>
+
+    <!-- Aba Argo (spec 2026-09-20-argo-controle-ae-design.md): o Argo já opera
+         esta conta sozinho desde agosto — pausa campanhas de tráfego todo dia
+         útil às 8h50. Esta aba mostra o que ele fez e comanda o que ele pode
+         fazer. A aba NÃO decide nada: agrupamento por rodada, cabeçalho, ações
+         válidas e estados permitidos vêm prontos de /api/argo/*. -->
+    <section class="secao" id="secao-argo">
+      <div id="argo-cabecalho"></div>
+      <div class="card">
+        <h2>O que ele pode fazer <small>vale a partir da próxima rodada</small></h2>
+        <div id="argo-grade"></div>
+        <div class="saude-acoes" style="justify-content:flex-end;margin-top:0.8rem">
+          <span class="mini" id="argo-salvo" role="status" aria-live="polite"></span>
+          <button class="btn sec" type="button" id="argo-salvar">Salvar</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Registro <small>o que ele viu e o que executou, da rodada mais recente para trás</small></h2>
+        <div class="tabela-wrap" id="argo-registro"></div>
       </div>
     </section>
 
@@ -3166,8 +3194,144 @@ $('#funil').addEventListener('change', () => {
   render();
 });
 
+// ---------- Argo (spec 2026-09-20-argo-controle-ae-design.md) ----------
+// Não decide nada: cabeçalho, agrupamento por rodada e sinalização de falha vêm
+// prontos de /api/argo/registro (_argo-registro.js); as ações válidas e os
+// estados permitidos são validados em /api/argo/config (_argo-config.js).
+// Erro: esta função LANÇA. O cartão de erro é do render(), não daqui.
+const ARGO_ACOES = [
+  ['pausar_campanha_trafego', 'Pausar campanha de tráfego'],
+  ['pausar_anuncio', 'Pausar anúncio'],
+  ['pausar_conjunto', 'Pausar conjunto'],
+  ['realocar_verba', 'Realocar verba'],
+  ['reduzir_orcamento', 'Reduzir orçamento'],
+  ['aumentar_orcamento', 'Aumentar orçamento'],
+];
+const ARGO_ESTADOS = ['desligado', 'propor', 'executar'];
+// Rótulo e estilo de cada desfecho: o texto vem pronto do backend (nunca
+// reclassificado aqui), só o realce visual é decidido nesta tela. O
+// "desconhecido" (banco caiu entre o agente agir e confirmar) precisa ficar
+// visualmente distinto de "pausada" e de "não pausou" — é justamente quando a
+// usuária precisa ir olhar a conta, então não pode passar despercebido nem
+// ser confundido com uma falha comum.
+const ARGO_DESFECHO_CLASSE = {
+  'pausada com sucesso': 'ok',
+  'já estava pausada': 'mini',
+  'não pausou': 'falha',
+  'desfecho desconhecido': 'alerta-desconhecido',
+};
+
+function erroDeCarga(mensagem) {
+  const e = new Error(mensagem);
+  e.mensagemUsuario = mensagem;
+  return e;
+}
+
+async function carregarArgo() {
+  const [respRegistro, respGrade] = await Promise.all([
+    fetch('/api/argo/registro?limite=20'),
+    fetch('/api/argo/config'),
+  ]);
+  if (!respRegistro.ok) throw erroDeCarga('Não foi possível ler o registro do Argo.');
+  if (!respGrade.ok) throw erroDeCarga('Não foi possível ler a configuração do Argo.');
+  const registro = await respRegistro.json();
+  desenharCabecalhoArgo(registro.cabecalho);
+  desenharRegistroArgo(registro.rodadas);
+  desenharGradeArgo(await respGrade.json());
+}
+
+function desenharCabecalhoArgo(c) {
+  const quando = c.ultima_rodada_em
+    ? new Date(c.ultima_rodada_em).toLocaleString('pt-BR')
+    : 'nunca rodou';
+  const avisos = [];
+  if (c.ultima_falhou) {
+    avisos.push('<div class="aviso falha">A última rodada não terminou. O que está abaixo pode estar incompleto.</div>');
+  }
+  if (c.origem_permissao === 'markdown') {
+    avisos.push('<div class="aviso">A permissão está vindo do arquivo na VPS, não desta tela — o banco não respondeu na última rodada.</div>');
+  }
+  $('#argo-cabecalho').innerHTML =
+    `<div class="aviso explica">Última rodada: <strong>${esc(quando)}</strong></div>` + avisos.join('');
+}
+
+function desenharRegistroArgo(rodadas) {
+  if (!rodadas.length) {
+    $('#argo-registro').innerHTML = '<p class="mini">Nenhuma rodada registrada ainda.</p>';
+    return;
+  }
+  $('#argo-registro').innerHTML = rodadas.map((r) => {
+    const acoes = r.acoes.length
+      ? '<ul>' + r.acoes.map((a) => {
+          const classe = ARGO_DESFECHO_CLASSE[a.desfecho] || '';
+          return `<li><strong>${esc(a.alvo_nome || a.alvo_id)}</strong> — <span class="${classe}">${esc(a.desfecho)}</span><br><span class="mini">${esc(a.motivo)}</span></li>`;
+        }).join('') + '</ul>'
+      : '<p class="mini">Nenhuma ação executada nesta rodada.</p>';
+    const falhou = r.ok === true ? '' : ' <span class="mini">(não concluiu)</span>';
+    return `<div class="card">
+      <h2>${esc(new Date(r.iniciada_em).toLocaleString('pt-BR'))}${falhou}
+        <small>${esc(r.executor)}</small></h2>
+      <p>${esc(r.conclusao || '—')}</p>
+      ${acoes}
+    </div>`;
+  }).join('');
+}
+
+function desenharGradeArgo(g) {
+  const linhas = ARGO_ACOES.map(([chave, rotulo]) => {
+    const atual = (g.permissoes || {})[chave] || 'desligado';
+    const opcoes = ARGO_ESTADOS.map((e) =>
+      `<option value="${e}"${e === atual ? ' selected' : ''}>${e}</option>`).join('');
+    return `<tr><td>${esc(rotulo)}</td><td><select data-argo-acao="${chave}">${opcoes}</select></td></tr>`;
+  }).join('');
+  const reais = (c) => (c === null || c === undefined ? '' : (c / 100).toFixed(2));
+  $('#argo-grade').innerHTML = `<table><tbody>${linhas}</tbody></table>
+    <p><label>Teto mensal de Meta (R$) <input type="number" step="0.01" id="argo-teto" value="${reais(g.teto_mensal_meta_centavos)}"></label></p>
+    <p><label>Limite por ação (R$) <input type="number" step="0.01" id="argo-limite" value="${reais(g.limite_por_acao_centavos)}"></label></p>
+    <p><label>Máximo de pausas por rodada <input type="number" step="1" min="0" id="argo-maxpausas" value="${Number(g.max_pausas_por_rodada) || 0}"></label>
+      <br><span class="mini">informativo por enquanto — o laço de pausas ainda não aplica este limite</span></p>
+    <p><label><input type="checkbox" id="argo-parada"${g.parada_geral ? ' checked' : ''}> Parada geral — ele não executa nada</label></p>`;
+}
+
+function centavosDoCampo(id) {
+  const bruto = $(id).value.trim();
+  if (bruto === '') return null;
+  return Math.round(Number(bruto) * 100);
+}
+
+async function salvarGradeArgo() {
+  const permissoes = {};
+  document.querySelectorAll('[data-argo-acao]').forEach((s) => {
+    permissoes[s.dataset.argoAcao] = s.value;
+  });
+  const resposta = await fetch('/api/argo/config', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      permissoes,
+      teto_mensal_meta_centavos: centavosDoCampo('#argo-teto'),
+      limite_por_acao_centavos: centavosDoCampo('#argo-limite'),
+      max_pausas_por_rodada: Number($('#argo-maxpausas').value),
+      parada_geral: $('#argo-parada').checked,
+    }),
+  });
+  const corpo = await resposta.json();
+  if (!resposta.ok) {
+    $('#argo-salvo').textContent = corpo.erro || 'Não foi possível salvar.';
+    return;
+  }
+  desenharGradeArgo(corpo);
+  $('#argo-salvo').textContent = 'Salvo. Vale a partir da próxima rodada.';
+}
+
+document.addEventListener('click', (ev) => {
+  if (ev.target && ev.target.id === 'argo-salvar') salvarGradeArgo();
+});
+
+R.argo = carregarArgo;
+
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', argo: 'Argo' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
@@ -3189,6 +3353,7 @@ const FILTROS = {
   jornada: { nota: 'busca por e-mail · não usa o filtro de datas' },
   eventos: { nota: 'eventos mais recentes · não usa o filtro de datas' },
   'saude-meta': { periodo: true },
+  argo: { nota: 'últimas rodadas · não usa o filtro de datas' },
 };
 let secao = 'visao';
 let renderAtual = 0;
