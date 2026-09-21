@@ -3199,15 +3199,23 @@ $('#funil').addEventListener('change', () => {
 // prontos de /api/argo/registro (_argo-registro.js); as ações válidas e os
 // estados permitidos são validados em /api/argo/config (_argo-config.js).
 // Erro: esta função LANÇA. O cartão de erro é do render(), não daqui.
-const ARGO_ACOES = [
-  ['pausar_campanha_trafego', 'Pausar campanha de tráfego'],
-  ['pausar_anuncio', 'Pausar anúncio'],
-  ['pausar_conjunto', 'Pausar conjunto'],
-  ['realocar_verba', 'Realocar verba'],
-  ['reduzir_orcamento', 'Reduzir orçamento'],
-  ['aumentar_orcamento', 'Aumentar orçamento'],
-];
-const ARGO_ESTADOS = ['desligado', 'propor', 'executar'];
+// Só os RÓTULOS em português moram aqui. Quais ações existem, quais estados
+// são permitidos e quais deles têm consumidor de verdade vêm prontos em
+// `contrato` no GET (_argo-config.js): uma fonte da verdade só. Chave sem
+// rótulo cadastrado aparece crua — some da tela nunca, porque uma linha
+// omitida seria uma permissão que a usuária não consegue ver nem mudar.
+const ARGO_ROTULOS = {
+  pausar_campanha_trafego: 'Pausar campanha de tráfego',
+  pausar_anuncio: 'Pausar anúncio',
+  pausar_conjunto: 'Pausar conjunto',
+  realocar_verba: 'Realocar verba',
+  reduzir_orcamento: 'Reduzir orçamento',
+  aumentar_orcamento: 'Aumentar orçamento',
+};
+const argoRotulo = (chave) => ARGO_ROTULOS[chave] || chave;
+// Carimbo da versão que esta tela leu, devolvido no POST para o backend
+// recusar a gravação se a grade tiver mudado no intervalo.
+let argoAtualizadaEm = null;
 // Rótulo e estilo de cada desfecho: o texto vem pronto do backend (nunca
 // reclassificado aqui), só o realce visual é decidido nesta tela. O
 // "desconhecido" (banco caiu entre o agente agir e confirmar) precisa ficar
@@ -3218,26 +3226,39 @@ const ARGO_DESFECHO_CLASSE = {
   'pausada com sucesso': 'ok',
   'já estava pausada': 'mini',
   'não pausou': 'falha',
+  'desfeita': 'mini',
   'desfecho desconhecido': 'alerta-desconhecido',
 };
 
-function erroDeCarga(mensagem) {
-  const e = new Error(mensagem);
-  e.mensagemUsuario = mensagem;
-  return e;
+// Pede à API com a chave do painel e devolve o JSON; erro vira exceção com a
+// mensagem QUE VEIO DO SERVIDOR. Trocar tudo por um texto genérico fazia
+// "grade não configurada" e "banco fora do ar" virarem a mesma frase — e a
+// primeira é justamente a que diz o que fazer.
+async function argoApi(caminho, init) {
+  const r = await fetch(caminho + (caminho.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key), init);
+  const dados = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = dados.erro || dados.error;
+    const e = new Error(msg || 'HTTP ' + r.status);
+    e.mensagemUsuario = msg;
+    throw e;
+  }
+  return dados;
 }
 
+const comFallback = (promessa, generica) => promessa.catch((e) => {
+  e.mensagemUsuario = e.mensagemUsuario || generica;
+  throw e;
+});
+
 async function carregarArgo() {
-  const [respRegistro, respGrade] = await Promise.all([
-    fetch('/api/argo/registro?limite=20'),
-    fetch('/api/argo/config'),
+  const [registro, grade] = await Promise.all([
+    comFallback(argoApi('/api/argo/registro?limite=20'), 'Não foi possível ler o registro do Argo.'),
+    comFallback(argoApi('/api/argo/config'), 'Não foi possível ler a configuração do Argo.'),
   ]);
-  if (!respRegistro.ok) throw erroDeCarga('Não foi possível ler o registro do Argo.');
-  if (!respGrade.ok) throw erroDeCarga('Não foi possível ler a configuração do Argo.');
-  const registro = await respRegistro.json();
   desenharCabecalhoArgo(registro.cabecalho);
   desenharRegistroArgo(registro.rodadas);
-  desenharGradeArgo(await respGrade.json());
+  desenharGradeArgo(grade);
 }
 
 function desenharCabecalhoArgo(c) {
@@ -3267,7 +3288,9 @@ function desenharRegistroArgo(rodadas) {
           return `<li><strong>${esc(a.alvo_nome || a.alvo_id)}</strong> — <span class="${classe}">${esc(a.desfecho)}</span><br><span class="mini">${esc(a.motivo)}</span></li>`;
         }).join('') + '</ul>'
       : '<p class="mini">Nenhuma ação executada nesta rodada.</p>';
-    const falhou = r.ok === true ? '' : ' <span class="mini">(não concluiu)</span>';
+    // `falhou` vem pronto do backend (_argo-registro.js) — a tela não
+    // reclassifica rodada nenhuma.
+    const falhou = r.falhou ? ' <span class="mini">(não concluiu)</span>' : '';
     return `<div class="card">
       <h2>${esc(new Date(r.iniciada_em).toLocaleString('pt-BR'))}${falhou}
         <small>${esc(r.executor)}</small></h2>
@@ -3278,54 +3301,166 @@ function desenharRegistroArgo(rodadas) {
 }
 
 function desenharGradeArgo(g) {
-  const linhas = ARGO_ACOES.map(([chave, rotulo]) => {
-    const atual = (g.permissoes || {})[chave] || 'desligado';
-    const opcoes = ARGO_ESTADOS.map((e) =>
-      `<option value="${e}"${e === atual ? ' selected' : ''}>${e}</option>`).join('');
-    return `<tr><td>${esc(rotulo)}</td><td><select data-argo-acao="${chave}">${opcoes}</select></td></tr>`;
+  argoAtualizadaEm = g.atualizada_em ?? null;
+  const contrato = g.contrato || {};
+  const acoes = Array.isArray(contrato.acoes) ? contrato.acoes : [];
+  const estados = Array.isArray(contrato.estados) ? contrato.estados : [];
+  const comConsumidor = Array.isArray(contrato.acoes_com_consumidor) ? contrato.acoes_com_consumidor : [];
+  const estadosComConsumidor = Array.isArray(contrato.estados_com_consumidor) ? contrato.estados_com_consumidor : [];
+  const permissoes = g.permissoes || {};
+
+  const linhas = acoes.map((chave) => {
+    const atual = permissoes[chave];
+    // Estado ausente ou fora da lista conhecida NÃO vira opção selecionada.
+    // Antes caía em `|| 'desligado'`: a tela desenhava "desligado" sem avisar
+    // e o Salvar seguinte gravava isso — desligando a pausa automática sem
+    // que ninguém tivesse tocado no controle. Mesmo espírito do popularFunis,
+    // que também não finge que um valor desconhecido é um valor válido.
+    const conhecido = estados.includes(atual);
+    const opcoes = (conhecido ? '' : '<option value="" selected>— escolha —</option>')
+      + estados.map((e) => `<option value="${esc(e)}"${conhecido && e === atual ? ' selected' : ''}>${esc(e)}</option>`).join('');
+    const encontrado = atual === undefined || atual === null
+      ? 'nenhum valor gravado'
+      : `o valor "${esc(String(atual))}"`;
+    const alerta = conhecido ? ''
+      : `<br><span class="falha">Esta linha está com ${encontrado}, que esta tela não conhece. Escolha um estado — até lá o Salvar fica travado.</span>`;
+    const legenda = comConsumidor.includes(chave) ? ''
+      : '<br><span class="mini">sem consumidor por enquanto — o agente ainda não faz nada com esta ação, seja qual for o estado</span>';
+    return `<tr><td>${esc(argoRotulo(chave))}${legenda}${alerta}</td>
+      <td><select data-argo-acao="${esc(chave)}" aria-label="Estado de ${esc(argoRotulo(chave))}">${opcoes}</select></td></tr>`;
   }).join('');
+
+  const semContrato = acoes.length && estados.length ? ''
+    : '<p class="aviso falha">O servidor não informou quais ações e estados existem. Não dá para editar a grade com segurança agora — recarregue a página.</p>';
+  const semDestino = estados.filter((e) => !estadosComConsumidor.includes(e));
+  const legendaEstados = semDestino.length
+    ? `<p class="mini">O estado <strong>${semDestino.map(esc).join('</strong>, <strong>')}</strong> ainda não tem destino: a tabela de propostas existe, mas nada a consulta — marcar aqui não faz o agente propor nada a ninguém.</p>`
+    : '';
   const reais = (c) => (c === null || c === undefined ? '' : (c / 100).toFixed(2));
-  $('#argo-grade').innerHTML = `<table><tbody>${linhas}</tbody></table>
+  $('#argo-grade').innerHTML = `${semContrato}<table><tbody>${linhas}</tbody></table>
+    ${legendaEstados}
     <p><label>Teto mensal de Meta (R$) <input type="number" step="0.01" id="argo-teto" value="${reais(g.teto_mensal_meta_centavos)}"></label></p>
     <p><label>Limite por ação (R$) <input type="number" step="0.01" id="argo-limite" value="${reais(g.limite_por_acao_centavos)}"></label></p>
     <p><label>Máximo de pausas por rodada <input type="number" step="1" min="0" id="argo-maxpausas" value="${Number(g.max_pausas_por_rodada) || 0}"></label>
       <br><span class="mini">informativo por enquanto — o laço de pausas ainda não aplica este limite</span></p>
     <p><label><input type="checkbox" id="argo-parada"${g.parada_geral ? ' checked' : ''}> Parada geral — ele não executa nada</label></p>`;
+  sincronizarSalvarArgo();
 }
 
+// Salvar travado enquanto existir linha sem escolha consciente: gravar a grade
+// inteira com um estado que a tela inventou é o pior caso desta aba.
+function sincronizarSalvarArgo() {
+  const botao = $('#argo-salvar');
+  if (!botao) return;
+  const pendentes = [...document.querySelectorAll('[data-argo-acao]')].filter((s) => s.value === '');
+  botao.disabled = pendentes.length > 0;
+  botao.title = pendentes.length ? 'Escolha um estado nas linhas marcadas para poder salvar.' : '';
+}
+
+// Campo de dinheiro. Duas armadilhas diferentes do `input type=number`, as
+// duas com "10.000,00" — a grafia natural em português — como caso real:
+//
+// 1. `.value` volta '' tanto para campo vazio de propósito quanto para
+//    conteúdo que o navegador não conseguiu ler. `validity.badInput` separa
+//    os dois; sem isso, o teto ia como `null`, o backend gravava "sem dado",
+//    o teto de R$ 10.000 sumia e a tela respondia "Salvo".
+// 2. Pior: em alguns navegadores (Chromium, comprovado na verificação desta
+//    revisão) digitar "10.000,00" não dá `badInput` nenhum — a vírgula é
+//    recusada tecla a tecla e o campo fica com "10.00000", um número VÁLIDO
+//    que vale R$ 10,00. O teto de R$ 10.000 vira dez reais e a tela responde
+//    "Salvo". Por isso a forma do texto também é conferida: centavos têm no
+//    máximo duas casas, e quem digitou separador de milhar cai fora daqui em
+//    vez de gravar mil vezes menos do que quis.
+const ARGO_ILEGIVEL = Symbol('valor ilegível');
+const ARGO_DINHEIRO = /^\d+(\.\d{1,2})?$/;
+
 function centavosDoCampo(id) {
-  const bruto = $(id).value.trim();
+  const campo = $(id);
+  if (campo.validity && campo.validity.badInput) return ARGO_ILEGIVEL;
+  const bruto = campo.value.trim();
   if (bruto === '') return null;
+  if (!ARGO_DINHEIRO.test(bruto)) return ARGO_ILEGIVEL;
   return Math.round(Number(bruto) * 100);
 }
 
+// Inteiro obrigatório: aqui campo vazio TAMBÉM é recusa. Antes virava `0`,
+// que o backend aceita como válido e significa "nenhuma pausa por rodada" —
+// um apagão de configuração disfarçado de campo em branco.
+function inteiroDoCampo(id) {
+  const campo = $(id);
+  if (campo.validity && campo.validity.badInput) return ARGO_ILEGIVEL;
+  const bruto = campo.value.trim();
+  if (bruto === '' || !/^\d+$/.test(bruto)) return ARGO_ILEGIVEL;
+  return Number(bruto);
+}
+
 async function salvarGradeArgo() {
-  const permissoes = {};
-  document.querySelectorAll('[data-argo-acao]').forEach((s) => {
-    permissoes[s.dataset.argoAcao] = s.value;
-  });
-  const resposta = await fetch('/api/argo/config', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      permissoes,
-      teto_mensal_meta_centavos: centavosDoCampo('#argo-teto'),
-      limite_por_acao_centavos: centavosDoCampo('#argo-limite'),
-      max_pausas_por_rodada: Number($('#argo-maxpausas').value),
-      parada_geral: $('#argo-parada').checked,
-    }),
-  });
-  const corpo = await resposta.json();
-  if (!resposta.ok) {
-    $('#argo-salvo').textContent = corpo.erro || 'Não foi possível salvar.';
-    return;
+  const aviso = $('#argo-salvo');
+  // Limpa antes de tentar: a mensagem de sucesso da vez anterior não pode
+  // ficar na tela como se fosse o resultado desta.
+  aviso.textContent = '';
+  try {
+    const permissoes = {};
+    let semEscolha = null;
+    document.querySelectorAll('[data-argo-acao]').forEach((s) => {
+      if (s.value === '') { semEscolha = semEscolha || argoRotulo(s.dataset.argoAcao); return; }
+      permissoes[s.dataset.argoAcao] = s.value;
+    });
+    if (semEscolha) {
+      aviso.textContent = `Escolha um estado para "${semEscolha}" antes de salvar.`;
+      return;
+    }
+
+    const EM_REAIS = 'Escreva só os números, sem separador de milhar e com no máximo duas casas depois do ponto (ex.: 10000.00).';
+    const campos = [
+      ['Teto mensal de Meta', centavosDoCampo('#argo-teto'), EM_REAIS],
+      ['Limite por ação', centavosDoCampo('#argo-limite'), EM_REAIS],
+      ['Máximo de pausas por rodada', inteiroDoCampo('#argo-maxpausas'), 'Escreva um número inteiro, sem casas decimais (ex.: 3). Em branco não vale: 0 significaria nenhuma pausa.'],
+    ];
+    const ilegivel = campos.find(([, v]) => v === ARGO_ILEGIVEL);
+    if (ilegivel) {
+      aviso.textContent = `O campo "${ilegivel[0]}" não está num formato que dá para gravar com segurança. ${ilegivel[2]} Nada foi alterado.`;
+      return;
+    }
+
+    const resposta = await fetch(`/api/argo/config?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        permissoes,
+        teto_mensal_meta_centavos: campos[0][1],
+        limite_por_acao_centavos: campos[1][1],
+        max_pausas_por_rodada: campos[2][1],
+        parada_geral: $('#argo-parada').checked,
+        // Versão que esta tela leu: se a grade mudou no intervalo, o backend
+        // recusa (409) em vez de sobrescrever o que outra pessoa fez.
+        atualizada_em: argoAtualizadaEm,
+      }),
+    });
+    const corpo = await resposta.json().catch(() => ({}));
+    if (!resposta.ok) {
+      // Sem mensagem do servidor (um 502 do Cloudflare devolve HTML, não
+      // JSON) não dá para afirmar nem que salvou nem que não salvou.
+      aviso.textContent = corpo.erro || corpo.error
+        || `O servidor respondeu ${resposta.status} sem explicar. Não dá para afirmar se salvou — recarregue a aba e confira antes de sair.`;
+      return;
+    }
+    desenharGradeArgo(corpo);
+    aviso.textContent = 'Salvo. Vale a partir da próxima rodada.';
+  } catch {
+    // Rede caiu ou resposta não-JSON (um 502 do Cloudflare devolve HTML).
+    // Sem este catch a promise rejeitava calada e a tela continuava exibindo
+    // "Salvo" da vez anterior — alguém sairia daqui achando que o agente
+    // estava parado sem ele estar.
+    aviso.textContent = 'Não foi possível falar com o servidor. Não dá para afirmar que salvou — recarregue a aba e confira antes de sair.';
   }
-  desenharGradeArgo(corpo);
-  $('#argo-salvo').textContent = 'Salvo. Vale a partir da próxima rodada.';
 }
 
 document.addEventListener('click', (ev) => {
   if (ev.target && ev.target.id === 'argo-salvar') salvarGradeArgo();
+});
+document.addEventListener('change', (ev) => {
+  if (ev.target && ev.target.matches && ev.target.matches('[data-argo-acao]')) sincronizarSalvarArgo();
 });
 
 R.argo = carregarArgo;
