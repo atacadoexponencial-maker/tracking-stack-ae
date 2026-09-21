@@ -7,6 +7,7 @@ import {
   DESFECHO_PAUSADA_SUCESSO,
   DESFECHO_JA_ESTAVA_PAUSADA,
   DESFECHO_NAO_PAUSOU,
+  CAMPOS_ACAO,
 } from '../functions/api/_argo-registro.js';
 
 function cenario(extra = {}) {
@@ -147,4 +148,19 @@ test('desfecho: estado_posterior sem status utilizavel (undefined explicito) vir
   });
   const r = montarRegistro(dados);
   assert.equal(r.rodadas[1].acoes[0].desfecho, DESFECHO_DESCONHECIDO);
+});
+
+// Guarda contra a classe de defeito de 2026-09-20: o SELECT de
+// functions/api/argo/registro.js é MONTADO a partir de CAMPOS_ACAO (não
+// mais uma lista solta e independente), então os dois não têm como
+// divergir. O risco que sobra é este módulo esquecer de listar aqui um
+// campo que `desfechoDaAcao` precisa — este teste é a guarda para isso.
+// Já pegou uma vez: `estado_posterior` ficou fora do SELECT porque não
+// existia lista compartilhada; com CAMPOS_ACAO, removê-lo daqui quebra
+// este teste imediatamente, em vez de silenciosamente virar "desfecho
+// desconhecido" em produção.
+test('CAMPOS_ACAO inclui todo campo que desfechoDaAcao le, para o SELECT do endpoint nunca divergir', () => {
+  assert.ok(CAMPOS_ACAO.includes('estado_posterior'), 'estado_posterior ausente de CAMPOS_ACAO');
+  assert.ok(CAMPOS_ACAO.includes('aplicada'), 'aplicada ausente de CAMPOS_ACAO');
+  assert.ok(CAMPOS_ACAO.includes('rodada_id'), 'rodada_id (chave de agrupamento) ausente de CAMPOS_ACAO');
 });

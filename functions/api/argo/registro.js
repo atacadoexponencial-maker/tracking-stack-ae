@@ -4,7 +4,7 @@
 // Janela limitada por construção: `limite` no máximo 50. A aba nunca pede
 // "tudo" e nunca consulta em laço.
 import { conectar, CONTA } from '../_argo-db.js';
-import { montarRegistro } from '../_argo-registro.js';
+import { montarRegistro, CAMPOS_ACAO } from '../_argo-registro.js';
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
@@ -21,10 +21,11 @@ export async function onRequestGet({ request, env }) {
        LIMIT ${limite}
     `;
     const ids = rodadas.map((r) => r.id);
+    // Colunas vêm de CAMPOS_ACAO (_argo-registro.js): fonte única, para o
+    // SELECT nunca divergir dos campos que montarRegistro lê e repassa.
     const acoes = ids.length
       ? await sql`
-          SELECT id, rodada_id, tipo, alvo_tipo, alvo_id, alvo_nome, motivo,
-                 estado_posterior, aplicada, desfeita_em, criada_em
+          SELECT ${sql.unsafe(CAMPOS_ACAO.join(', '))}
             FROM argo.acoes
            WHERE rodada_id = ANY(${ids})
            ORDER BY criada_em DESC

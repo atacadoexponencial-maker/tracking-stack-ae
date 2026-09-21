@@ -12,6 +12,26 @@
 export const ERRO_SEM_GRADE =
   'A grade de permissões desta conta ainda não foi configurada.';
 
+// Fonte única dos campos de `argo.acoes` que este módulo lê e repassa.
+// `registro.js` monta o `SELECT` a partir desta lista — assim os dois nunca
+// divergem por construção. Um `SELECT` que esqueça `estado_posterior` (como
+// já aconteceu) faria toda ação real virar "desfecho desconhecido" em
+// silêncio; com a lista compartilhada não há o que divergir para quebrar
+// isso de novo. Se este módulo passar a ler outro campo, acrescente-o aqui.
+export const CAMPOS_ACAO = [
+  'id',
+  'rodada_id',
+  'tipo',
+  'alvo_tipo',
+  'alvo_id',
+  'alvo_nome',
+  'motivo',
+  'estado_posterior',
+  'aplicada',
+  'desfeita_em',
+  'criada_em',
+];
+
 // Desfecho de uma ação. O agente grava a intenção antes de agir e completa o
 // registro depois — `estado_posterior` e `aplicada` se combinam em três
 // significados distintos que a aba precisa distinguir sem interpretar nada:
