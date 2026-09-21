@@ -126,10 +126,40 @@ precisam de decisão explícita na implementação:
   os dois é coerente com a leitura agregada; pausar um só produziria um estado em
   que a tela e a realidade discordam.
 
-**Verificação que continua obrigatória:** medir a taxa de junção sobre um
-período real, não sobre um par. Um lead que casa não prova que noventa casam.
-Abaixo de um patamar a definir, o plano para e vira trabalho de convenção de
-nomes, não de código.
+**Taxa de junção medida em 20/09, sobre 71 leads reais de tráfego pago: 85,9%**
+(61 casaram). E **100% dos leads têm `utm_content`** — a instrumentação é
+completa. O portão está passado.
+
+Os 10 que não casaram são o achado mais útil da medição:
+
+| Valor | Vezes | O que é |
+|---|---:|---|
+| `ad13_tweet-se_img` | 8 | anúncio **renomeado** — hoje é `ad13_tweet-se-322_img` |
+| `{{ad.name}}` | 1 | o Meta não substituiu o placeholder — anúncio mal configurado |
+| `link_in_bio` | 1 | não é anúncio |
+
+**Renomear anúncio quebra a atribuição histórica, e esse é o modo de falha mais
+perigoso do desenho.** O anúncio renomeado passa a parecer que nunca trouxe
+lead — exatamente o sinal que dispararia uma pausa. Oito dos dez órfãos vêm de
+um único rename.
+
+Daí três regras que passam a ser duras:
+
+- **`utm_content` sem correspondência é "não atribuível", nunca "anúncio sem
+  lead".** Um lead órfão não pode contar contra nenhum anúncio.
+- **A taxa de junção aparece na tela, por rodada.** Se alguém renomear anúncios
+  em massa, a taxa cai e isso fica visível antes de virar decisão errada. Sem
+  isso, a degradação é silenciosa.
+- **Abaixo de um piso de junção, o Argo não propõe pausa naquela rodada** e diz
+  por quê. Dado ruim não vira ação.
+
+Escala da não-unicidade, medida junto: **92 anúncios, 48 nomes distintos** —
+quase metade são homônimos.
+
+**Recomendação fora do escopo deste plano:** incluir `{{ad.id}}` no template de
+UTM dos anúncios. O id não muda quando o anúncio é renomeado, e resolveria a
+fragilidade na origem — mas só para leads futuros, e é mudança de configuração
+na conta, não de código.
 
 ## Peça 2 — A régua no Argo
 
