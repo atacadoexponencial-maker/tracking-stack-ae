@@ -85,6 +85,21 @@ ficam na tela, para a gestora olhar — não viram ação automática.
 existe nada melhor disponível para ele. O que muda é a referência deixar de ser
 um campo que alguém precisa lembrar de atualizar.
 
+**O piso de gasto é por bloco, não um número só** (decisão da gestora em
+22/09). O piso existe para que "zero qualificado" signifique alguma coisa, e o
+que é pouco dinheiro num bloco é muito no outro:
+
+| Bloco | Piso em 7 dias |
+|---|---:|
+| Lead e venda (SE, LIVE, WO PAGO) | R$ 100 |
+| Visita (aquisição) | R$ 30 |
+
+O de R$ 100 na aquisição não impedia a ação — impedia que ela fosse **em
+tempo**. As quatro pausas reais foram todas entre R$ 103 e R$ 121, ou seja, o
+Argo só agia depois que a campanha já tinha consumido quase todo o orçamento
+semanal do bloco sozinha. Com ~R$ 13/dia, R$ 30 é cerca de R$ 4,30/dia por uma
+semana: dinheiro suficiente para julgar, cedo o bastante para importar.
+
 ## Arquitetura
 
 **Quem tem qual metade do dado, medido antes de desenhar:** o tracking
@@ -223,8 +238,8 @@ guardado em campo que precise de manutenção manual.
 
 ## Fora de escopo
 
-Realocar verba e aumentar orçamento (plano 3); o desfazer; o piso de R$ 100 do
-gatilho de tráfego; as contas da agência; e resolver o rastreio do que acontece
+Realocar verba e aumentar orçamento (plano 3); o desfazer; as contas da
+agência; e resolver o rastreio do que acontece
 dentro do perfil do Instagram — que é o que tornaria o bloco de aquisição
 mensurável, e é um projeto de outra natureza.
 
