@@ -35,3 +35,34 @@ export function recusarSemChave(request, env) {
   if (chaveAutorizada(request, env)) return null;
   return Response.json({ erro: ERRO_NAO_AUTORIZADO }, { status: 401 });
 }
+
+// ---------------------------------------------------------------------------
+// Guarda da rota que o Argo chama de fora (`/api/argo/leads-por-anuncio`).
+//
+// Chave PRÓPRIA (`ARGO_KEY`), e não a `DASH_KEY`, por dois motivos medidos
+// neste projeto: a `DASH_KEY` abre o dashboard inteiro e já vazou uma vez, e
+// esta rota é chamada por um script na VPS — uma chave só para ela pode ser
+// trocada sem derrubar o painel.
+//
+// Vem por `Authorization: Bearer`, nunca por `?key=`: query string fica
+// gravada em log de acesso do Cloudflare e no histórico de shell de quem
+// testar com curl. O cliente é o `argo_anuncios.py` do profile `gestor-ia`.
+//
+// Ambiente sem `ARGO_KEY` recusa tudo, como a guarda de cima: deploy
+// incompleto nunca vira porta aberta.
+
+export function chaveArgoAutorizada(request, env) {
+  const esperada = env && env.ARGO_KEY ? String(env.ARGO_KEY) : '';
+  if (!esperada) return false;
+  const cabecalho = request.headers.get('Authorization') || '';
+  const prefixo = 'Bearer ';
+  if (!cabecalho.startsWith(prefixo)) return false;
+  return cabecalho.slice(prefixo.length).trim() === esperada;
+}
+
+// Devolve a Response de recusa, ou `null` quando pode seguir — mesmo formato
+// de `recusarSemChave`, para o handler usar na primeira linha.
+export function recusarSemChaveArgo(request, env) {
+  if (chaveArgoAutorizada(request, env)) return null;
+  return Response.json({ erro: ERRO_NAO_AUTORIZADO }, { status: 401 });
+}
