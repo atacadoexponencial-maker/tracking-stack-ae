@@ -1,4 +1,4 @@
-# Argo julga anúncio por dinheiro, não por visita — design (plano 2)
+# Argo julga cada campanha pelo objetivo dela — design (plano 2)
 
 Data: 2026-09-20
 Status: rascunho para revisão
@@ -46,9 +46,15 @@ campanha nem por anúncio.
 
 ## O que este ciclo entrega
 
-O Argo passa a julgar **anúncios** das campanhas que produzem lead e venda pelo
-que elas produzem — não por custo por visita. E a referência de custo por visita
-do bloco de aquisição passa a se recalcular sozinha, para nunca mais congelar.
+Cada campanha passa a ser julgada pela régua do objetivo dela, e não por uma
+régua só:
+
+- **Campanhas de lead e venda** (SE, LIVE, WO PAGO) passam a ser julgadas no
+  nível do **anúncio**, pelo que produzem: lead qualificado e compra.
+- **Campanhas de visita** (o bloco de aquisição) continuam julgadas por **custo
+  por visita**, que é a régua certa para o objetivo delas. O que muda é a
+  referência se recalcular sozinha, para nunca mais congelar como congelou de
+  julho a setembro.
 
 ## Decisões tomadas
 
@@ -81,23 +87,37 @@ um campo que alguém precisa lembrar de atualizar.
 
 ## Arquitetura
 
+**Quem tem qual metade do dado, medido antes de desenhar:** o tracking
+sincroniza o Meta apenas em `level=campaign` (`functions/api/sync/meta-ads.js`),
+então **não existe gasto por anúncio no D1**. Quem tem é o Argo, que já consulta
+anúncios no Meta com o token do profile.
+
+Daí a divisão:
+
 ```
-CRM (ClickUp) ── utm_content + marcador de MQL ──┐
-Meta API ─────── gasto por anúncio ──────────────┤
-                                                  v
-                          /api/argo/desempenho-anuncio  (novo)
-                                                  │
-                    Argo (VPS) ──────────────────┤
+CRM (ClickUp) ── leads + MQL por utm_content ──> /api/argo/leads-por-anuncio (novo)
+                                                             │
+Meta API ─────── gasto por anúncio ─────────> Argo (VPS) <───┘
+                                                  │  junta, mede a taxa,
+                                                  │  aplica a régua
                                                   v
                                         Neon, schema `argo`
                                                   │
                               aba Argo <── /api/argo/*
 ```
 
-O endpoint novo é o que não existe: junta gasto por anúncio (Meta) com leads e
-MQLs por `utm_content` (CRM), aplicando a janela de maturação. Ele mora no
-tracking, como os outros, e o Argo consome — mesmo padrão do
-`/api/feedback-marketing`.
+O endpoint novo entrega só a metade que o tracking tem: por `utm_content`,
+quantos leads e quantos qualificados na janela madura. Sem gasto. O Argo traz a
+outra metade e faz a junção — é ele que tem os dois lados, e por isso é ele que
+mede a taxa de junção.
+
+Rejeitado: sincronizar o Meta em `level=ad` para o D1 e fazer tudo no tracking.
+Duplicaria um dado que o Argo já busca, criaria tabela nova no D1 e sincronia
+para manter, sem ganho — a aba já lê o resultado da rodada pela Neon, que é o
+padrão do plano 1.
+
+**Consequência a aceitar:** a aba mostra a visão da última rodada, não ao vivo.
+É o mesmo comportamento do resto da aba.
 
 ## Peça 1 — O endpoint de desempenho por anúncio
 
