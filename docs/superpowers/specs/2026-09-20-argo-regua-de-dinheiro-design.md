@@ -56,6 +56,51 @@ régua só:
   referência se recalcular sozinha, para nunca mais congelar como congelou de
   julho a setembro.
 
+## A régua de cada funil (decisão da gestora, 22/09)
+
+Esta seção nasce de um erro real. Na primeira rodada de verdade, em 22/09, o
+Argo propôs pausar três anúncios — e os três pertenciam a funis que **não são
+medidos por MQL**. O pior deles, `ad06_captacao-live-tweet_img`, tinha trazido
+**43 leads maduros** e aparecia como "zero qualificados", porque ninguém
+preenche faturamento nos leads da live. A régua estava perguntando "quantos
+MQLs?" para quem nunca produz MQL; a resposta é sempre zero, e todo mundo
+parece desperdício.
+
+Nada foi pausado: `pausar_anuncio` estava em `desligado`. Foi a trava que
+segurou, não a régua.
+
+| Funil | Régua | Nível | Estado |
+|---|---|---|---|
+| **SE** | MQL: gastou acima do piso e trouxe zero qualificados | anúncio | é o que existe hoje |
+| **LIVE** | **fora do julgamento automático** | — | a contagem dela é manual, e os anúncios são ligados e desligados à mão em volta de cada live |
+| **WO PAGO** | compra (Greenn) | anúncio | falta implementar |
+| **AQUISIÇÃO** | custo por visita | campanha | já no ar, no `ae_trafego_monitor.py` |
+
+O tipo de cada funil já está no D1 (`funis_relatorio.tipo`: `lead_mql`,
+`manual`, `venda_greenn`), e o tracking já sabe derivar o funil pelo nome da
+campanha — é o que o relatório de marketing faz. A régua tem que ler isso em
+vez de aplicar MQL a todo mundo.
+
+**Consequência a aceitar:** anúncio de funil sem régua automática nunca vira
+proposta. É deliberado — silêncio é melhor que uma proposta errada, e a
+proposta errada aqui custaria o anúncio que mais traz lead da conta.
+
+### Captação para grupo: a régua existe, a atribuição não
+
+Se uma campanha nova for focada em captação para grupo, a régua é **custo por
+`EntrouGrupo`** — o evento já existe e já é enviado ao Meta.
+
+Medido em 22/09, antes de prometer: em 30 dias houve **41 entradas em grupo, e
+só 3 foram ligadas a um lead conhecido** — 7%. A ligação depende de casar o
+telefone do participante com o de um lead (`whatsapp_group_conversions.phone` →
+`lead_dispatch` → `sessions.utm_content`), e ela quase nunca casa.
+
+Com 7% não dá para julgar **anúncio** por entrada em grupo: o portão de junção
+do plano 2 é 85,9%. O que dá, e que é honesto, é custo por entrada no nível da
+**campanha** — gasto da campanha de captação dividido pelas entradas do
+período, sem atribuir a anúncio nenhum. Subir a atribuição de 7% para um número
+utilizável é um projeto próprio, não um ajuste desta régua.
+
 ## Decisões tomadas
 
 **Nível de ação: o anúncio.** O dado permite, é a ação mais cirúrgica e mais
