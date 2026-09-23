@@ -30,6 +30,7 @@ test('só as regras com lógica de hoje estão ativas', () => {
   assert.deepEqual(montarRegua(null).ativas.sort(), [
     'intervalo_min_dias', 'lead_impressoes_min', 'lead_janela_cpl_dias', 'lead_multiplicador_cpl',
     'trafego_gasto_min_reais', 'trafego_janela_passado_dias', 'trafego_janela_recente_dias', 'trafego_tolerancia_pct',
+    'trava_aprendizado', 'trava_aprendizado_dias',
   ]);
 });
 

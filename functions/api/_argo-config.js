@@ -44,11 +44,11 @@ export const ESTADOS = Object.freeze(['desligado', 'propor', 'executar']);
 export const ACOES_COM_CONSUMIDOR = Object.freeze(['pausar_campanha_trafego', 'pausar_anuncio']);
 export const ESTADOS_COM_CONSUMIDOR = Object.freeze(['desligado', 'propor', 'executar']);
 
-// Ações em que `executar` ainda só propõe: o monitor de anúncios não pausa
-// sozinho até a régua nova de anúncio (issue 314) — sem piso de entrega, um
-// anúncio com 1 lead seria pausado por ruído. A faixa da aba lista estas em
-// "Propõe", nunca em "Executa sozinho".
-export const EXECUTAR_AINDA_PROPOE = Object.freeze(['pausar_anuncio']);
+// Ações em que `executar` ainda só propõe. Vazia desde a issue 316: com a
+// régua nova de anúncio (314) e as travas de aprendizado e intervalo no ar,
+// "Pausar anúncio" em Executar pausa de verdade. Fica o mecanismo para a
+// próxima ação que ganhar consumidor antes de ter as travas dela.
+export const EXECUTAR_AINDA_PROPOE = Object.freeze([]);
 
 // O contrato que o GET devolve à aba. A aba desenha a grade a partir DISTO,
 // nunca de uma cópia própria: uma sétima ação no backend passa a aparecer na

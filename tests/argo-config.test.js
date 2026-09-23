@@ -219,10 +219,10 @@ test('ações e estados com consumidor são subconjuntos do que existe', () => {
   assert.deepEqual([...ESTADOS_COM_CONSUMIDOR], ['desligado', 'propor', 'executar']);
 });
 
-// "Pausar anúncio" em Executar ainda só propõe (até a issue 314): a faixa da
-// aba não pode dizer que ele executa sozinho.
-test('executar-que-ainda-propõe está no contrato e só contém ações com consumidor', () => {
-  assert.deepEqual([...CONTRATO_GRADE.executar_ainda_propoe], ['pausar_anuncio']);
+// Issue 316: com as travas no ar, "Pausar anúncio" em Executar pausa — a
+// lista de executar-que-ainda-propõe fica vazia, mas continua no contrato.
+test('executar-que-ainda-propõe está no contrato e hoje está vazio', () => {
+  assert.deepEqual([...CONTRATO_GRADE.executar_ainda_propoe], []);
   for (const acao of CONTRATO_GRADE.executar_ainda_propoe) assert.ok(ACOES_COM_CONSUMIDOR.includes(acao), acao);
 });
 
