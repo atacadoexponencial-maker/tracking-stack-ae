@@ -95,10 +95,11 @@ test('espaco em volta do utm_content nao cria anuncio duplicado', () => {
 // qualificados" — era da live, onde ninguém preenche faturamento. Perguntar
 // "quantos MQLs?" a um funil que não produz MQL dá sempre zero.
 
+// Como o cadastro real da conta: SE declara origem, LIVE e WO PAGO não.
 const FUNIS = [
-  { id: 1, nome: 'SE', tipo: 'lead_mql', opcoes_crm: JSON.stringify([{ id: 'op-se', nome: 'Sessão Estratégica' }]) },
-  { id: 2, nome: 'LIVE', tipo: 'manual', opcoes_crm: JSON.stringify([{ id: 'op-live', nome: 'Live' }]) },
-  { id: 3, nome: 'WO PAGO', tipo: 'venda_greenn', opcoes_crm: JSON.stringify([{ id: 'op-wo', nome: 'Workshop' }]) },
+  { id: 1, nome: 'SE', tipo: 'lead_mql', origem_lead: 'trafego_pago', opcoes_crm: JSON.stringify([{ id: 'op-se', nome: 'Sessão Estratégica' }]) },
+  { id: 2, nome: 'LIVE', tipo: 'manual', origem_lead: null, opcoes_crm: JSON.stringify([{ id: 'op-live', nome: 'Live' }]) },
+  { id: 3, nome: 'WO PAGO', tipo: 'venda_greenn', origem_lead: null, opcoes_crm: JSON.stringify([{ id: 'op-wo', nome: 'Workshop' }]) },
 ];
 
 function cardComFunil({ criadoMs, content, opcao, faturamento = 'Mais de 50 Mil', status = 'qualificação' }) {
@@ -195,4 +196,48 @@ test('anuncio que serve dois funis fica com o funil da maioria dos leads', () =>
   const ad = r.anuncios.find((a) => a.utm_content === 'ad20_misto_vd');
   assert.equal(ad.funil, 'SE');
   assert.equal(ad.julgavel, true);
+});
+
+// --- Dois funis na MESMA opção do CRM ---------------------------------------
+// Defeito real, achado em 22/09 rodando contra a conta: SE e AQUISIÇÃO
+// compartilham a opção "SESSÃO ESTRATÉGICA" e são separados por `origem_lead`
+// (SE = tráfego pago; AQUISIÇÃO = exceto tráfego pago). Sem ler esse campo, a
+// última cadastrada vencia e TODOS os anúncios apareciam como AQUISIÇÃO.
+//
+// Aqui só entram cards de tráfego pago — os outros já saíram antes —, então o
+// funil certo é sempre o de origem `trafego_pago` ou `qualquer`. Um anúncio
+// nunca pode ser de um funil "exceto tráfego pago".
+
+const FUNIS_MESMA_OPCAO = [
+  { id: 1, nome: 'SE', tipo: 'lead_mql', origem_lead: 'trafego_pago', opcoes_crm: JSON.stringify([{ id: 'op-se', nome: 'SESSÃO ESTRATÉGICA' }]) },
+  { id: 4, nome: 'AQUISIÇÃO', tipo: 'lead_mql', origem_lead: 'exceto_trafego_pago', opcoes_crm: JSON.stringify([{ id: 'op-se', nome: 'SESSÃO ESTRATÉGICA' }]) },
+];
+
+test('opcao compartilhada: anuncio fica com o funil de trafego pago', () => {
+  const r = agruparPorAnuncio({
+    cards: [cardComFunil({ criadoMs: 1_000_000, content: 'ad13_se_vd', opcao: 'op-se' })],
+    maduroAteMs: MADURO,
+    funis: FUNIS_MESMA_OPCAO,
+  });
+  assert.equal(r.anuncios[0].funil, 'SE');
+  assert.equal(r.anuncios[0].julgavel, true);
+});
+
+test('opcao so de funil "exceto trafego pago" nao da funil a anuncio nenhum', () => {
+  const r = agruparPorAnuncio({
+    cards: [cardComFunil({ criadoMs: 1_000_000, content: 'ad13_se_vd', opcao: 'op-se' })],
+    maduroAteMs: MADURO,
+    funis: [FUNIS_MESMA_OPCAO[1]],
+  });
+  assert.equal(r.anuncios[0].funil, null);
+  assert.equal(r.anuncios[0].julgavel, false);
+});
+
+test('origem "qualquer" serve a anuncio', () => {
+  const r = agruparPorAnuncio({
+    cards: [cardComFunil({ criadoMs: 1_000_000, content: 'ad13_se_vd', opcao: 'op-se' })],
+    maduroAteMs: MADURO,
+    funis: [{ id: 9, nome: 'GERAL', tipo: 'lead_mql', origem_lead: 'qualquer', opcoes_crm: JSON.stringify([{ id: 'op-se', nome: 'SESSÃO ESTRATÉGICA' }]) }],
+  });
+  assert.equal(r.anuncios[0].funil, 'GERAL');
 });

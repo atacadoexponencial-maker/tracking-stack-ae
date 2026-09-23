@@ -66,7 +66,7 @@ export async function onRequestGet({ request, env }) {
     // certo. Sem esta leitura nenhum anúncio é julgável — silêncio em vez de
     // julgar todo mundo por MQL, que foi o erro de 22/09.
     const funisRes = await env.DB.prepare(
-      `SELECT id, nome, tipo, opcoes_crm FROM funis_relatorio WHERE situacao = 'ativo'`,
+      `SELECT id, nome, tipo, origem_lead, opcoes_crm FROM funis_relatorio WHERE situacao = 'ativo'`,
     ).all();
     const funis = funisRes.results || [];
 
