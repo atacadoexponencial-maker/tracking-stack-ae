@@ -1,0 +1,50 @@
+---
+// Bloco 4 — Seus canais (issue 298).
+//
+// O bloco mais curto, e o que produz a informação mais desconfortável da
+// página: o próprio nome escrito oito vezes.
+//
+// As duas chaves de cada canal saem de `chavesDoCanal()`, e não escritas à
+// mão, para a lista de canais e as chaves do rascunho nunca saírem de
+// sincronia.
+
+import CampoPlanner from './CampoPlanner.astro';
+import { BLOCO_4, chavesDoCanal } from '../../data/planner-black.js';
+
+const linhas = BLOCO_4.canais.map((canal) => ({ canal, chaves: chavesDoCanal(canal) }));
+---
+
+<section class="pl-bloco" id={`bloco-${BLOCO_4.id}`} data-bloco={BLOCO_4.numero} aria-labelledby="titulo-bloco-4">
+  <p class="pl-bloco__selo">Bloco {BLOCO_4.numero} de 4</p>
+  <h2 class="pl-bloco__titulo" id="titulo-bloco-4">{BLOCO_4.titulo}</h2>
+  <p class="pl-bloco__abertura">{BLOCO_4.abertura}</p>
+
+  <table class="pl-tabela pl-tabela--canais">
+    <thead>
+      <tr>
+        <th scope="col">Canal</th>
+        <th scope="col">Usar</th>
+        <th scope="col">Responsável</th>
+      </tr>
+    </thead>
+    <tbody>
+      {linhas.map(({ canal, chaves }) => (
+        <tr data-canal={canal.id}>
+          <td>
+            <label for={`pl-${chaves.usar}`}>{canal.nome}</label>
+          </td>
+          <td data-coluna="usar">
+            <input type="checkbox" id={`pl-${chaves.usar}`} name={chaves.usar} />
+          </td>
+          <td data-coluna="responsavel">
+            <input type="text" name={chaves.responsavel} aria-label={`Responsável por ${canal.nome}`} />
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p class="pl-campo__apoio">{BLOCO_4.recado}</p>
+
+  {BLOCO_4.campos.map((campo) => <CampoPlanner campo={campo} />)}
+</section>

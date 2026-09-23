@@ -1,0 +1,29 @@
+---
+// Botão de avançar, no fim de cada bloco (issue 298, revisão de 21/09).
+//
+// Nomeia o bloco seguinte em vez de dizer só "Próximo": quem está preenchendo
+// no meio de uma aula merece saber para onde vai antes de clicar.
+//
+// Vive dentro do `<section>` do bloco, e não solto na página, para sumir junto
+// com ele na troca de aba e na impressão. O bloco 4 não recebe nenhum: lá o que
+// aparece é o fecho e as duas saídas.
+
+import { BLOCOS } from '../../data/planner-black.js';
+
+interface Props {
+  depoisDe: string;
+}
+
+const { depoisDe } = Astro.props;
+
+const atual = BLOCOS.findIndex((bloco) => bloco.id === depoisDe);
+const proximo = atual >= 0 ? BLOCOS[atual + 1] : undefined;
+---
+
+{proximo && (
+  <div class="pl-avancar">
+    <button type="button" class="pl-botao pl-botao--primario" data-avancar-para={proximo.id}>
+      Próximo: {proximo.curto} →
+    </button>
+  </div>
+)}

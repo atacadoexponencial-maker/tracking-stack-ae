@@ -1,0 +1,30 @@
+---
+// Cabeçalho do planner (issue 298).
+//
+// Carrega dois ganchos inertes: o indicador de salvamento (issue 300 escreve
+// nele) e o botão de tema (issue 303 liga). Nasceram aqui para as issues
+// seguintes não precisarem remexer na marcação.
+
+import CampoPlanner from './CampoPlanner.astro';
+import { CABECALHO } from '../../data/planner-black.js';
+---
+
+<header class="pl-topo">
+  <div class="pl-topo__barra">
+    <div>
+      <h1 class="pl-topo__titulo">{CABECALHO.titulo}</h1>
+      <p class="pl-topo__apoio">{CABECALHO.apoio}</p>
+    </div>
+    <button type="button" class="pl-tema" id="planner-tema" aria-pressed="false">
+      Tema claro
+    </button>
+  </div>
+
+  <div class="pl-topo__campos">
+    {CABECALHO.campos.map((campo) => <CampoPlanner campo={campo} />)}
+  </div>
+
+  <p class="pl-salvo" id="planner-salvo" role="status" aria-live="polite"></p>
+
+  <p class="pl-topo__aviso">{CABECALHO.aviso}</p>
+</header>

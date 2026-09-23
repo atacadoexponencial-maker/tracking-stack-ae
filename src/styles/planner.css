@@ -1,0 +1,943 @@
+/* =========================================================================
+   Planner da Black Atacado — base visual (issue 298)
+
+   Carregada só por `src/layouts/PlannerLayout.astro`. Vem depois do
+   `global.css`, de onde herda a Satoshi (@font-face) e o reset — aqui não se
+   redeclara fonte nem box-sizing.
+
+   Os tokens ficam em `--pl-*` em vez de sobrescrever os do site: o planner
+   tem tema próprio, que a issue 303 vai alternar, e misturar os dois deixaria
+   a troca de tema mexendo no visual das landing pages.
+   ========================================================================= */
+
+:root {
+  /* Paleta do DESIGN.md */
+  --pl-carvao: #1e1e1e;
+  --pl-grafite: #242424;
+  --pl-grafite-alto: #2a2a2a;
+  --pl-cinza-quente: #393536;
+  --pl-branco: #ffffff;
+  --pl-cinza-texto: #a6a6a6;
+  --pl-taupe: #b8ada1;
+  --pl-bege: #f5f0eb;
+  --pl-verde: #5dc986;
+  --pl-ambar: #e0b34c;
+
+  /* Papéis — é por estes nomes que o CSS abaixo pinta as coisas, e é este
+     conjunto que a issue 303 vai redefinir para o tema claro. */
+  --pl-fundo: var(--pl-carvao);
+  --pl-superficie: var(--pl-grafite);
+  --pl-superficie-alta: var(--pl-grafite-alto);
+  --pl-texto: var(--pl-branco);
+  --pl-texto-fraco: var(--pl-cinza-texto);
+  --pl-traco: var(--pl-cinza-quente);
+  --pl-destaque: var(--pl-taupe);
+  --pl-alerta: var(--pl-ambar);
+  --pl-confirma: var(--pl-verde);
+
+  --pl-raio: 0.75rem;
+  --pl-raio-sm: 0.5rem;
+  --pl-largura: 46rem;
+}
+
+/* Gancho do tema claro. A issue 303 preenche este bloco com a redefinição dos
+   papéis acima e liga o botão do cabeçalho. Até lá o atributo existe no <html>
+   e ninguém o troca. */
+:root[data-tema='claro'] {
+  /* issue 303 */
+}
+
+body {
+  background: var(--pl-fundo);
+  color: var(--pl-texto);
+}
+
+/* ---- Esqueleto ---- */
+.pl-pagina {
+  max-width: var(--pl-largura);
+  margin-inline: auto;
+  padding: 2rem 1rem 4rem;
+}
+
+/* ---- Barra de blocos ---- */
+/* Fica colada no topo enquanto a pessoa preenche: durante a aula ela precisa
+   trocar de bloco sem rolar de volta. Nasce `hidden` na marcação e só aparece
+   quando o script assume a navegação (ver planner-navegacao.ts). */
+.pl-abas {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+  background: var(--pl-fundo);
+  padding: 0.75rem 0;
+  margin-top: 1rem;
+}
+
+.pl-abas[hidden] {
+  display: none;
+}
+
+.pl-aba {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  background: var(--pl-superficie);
+  color: var(--pl-texto-fraco);
+  border: 1px solid var(--pl-traco);
+  border-radius: var(--pl-raio-sm);
+  padding: 0.5rem 0.3rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pl-aba__numero {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-feature-settings: 'tnum';
+}
+
+.pl-aba__nome {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pl-aba--ativa {
+  background: var(--pl-branco);
+  color: var(--pl-carvao);
+  border-color: var(--pl-branco);
+}
+
+.pl-bloco {
+  background: var(--pl-superficie);
+  border-radius: var(--pl-raio);
+  padding: 1.5rem 1.25rem;
+  margin-top: 1.5rem;
+}
+
+/* Bloco fora da aba ativa. `hidden` some da tela, mas o bloco continua no
+   documento com tudo preenchido — e a folha impressa o traz de volta. */
+.pl-bloco[hidden],
+.pl-fim[hidden] {
+  display: none;
+}
+
+/* ---- Avançar ---- */
+.pl-avancar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--pl-traco);
+}
+
+.pl-bloco__selo {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pl-destaque);
+}
+
+.pl-bloco__titulo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 0.3rem;
+}
+
+.pl-bloco__abertura,
+.pl-secao__apoio {
+  color: var(--pl-texto-fraco);
+  font-size: 0.9rem;
+  margin-top: 0.7rem;
+}
+
+.pl-secao {
+  margin-top: 1.75rem;
+}
+
+.pl-secao__titulo {
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--pl-traco);
+}
+
+.pl-sub {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  color: var(--pl-destaque);
+}
+
+/* ---- Campos ---- */
+.pl-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 1.1rem;
+}
+
+.pl-campo__rotulo {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.pl-campo__apoio {
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--pl-texto-fraco);
+}
+
+.pl-campo__controle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pl-campo input,
+.pl-campo textarea,
+.pl-campo select,
+.pl-semana textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--pl-texto);
+  background: var(--pl-superficie-alta);
+  border: 1px solid var(--pl-traco);
+  border-radius: var(--pl-raio-sm);
+  padding: 0.6rem 0.7rem;
+}
+
+.pl-campo textarea,
+.pl-semana textarea {
+  resize: vertical;
+  min-height: 3.2rem;
+  line-height: 1.5;
+}
+
+.pl-campo input:focus,
+.pl-campo textarea:focus,
+.pl-semana textarea:focus {
+  outline: 2px solid var(--pl-destaque);
+  outline-offset: 1px;
+}
+
+.pl-campo input::placeholder,
+.pl-campo textarea::placeholder {
+  color: var(--pl-texto-fraco);
+  opacity: 0.6;
+}
+
+.pl-campo__sufixo {
+  font-size: 0.8rem;
+  color: var(--pl-texto-fraco);
+  white-space: nowrap;
+}
+
+/* Espelho só de leitura: o pedido mínimo do bloco 1 reaparecendo no bloco 2.
+   Parece campo, mas não é editável — e a issue 301 é que o preenche. */
+.pl-espelho {
+  background: transparent;
+  border: 1px dashed var(--pl-traco);
+  border-radius: var(--pl-raio-sm);
+  padding: 0.6rem 0.7rem;
+  color: var(--pl-texto-fraco);
+  font-size: 0.95rem;
+}
+
+/* ---- Escolhas e marcações ---- */
+.pl-opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.pl-opcao {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  background: var(--pl-superficie-alta);
+  border: 1px solid var(--pl-traco);
+  border-radius: var(--pl-raio-sm);
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.pl-opcao input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  accent-color: var(--pl-destaque);
+}
+
+.pl-opcao__angulo {
+  font-weight: 700;
+  font-style: italic;
+}
+
+.pl-opcao--linha {
+  display: inline-flex;
+  width: auto;
+  margin-right: 0.5rem;
+}
+
+/* ---- Painel derivado (a soma da base) ---- */
+/* O painel da base é o resultado do bloco 1, então precisa se separar dos
+   campos — mas o destaque vem do número grande e do espaço em volta, não de
+   uma tarja colorida na lateral. */
+.pl-painel {
+  margin-top: 1.5rem;
+  background: var(--pl-superficie-alta);
+  border: 1px solid var(--pl-traco);
+  border-radius: var(--pl-raio-sm);
+  padding: 1.25rem 1.1rem;
+}
+
+.pl-painel__titulo {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--pl-texto-fraco);
+}
+
+.pl-painel__numero {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.15;
+  font-feature-settings: 'tnum';
+  margin-top: 0.3rem;
+}
+
+.pl-painel__frase {
+  font-size: 0.85rem;
+  color: var(--pl-texto-fraco);
+  margin-top: 0.5rem;
+}
+
+/* ---- Tabelas (desconto progressivo e canais) ---- */
+.pl-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.8rem;
+  font-size: 0.9rem;
+}
+
+.pl-tabela th,
+.pl-tabela td {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--pl-traco);
+}
+
+.pl-tabela th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--pl-texto-fraco);
+  font-weight: 400;
+}
+
+.pl-tabela input[type='text'],
+.pl-tabela input[type='number'] {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--pl-texto);
+  background: var(--pl-superficie-alta);
+  border: 1px solid var(--pl-traco);
+  border-radius: var(--pl-raio-sm);
+  padding: 0.4rem 0.5rem;
+}
+
+.pl-tabela input[type='checkbox'] {
+  accent-color: var(--pl-destaque);
+}
+
+/* Na tabela de desconto o campo divide a célula com o "%". Sem largura
+   própria ele ocupa a célula inteira e empurra o sinal para a linha de baixo. */
+.pl-tabela--progressivo td input[type='number'] {
+  width: 4.5rem;
+  margin-right: 0.35rem;
+}
+
+.pl-tabela--progressivo td {
+  white-space: nowrap;
+}
+
+/* Alvo calculado — vazio até a issue 301 preencher. */
+.pl-calculado {
+  font-feature-settings: 'tnum';
+  font-weight: 700;
+}
+
+.pl-aviso {
+  margin-top: 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--pl-alerta);
+  border: 1px solid var(--pl-alerta);
+  border-radius: var(--pl-raio-sm);
+  padding: 0.7rem 0.8rem;
+}
+
+/* O aviso nasce escondido: quem o mostra é a issue 301. */
+.pl-aviso[hidden] {
+  display: none;
+}
+
+/* ---- Cabeçalho ---- */
+.pl-topo {
+  border-bottom: 1px solid var(--pl-traco);
+  padding-bottom: 1.5rem;
+}
+
+.pl-topo__barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pl-topo__titulo {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.pl-topo__apoio {
+  color: var(--pl-texto-fraco);
+  font-size: 0.9rem;
+  margin-top: 0.4rem;
+}
+
+.pl-topo__campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.pl-topo__aviso {
+  margin-top: 1.25rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--pl-texto-fraco);
+  border-left: 2px solid var(--pl-traco);
+  padding-left: 0.8rem;
+}
+
+.pl-salvo {
+  font-size: 0.76rem;
+  color: var(--pl-confirma);
+  min-height: 1.1rem;
+}
+
+.pl-tema {
+  background: var(--pl-superficie-alta);
+  color: var(--pl-texto);
+  border: 1px solid var(--pl-traco);
+  border-radius: var(--pl-raio-sm);
+  padding: 0.5rem 0.9rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ---- Trilhas do calendário ---- */
+.pl-semana {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--pl-traco);
+}
+
+/* O rótulo do campo da semana é rótulo de bloco: sem isto ele fica na mesma
+   linha da caixa de texto e espreme os dois. */
+.pl-semana .pl-campo__rotulo {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.pl-semana__periodo {
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-feature-settings: 'tnum';
+  color: var(--pl-destaque);
+}
+
+.pl-semana__funcao {
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--pl-texto-fraco);
+  margin-top: 0.35rem;
+}
+
+.pl-fase {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--pl-traco);
+}
+
+.pl-fase__nome {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.pl-fase__datas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--pl-texto-fraco);
+}
+
+.pl-fase__datas input {
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--pl-texto);
+  background: var(--pl-superficie-alta);
+  border: 1px solid var(--pl-traco);
+  border-radius: var(--pl-raio-sm);
+  padding: 0.35rem 0.5rem;
+}
+
+/* ---- Rodapé ---- */
+.pl-fim {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.pl-fim__fecho {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.pl-fim__instrucao {
+  color: var(--pl-texto-fraco);
+  font-size: 0.9rem;
+  margin-top: 0.4rem;
+}
+
+.pl-fim__botoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.pl-botao {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  border-radius: var(--pl-raio-sm);
+  padding: 0.85rem 1.4rem;
+  cursor: pointer;
+  border: 1px solid var(--pl-branco);
+}
+
+.pl-botao--primario {
+  background: var(--pl-branco);
+  color: var(--pl-carvao);
+}
+
+.pl-botao--secundario {
+  background: transparent;
+  color: var(--pl-texto);
+  border-color: var(--pl-traco);
+}
+
+.pl-fim__aviso {
+  font-size: 0.76rem;
+  color: var(--pl-texto-fraco);
+  margin-top: 1.25rem;
+}
+
+/* ---- Celular ---- */
+/* As duas trilhas de cinco semanas e a tabela de oito canais não cabem como
+   tabela numa tela em pé: viram lista, cada item carregando a semana (ou o
+   canal) junto do campo. Sem rolagem lateral. */
+@media (max-width: 40rem) {
+  .pl-topo__campos {
+    grid-template-columns: 1fr;
+  }
+
+  .pl-semana {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .pl-tabela--canais thead {
+    display: none;
+  }
+
+  .pl-tabela--canais tr {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 0.7rem;
+    align-items: center;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--pl-traco);
+  }
+
+  .pl-tabela--canais td {
+    border: none;
+    padding: 0;
+  }
+
+  .pl-tabela--canais td[data-coluna='responsavel'] {
+    grid-column: 1 / -1;
+  }
+
+  .pl-tabela--progressivo th,
+  .pl-tabela--progressivo td {
+    padding: 0.5rem 0.3rem;
+  }
+}
+
+/* ---- Impressão ---- */
+/* Gancho: a issue 304 é que escreve a folha (um bloco por página, tema claro,
+   sem botão e sem fundo). Fica aqui só a âncora de quebra de página, que a
+   marcação desta issue já carrega, para a 304 não precisar remexer no HTML. */
+/* Elemento de resposta impressa. Criado por `planner-impressao.ts` no momento
+   de imprimir e invisível na tela — na tela quem manda é o campo. */
+.pl-resposta {
+  display: none;
+}
+
+/* A capa existe só no papel. */
+.pl-capa {
+  display: none;
+}
+
+/* =========================================================================
+   A FOLHA (issue 304)
+
+   Esta folha vai para a parede da expedição e fica lá até dezembro. Ela não é
+   "a tela sem os botões": é peça própria, e a regra que a governa é a
+   inversão da hierarquia da tela.
+
+   NA TELA: o rótulo é forte e o valor mora dentro de uma caixa.
+   NA FOLHA: a RESPOSTA é o conteúdo — grande e escura; o RÓTULO é legenda —
+   pequeno, claro, em caixa alta. Quem lê a folha na parede quer ler as
+   decisões da marca, não os enunciados das perguntas.
+
+   Fundo branco e tinta preta por decisão da copy ("sem cor de fundo"), o que
+   também a faz sair bem em qualquer impressora de escritório.
+   ========================================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 18mm 16mm;
+  }
+
+  /* Tema claro forçado, qualquer que seja o da tela. */
+  :root {
+    --pl-fundo: #ffffff;
+    --pl-superficie: #ffffff;
+    --pl-superficie-alta: #ffffff;
+    --pl-texto: #000000;
+    --pl-texto-fraco: #5a5a5a;
+    --pl-traco: #c8c8c8;
+    --pl-destaque: #000000;
+  }
+
+  body {
+    background: #ffffff;
+    color: #000000;
+    font-size: 11pt;
+    line-height: 1.45;
+  }
+
+  .pl-pagina {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ---- O que é só de tela ---- */
+  /* O cabeçalho da tela sai inteiro: marca, data e o aviso de rascunho já
+     estão na capa, e repeti-los logo depois dela seria eco. */
+  .pl-topo,
+  .pl-abas,
+  .pl-avancar,
+  .pl-tema,
+  .pl-salvo,
+  .pl-topo__aviso,
+  .pl-fim__botoes,
+  .pl-fim__aviso,
+  .pl-aviso,
+  .pl-campo__apoio,
+  .pl-secao__apoio,
+  .pl-bloco__abertura,
+  .pl-semana__funcao,
+  [data-fora-da-folha] {
+    display: none !important;
+  }
+
+  /* Os controles somem e dão lugar à resposta escrita. Sem isto, a folha sai
+     com caixas de borda e texto miúdo — o defeito que reprovou a v1. */
+  .pl-campo input,
+  .pl-campo textarea,
+  .pl-campo select,
+  .pl-semana textarea,
+  .pl-tabela input,
+  .pl-opcao input,
+  .pl-espelho {
+    display: none !important;
+  }
+
+  .pl-opcao {
+    display: none !important;
+  }
+
+  .pl-resposta {
+    display: block;
+    font-size: 12.5pt;
+    font-weight: 700;
+    color: #000000;
+    line-height: 1.35;
+    margin-top: 0.5mm;
+    /* Texto longo de semana ou de condição precisa quebrar e respirar. */
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+
+  /* Campo em branco não vira caixa vazia: vira um traço discreto, que dá para
+     preencher à mão na folha pendurada. */
+  .pl-resposta.pl-sem-resposta {
+    font-weight: 400;
+    color: #b0b0b0;
+  }
+
+  /* ---- Uma folha por bloco ---- */
+  .pl-capa,
+  .pl-bloco {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .pl-bloco:last-of-type {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  /* Blocos escondidos pela navegação voltam: o papel leva os quatro, esteja a
+     pessoa na aba que estiver. */
+  .pl-bloco[hidden],
+  .pl-fim[hidden] {
+    display: block !important;
+  }
+
+  .pl-bloco {
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Nada de bloco cortado no meio de uma resposta. */
+  .pl-campo,
+  .pl-semana,
+  .pl-fase,
+  .pl-painel,
+  .pl-tabela tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ---- Capa ---- */
+  .pl-capa {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 235mm;
+    text-align: left;
+  }
+
+  .pl-capa__marca {
+    height: 18mm;
+    width: auto;
+    filter: brightness(0);
+    margin-bottom: 14mm;
+  }
+
+  .pl-capa__chapeu {
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: #5a5a5a;
+  }
+
+  .pl-capa__marca-nome {
+    font-size: 34pt;
+    font-weight: 700;
+    line-height: 1.05;
+    margin-top: 3mm;
+  }
+
+  .pl-capa__campanha {
+    font-size: 15pt;
+    color: #3a3a3a;
+    margin-top: 4mm;
+  }
+
+  .pl-capa__rodape {
+    display: flex;
+    justify-content: space-between;
+    gap: 6mm;
+    margin-top: 18mm;
+    padding-top: 4mm;
+    border-top: 1px solid #c8c8c8;
+    font-size: 9pt;
+    color: #5a5a5a;
+  }
+
+  /* ---- Hierarquia: bloco, seção, resposta ---- */
+  .pl-bloco__selo {
+    font-size: 8.5pt;
+    letter-spacing: 0.2em;
+    color: #5a5a5a;
+  }
+
+  .pl-bloco__titulo {
+    font-size: 20pt;
+    line-height: 1.1;
+    margin-top: 1mm;
+    padding-bottom: 3mm;
+    border-bottom: 1.5pt solid #000000;
+  }
+
+  .pl-secao {
+    margin-top: 7mm;
+  }
+
+  .pl-secao__titulo,
+  .pl-sub {
+    font-size: 10pt;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #000000;
+    border: none;
+    padding: 0;
+    margin-top: 6mm;
+  }
+
+  /* O rótulo vira legenda. É esta regra, junto da .pl-resposta acima, que
+     separa uma folha desenhada de um formulário impresso. */
+  .pl-campo {
+    margin-top: 4.5mm;
+    gap: 0;
+  }
+
+  /* Na tela o controle e o sufixo ficam lado a lado (flex). No papel só
+     existe a resposta, e ela precisa da linha inteira. */
+  .pl-campo__controle {
+    display: block;
+  }
+
+  .pl-campo__rotulo,
+  .pl-semana .pl-campo__rotulo {
+    font-size: 8.5pt;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #5a5a5a;
+    margin-bottom: 0;
+  }
+
+  .pl-campo__sufixo {
+    display: none;
+  }
+
+  /* ---- Os números que a marca vai conferir em dezembro ---- */
+  .pl-painel {
+    border: 1.5pt solid #000000;
+    border-radius: 0;
+    padding: 5mm;
+    margin-top: 7mm;
+    background: none;
+  }
+
+  .pl-painel__numero {
+    font-size: 30pt;
+  }
+
+  .pl-painel__frase {
+    font-size: 10pt;
+    color: #000000;
+  }
+
+  .pl-calculado {
+    font-weight: 700;
+  }
+
+  /* ---- Trilhas e tabelas ---- */
+  .pl-semana {
+    grid-template-columns: 30mm 1fr;
+    gap: 5mm;
+    padding: 3mm 0;
+    border-bottom: 0.5pt solid #c8c8c8;
+  }
+
+  .pl-semana__periodo {
+    font-size: 10pt;
+    color: #000000;
+  }
+
+  .pl-tabela th {
+    font-size: 8.5pt;
+    color: #5a5a5a;
+    border-bottom: 1pt solid #000000;
+  }
+
+  .pl-tabela td {
+    font-size: 11pt;
+    border-bottom: 0.5pt solid #c8c8c8;
+    padding: 2.5mm 2mm 2.5mm 0;
+  }
+
+  .pl-tabela--canais td[data-coluna='usar'] {
+    display: none;
+  }
+
+  .pl-fase__datas input {
+    display: none;
+  }
+
+  .pl-fase {
+    border-top: 0.5pt solid #c8c8c8;
+    margin-top: 5mm;
+    padding-top: 4mm;
+  }
+
+  /* ---- Fecho ---- */
+  .pl-fim {
+    margin-top: 8mm;
+    text-align: left;
+  }
+
+  .pl-fim__fecho {
+    font-size: 13pt;
+  }
+
+  .pl-fim__instrucao {
+    font-size: 10pt;
+    color: #5a5a5a;
+  }
+}

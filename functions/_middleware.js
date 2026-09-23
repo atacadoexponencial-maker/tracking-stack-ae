@@ -30,7 +30,15 @@ export async function onRequest(context) {
     // 13/09/2026: cada clique virava uma sessão nova com landing_url do
     // redirect e entrava no denominador da Conversão por LP.
     && !url.pathname.startsWith('/grupo-da-live')
-    && !url.pathname.startsWith('/grupo-workshop');
+    && !url.pathname.startsWith('/grupo-workshop')
+    // O planner da Black é material de turma fechada, entregue a quem comprou o
+    // workshop e protegido por senha. Não é página de aquisição: quem abre já
+    // comprou. Criar sessão aqui poria as duas horas de preenchimento dentro da
+    // Conversão por LP e do denominador dos testes A/B, medindo como visita de
+    // funil o que é uso de ferramenta. A página também não carrega pixel algum
+    // (ver `src/layouts/PlannerLayout.astro`) — esta linha é a metade
+    // server-side da mesma decisão.
+    && !url.pathname.startsWith('/planner-workshop-black');
 
   if (!isPageRequest) {
     return next();

@@ -1,0 +1,55 @@
+---
+// Planner da Black Atacado — Workshop Black Exponencial, 23/09/2026 (issue 298).
+//
+// Página de ferramenta, não landing page: sem Header, sem Footer, sem pixel e
+// sem aviso de cookies. Quem garante isso é o `PlannerLayout`, e do lado do
+// servidor a exclusão em `functions/_middleware.js`.
+//
+// O acesso é protegido por senha — mas o portão é da issue 299, e vive numa
+// Pages Function, não aqui. Enquanto ela não existe, esta rota está aberta.
+//
+// Todos os campos estão inertes nesta issue: nada calcula, nada guarda e nada
+// avisa. Os ganchos (nomes de controle, alvos calculados, regiões condicionais
+// e botões) já estão na marcação para as issues 299 a 306 não precisarem
+// remexer nela.
+
+import PlannerLayout from '../layouts/PlannerLayout.astro';
+import PlannerCabecalho from '../components/planner/PlannerCabecalho.astro';
+import PlannerAbas from '../components/planner/PlannerAbas.astro';
+import PlannerCapa from '../components/planner/PlannerCapa.astro';
+import BlocoOndeVoceEsta from '../components/planner/BlocoOndeVoceEsta.astro';
+import BlocoOfertas from '../components/planner/BlocoOfertas.astro';
+import BlocoCalendario from '../components/planner/BlocoCalendario.astro';
+import BlocoCanais from '../components/planner/BlocoCanais.astro';
+import PlannerRodape from '../components/planner/PlannerRodape.astro';
+---
+
+<PlannerLayout title="Planner da Black Atacado">
+  <main class="pl-pagina">
+    <!-- Só existe no papel: primeira folha da impressão, invisível na tela. -->
+    <PlannerCapa />
+
+    <PlannerCabecalho />
+    <PlannerAbas />
+
+    <!-- Os quatro blocos vêm na ordem da aula, e a navegação mostra um de cada
+         vez: o Felipe diz "agora bloco 2" e todo mundo chega lá num toque.
+         Eles nascem TODOS visíveis aqui de propósito — sem JavaScript a página
+         vira os quatro empilhados, preenchíveis, em vez de um planner com três
+         quartos inalcançáveis. Quem esconde os inativos é o script abaixo. -->
+    <BlocoOndeVoceEsta />
+    <BlocoOfertas />
+    <BlocoCalendario />
+    <BlocoCanais />
+
+    <PlannerRodape />
+  </main>
+</PlannerLayout>
+
+<script>
+  import { ativarNavegacaoDoPlanner } from '../scripts/planner-navegacao';
+  import { prepararImpressao } from '../scripts/planner-impressao';
+
+  ativarNavegacaoDoPlanner();
+  prepararImpressao();
+</script>

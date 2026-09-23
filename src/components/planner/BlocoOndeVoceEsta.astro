@@ -1,0 +1,35 @@
+---
+// Bloco 1 — Onde você está e onde quer chegar (issue 298).
+//
+// Fecha no painel da base, que é a primeira conta do planner. Aqui ele nasce
+// vazio: a issue 301 é que soma ativos + novos + reativados e escreve o número.
+
+import CampoPlanner from './CampoPlanner.astro';
+import PlannerAvancar from './PlannerAvancar.astro';
+import { BLOCO_1 } from '../../data/planner-black.js';
+
+const painel = BLOCO_1.painelBase;
+---
+
+<section class="pl-bloco" id={`bloco-${BLOCO_1.id}`} data-bloco={BLOCO_1.numero} aria-labelledby="titulo-bloco-1">
+  <p class="pl-bloco__selo">Bloco {BLOCO_1.numero} de 4</p>
+  <h2 class="pl-bloco__titulo" id="titulo-bloco-1">{BLOCO_1.titulo}</h2>
+
+  {BLOCO_1.secoes.map((secao) => (
+    <div class="pl-secao">
+      <h3 class="pl-secao__titulo">{secao.titulo}</h3>
+      <p class="pl-secao__apoio">{secao.apoio}</p>
+      {secao.campos.map((campo) => <CampoPlanner campo={campo} />)}
+    </div>
+  ))}
+
+  <!-- Alvo calculado da issue 301. Nasce com lacuna, não com zero: zero seria
+       uma afirmação sobre a base dela que ninguém fez ainda. -->
+  <div class="pl-painel" id={painel.id}>
+    <p class="pl-painel__titulo">{painel.titulo}</p>
+    <p class="pl-painel__numero pl-calculado" data-alvo="base-total">—</p>
+    <p class="pl-painel__frase" data-alvo="base-frase"></p>
+  </div>
+
+  <PlannerAvancar depoisDe={BLOCO_1.id} />
+</section>

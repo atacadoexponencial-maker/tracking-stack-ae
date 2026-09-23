@@ -1,0 +1,26 @@
+---
+// Capa da folha impressa (issue 304).
+//
+// Invisível na tela, primeira página no papel. Existe porque a folha vai ficar
+// pendurada na expedição até dezembro, à vista de gente que não preencheu: ela
+// precisa dizer de quem é e do que se trata antes de qualquer campo.
+//
+// Os valores são escritos por `planner-impressao.ts` no momento de imprimir —
+// aqui só existe a estrutura.
+
+import { Image } from 'astro:assets';
+import logo from '../../assets/brand/logo.png';
+---
+
+<section class="pl-capa" id="planner-capa" aria-hidden="true">
+  <Image src={logo} alt="" height={120} class="pl-capa__marca" />
+
+  <p class="pl-capa__chapeu">Planner da Black Atacado</p>
+  <h1 class="pl-capa__marca-nome" data-capa="marca"></h1>
+  <p class="pl-capa__campanha" data-capa="campanha"></p>
+
+  <div class="pl-capa__rodape">
+    <p data-capa="data"></p>
+    <p>Workshop Black Exponencial</p>
+  </div>
+</section>

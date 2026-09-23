@@ -1,0 +1,36 @@
+---
+// Rodapé do planner (issue 298).
+//
+// As duas saídas nascem aqui, inertes: a issue 305 liga o download do PDF e a
+// 304 a impressão. A área de recado é onde a issue 306 escreve o aviso de
+// bloco incompleto.
+
+import { RODAPE } from '../../data/planner-black.js';
+---
+
+<!-- `data-rodape-planner`: a navegação (issue 298) só mostra este fecho no
+     último bloco. Oferecer "sua Black está montada" com a pessoa no bloco 1
+     seria mentira. Sem JavaScript ele fica visível o tempo todo, no fim dos
+     quatro blocos empilhados — que é o lugar certo naquele caso. -->
+<footer class="pl-fim" data-rodape-planner>
+  <p class="pl-fim__fecho">{RODAPE.fecho}</p>
+  <p class="pl-fim__instrucao">{RODAPE.instrucao}</p>
+
+  <div class="pl-fim__botoes">
+    {RODAPE.botoes.map((botao) => (
+      <button
+        type="button"
+        id={botao.id}
+        data-saida={botao.papel}
+        class={`pl-botao ${botao.papel === 'pdf' ? 'pl-botao--primario' : 'pl-botao--secundario'}`}
+      >
+        {botao.texto}
+      </button>
+    ))}
+  </div>
+
+  <!-- Recado de bloco incompleto (issue 306). Nasce vazio e escondido. -->
+  <p class="pl-aviso" id="planner-recado-saida" role="status" aria-live="polite" hidden></p>
+
+  <p class="pl-fim__aviso">{RODAPE.aviso}</p>
+</footer>

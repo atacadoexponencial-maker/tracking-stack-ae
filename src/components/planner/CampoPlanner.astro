@@ -1,0 +1,76 @@
+---
+// Campo genérico do planner (issue 298).
+//
+// Existe para a marcação de rótulo + controle + texto de apoio ser escrita uma
+// vez, e não cinquenta. Os quatro blocos passam a entrada de
+// `src/data/planner-black.js` inteira em `campo`.
+//
+// O `name` do controle é a `chave` do dado, sem tradução no meio: é esse nome
+// que a issue 300 usa para guardar o rascunho e a 305 para montar o PDF.
+//
+// Tipos: 'texto', 'texto-longo', 'numero', 'dinheiro', 'percentual', 'data'.
+// Nesta issue o campo só se apresenta — formatar dinheiro, recusar letra e
+// fazer a caixa crescer é a issue 302.
+
+import { MICROCOPY, LACUNA_MARCA } from '../../data/planner-black.js';
+
+interface Props {
+  campo: {
+    chave: string;
+    rotulo: string;
+    tipo: string;
+    apoio?: string;
+    sufixo?: string;
+    sugerida?: string;
+    hoje?: boolean;
+    meta?: boolean;
+  };
+}
+
+const { campo } = Astro.props;
+
+const id = `pl-${campo.chave}`;
+
+// Data sugerida de 2026 já posta no controle, e editável. A do cabeçalho é a
+// única que depende do dia em que a pessoa abre — a issue 302 preenche no
+// navegador, porque o site é estático e a data do build não serve.
+const valorInicial = campo.sugerida ?? '';
+
+// Todo campo de data carrega o mesmo recado, como a spec pede.
+const apoioBase =
+  campo.tipo === 'data' && campo.sugerida
+    ? [campo.apoio, MICROCOPY.dataSugerida].filter(Boolean).join(' ')
+    : campo.apoio;
+
+// Um texto de apoio pode citar a marca — o do nome da campanha cita. Aqui a
+// citação é EXEMPLO, não narrativa: fica na lacuna e não acompanha o que for
+// digitado no cabeçalho. Quem troca `{marca}` pelo nome de verdade é a issue
+// 301, e só nas seis narrativas do bloco 2.
+const apoioFinal = apoioBase ? apoioBase.replaceAll('{marca}', LACUNA_MARCA) : apoioBase;
+
+const tipoHtml =
+  campo.tipo === 'data' ? 'date' : campo.tipo === 'numero' ? 'number' : 'text';
+---
+
+<div class="pl-campo" data-campo={campo.chave} data-tipo={campo.tipo} data-meta={campo.meta ? 'sim' : undefined}>
+  <label class="pl-campo__rotulo" for={id}>{campo.rotulo}</label>
+
+  {campo.tipo === 'texto-longo' ? (
+    <textarea id={id} name={campo.chave} rows="2"></textarea>
+  ) : (
+    <div class="pl-campo__controle">
+      <input
+        id={id}
+        name={campo.chave}
+        type={tipoHtml}
+        value={valorInicial}
+        data-hoje={campo.hoje ? 'sim' : undefined}
+        inputmode={campo.tipo === 'numero' || campo.tipo === 'dinheiro' || campo.tipo === 'percentual' ? 'numeric' : undefined}
+      />
+      {campo.sufixo && <span class="pl-campo__sufixo">{campo.sufixo}</span>}
+      {campo.tipo === 'percentual' && <span class="pl-campo__sufixo">%</span>}
+    </div>
+  )}
+
+  {apoioFinal && <p class="pl-campo__apoio">{apoioFinal}</p>}
+</div>

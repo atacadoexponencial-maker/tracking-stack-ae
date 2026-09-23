@@ -1,0 +1,31 @@
+---
+// Barra de blocos do planner (issue 298, revisão de 21/09).
+//
+// Fica fixa abaixo do cabeçalho e diz onde a pessoa está. Existe por causa do
+// momento de uso: o Felipe fala "agora bloco 2" durante a aula, e ela precisa
+// chegar lá num toque.
+//
+// São botões de verdade, num `tablist`, e não links de âncora: sem JavaScript
+// a barra some (ver `src/scripts/planner-navegacao.ts`, que a revela ao
+// assumir a navegação) e os quatro blocos ficam empilhados e preenchíveis.
+// Âncoras deixariam a barra visível prometendo uma navegação que não existiria.
+
+import { BLOCOS } from '../../data/planner-black.js';
+---
+
+<nav class="pl-abas" id="planner-abas" role="tablist" aria-label="Blocos do planner" hidden>
+  {BLOCOS.map((bloco) => (
+    <button
+      type="button"
+      role="tab"
+      class="pl-aba"
+      id={`aba-${bloco.id}`}
+      data-aba={bloco.id}
+      aria-controls={`bloco-${bloco.id}`}
+      aria-selected={bloco.numero === 1 ? 'true' : 'false'}
+    >
+      <span class="pl-aba__numero">{bloco.numero}</span>
+      <span class="pl-aba__nome">{bloco.curto}</span>
+    </button>
+  ))}
+</nav>

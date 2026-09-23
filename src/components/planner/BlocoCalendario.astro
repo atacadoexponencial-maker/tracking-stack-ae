@@ -1,0 +1,68 @@
+---
+// Bloco 3 — Seu calendário (issue 298).
+//
+// As dez semanas já vêm posicionadas com a função de cada uma escrita: a
+// participante preenche o que acontece, não descobre quando acontece. Cada
+// semana é uma linha de duas colunas no computador e vira lista no celular —
+// a troca é só CSS, a marcação é a mesma.
+//
+// As caixas de texto crescerem conforme a pessoa escreve é da issue 302.
+
+import CampoPlanner from './CampoPlanner.astro';
+import PlannerAvancar from './PlannerAvancar.astro';
+import { BLOCO_3, MICROCOPY } from '../../data/planner-black.js';
+---
+
+<section class="pl-bloco" id={`bloco-${BLOCO_3.id}`} data-bloco={BLOCO_3.numero} aria-labelledby="titulo-bloco-3">
+  <p class="pl-bloco__selo">Bloco {BLOCO_3.numero} de 4</p>
+  <h2 class="pl-bloco__titulo" id="titulo-bloco-3">{BLOCO_3.titulo}</h2>
+  <p class="pl-bloco__abertura">{BLOCO_3.abertura}</p>
+
+  {BLOCO_3.trilhas.map((trilha) => (
+    <div class="pl-secao" data-trilha={trilha.id}>
+      <h3 class="pl-secao__titulo">{trilha.titulo}</h3>
+      {trilha.semanas.map((semana) => (
+        <div class="pl-semana">
+          <p class="pl-semana__periodo">{semana.periodo}</p>
+          <div>
+            <label class="pl-campo__rotulo" for={`pl-${semana.chave}`}>O que acontece</label>
+            <textarea id={`pl-${semana.chave}`} name={semana.chave} rows="2"></textarea>
+            <p class="pl-semana__funcao">{semana.funcao}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  ))}
+
+  {BLOCO_3.destaques.map((campo) => <CampoPlanner campo={campo} />)}
+
+  <div class="pl-secao">
+    <h3 class="pl-secao__titulo">{BLOCO_3.fases.titulo}</h3>
+    {BLOCO_3.fases.lista.map((fase) => (
+      <div class="pl-fase" data-fase={fase.id}>
+        <p class="pl-fase__nome">{fase.nome}</p>
+        <div class="pl-fase__datas">
+          {fase.datas.map((data) => (
+            <>
+              <span>{data.rotulo}</span>
+              <input
+                type="date"
+                id={`pl-${data.chave}`}
+                name={data.chave}
+                value={data.sugerida}
+                aria-label={`${fase.nome} — ${data.rotulo}`}
+              />
+            </>
+          ))}
+        </div>
+        {fase.campo && <CampoPlanner campo={fase.campo} />}
+        <!-- O recado de data sugerida acompanha todo campo de data do planner;
+             aqui ele entra junto do apoio da fase, que não passa pelo
+             CampoPlanner. -->
+        <p class="pl-campo__apoio">{fase.apoio} {MICROCOPY.dataSugerida}</p>
+      </div>
+    ))}
+  </div>
+
+  <PlannerAvancar depoisDe={BLOCO_3.id} />
+</section>
