@@ -164,12 +164,19 @@ test('as narrativas que citam a marca usam o mesmo marcador de lacuna', () => {
   }
 });
 
-test('a tabela de desconto tem três faixas: o mínimo, o dobro e o triplo', () => {
-  const faixas = BLOCO_2.picos[0].progressivo.faixas;
-  assert.equal(faixas.length, 3);
-  assert.deepEqual(faixas.map((f) => f.multiplo), [1, 2, 3]);
-  assert.deepEqual(faixas.map((f) => f.padrao), [5, 10, 15]);
-  assert.equal(new Set(faixas.map((f) => f.alvoId)).size, 3, 'cada faixa tem seu próprio alvo');
+test('as ofertas dos dois picos seguem a lista do Felipe (23/09)', () => {
+  const [pico1, pico2] = BLOCO_2.picos;
+  const contar = (pico) => pico.oferta.grupos.map((g) => g.opcoes.length);
+
+  assert.deepEqual(contar(pico1), [3, 6], 'pico 1: 3 fixas e 6 extras');
+  assert.deepEqual(contar(pico2), [2, 6], 'pico 2: 2 fixas e 6 extras');
+  for (const pico of [pico1, pico2]) {
+    const extras = pico.oferta.grupos[1].opcoes;
+    assert.equal(extras.at(-1).valor, 'outra', '"Outra oferta" fecha a lista de extras');
+    assert.ok(pico.oferta.outra.chave, '"Outra oferta" tem campo para escrever');
+  }
+  assert.equal(pico1.oferta.grupos[0].opcoes[0].valor, 'minimo-reduzido');
+  assert.equal(pico1.progressivo, undefined, 'a tabela de desconto progressivo saiu');
 });
 
 test('a tabela de canais tem os oito canais, com chaves derivadas do id', () => {
@@ -232,7 +239,5 @@ test('a microcopy que as issues seguintes exibem já está escrita', () => {
     assert.equal(typeof texto, 'string', `${nome} é texto`);
     assert.ok(texto.length > 0, `${nome} não está vazio`);
   }
-  assert.match(MICROCOPY.descontoAcimaDaMargem, /\{desconto\}/);
-  assert.match(MICROCOPY.descontoAcimaDaMargem, /\{margem\}/);
   assert.match(MICROCOPY.blocoIncompleto, /\{bloco\}/);
 });

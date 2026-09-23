@@ -43,8 +43,8 @@ export const CABECALHO = {
   titulo: 'Planner da Black Atacado',
   apoio: 'Preencha durante o workshop. No fim, imprima ou salve.',
   aviso:
-    'Seu preenchimento fica salvo neste navegador enquanto você preenche. Se ' +
-    'trocar de aparelho ou limpar o histórico, perde. Baixe o PDF antes de fechar.',
+    'Seu preenchimento fica salvo neste navegador. Se você trocar de aparelho ou ' +
+    'limpar o histórico, perde. Clique em Salvar antes de fechar.',
   campos: [
     { chave: 'marca', rotulo: 'Nome da sua marca', tipo: 'texto' },
     { chave: 'dataHoje', rotulo: 'Data de hoje', tipo: 'data', hoje: true },
@@ -231,37 +231,72 @@ export const BLOCO_2 = {
         tipo: 'data',
         sugerida: DATAS_2026.pico1MinimoAte,
       },
-      // Tabela derivada: mínimo reduzido, o dobro e o triplo. Os percentuais
-      // vêm preenchidos como referência e são editáveis. A margem serve só
-      // para disparar o aviso — não entra em fórmula de resultado.
-      progressivo: {
-        titulo: 'Seu desconto progressivo',
-        apoio:
-          'Os percentuais vêm preenchidos como referência. Ajuste para a sua ' +
-          'margem. Se o maior desconto encostar na margem que você escreveu ' +
-          'ali em cima, a página avisa.',
-        origem: 'pico1MinimoReduzido',
-        avisoId: 'planner-aviso-margem',
-        faixas: [
-          { multiplo: 1, alvoId: 'planner-faixa-1', chave: 'pico1Desconto1', padrao: 5 },
-          { multiplo: 2, alvoId: 'planner-faixa-2', chave: 'pico1Desconto2', padrao: 10 },
-          { multiplo: 3, alvoId: 'planner-faixa-3', chave: 'pico1Desconto3', padrao: 15 },
+      // Lista do Felipe (23/09/2026). Cada grupo tem a própria chave para a
+      // folha impressa listar fixas e extras separadas. Os campos do mínimo
+      // reduzido ficam sempre na tela, sob o título abaixo — decisão da
+      // usuária de mexer só na copy, sem mostrar/esconder novo.
+      minimoTitulo: 'Se marcou mínimo reduzido:',
+      oferta: {
+        rotulo: 'Sua oferta da Black Antecipada',
+        apoio: 'Marque as que você vai usar',
+        grupos: [
+          {
+            chave: 'pico1OfertaFixas',
+            titulo: 'Ofertas fixas',
+            opcoes: [
+              { valor: 'minimo-reduzido', texto: 'Mínimo reduzido' },
+              {
+                valor: 'pagamento-facilitado',
+                texto: 'Condição de pagamento facilitada',
+                exemplo: 'exemplo: 3x sem juros',
+              },
+              { valor: 'categoria-desconto', texto: 'Categoria de produtos com desconto' },
+            ],
+          },
+          {
+            chave: 'pico1OfertaExtras',
+            titulo: 'Ofertas extras',
+            opcoes: [
+              {
+                valor: 'frete-especial',
+                texto: 'Frete especial para novos revendedores',
+                exemplo: 'frete grátis ou subsidiado, só no primeiro pedido',
+              },
+              {
+                valor: 'credito-primeira-compra',
+                texto: 'Crédito da primeira compra',
+                exemplo:
+                  '"Compre e ganhe R$ 100 para usar na sua primeira reposição até o dia X."',
+              },
+              {
+                valor: 'sorteio-kit',
+                texto: 'Sorteio de kit reposição',
+                exemplo: 'compre e concorra a um kit de primeira reposição',
+              },
+              {
+                valor: 'compre-e-ganhe',
+                texto: 'Compre e ganhe',
+                exemplo: 'faça seu cadastro e ganhe Y',
+              },
+              {
+                valor: 'cashback-reposicao',
+                texto: 'Cashback especial de reposição',
+                exemplo:
+                  'compre e ganhe X% de cashback na sua próxima reposição até o dia X',
+              },
+              { valor: 'outra', texto: 'Outra oferta' },
+            ],
+          },
         ],
-      },
-      extras: {
-        chave: 'pico1Extras',
-        rotulo: 'O que mais entra na oferta',
-        apoio: 'Marque o que fizer sentido',
-        opcoes: [
-          { valor: 'percentual-de-por', texto: 'Percentual de desconto no de/por' },
-          { valor: 'categoria-especifica', texto: 'Categoria específica com desconto' },
-          { valor: 'compre-x-ganhe-y', texto: 'Compre X e ganhe Y' },
-          { valor: 'mimo', texto: 'Compre e ganhe um mimo' },
-        ],
+        outra: {
+          chave: 'pico1OutraOferta',
+          rotulo: 'Outra oferta: escreva a sua',
+          tipo: 'texto-longo',
+        },
       },
       condicao: {
         chave: 'pico1Condicao',
-        rotulo: 'Descreva a condição escolhida',
+        rotulo: 'Descreva como a sua oferta vai funcionar',
         tipo: 'texto-longo',
       },
     },
@@ -310,20 +345,65 @@ export const BLOCO_2 = {
           tipo: 'texto-longo',
         },
       },
-      extras: {
-        chave: 'pico2Oferta',
-        rotulo: 'Sua oferta',
-        apoio: 'Marque o que fizer sentido',
-        opcoes: [
-          { valor: 'progressivo-volume', texto: 'Desconto progressivo por volume' },
-          { valor: 'percentual-de-por', texto: 'Percentual de desconto no de/por' },
-          { valor: 'categoria-especifica', texto: 'Categoria específica com desconto' },
-          { valor: 'compre-x-ganhe-y', texto: 'Compre X e ganhe Y' },
+      oferta: {
+        rotulo: 'Sua oferta da Black Reposição',
+        apoio: 'Marque as que você vai usar',
+        grupos: [
+          {
+            chave: 'pico2OfertaFixas',
+            titulo: 'Ofertas fixas',
+            opcoes: [
+              {
+                valor: 'pagamento-facilitado',
+                texto: 'Condição especial de pagamento facilitada',
+                exemplo: 'exemplo: 3x sem juros',
+              },
+              { valor: 'categoria-desconto', texto: 'Categoria de produtos com desconto' },
+            ],
+          },
+          {
+            chave: 'pico2OfertaExtras',
+            titulo: 'Ofertas extras',
+            opcoes: [
+              {
+                valor: 'combo-reposicao',
+                texto: 'Combo de reposição com desconto',
+                exemplo: 'mix pronto com os produtos de maior giro, com desconto',
+              },
+              {
+                valor: 'minimo-recuperacao',
+                texto: 'Mínimo reduzido para recuperação',
+                exemplo: 'com gatilho de urgência',
+              },
+              {
+                valor: 'cupom-reativacao',
+                texto: 'Cupom de reativação',
+                exemplo: 'cupom especial para revendedores inativos ou perdidos',
+              },
+              {
+                valor: 'credito-retorno',
+                texto: 'Crédito de retorno',
+                exemplo:
+                  '"Volte a comprar agora e receba R$ X de crédito para sua próxima reposição."',
+              },
+              {
+                valor: 'produto-bonus',
+                texto: 'Produto bônus',
+                exemplo: 'brinde ou mercadoria adicional acima de determinado ticket',
+              },
+              { valor: 'outra', texto: 'Outra oferta' },
+            ],
+          },
         ],
+        outra: {
+          chave: 'pico2OutraOferta',
+          rotulo: 'Outra oferta: escreva a sua',
+          tipo: 'texto-longo',
+        },
       },
       condicao: {
         chave: 'pico2Condicao',
-        rotulo: 'Descreva a condição escolhida',
+        rotulo: 'Descreva como a sua oferta vai funcionar',
         tipo: 'texto-longo',
       },
       // Região condicional: responder "não" tira o dia e o local da tela e da
@@ -592,10 +672,10 @@ export const RODAPE = {
   fecho: 'Sua Black está montada.',
   instrucao: 'Imprima, cole na parede da expedição e vá executar.',
   botoes: [
-    { id: 'planner-baixar-pdf', texto: 'Salvar meu planner em PDF', papel: 'pdf' },
     { id: 'planner-imprimir', texto: 'Imprimir meu planner', papel: 'imprimir' },
+    { id: 'planner-baixar-pdf', texto: 'Salvar', papel: 'pdf' },
   ],
-  aviso: 'Seu preenchimento fica só neste navegador. O PDF é o que você leva embora.',
+  aviso: 'Seu preenchimento fica só neste navegador',
 };
 
 // ---------------------------------------------------------------------------
@@ -608,16 +688,13 @@ export const MICROCOPY = {
   semArmazenamento:
     'Este navegador não está deixando guardar o rascunho. Você pode preencher e ' +
     'baixar o PDF normalmente, mas não feche a página antes de baixar.',
-  blocoIncompleto: 'Faltam campos no bloco {bloco}. Continuar assim mesmo?',
+  blocoIncompleto: 'Faltam campos no bloco {bloco}. Imprimir assim mesmo?',
   metaVazia:
     'Coloque um número, mesmo que seja chute. Meta redonda é melhor que meta ' +
     'nenhuma.',
-  descontoAcimaDaMargem:
-    'Seu desconto de {desconto}% passa da margem de {margem}% que você escreveu. ' +
-    'Confere antes de seguir.',
   dataSugerida: 'Data sugerida para 2026. Clique para trocar.',
   sairSemLevar:
-    'Você preencheu o planner e ainda não baixou nem imprimiu. Sair mesmo?',
+    'Você preencheu o planner e ainda não imprimiu. Sair mesmo?',
   senhaIncorreta: 'Senha incorreta. Confira e tente de novo.',
   senhaVazia: 'Digite a senha que você recebeu.',
 };

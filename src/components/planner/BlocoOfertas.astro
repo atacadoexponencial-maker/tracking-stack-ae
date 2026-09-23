@@ -1,10 +1,9 @@
 ---
 // Bloco 2 — Suas ofertas (issue 298).
 //
-// O bloco mais longo do planner, e o único que carrega um aviso capaz de
-// contradizer o que a pessoa escreveu (desconto acima da margem). Aqui tudo
-// isso é marcação inerte: a issue 301 liga as faixas e o aviso, a 302 liga a
-// escolha de narrativa e a Black VIP condicional.
+// O bloco mais longo do planner.
+// Aqui tudo é marcação inerte: a 302 liga a escolha de narrativa e a Black VIP
+// condicional. A tabela de desconto progressivo saiu na copy de 23/09.
 //
 // As narrativas citam a marca. O nome ainda não existe quando a página carrega,
 // então cada citação vira um `<span data-marca>` com o marcador de lacuna — é
@@ -58,8 +57,27 @@ function fatiar(texto) {
       </div>
       <CampoPlanner campo={pico.narrativa.propria} />
 
+      <p class="pl-sub">{pico.oferta.rotulo}</p>
+      <p class="pl-campo__apoio">{pico.oferta.apoio}</p>
+      {pico.oferta.grupos.map((grupo) => (
+        <>
+          <p class="pl-campo__rotulo">{grupo.titulo}</p>
+          <div class="pl-opcoes">
+            {grupo.opcoes.map((opcao) => (
+              <label class="pl-opcao">
+                <input type="checkbox" name={grupo.chave} value={opcao.valor} />
+                <span>{opcao.texto}{opcao.exemplo && ` (${opcao.exemplo})`}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      ))}
+      <CampoPlanner campo={pico.oferta.outra} />
+
       {pico.id === 'pico1' && (
         <>
+          <p class="pl-sub">{pico.minimoTitulo}</p>
+
           <!-- Espelho do bloco 1: só de leitura, preenchido pela issue 301. -->
           <div class="pl-campo">
             <span class="pl-campo__rotulo">{pico.espelho.rotulo}</span>
@@ -71,48 +89,8 @@ function fatiar(texto) {
 
           <CampoPlanner campo={pico.minimoReduzido} />
           <CampoPlanner campo={pico.minimoAte} />
-
-          <p class="pl-sub">{pico.progressivo.titulo}</p>
-          <table class="pl-tabela pl-tabela--progressivo" data-progressivo={pico.progressivo.origem}>
-            <thead>
-              <tr>
-                <th scope="col">Se comprar</th>
-                <th scope="col">Desconto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pico.progressivo.faixas.map((faixa) => (
-                <tr>
-                  <td>
-                    <span class="pl-calculado" id={faixa.alvoId} data-multiplo={faixa.multiplo}>—</span>
-                    {' '}peças
-                  </td>
-                  <td>
-                    <input type="number" name={faixa.chave} value={faixa.padrao} min="0" max="100" aria-label={`Desconto para ${faixa.multiplo}x o mínimo`} />
-                    {' '}%
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p class="pl-campo__apoio">{pico.progressivo.apoio}</p>
-
-          <!-- Aviso de margem: escondido até a issue 301 ter motivo para
-               mostrá-lo. Avisa e não bloqueia — decisão de spec. -->
-          <p class="pl-aviso" id={pico.progressivo.avisoId} role="status" aria-live="polite" hidden></p>
         </>
       )}
-
-      <p class="pl-sub">{pico.extras.rotulo}</p>
-      <p class="pl-campo__apoio">{pico.extras.apoio}</p>
-      <div class="pl-opcoes">
-        {pico.extras.opcoes.map((opcao) => (
-          <label class="pl-opcao">
-            <input type="checkbox" name={pico.extras.chave} value={opcao.valor} />
-            <span>{opcao.texto}</span>
-          </label>
-        ))}
-      </div>
 
       <CampoPlanner campo={pico.condicao} />
 
