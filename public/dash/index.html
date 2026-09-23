@@ -407,7 +407,7 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .argo-rodada summary::-webkit-details-marker { display: none; }
 .argo-rodada summary:hover { background: rgba(255, 255, 255, 0.025); }
 .argo-rodada summary:focus-visible { outline: 2px solid var(--bege); outline-offset: -2px; }
-.argo-quando { font-variant-numeric: tabular-nums; font-size: 0.84rem; }
+.argo-quando { font-variant-numeric: tabular-nums; font-size: 0.84rem; white-space: nowrap; }
 .argo-executor { color: var(--muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .argo-conclusao { color: var(--muted); font-size: 0.84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .argo-resultado { justify-self: end; font-size: 0.72rem; padding: 0.12rem 0.55rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
@@ -425,6 +425,60 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .argo-detalhe li { background: var(--card-2); border-radius: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.84rem; }
 .argo-detalhe li .mini { display: block; margin-top: 0.2rem; font-size: 0.78rem; }
 
+/* Abas internas: Controle (o que ele pode fazer) e Propostas (o que ele
+   pede). Trocar entre elas só esconde e mostra — a grade não é redesenhada,
+   para não perder alteração ainda não salva. */
+.argo-vistas { display: flex; gap: 0.4rem; margin-bottom: 1.1rem; }
+.argo-vistas .tipo-pill { font-size: 0.86rem; padding: 0.4rem 0.95rem; display: inline-flex; align-items: center; gap: 0.45rem; }
+.argo-contador { background: var(--bege); color: var(--bg); font-weight: 700; font-size: 0.72rem; border-radius: 999px; padding: 0 0.45rem; min-width: 1.3rem; text-align: center; font-variant-numeric: tabular-nums; }
+.argo-faixa-chamada { background: none; border: 0; padding: 0; font: inherit; font-size: 0.84rem; color: var(--bege); cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(245, 240, 235, 0.35); justify-self: start; }
+.argo-faixa-chamada:hover { text-decoration-color: var(--bege); }
+
+.argo-propostas-lista { display: grid; gap: 0.8rem; }
+.argo-proposta { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; display: grid; gap: 0.75rem; }
+.argo-proposta-topo { display: flex; gap: 0.8rem; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.argo-proposta-acao { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--taupe); }
+.argo-proposta-alvo { font-size: 1.02rem; font-weight: 700; margin-top: 0.15rem; }
+.argo-proposta-alvo small { font-weight: 400; color: var(--muted); font-size: 0.8rem; margin-left: 0.4rem; }
+.argo-proposta-prazo { color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; text-align: right; }
+.argo-proposta-prazo b { color: var(--warn); font-weight: 400; }
+.argo-proposta-motivo { color: var(--muted); font-size: 0.86rem; max-width: 80ch; }
+.argo-proposta-motivo.cortado { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.argo-ver-tudo { background: none; border: 0; padding: 0; font: inherit; font-size: 0.78rem; color: var(--fg); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; justify-self: start; }
+.argo-numeros { display: flex; flex-wrap: wrap; gap: 0.6rem 1.8rem; }
+.argo-numero { display: grid; gap: 0.1rem; }
+.argo-numero span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--taupe); }
+.argo-numero strong { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.argo-numero small { color: var(--muted); font-size: 0.74rem; }
+.argo-verificacao { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 0.7rem; }
+.argo-verificacao b { color: var(--fg); font-weight: 400; }
+.argo-proposta-pe { display: flex; gap: 0.6rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.argo-proposta-pe .mini { font-variant-numeric: tabular-nums; }
+.argo-proposta-botoes { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+/* Confirmando a aprovação, o Rejeitar ao lado sai: duas decisões na mesma
+   linha ao mesmo tempo confundem. */
+.argo-proposta-botoes:has(.confirma) > [data-argo-rejeitar] { display: none; }
+.argo-repetida { font-size: 0.72rem; color: var(--warn); border: 1px solid rgba(224, 179, 76, 0.45); border-radius: 999px; padding: 0.05rem 0.5rem; }
+.argo-porque { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; width: 100%; }
+.argo-porque input { flex: 1; min-width: 12rem; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.45rem 0.6rem; font: inherit; font-size: 0.86rem; }
+.argo-porque input:focus-visible { outline: 2px solid var(--bege); outline-offset: 2px; }
+.argo-vazio { text-align: center; padding: 2.2rem 1rem; color: var(--muted); }
+.argo-vazio strong { display: block; color: var(--fg); font-size: 1rem; margin-bottom: 0.25rem; }
+.argo-historico-card { margin-top: 1.1rem; }
+.argo-resultado.info { color: var(--info); border-color: rgba(127, 181, 243, 0.45); }
+.argo-detalhe dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; font-size: 0.84rem; }
+.argo-detalhe dt { color: var(--muted); }
+.argo-detalhe dd { font-variant-numeric: tabular-nums; }
+.argo-detalhe .argo-proposta-botoes { margin-top: 0.2rem; }
+
+@media (max-width: 980px) {
+  .argo-proposta-prazo { text-align: left; }
+  .argo-proposta-botoes { width: 100%; }
+  .argo-proposta-botoes > .btn { flex: 1; }
+  .argo-detalhe dl { grid-template-columns: 1fr; gap: 0.1rem; }
+  .argo-detalhe dd { margin-bottom: 0.4rem; }
+}
+
 @media (max-width: 980px) {
   .argo-faixa { flex-direction: column; gap: 0.6rem; }
   .argo-rodada[open] .argo-conclusao { display: none; }
@@ -437,7 +491,7 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
   .argo-executor { display: none; }
   .argo-conclusao { grid-column: 1 / -1; grid-row: 2; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .argo-quando { grid-column: 1; grid-row: 1; }
-  .argo-resultado { grid-column: 3; grid-row: 1; }
+  .argo-resultado { grid-column: 3; grid-row: 1; white-space: normal; text-align: center; line-height: 1.25; }
   .argo-seta { grid-column: 4; grid-row: 1; }
   .argo-detalhe { padding-left: 0.4rem; }
 }
@@ -908,6 +962,12 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
          válidas e estados permitidos vêm prontos de /api/argo/*. -->
     <section class="secao" id="secao-argo">
       <div id="argo-cabecalho"></div>
+      <div class="argo-vistas" role="group" aria-label="Parte da aba Argo">
+        <button type="button" class="tipo-pill" data-argo-vista="controle" aria-pressed="true">Controle</button>
+        <button type="button" class="tipo-pill" data-argo-vista="propostas" aria-pressed="false">Propostas <span class="argo-contador" id="argo-contador" hidden></span></button>
+      </div>
+      <div id="argo-vista-propostas" hidden></div>
+      <div id="argo-vista-controle">
       <div class="card argo-comando">
         <h2>O que ele pode fazer <small>vale a partir da próxima rodada</small></h2>
         <div id="argo-grade"></div>
@@ -920,6 +980,7 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
       <div class="card">
         <h2>Registro <small>as últimas 20 rodadas, da mais recente para trás · clique para ver o detalhe</small></h2>
         <div id="argo-registro"></div>
+      </div>
       </div>
     </section>
 
@@ -3377,6 +3438,10 @@ async function carregarArgo() {
   desenharCabecalhoArgo(registro.cabecalho);
   desenharRegistroArgo(registro.rodadas);
   desenharGradeArgo(grade);
+  mostrarVistaArgo();
+  // As propostas carregam à parte e NÃO derrubam a aba: se o endpoint
+  // falhar, a aba Controle (grade, parada geral) continua utilizável.
+  carregarPropostasArgo();
 }
 
 // O que cada ação faz, em uma frase. Só texto de tela: quais ações existem
@@ -3458,6 +3523,7 @@ function desenharFaixaArgo() {
       <div class="argo-faixa-texto">
         <p class="argo-faixa-titulo">${titulo}</p>
         <p class="argo-faixa-meta">${meta.join(' · ')}</p>
+        ${argoPendentes > 0 ? `<button type="button" class="argo-faixa-chamada" data-argo-vista="propostas">${argoPendentes === 1 ? '1 proposta aguardando você' : `${argoPendentes} propostas aguardando você`}</button>` : ''}
       </div>
     </div>` + avisos.join('');
 }
@@ -3510,6 +3576,212 @@ function desenharRegistroArgo(rodadas) {
     </details></li>`;
   }).join('') + '</ol>';
 }
+
+// ---------- Argo: abas internas e propostas (issue 298) ----------
+// Qual parte da aba está à vista. Mora no hash (#argo?v=propostas) para
+// sobreviver ao recarregar e para o Slack poder mandar link direto.
+let argoVista = 'controle';
+let argoPendentes = 0;
+
+// Só esconde e mostra: redesenhar a grade aqui apagaria alteração não salva.
+function mostrarVistaArgo() {
+  $('#argo-vista-controle').hidden = argoVista !== 'controle';
+  $('#argo-vista-propostas').hidden = argoVista !== 'propostas';
+  document.querySelectorAll('.argo-vistas [data-argo-vista]').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.argoVista === argoVista));
+  });
+}
+
+function trocarVistaArgo(vista) {
+  argoVista = vista === 'propostas' ? 'propostas' : 'controle';
+  mostrarVistaArgo();
+  escreverUrl();
+}
+
+document.addEventListener('click', (ev) => {
+  const alvo = ev.target.closest && ev.target.closest('[data-argo-vista]');
+  if (alvo && alvo.closest('#secao-argo')) trocarVistaArgo(alvo.dataset.argoVista);
+});
+
+async function carregarPropostasArgo() {
+  const el = $('#argo-vista-propostas');
+  try {
+    const dados = await comFallback(argoApi('/api/argo/propostas'), 'Não foi possível ler as propostas do Argo.');
+    // Sem as duas listas não dá para afirmar "nada a decidir": ausência é
+    // erro, nunca zero.
+    if (!Array.isArray(dados.pendentes) || !Array.isArray(dados.historico)) {
+      throw Object.assign(new Error('resposta incompleta'), { mensagemUsuario: 'O servidor respondeu sem a lista de propostas.' });
+    }
+    desenharPropostasArgo(dados);
+  } catch (e) {
+    argoPendentes = 0;
+    atualizarContadorArgo();
+    el.innerHTML = `<div class="card aviso erro-carga" role="alert">
+      <p>${esc((e && e.mensagemUsuario) || 'Não foi possível ler as propostas do Argo.')} A aba Controle continua funcionando.</p>
+      <button class="btn sec" type="button" data-argo-tentar>Tentar de novo</button></div>`;
+    el.querySelector('[data-argo-tentar]').onclick = () => carregarPropostasArgo();
+  }
+}
+
+function atualizarContadorArgo() {
+  const c = $('#argo-contador');
+  c.hidden = argoPendentes <= 0;
+  c.textContent = String(argoPendentes);
+  desenharFaixaArgo();
+}
+
+// Situação → estilo do selo. O TEXTO vem pronto do backend
+// (`situacao_rotulo`); aqui só se escolhe a cor.
+const ARGO_SITUACAO_CLASSE = {
+  aguardando_execucao: 'info',
+  executada_conferida: 'ok',
+  executada_nao_conferida: 'desconhecido',
+  nao_executou: 'falha',
+  rejeitada: '',
+  vencida: '',
+  desfeita: '',
+};
+
+function argoNumerosHtml(numeros) {
+  if (!Array.isArray(numeros) || !numeros.length) return '';
+  return '<div class="argo-numeros">' + numeros.map((n) => `<div class="argo-numero">
+      <span>${esc(n.rotulo)}</span><strong>${esc(n.valor)}</strong>${n.referencia ? `<small>${esc(n.referencia)}</small>` : ''}
+    </div>`).join('') + '</div>';
+}
+
+function argoAlvoHtml(p) {
+  const qtd = Number(p.qtd_anuncios) > 1 ? `<small>${esc(p.qtd_anuncios)} anúncios com este nome — todos serão pausados</small>` : '';
+  return `<span data-argo-alvo>${esc(p.alvo_nome)}</span>${qtd}`;
+}
+
+function desenharPropostasArgo(dados) {
+  argoPendentes = dados.pendentes.length;
+  atualizarContadorArgo();
+  const parada = dados.parada_geral
+    ? '<div class="aviso alerta">A parada geral está ligada: o que for aprovado fica registrado, mas nada é executado até ela ser desligada.</div>'
+    : '';
+
+  const pendentes = dados.pendentes.length
+    ? '<div class="argo-propostas-lista">' + dados.pendentes.map((p) => {
+        const repetida = Number(p.vezes_proposta) > 1
+          ? `<span class="argo-repetida">proposta pela ${esc(p.vezes_proposta)}ª vez desde ${esc(argoQuando(p.primeira_vez_em))}</span>` : '';
+        const longo = String(p.motivo || '').length > 180;
+        return `<article class="argo-proposta" data-proposta="${esc(p.id)}" data-versao="${esc(p.versao)}">
+          <div class="argo-proposta-topo">
+            <div><div class="argo-proposta-acao">${esc(p.acao_rotulo)}</div>
+              <div class="argo-proposta-alvo">${argoAlvoHtml(p)}</div></div>
+            <div class="argo-proposta-prazo">proposta ${esc(argoQuando(p.criada_em))}<br>vale até <b>${esc(argoQuando(p.vence_em))}</b></div>
+          </div>
+          <p class="argo-proposta-motivo${longo ? ' cortado' : ''}">${esc(p.motivo)}</p>
+          ${longo ? '<button type="button" class="argo-ver-tudo" data-argo-ver-tudo>ver tudo</button>' : ''}
+          ${argoNumerosHtml(p.numeros)}
+          ${p.verificacao ? `<p class="argo-verificacao"><b>Como vamos saber se funcionou:</b> ${esc(p.verificacao)}</p>` : ''}
+          <div class="argo-proposta-pe">
+            <span>${repetida}</span>
+            <div class="argo-proposta-botoes">
+              <button type="button" class="btn sec" data-argo-rejeitar>Rejeitar</button>
+              <button type="button" class="btn" data-argo-aprovar>Aprovar</button>
+            </div>
+          </div>
+        </article>`;
+      }).join('') + '</div>'
+    : `<div class="card argo-vazio"><strong>Nenhuma proposta aguardando você.</strong>${argoCabecalho && argoCabecalho.ultima_rodada_em ? `Última rodada ${esc(argoQuando(argoCabecalho.ultima_rodada_em))}.` : ''}</div>`;
+
+  const historico = dados.historico.length
+    ? '<ol class="argo-rodadas">' + dados.historico.map((p) => {
+        const classe = ARGO_SITUACAO_CLASSE[p.situacao] ?? '';
+        const ex = p.execucao || {};
+        const linhas = [
+          ['Motivo', p.motivo],
+          ['Versão decidida', p.versao != null ? `v${p.versao}` : null],
+          ['Decidida por', p.decidida_por ? `${p.decidida_por} · ${argoQuando(p.decidida_em)}` : null],
+          ['Por quê', p.por_que],
+          ['Situação', p.situacao_detalhe],
+          ['Antes → depois', ex.antes || ex.depois ? `${ex.antes || '—'} → ${ex.depois || '—'}` : null],
+          ['Conferência', ex.conferencia],
+          ['Desfeita', p.desfeita ? `${p.desfeita.por} · ${argoQuando(p.desfeita.em)}` : null],
+        ].filter(([, v]) => v !== null && v !== undefined && v !== '');
+        return `<li><details class="argo-rodada">
+          <summary>
+            <time class="argo-quando">${esc(argoQuando(p.decidida_em || p.criada_em))}</time>
+            <span class="argo-executor">${esc(p.acao_rotulo)}</span>
+            <span class="argo-conclusao">${esc(p.alvo_nome)}</span>
+            <span class="argo-resultado ${classe}">${esc(p.situacao_rotulo)}</span>
+            <span class="argo-seta" aria-hidden="true"></span>
+          </summary>
+          <div class="argo-detalhe" data-proposta="${esc(p.id)}">
+            <dl>${linhas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+            ${argoNumerosHtml(p.numeros)}
+            ${p.pode_desfazer ? '<div class="argo-proposta-botoes"><button type="button" class="btn perigo" data-argo-desfazer>Desfazer</button></div>' : ''}
+          </div>
+        </details></li>`;
+      }).join('') + '</ol>'
+    : '<p class="aviso">Nenhuma proposta resolvida nos últimos 30 dias.</p>';
+
+  const el = $('#argo-vista-propostas');
+  el.innerHTML = `${parada}
+    ${pendentes}
+    <div class="card argo-historico-card">
+      <h2>Histórico <small>propostas resolvidas nos últimos 30 dias · clique para ver o detalhe</small></h2>
+      ${historico}
+    </div>`;
+  el.dataset.paradaGeral = dados.parada_geral ? '1' : '';
+}
+
+// PROTÓTIPO (issue 298): a decisão ainda não é enviada. A issue 301 troca
+// este corpo pelo POST real — a tela em volta não muda.
+async function argoRegistrarDecisao(lugar, texto) {
+  const pe = lugar.querySelector('.argo-proposta-botoes') || lugar;
+  pe.innerHTML = `<span class="mini">${esc(texto)} (protótipo — nada foi gravado)</span>`;
+  return true;
+}
+
+document.addEventListener('click', (ev) => {
+  const t = ev.target;
+  if (!t.closest || !t.closest('#argo-vista-propostas')) return;
+  const cartao = t.closest('[data-proposta]');
+
+  if (t.closest('[data-argo-ver-tudo]')) {
+    cartao.querySelector('.argo-proposta-motivo').classList.remove('cortado');
+    t.remove();
+    return;
+  }
+
+  const aprovar = t.closest('[data-argo-aprovar]');
+  if (aprovar) {
+    const alvo = cartao.querySelector('[data-argo-alvo]').textContent;
+    const parada = $('#argo-vista-propostas').dataset.paradaGeral === '1';
+    const pergunta = parada
+      ? 'A parada geral está ligada: nada será executado enquanto ela estiver ligada. Aprovar mesmo assim?'
+      : `${cartao.querySelector('.argo-proposta-acao').textContent} "${alvo}"?`;
+    pedirConfirmacao(aprovar, pergunta, () => argoRegistrarDecisao(cartao, 'Aprovada'), [{ valor: true, rotulo: 'Confirmar' }]);
+    return;
+  }
+
+  // Rejeitar leva um "por quê?" opcional, que o pedirConfirmacao não
+  // comporta: a confirmação é montada na própria linha com o mesmo desenho
+  // (texto, ação em .perigo, "Não" para voltar).
+  const rejeitar = t.closest('[data-argo-rejeitar]');
+  if (rejeitar) {
+    const botoes = rejeitar.parentElement;
+    const antes = botoes.innerHTML;
+    botoes.innerHTML = `<span class="argo-porque confirma" role="group">
+        <input type="text" maxlength="300" placeholder="Por quê? (opcional)" aria-label="Por que rejeitar (opcional)">
+        <button type="button" class="btn perigo" data-argo-rejeitar-ok>Rejeitar</button>
+        <button type="button" class="btn sec" data-argo-rejeitar-nao>Não</button>
+      </span>`;
+    botoes.querySelector('input').focus();
+    botoes.querySelector('[data-argo-rejeitar-nao]').onclick = () => { botoes.innerHTML = antes; botoes.querySelector('[data-argo-rejeitar]').focus(); };
+    botoes.querySelector('[data-argo-rejeitar-ok]').onclick = () => argoRegistrarDecisao(cartao, 'Rejeitada');
+    return;
+  }
+
+  const desfazer = t.closest('[data-argo-desfazer]');
+  if (desfazer) {
+    const alvo = desfazer.closest('details').querySelector('.argo-conclusao').textContent;
+    pedirConfirmacao(desfazer, `Reativar "${alvo}"?`, () => argoRegistrarDecisao(desfazer.closest('.argo-detalhe'), 'Desfazer pedido'), [{ valor: true, rotulo: 'Reativar' }]);
+  }
+});
 
 function desenharGradeArgo(g) {
   argoAtualizadaEm = g.atualizada_em ?? null;
@@ -3793,6 +4065,7 @@ function escreverUrl() {
     if ($('#data-ate').value) ps.set('ate', $('#data-ate').value);
   }
   if ($('#funil').value) ps.set('f', $('#funil').value);
+  if (secao === 'argo' && argoVista === 'propostas') ps.set('v', 'propostas');
   const qs = ps.toString();
   history.replaceState(null, '', location.pathname + location.search + '#' + secao + (qs ? '?' + qs : ''));
 }
@@ -3800,6 +4073,8 @@ function escreverUrl() {
 function lerUrl() {
   const [aba, qs] = location.hash.replace('#', '').split('?');
   secao = TITULOS[aba] ? aba : 'visao';
+  // A aba Argo abre em Controle, a não ser que o link peça Propostas.
+  argoVista = new URLSearchParams(qs || '').get('v') === 'propostas' ? 'propostas' : 'controle';
   // Hash sem parâmetros (clique na navegação) mantém os filtros que já estão na tela.
   if (!qs) return;
   const ps = new URLSearchParams(qs);
