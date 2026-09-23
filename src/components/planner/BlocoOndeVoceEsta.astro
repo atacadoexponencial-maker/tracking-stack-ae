@@ -19,7 +19,21 @@ const painel = BLOCO_1.painelBase;
     <div class="pl-secao">
       <h3 class="pl-secao__titulo">{secao.titulo}</h3>
       <p class="pl-secao__apoio">{secao.apoio}</p>
-      {secao.campos.map((campo) => <CampoPlanner campo={campo} />)}
+      {secao.campos.map((campo) => (
+        <>
+          <CampoPlanner campo={campo} />
+          {campo.unidade && (
+            <div class="pl-opcoes" role="radiogroup" aria-label={campo.unidade.rotulo}>
+              {campo.unidade.opcoes.map((opcao) => (
+                <label class="pl-opcao pl-opcao--linha">
+                  <input type="radio" name={campo.unidade.chave} value={opcao.valor} />
+                  <span>{opcao.texto}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </>
+      ))}
     </div>
   ))}
 

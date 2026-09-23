@@ -73,7 +73,16 @@ export const BLOCO_1 = {
           chave: 'pedidoMinimoHoje',
           rotulo: 'Seu pedido mínimo de primeira compra hoje',
           tipo: 'numero',
-          sufixo: 'peças',
+          // No atacado o mínimo pode ser em peças ou em investimento (Felipe,
+          // 23/09). A escolha fica logo abaixo do campo.
+          unidade: {
+            chave: 'pedidoMinimoUnidade',
+            rotulo: 'Unidade do pedido mínimo',
+            opcoes: [
+              { valor: 'pecas', texto: 'Peças' },
+              { valor: 'reais', texto: 'Reais' },
+            ],
+          },
         },
         {
           chave: 'ativosHoje',
@@ -214,15 +223,13 @@ export const BLOCO_2 = {
         id: 'planner-minimo-hoje-espelho',
         origem: 'pedidoMinimoHoje',
         rotulo: 'Seu mínimo de primeira compra hoje',
-        sufixo: 'peças',
       },
       minimoReduzido: {
         chave: 'pico1MinimoReduzido',
         rotulo: 'Mínimo reduzido da campanha',
         tipo: 'numero',
-        sufixo: 'peças',
         apoio:
-          'Reduza um pouco, não muito. E defina prazo, senão vira vício e você ' +
+          'Na mesma unidade do seu mínimo de hoje: peças ou reais. Reduza um pouco, não muito. E defina prazo, senão vira vício e você ' +
           'perde a mão do seu mínimo.',
       },
       minimoAte: {
