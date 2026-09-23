@@ -705,9 +705,18 @@ body {
   .pl-campo select,
   .pl-semana textarea,
   .pl-tabela input,
-  .pl-opcao input,
-  .pl-espelho {
+  .pl-opcao input {
     display: none !important;
+  }
+
+  /* O espelho já é texto, não controle: na folha ele mesmo vira a resposta,
+     sem a borda tracejada de "campo só de leitura" da tela. */
+  .pl-espelho {
+    border: none;
+    padding: 0;
+    font-size: 12.5pt;
+    font-weight: 700;
+    color: #000000;
   }
 
   .pl-opcao {
