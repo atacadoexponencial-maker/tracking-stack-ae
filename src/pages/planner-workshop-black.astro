@@ -49,7 +49,11 @@ import PlannerRodape from '../components/planner/PlannerRodape.astro';
 <script>
   import { ativarNavegacaoDoPlanner } from '../scripts/planner-navegacao';
   import { prepararImpressao } from '../scripts/planner-impressao';
+  import { ativarCamposDoPlanner } from '../scripts/planner-campos';
 
+  // A navegação vem antes: os campos contam com o bloco já visível quando
+  // recalculam a altura dos textos longos depois de trocar de aba.
   ativarNavegacaoDoPlanner();
+  ativarCamposDoPlanner();
   prepararImpressao();
 </script>

@@ -195,4 +195,21 @@ export function prepararImpressao(): void {
     montarFolha();
     window.print();
   });
+
+  // "Salvar" (issue 305): a queda combinada no risco declarado da issue — o
+  // diálogo de impressão, onde a pessoa escolhe "Salvar como PDF". O título da
+  // página vira o nome sugerido do arquivo, então ele leva a marca e a data em
+  // vez de sair como "documento(3).pdf".
+  const salvar = document.querySelector<HTMLButtonElement>('[data-saida="pdf"]');
+  salvar?.addEventListener('click', () => {
+    montarFolha();
+    const tituloOriginal = document.title;
+    const valorDe = (nome: string) =>
+      (document.querySelector<HTMLInputElement>(`[name="${nome}"]`)?.value || '').trim();
+    document.title = ['Planner Black', valorDe('marca'), valorDe('dataHoje')]
+      .filter(Boolean)
+      .join(' - ');
+    window.addEventListener('afterprint', () => { document.title = tituloOriginal; }, { once: true });
+    window.print();
+  });
 }

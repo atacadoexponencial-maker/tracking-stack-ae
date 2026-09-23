@@ -40,11 +40,20 @@
   --pl-largura: 46rem;
 }
 
-/* Gancho do tema claro. A issue 303 preenche este bloco com a redefinição dos
-   papéis acima e liga o botão do cabeçalho. Até lá o atributo existe no <html>
-   e ninguém o troca. */
+/* Tema claro (issue 303). Inverte a paleta base em vez dos papéis: assim o
+   que pinta direto com branco/carvão (aba ativa, botão primário) também troca
+   e continua com contraste. A impressão redefine os papéis por conta própria
+   e sai clara em qualquer tema. */
 :root[data-tema='claro'] {
-  /* issue 303 */
+  --pl-carvao: #f5f0eb;
+  --pl-grafite: #ffffff;
+  --pl-grafite-alto: #ece6df;
+  --pl-cinza-quente: #d3c9be;
+  --pl-branco: #1e1e1e;
+  --pl-cinza-texto: #5c5650;
+  --pl-taupe: #6f6154;
+  --pl-ambar: #8a5a00;
+  --pl-verde: #1d7a43;
 }
 
 body {
