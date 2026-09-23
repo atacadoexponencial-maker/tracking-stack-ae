@@ -228,7 +228,7 @@ test('CAMPOS_ACAO é exatamente a lista esperada, para o SELECT do endpoint nunc
   ]);
 });
 
-// Issue 303: o desfazer é ação nova e tem desfechos próprios; a pausa
+// Issue 312: o desfazer é ação nova e tem desfechos próprios; a pausa
 // original continua dizendo "pausada com sucesso".
 test('desfazer tem desfecho de reativação e não reescreve a pausa original', async () => {
   const { TIPO_DESFAZER, DESFECHO_REATIVADA, DESFECHO_JA_ESTAVA_ATIVA, DESFECHO_NAO_REATIVOU } =

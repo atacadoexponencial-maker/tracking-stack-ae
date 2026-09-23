@@ -1,4 +1,4 @@
-# 298: Protótipo — aba interna "Propostas" da aba Argo
+# 307: Protótipo — aba interna "Propostas" da aba Argo
 
 **Tipo:** Protótipo
 **Página:** Aba Argo do dash (`public/dash/index.html`, `#secao-argo`) — spec `spec-argo-aprovar-propostas.md`, módulos 1, 2 e 3
@@ -16,7 +16,7 @@ Abrindo a aba Argo localmente dá para trocar entre Controle e Propostas e ver p
 O protótipo é a **tela de verdade** em `public/dash/index.html`, desenhada a
 partir de um contrato de dados fixado aqui. Os dados fictícios **não entram no
 repositório**: o proxy local de leitura (scratchpad da sessão) responde
-`GET /api/argo/propostas` com um arquivo de exemplo. Assim a issue 301 só
+`GET /api/argo/propostas` com um arquivo de exemplo. Assim a issue 310 só
 precisa criar o endpoint real — a tela já estará pronta e aprovada.
 
 Tudo numa branch `argo-propostas`, **sem merge na `main` até a 301**: a tela

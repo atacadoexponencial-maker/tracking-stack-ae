@@ -1,4 +1,4 @@
-# 305: Régua nova de anúncios de lead
+# 314: Régua nova de anúncios de lead
 
 **Tipo:** Implementação
 **Página:** Monitor de anúncios na VPS + grade da aba Controle — spec `spec-argo-regua-editavel.md`, módulo 2; spec `spec-argo-aprovar-propostas.md`, módulo 5 (Executar)

@@ -1,4 +1,4 @@
-# 309: Reativar o que ele pausou (desligado por padrão)
+# 318: Reativar o que ele pausou (desligado por padrão)
 
 **Tipo:** Implementação
 **Página:** Monitores e executor na VPS + régua — spec `spec-argo-regua-editavel.md`, módulo 4

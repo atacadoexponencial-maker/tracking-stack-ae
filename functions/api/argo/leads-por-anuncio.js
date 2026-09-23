@@ -90,7 +90,7 @@ export async function onRequestGet({ request, env }) {
 
     const agrupado = agruparPorAnuncio({ cards, maduroAteMs: maduroAte, funis });
 
-    // Issue 305: o funil de cada CAMPANHA e o CPL médio de cada funil na
+    // Issue 314: o funil de cada CAMPANHA e o CPL médio de cada funil na
     // janela — o mesmo reconhecimento e o mesmo CPL do feedback diário. É o
     // que deixa o Argo julgar anúncio sem lead nenhum (antes ele só sabia o
     // funil pelos leads).

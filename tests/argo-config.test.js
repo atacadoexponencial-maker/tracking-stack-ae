@@ -219,7 +219,7 @@ test('ações e estados com consumidor são subconjuntos do que existe', () => {
   assert.deepEqual([...ESTADOS_COM_CONSUMIDOR], ['desligado', 'propor', 'executar']);
 });
 
-// "Pausar anúncio" em Executar ainda só propõe (até a issue 305): a faixa da
+// "Pausar anúncio" em Executar ainda só propõe (até a issue 314): a faixa da
 // aba não pode dizer que ele executa sozinho.
 test('executar-que-ainda-propõe está no contrato e só contém ações com consumidor', () => {
   assert.deepEqual([...CONTRATO_GRADE.executar_ainda_propoe], ['pausar_anuncio']);

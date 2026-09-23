@@ -63,7 +63,7 @@ export const DESFECHO_PAUSADA_SUCESSO = 'pausada com sucesso';
 export const DESFECHO_JA_ESTAVA_PAUSADA = 'já estava pausada';
 export const DESFECHO_NAO_PAUSOU = 'não pausou';
 
-// O desfazer (issue 303) é uma ação NOVA, `tipo = desfazer_pausa`, ligada à
+// O desfazer (issue 312) é uma ação NOVA, `tipo = desfazer_pausa`, ligada à
 // pausa original por `desfaz_acao_id` — a linha da pausa não é reescrita e
 // continua dizendo o que aconteceu naquele dia. Mesma regra de dado
 // insuficiente = desconhecido, com o status-alvo invertido.

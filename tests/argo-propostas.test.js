@@ -134,7 +134,7 @@ test('recusa explica o motivo certo', () => {
   assert.equal(motivoDaRecusa({ decisao: null, vence_em: '2026-09-24T13:00:00Z', versao: 3 }, 2, agora).erro, ERRO_VERSAO_NOVA);
 });
 
-// Issue 303 — desfazer.
+// Issue 312 — desfazer.
 test('desfazer: só a pausa conferida e ainda não pedida oferece o botão', () => {
   const base = { ...TRAFEGO, decisao: 'aprovada', decidida_por: 'painel', decidida_em: '2026-09-23T14:00:00Z' };
   const { historico } = montarPropostas({

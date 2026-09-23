@@ -1,4 +1,4 @@
-# 299: Protótipo — bloco "Régua" na aba Controle
+# 308: Protótipo — bloco "Régua" na aba Controle
 
 **Tipo:** Protótipo
 **Página:** Aba Argo → Controle — spec `spec-argo-regua-editavel.md`, módulo 1

@@ -1,4 +1,4 @@
-# 302: Executor das aprovações
+# 311: Executor das aprovações
 
 **Tipo:** Implementação
 **Página:** Argo na VPS (repo `gestor-ae`) + histórico da aba Propostas — spec `spec-argo-aprovar-propostas.md`, módulo 4

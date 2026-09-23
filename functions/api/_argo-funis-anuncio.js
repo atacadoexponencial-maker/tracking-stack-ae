@@ -1,5 +1,5 @@
 // Funil de cada campanha e CPL médio de cada funil, para o Argo julgar
-// anúncio (issue 305, spec-argo-regua-editavel.md módulo 2).
+// anúncio (issue 314, spec-argo-regua-editavel.md módulo 2).
 //
 // Por que existe: até aqui o Argo só sabia o funil de um anúncio pelos LEADS
 // dele — anúncio sem lead nenhum ficava sem funil e nunca era julgado, bem o

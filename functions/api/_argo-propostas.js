@@ -1,5 +1,5 @@
 // Propostas do Argo: o que ele sugere e a gestora decide na aba
-// (spec-argo-aprovar-propostas.md, issue 301).
+// (spec-argo-aprovar-propostas.md, issue 310).
 //
 // Módulo puro, testado por `node --test`: toda a regra de apresentação —
 // rótulos, números formatados, "como vamos saber se funcionou", situação de
@@ -7,7 +7,7 @@
 
 // Quantos dias um alvo decidido fica sem nova proposta. Mesmo número do
 // `INTERVALO_MIN_DIAS` do argo_estado.py (VPS) até a régua ir para o banco
-// (issue 304) — lá ele decide, aqui ele só é mostrado.
+// (issue 313) — lá ele decide, aqui ele só é mostrado.
 export const INTERVALO_MIN_DIAS = 3;
 
 export const DECISOES = Object.freeze({ aprovar: 'aprovada', rejeitar: 'rejeitada' });
@@ -90,7 +90,7 @@ function dataHora(iso) {
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).replace(',', ' às');
 }
 
-// Situação de um pedido de desfazer (issue 303), que se sobrepõe à da
+// Situação de um pedido de desfazer (issue 312), que se sobrepõe à da
 // execução: depois de pedido, o que importa é se a campanha voltou.
 function situacaoDoDesfazer(p, paradaGeral, agora) {
   const frase = p.desfazer_detalhe && p.desfazer_detalhe.frase;

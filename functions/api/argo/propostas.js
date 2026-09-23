@@ -2,7 +2,7 @@
 // POST /api/argo/propostas?key=...  — grava a decisão da gestora sobre UMA proposta
 //
 // A tela só registra a decisão; quem age na conta é o executor do Argo na VPS
-// (issue 302). Toda a apresentação sai pronta de `_argo-propostas.js`.
+// (issue 311). Toda a apresentação sai pronta de `_argo-propostas.js`.
 //
 // Janela limitada por construção (teto de linhas) — mesma regra das outras
 // rotas do Argo: a aba carrega ao abrir, nunca "tudo", nunca em laço.

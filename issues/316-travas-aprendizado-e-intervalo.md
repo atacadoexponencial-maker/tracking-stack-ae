@@ -1,4 +1,4 @@
-# 307: Travas de aprendizado e intervalo mínimo, com avaliação do resultado
+# 316: Travas de aprendizado e intervalo mínimo, com avaliação do resultado
 
 **Tipo:** Implementação
 **Página:** Monitores na VPS — spec `spec-argo-regua-editavel.md`, módulos 4 e 5

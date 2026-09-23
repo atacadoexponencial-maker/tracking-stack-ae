@@ -37,7 +37,7 @@ export const ESTADOS = Object.freeze(['desligado', 'propor', 'executar']);
 // Quem de fato lê a grade hoje: o monitor de tráfego (8h50) e o de anúncios
 // (8h55), na VPS. As outras quatro ações vivem numa esteira que continua
 // desligada. Os três estados têm destino: `propor` vira proposta na aba
-// Propostas (issue 300/301). A aba mostra essas listas como legenda para que
+// Propostas (issue 309/310). A aba mostra essas listas como legenda para que
 // ninguém saia da tela achando que autorizou algo que não acontece. Vive
 // aqui, e não na aba, pelo mesmo motivo de ACOES/ESTADOS: uma fonte da
 // verdade só.
@@ -45,7 +45,7 @@ export const ACOES_COM_CONSUMIDOR = Object.freeze(['pausar_campanha_trafego', 'p
 export const ESTADOS_COM_CONSUMIDOR = Object.freeze(['desligado', 'propor', 'executar']);
 
 // Ações em que `executar` ainda só propõe: o monitor de anúncios não pausa
-// sozinho até a régua nova de anúncio (issue 305) — sem piso de entrega, um
+// sozinho até a régua nova de anúncio (issue 314) — sem piso de entrega, um
 // anúncio com 1 lead seria pausado por ruído. A faixa da aba lista estas em
 // "Propõe", nunca em "Executa sozinho".
 export const EXECUTAR_AINDA_PROPOE = Object.freeze(['pausar_anuncio']);

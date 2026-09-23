@@ -3434,7 +3434,7 @@ const ARGO_DESFECHO_CLASSE = {
   'não pausou': 'falha',
   'desfeita': 'mini',
   'desfecho desconhecido': 'alerta-desconhecido',
-  // Desfazer (issue 303): ação própria, com desfechos de reativação.
+  // Desfazer (issue 312): ação própria, com desfechos de reativação.
   'reativada com sucesso': 'ok',
   'já estava ativa': 'mini',
   'não reativou': 'falha',
@@ -3613,7 +3613,7 @@ function desenharRegistroArgo(rodadas) {
   }).join('') + '</ol>';
 }
 
-// ---------- Argo: abas internas e propostas (issue 298) ----------
+// ---------- Argo: abas internas e propostas (issue 307) ----------
 // Qual parte da aba está à vista. Mora no hash (#argo?v=propostas) para
 // sobreviver ao recarregar e para o Slack poder mandar link direto.
 let argoVista = 'controle';
@@ -3858,7 +3858,7 @@ document.addEventListener('click', (ev) => {
     return;
   }
 
-  // Desfazer (issue 303): só aparece em pausa executada e conferida
+  // Desfazer (issue 312): só aparece em pausa executada e conferida
   // (`pode_desfazer` vem do backend). Pede; quem reativa é o executor.
   const desfazer = t.closest('[data-argo-desfazer]');
   if (desfazer) {
@@ -3973,7 +3973,7 @@ function desenharGradeArgo(g) {
   desenharFaixaArgo();
 }
 
-// ---------- Argo: régua editável (issue 299) ----------
+// ---------- Argo: régua editável (issue 308) ----------
 // Quais regras existem, seus padrões e limites vêm do backend em `regua`
 // (uma fonte da verdade, como o `contrato` da grade). Aqui moram só os
 // rótulos, as frases e a unidade de cada campo. `liga` aponta a chave
@@ -4204,7 +4204,7 @@ async function salvarGradeArgo() {
         limite_por_acao_centavos: campos[1][1],
         max_pausas_por_rodada: campos[2][1],
         parada_geral: $('#argo-parada').checked,
-        // Régua (issue 304): só vai quando o servidor mandou uma — sem ela o
+        // Régua (issue 313): só vai quando o servidor mandou uma — sem ela o
         // bloco nem desenha campos, e mandar vazio seria recusado.
         ...(document.querySelector('[data-argo-regra]') ? { regua: argoReguaDaTela() } : {}),
         // Versão que esta tela leu: se a grade mudou no intervalo, o backend

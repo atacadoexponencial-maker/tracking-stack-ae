@@ -1,4 +1,4 @@
-# 308: Reduzir orçamento antes de pausar
+# 317: Reduzir orçamento antes de pausar
 
 **Tipo:** Implementação
 **Página:** Monitores e executor na VPS + grade — spec `spec-argo-regua-editavel.md`, módulo 4

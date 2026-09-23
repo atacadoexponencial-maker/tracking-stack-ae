@@ -1,4 +1,4 @@
-# 304: Régua guardada no banco e editável na aba
+# 313: Régua guardada no banco e editável na aba
 
 **Tipo:** Implementação
 **Página:** Aba Argo → Controle + monitores — spec `spec-argo-regua-editavel.md`, módulos 1 e 5

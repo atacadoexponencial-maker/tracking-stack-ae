@@ -1,4 +1,4 @@
-# 301: Ver e decidir propostas no dash
+# 310: Ver e decidir propostas no dash
 
 **Tipo:** Implementação
 **Página:** Aba Argo — spec `spec-argo-aprovar-propostas.md`, módulos 1, 2, 3 e 6
@@ -9,12 +9,12 @@ Ligar o protótipo 298 aos dados reais: pendentes e histórico de 30 dias, aprov
 
 ## Pronto quando
 
-Uma proposta real gerada pela issue 300 aparece na aba Propostas, pode ser aprovada ou rejeitada, e a decisão fica gravada e aparece no histórico como "Aprovada — aguardando execução" ou "Rejeitada"; decidir uma versão antiga é recusado.
+Uma proposta real gerada pela issue 309 aparece na aba Propostas, pode ser aprovada ou rejeitada, e a decisão fica gravada e aparece no histórico como "Aprovada — aguardando execução" ou "Rejeitada"; decidir uma versão antiga é recusado.
 
 ## Cenários
 
 ### Happy Path
-1. A aba Propostas lê `GET /api/argo/propostas` (contrato da issue 298) e mostra
+1. A aba Propostas lê `GET /api/argo/propostas` (contrato da issue 307) e mostra
    as propostas reais gravadas pela 300 (hoje: ids 6 e 7).
 2. Aprovar → confirmação na linha → `POST /api/argo/propostas` com
    `{id, versao, decisao: "aprovar"}`; a proposta sai das pendentes e aparece no
@@ -29,7 +29,7 @@ Uma proposta real gerada pela issue 300 aparece na aba Propostas, pode ser aprov
 - Já decidida por outra pessoa: 409 com quem e quando; a lista recarrega.
 - Venceu: 409 "Esta proposta venceu…"; recarrega.
 - Parada geral ligada: aprovar continua possível (a confirmação já avisa).
-- "Pausar anúncio" em Executar ainda vira proposta (issue 300): a faixa lista
+- "Pausar anúncio" em Executar ainda vira proposta (issue 309): a faixa lista
   essa ação em "Propõe", nunca em "Executa sozinho".
 - Controle: `propor` e `pausar_anuncio` passam a ter consumidor no contrato, e o
   aviso "Propor ainda não chega a ninguém" some.

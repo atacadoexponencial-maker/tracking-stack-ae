@@ -1,5 +1,5 @@
 // Régua do Argo: os números que decidem o que ele julga
-// (spec-argo-regua-editavel.md, issue 304).
+// (spec-argo-regua-editavel.md, issue 313).
 //
 // Fonte única de quais regras existem, seus padrões, limites e se já têm
 // efeito. A aba desenha a partir do que o GET devolve daqui; o POST valida
@@ -10,16 +10,16 @@
 // ninguém sair achando que um número vale quando ainda não vale.
 
 export const REGRAS = Object.freeze({
-  // Anúncios de lead (issue 305 — no ar)
+  // Anúncios de lead (issue 314 — no ar)
   lead_multiplicador_cpl: { tipo: 'numero', padrao: 3, min: 1, max: 10, passo: 0.5, ativa: true },
   lead_impressoes_min: { tipo: 'inteiro', padrao: 3000, min: 0, max: 100000, ativa: true },
   lead_janela_cpl_dias: { tipo: 'inteiro', padrao: 30, min: 7, max: 90, ativa: true },
-  // Campanhas de tráfego (janelas: issue 306)
+  // Campanhas de tráfego (janelas: issue 315)
   trafego_janela_recente_dias: { tipo: 'inteiro', padrao: 7, min: 3, max: 30, ativa: false },
   trafego_janela_passado_dias: { tipo: 'inteiro', padrao: 21, min: 7, max: 90, ativa: false },
   trafego_tolerancia_pct: { tipo: 'inteiro', padrao: 30, min: 5, max: 300, ativa: true },
   trafego_gasto_min_reais: { tipo: 'numero', padrao: 30, min: 0, max: 5000, passo: 0.01, ativa: true },
-  // Travas (issues 307–309)
+  // Travas (issues 316–318)
   trava_aprendizado: { tipo: 'booleano', padrao: true, ativa: false },
   trava_aprendizado_dias: { tipo: 'inteiro', padrao: 7, min: 1, max: 60, ativa: false },
   intervalo_min_dias: { tipo: 'inteiro', padrao: 3, min: 1, max: 30, ativa: true },

@@ -1,4 +1,4 @@
-# 303: Desfazer uma pausa pela tela
+# 312: Desfazer uma pausa pela tela
 
 **Tipo:** Implementação
 **Página:** Aba Propostas (histórico) + executor na VPS — spec `spec-argo-aprovar-propostas.md`, módulos 3 e 4
