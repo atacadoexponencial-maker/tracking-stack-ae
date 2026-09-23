@@ -19,14 +19,14 @@ export const REGRAS = Object.freeze({
   trafego_janela_passado_dias: { tipo: 'inteiro', padrao: 21, min: 7, max: 90, ativa: true },
   trafego_tolerancia_pct: { tipo: 'inteiro', padrao: 30, min: 5, max: 300, ativa: true },
   trafego_gasto_min_reais: { tipo: 'numero', padrao: 30, min: 0, max: 5000, passo: 0.01, ativa: true },
-  // Travas (issue 316 — no ar); reduzir (317) e reativar (318)
+  // Travas (316), reduzir (317) e reativar (318) — no ar
   trava_aprendizado: { tipo: 'booleano', padrao: true, ativa: true },
   trava_aprendizado_dias: { tipo: 'inteiro', padrao: 7, min: 1, max: 60, ativa: true },
   intervalo_min_dias: { tipo: 'inteiro', padrao: 3, min: 1, max: 30, ativa: true },
   reduzir_antes: { tipo: 'booleano', padrao: true, ativa: true },
   reduzir_pct: { tipo: 'inteiro', padrao: 30, min: 5, max: 90, ativa: true },
-  reativar: { tipo: 'booleano', padrao: false, ativa: false },
-  reativar_tolerancia_pct: { tipo: 'inteiro', padrao: 20, min: 0, max: 200, ativa: false },
+  reativar: { tipo: 'booleano', padrao: false, ativa: true },
+  reativar_tolerancia_pct: { tipo: 'inteiro', padrao: 20, min: 0, max: 200, ativa: true },
 });
 
 const CHAVES = Object.keys(REGRAS);

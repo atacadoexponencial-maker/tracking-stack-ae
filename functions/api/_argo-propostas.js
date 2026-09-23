@@ -21,6 +21,7 @@ const ROTULOS_ACAO = {
   pausar_campanha_trafego: 'Pausar campanha',
   pausar_anuncio: 'Pausar anúncio',
   reduzir_orcamento: 'Reduzir orçamento',
+  reativar_anuncio: 'Reativar anúncio',
 };
 
 // Orçamento vem do Meta em centavos (issue 317).
@@ -68,6 +69,9 @@ function numerosDa(p) {
 }
 
 function verificacaoDa(p) {
+  if (p.tipo === 'reativar_anuncio') {
+    return 'O anúncio deve voltar a aparecer ativo no Gerenciador e voltar a gastar.';
+  }
   if (p.tipo === 'reduzir_orcamento') {
     const novo = deCentavos(((p.detalhe || {}).orcamento || {}).novo_centavos);
     return `O orçamento diário deve aparecer em ${novo || 'valor novo'} no Gerenciador, e a campanha continuar no ar.`;

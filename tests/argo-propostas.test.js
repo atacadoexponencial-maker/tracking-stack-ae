@@ -190,3 +190,13 @@ test('redução executada mostra orçamentos e não oferece desfazer', () => {
   assert.match(historico[0].execucao.depois, /14,00/);
   assert.equal(historico[0].pode_desfazer, false);
 });
+
+// Issue 318 — reativar.
+test('proposta de reativar tem rótulo e verificação próprios e não oferece desfazer', () => {
+  const [p] = montarPropostas({ pendentes: [{ ...ANUNCIO, tipo: 'reativar_anuncio' }] }).pendentes;
+  assert.equal(p.acao_rotulo, 'Reativar anúncio');
+  assert.match(p.verificacao, /voltar a aparecer ativo/);
+  const { historico } = montarPropostas({ historico: [{ ...ANUNCIO, tipo: 'reativar_anuncio', decisao: 'aprovada',
+    decidida_por: 'painel', decidida_em: '2026-09-23T14:00:00Z', execucao_estado: 'conferida', execucao_em: '2026-09-23T14:05:00Z' }] });
+  assert.equal(historico[0].pode_desfazer, false);
+});
