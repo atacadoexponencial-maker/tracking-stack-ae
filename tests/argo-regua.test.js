@@ -27,8 +27,10 @@ test('valor salvo inválido cai no padrão, nunca aparece na tela', () => {
 });
 
 test('só as regras com lógica de hoje estão ativas', () => {
-  assert.deepEqual(montarRegua(null).ativas.sort(),
-    ['intervalo_min_dias', 'trafego_gasto_min_reais', 'trafego_tolerancia_pct']);
+  assert.deepEqual(montarRegua(null).ativas.sort(), [
+    'intervalo_min_dias', 'lead_impressoes_min', 'lead_janela_cpl_dias', 'lead_multiplicador_cpl',
+    'trafego_gasto_min_reais', 'trafego_tolerancia_pct',
+  ]);
 });
 
 test('booleanos não têm limite numérico; números têm', () => {

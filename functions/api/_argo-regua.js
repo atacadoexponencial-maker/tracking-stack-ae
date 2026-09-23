@@ -10,10 +10,10 @@
 // ninguém sair achando que um número vale quando ainda não vale.
 
 export const REGRAS = Object.freeze({
-  // Anúncios de lead (issue 305)
-  lead_multiplicador_cpl: { tipo: 'numero', padrao: 3, min: 1, max: 10, passo: 0.5, ativa: false },
-  lead_impressoes_min: { tipo: 'inteiro', padrao: 3000, min: 0, max: 100000, ativa: false },
-  lead_janela_cpl_dias: { tipo: 'inteiro', padrao: 30, min: 7, max: 90, ativa: false },
+  // Anúncios de lead (issue 305 — no ar)
+  lead_multiplicador_cpl: { tipo: 'numero', padrao: 3, min: 1, max: 10, passo: 0.5, ativa: true },
+  lead_impressoes_min: { tipo: 'inteiro', padrao: 3000, min: 0, max: 100000, ativa: true },
+  lead_janela_cpl_dias: { tipo: 'inteiro', padrao: 30, min: 7, max: 90, ativa: true },
   // Campanhas de tráfego (janelas: issue 306)
   trafego_janela_recente_dias: { tipo: 'inteiro', padrao: 7, min: 3, max: 30, ativa: false },
   trafego_janela_passado_dias: { tipo: 'inteiro', padrao: 21, min: 7, max: 90, ativa: false },
