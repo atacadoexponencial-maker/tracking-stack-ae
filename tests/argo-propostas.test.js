@@ -68,6 +68,39 @@ test('situação de cada proposta resolvida', () => {
   assert.match(historico[3].situacao_detalhe, /rodada de teste/);
 });
 
+test('aprovada mostra o desfecho da execução', () => {
+  const agora = new Date('2026-09-23T15:00:00Z').getTime();
+  const base = { ...TRAFEGO, decisao: 'aprovada', decidida_por: 'painel', decidida_em: '2026-09-23T14:00:00Z' };
+  const objetos = [{ objeto: 'c1', antes: 'ACTIVE', depois: 'PAUSED', resultado: 'pausou' }];
+  const { historico } = montarPropostas({
+    agora,
+    historico: [
+      { ...base, execucao_estado: 'conferida', execucao_em: '2026-09-23T14:05:00Z', execucao_detalhe: { frase: 'pausada e conferida no Meta', objetos } },
+      { ...base, execucao_estado: 'nao_conferida', execucao_em: '2026-09-23T14:05:00Z', execucao_detalhe: { frase: 'o Meta não confirmou', objetos } },
+      { ...base, execucao_estado: 'nao_executou', execucao_em: '2026-09-23T14:05:00Z', execucao_detalhe: { frase: 'já estava pausada quando o Argo foi agir', objetos } },
+      { ...base, execucao_estado: 'executando', execucao_em: '2026-09-23T14:58:00Z' },
+      { ...base, execucao_estado: 'executando', execucao_em: '2026-09-23T14:00:00Z' },
+      { ...base, execucao_estado: null },
+    ],
+  });
+  assert.deepEqual(historico.map((h) => h.situacao), [
+    'executada_conferida', 'executada_nao_conferida', 'nao_executou',
+    'aguardando_execucao', 'executada_nao_conferida', 'aguardando_execucao',
+  ]);
+  assert.deepEqual(historico[0].execucao, { antes: 'ACTIVE', depois: 'PAUSED', conferencia: 'conferido' });
+  assert.match(historico[2].situacao_detalhe, /já estava pausada/);
+  assert.match(historico[4].situacao_detalhe, /parou no meio/);
+  assert.equal(historico[5].execucao, null);
+});
+
+test('aprovada com parada geral ligada diz por que não executa', () => {
+  const { historico } = montarPropostas({
+    parada_geral: true,
+    historico: [{ ...TRAFEGO, decisao: 'aprovada', decidida_por: 'painel', decidida_em: '2026-09-23T14:00:00Z', execucao_estado: null }],
+  });
+  assert.match(historico[0].situacao_detalhe, /parada geral está ligada/);
+});
+
 test('parada geral atravessa para a tela', () => {
   assert.equal(montarPropostas({ parada_geral: true }).parada_geral, true);
   assert.equal(montarPropostas({}).parada_geral, false);

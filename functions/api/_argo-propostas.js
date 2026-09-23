@@ -79,11 +79,37 @@ function base(p) {
   };
 }
 
-// Situação de uma proposta resolvida. A execução (issue 302) acrescenta os
-// estados "executada"; até lá, aprovada é "aguardando execução".
-function situacaoDa(p) {
+// O executor roda a cada 10 min; "executando" há mais que isto é executor que
+// parou no meio — a tela manda conferir, em vez de mostrar "executando" para
+// sempre.
+const EXECUTANDO_TRAVADO_MS = 15 * 60 * 1000;
+
+function dataHora(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).replace(',', ' às');
+}
+
+// Situação de uma proposta resolvida: [código, rótulo, detalhe].
+function situacaoDa(p, paradaGeral, agora) {
   if (p.decisao === 'aprovada') {
-    return ['aguardando_execucao', 'Aprovada — aguardando execução', 'o Argo executa em até ~10 min'];
+    const frase = p.execucao_detalhe && p.execucao_detalhe.frase;
+    switch (p.execucao_estado) {
+      case 'conferida':
+        return ['executada_conferida', 'Executada e conferida', `${frase || 'pausada e conferida no Meta'} — ${dataHora(p.execucao_em)}`];
+      case 'nao_conferida':
+        return ['executada_nao_conferida', 'Executada — não conferida', frase || 'o Meta não confirmou a pausa — confira no Gerenciador'];
+      case 'nao_executou':
+        return ['nao_executou', 'Aprovada — não executou', frase || 'o Argo não precisou agir'];
+      case 'executando':
+        return agora - new Date(p.execucao_em).getTime() > EXECUTANDO_TRAVADO_MS
+          ? ['executada_nao_conferida', 'Executada — não conferida', 'o executor parou no meio — confira no Gerenciador']
+          : ['aguardando_execucao', 'Aprovada — executando agora', 'o Argo está agindo na conta'];
+      default:
+        return paradaGeral
+          ? ['aguardando_execucao', 'Aprovada — aguardando execução', 'a parada geral está ligada: nada é executado até ela ser desligada']
+          : ['aguardando_execucao', 'Aprovada — aguardando execução', 'o Argo executa em até ~10 min'];
+    }
   }
   if (p.decisao === 'rejeitada') {
     const volta = new Date(new Date(p.decidida_em).getTime() + INTERVALO_MIN_DIAS * 86400000);
@@ -97,7 +123,15 @@ function situacaoDa(p) {
   return ['vencida', 'Venceu sem decisão', detalhe];
 }
 
-export function montarPropostas({ pendentes = [], historico = [], parada_geral = false } = {}) {
+// Estado antes → depois do primeiro alvo tocado, para o detalhe da tela.
+function execucaoDa(p) {
+  const objetos = p.execucao_detalhe && Array.isArray(p.execucao_detalhe.objetos) ? p.execucao_detalhe.objetos : [];
+  if (!objetos.length) return null;
+  const conferencia = { conferida: 'conferido', nao_conferida: 'não confirmado', nao_executou: 'sem ação' }[p.execucao_estado] || null;
+  return { antes: objetos[0].antes || null, depois: objetos[0].depois || null, conferencia };
+}
+
+export function montarPropostas({ pendentes = [], historico = [], parada_geral = false, agora = Date.now() } = {}) {
   return {
     parada_geral: Boolean(parada_geral),
     pendentes: pendentes.map((p) => ({
@@ -109,7 +143,7 @@ export function montarPropostas({ pendentes = [], historico = [], parada_geral =
       primeira_vez_em: p.criada_em,
     })),
     historico: historico.map((p) => {
-      const [situacao, rotulo, detalhe] = situacaoDa(p);
+      const [situacao, rotulo, detalhe] = situacaoDa(p, parada_geral, agora);
       return {
         ...base(p),
         criada_em: p.criada_em,
@@ -120,7 +154,7 @@ export function montarPropostas({ pendentes = [], historico = [], parada_geral =
         decidida_por: p.decisao === 'vencida' ? null : p.decidida_por,
         decidida_em: p.decidida_em,
         por_que: p.por_que || null,
-        execucao: null,
+        execucao: execucaoDa(p),
         desfeita: null,
         pode_desfazer: false,
       };

@@ -30,7 +30,8 @@ export async function onRequestGet({ request, env }) {
       `,
       sql`
         SELECT id, versao, tipo, alvo_id, alvo_nome, motivo, detalhe, criada_em,
-               decisao, decidida_por, decidida_em, por_que
+               decisao, decidida_por, decidida_em, por_que,
+               execucao_estado, execucao_em, execucao_detalhe
           FROM argo.propostas
          WHERE conta = ${CONTA} AND decisao IS NOT NULL
            AND decidida_em > now() - interval '30 days'
