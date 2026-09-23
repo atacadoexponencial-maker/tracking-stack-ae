@@ -85,3 +85,114 @@ test('espaco em volta do utm_content nao cria anuncio duplicado', () => {
   assert.equal(r.anuncios.length, 1);
   assert.equal(r.anuncios[0].leads_maduros, 2);
 });
+
+// --- A régua de cada funil --------------------------------------------------
+// Decisão da gestora em 22/09, depois da primeira rodada real: SE por MQL,
+// WO PAGO por compra, LIVE fora do julgamento automático, AQUISIÇÃO por custo
+// por visita (que vive no monitor de tráfego, não aqui).
+//
+// O que motivou: o Argo propôs pausar um anúncio com 43 leads maduros e "zero
+// qualificados" — era da live, onde ninguém preenche faturamento. Perguntar
+// "quantos MQLs?" a um funil que não produz MQL dá sempre zero.
+
+const FUNIS = [
+  { id: 1, nome: 'SE', tipo: 'lead_mql', opcoes_crm: JSON.stringify([{ id: 'op-se', nome: 'Sessão Estratégica' }]) },
+  { id: 2, nome: 'LIVE', tipo: 'manual', opcoes_crm: JSON.stringify([{ id: 'op-live', nome: 'Live' }]) },
+  { id: 3, nome: 'WO PAGO', tipo: 'venda_greenn', opcoes_crm: JSON.stringify([{ id: 'op-wo', nome: 'Workshop' }]) },
+];
+
+function cardComFunil({ criadoMs, content, opcao, faturamento = 'Mais de 50 Mil', status = 'qualificação' }) {
+  return {
+    id: `f${criadoMs}${content}${opcao}`,
+    date_created: String(criadoMs),
+    status: { status },
+    custom_fields: [
+      { id: CU_FIELD.utmSource, value: 'facebookads' },
+      { id: CU_FIELD.utmContent, value: content },
+      { id: CU_FIELD.faturamento, value: faturamento },
+      {
+        id: CU_FIELD.funil,
+        value: opcao,
+        type_config: { options: [{ id: 'op-se', name: 'Sessão Estratégica' }, { id: 'op-live', name: 'Live' }, { id: 'op-wo', name: 'Workshop' }] },
+      },
+    ],
+  };
+}
+
+test('anuncio da SE e julgavel por MQL', () => {
+  const r = agruparPorAnuncio({
+    cards: [
+      cardComFunil({ criadoMs: 1_000_000, content: 'ad13_se_vd', opcao: 'op-se' }),
+      cardComFunil({ criadoMs: 1_100_000, content: 'ad13_se_vd', opcao: 'op-se', status: 'desqualificado' }),
+    ],
+    maduroAteMs: MADURO,
+    funis: FUNIS,
+  });
+  const ad = r.anuncios.find((a) => a.utm_content === 'ad13_se_vd');
+  assert.equal(ad.funil, 'SE');
+  assert.equal(ad.tipo_funil, 'lead_mql');
+  assert.equal(ad.julgavel, true);
+  assert.equal(ad.qualificados, 1);
+});
+
+test('anuncio da LIVE NUNCA e julgavel, por mais leads que tenha', () => {
+  // O caso real de 22/09: 43 leads maduros, zero "qualificados", proposta de
+  // pausa. É o teste que impede a volta desse erro.
+  const cards = [];
+  for (let i = 0; i < 43; i++) {
+    cards.push(cardComFunil({ criadoMs: 1_000_000 + i, content: 'ad06_live_img', opcao: 'op-live', faturamento: '' }));
+  }
+  const r = agruparPorAnuncio({ cards, maduroAteMs: MADURO, funis: FUNIS });
+  const ad = r.anuncios.find((a) => a.utm_content === 'ad06_live_img');
+  assert.equal(ad.funil, 'LIVE');
+  assert.equal(ad.leads_maduros, 43);
+  assert.equal(ad.qualificados, 0);
+  assert.equal(ad.julgavel, false);
+  assert.match(ad.motivo_nao_julgavel, /manual/i);
+});
+
+test('anuncio do WO PAGO nao e julgavel por MQL — o desfecho dele e compra', () => {
+  const r = agruparPorAnuncio({
+    cards: [cardComFunil({ criadoMs: 1_000_000, content: 'ad02_wo_img', opcao: 'op-wo', faturamento: '' })],
+    maduroAteMs: MADURO,
+    funis: FUNIS,
+  });
+  const ad = r.anuncios.find((a) => a.utm_content === 'ad02_wo_img');
+  assert.equal(ad.tipo_funil, 'venda_greenn');
+  assert.equal(ad.julgavel, false);
+  assert.match(ad.motivo_nao_julgavel, /compra/i);
+});
+
+test('anuncio sem funil reconhecido nao e julgavel — silencio, nunca chute', () => {
+  const r = agruparPorAnuncio({
+    cards: [cardComFunil({ criadoMs: 1_000_000, content: 'ad99_orfao_vd', opcao: null })],
+    maduroAteMs: MADURO,
+    funis: FUNIS,
+  });
+  const ad = r.anuncios.find((a) => a.utm_content === 'ad99_orfao_vd');
+  assert.equal(ad.funil, null);
+  assert.equal(ad.julgavel, false);
+});
+
+test('sem a lista de funis nada e julgavel — deploy incompleto nao vira pausa', () => {
+  const r = agruparPorAnuncio({
+    cards: [cardComFunil({ criadoMs: 1_000_000, content: 'ad13_se_vd', opcao: 'op-se' })],
+    maduroAteMs: MADURO,
+  });
+  assert.equal(r.anuncios[0].julgavel, false);
+});
+
+test('anuncio que serve dois funis fica com o funil da maioria dos leads', () => {
+  const r = agruparPorAnuncio({
+    cards: [
+      cardComFunil({ criadoMs: 1_000_000, content: 'ad20_misto_vd', opcao: 'op-se' }),
+      cardComFunil({ criadoMs: 1_100_000, content: 'ad20_misto_vd', opcao: 'op-se' }),
+      cardComFunil({ criadoMs: 1_200_000, content: 'ad20_misto_vd', opcao: 'op-live', faturamento: '' }),
+    ],
+    maduroAteMs: MADURO,
+    funis: FUNIS,
+  });
+  const ad = r.anuncios.find((a) => a.utm_content === 'ad20_misto_vd');
+  assert.equal(ad.funil, 'SE');
+  assert.equal(ad.julgavel, true);
+});

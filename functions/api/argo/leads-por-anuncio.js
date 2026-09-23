@@ -61,10 +61,20 @@ export async function onRequestGet({ request, env }) {
     );
     const cards = crm.cards.filter((c) => !excluidos.has(String(c.id)));
 
-    const agrupado = agruparPorAnuncio({ cards, maduroAteMs: maduroAte });
+    // A régua de cada funil sai do cadastro, não de uma lista no código: se a
+    // gestora criar um funil novo no relatório, ele já chega aqui com o tipo
+    // certo. Sem esta leitura nenhum anúncio é julgável — silêncio em vez de
+    // julgar todo mundo por MQL, que foi o erro de 22/09.
+    const funisRes = await env.DB.prepare(
+      `SELECT id, nome, tipo, opcoes_crm FROM funis_relatorio WHERE situacao = 'ativo'`,
+    ).all();
+    const funis = funisRes.results || [];
+
+    const agrupado = agruparPorAnuncio({ cards, maduroAteMs: maduroAte, funis });
     return Response.json({
       ...agrupado,
       descartados_teste_ou_bot: excluidos.size,
+      julgaveis: agrupado.anuncios.filter((a) => a.julgavel).length,
       janela: {
         desde: new Date(desde).toISOString(),
         ate: new Date(agora).toISOString(),
