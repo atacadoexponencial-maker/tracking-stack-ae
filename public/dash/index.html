@@ -324,6 +324,123 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .saude-filtros { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; }
 .paginacao { display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; margin-top: 0.7rem; }
 .saude-acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+
+/* ---------- Argo ----------
+   Três perguntas, nesta ordem: em que estado ele está (faixa), o que ele pode
+   fazer (comando) e o que ele fez (registro). O estado de cada ação fica à
+   vista em botões lado a lado — o <select> escondia a resposta atrás de um
+   clique. */
+.argo-faixa { align-items: flex-start; }
+.argo-faixa.ativo .selo-estado { color: var(--up); }
+.argo-faixa.observando .selo-estado { color: var(--muted); }
+.argo-faixa.parado { border-color: var(--down); }
+.argo-faixa.parado .selo-estado { color: var(--down); }
+.argo-faixa-texto { display: grid; gap: 0.25rem; min-width: 0; }
+.argo-faixa-titulo { font-size: 1.02rem; }
+.argo-faixa-titulo strong { color: var(--bege); }
+.argo-faixa-meta { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.argo-faixa-meta b { color: var(--fg); font-weight: 400; }
+
+.argo-grupo + .argo-grupo, .argo-bloco { margin-top: 1.6rem; }
+.argo-grupo-titulo, .argo-bloco h3 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--taupe); margin-bottom: 0.35rem; }
+.argo-grupo-nota { color: var(--muted); font-size: 0.78rem; margin-bottom: 0.4rem; max-width: 70ch; }
+.argo-acao { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem 1.4rem; align-items: center; padding: 0.85rem 0; border-top: 1px solid var(--border); }
+.argo-acao:first-of-type { border-top: 0; }
+.argo-acao-nome { display: block; font-weight: 700; font-size: 0.92rem; }
+.argo-acao-desc { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 0.15rem; max-width: 62ch; }
+.argo-acao .falha { display: block; font-size: 0.8rem; margin-top: 0.35rem; }
+.argo-acao.sem-efeito .argo-acao-nome { color: var(--muted); font-weight: 400; }
+
+/* Controle segmentado: rádios de verdade (setas do teclado funcionam), com o
+   círculo escondido. O escolhido sobe um degrau de tom; "Executar" escolhido
+   ganha o bege, porque é o único estado em que ele mexe na conta sozinho. */
+.argo-seg { display: inline-flex; background: var(--bg); border: 1px solid var(--border); border-radius: 0.55rem; padding: 3px; gap: 2px; }
+.argo-seg label { position: relative; cursor: pointer; }
+.argo-seg input[type="radio"] { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.argo-seg label span { display: block; padding: 0.38rem 0.8rem; border-radius: 0.4rem; font-size: 0.8rem; color: var(--muted); white-space: nowrap; transition: background-color 0.15s ease-out, color 0.15s ease-out; }
+.argo-seg label:hover span { color: var(--fg); }
+.argo-seg input:checked + span { background: var(--card-2); color: var(--fg); font-weight: 700; box-shadow: inset 0 0 0 1px #4f4a4b; }
+.argo-seg input[value="executar"]:checked + span { background: var(--bege); color: var(--bg); box-shadow: none; }
+.argo-seg input:focus-visible + span { outline: 2px solid var(--bege); outline-offset: 2px; }
+.argo-seg .sem-destino span { text-decoration: underline dotted var(--border); text-underline-offset: 3px; }
+.argo-acao.sem-efeito .argo-seg { opacity: 0.7; }
+
+.argo-limites { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 1.2rem; }
+.argo-campo { display: grid; gap: 0.35rem; align-content: start; }
+.argo-campo > span { font-size: 0.8rem; }
+.argo-entrada { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; transition: border-color 0.15s ease-out; }
+.argo-entrada:focus-within { border-color: var(--bege); }
+.argo-entrada i { font-style: normal; color: var(--taupe); font-size: 0.84rem; padding-left: 0.7rem; }
+.argo-entrada input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--fg); font: inherit; font-size: 0.95rem; padding: 0.55rem 0.7rem; font-variant-numeric: tabular-nums; }
+.argo-entrada input:focus { outline: none; }
+.argo-entrada input::-webkit-inner-spin-button, .argo-entrada input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.argo-entrada input[type="number"] { -moz-appearance: textfield; }
+.argo-campo small { color: var(--muted); font-size: 0.74rem; line-height: 1.35; }
+
+/* Parada geral: fora da grade de propósito. É o freio de emergência — tem de
+   ser achado sem ler nada, e ligado ele tinge a zona inteira. */
+.argo-parada { margin-top: 1.6rem; display: flex; gap: 1.2rem; align-items: center; justify-content: space-between; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.95rem 1.1rem; transition: border-color 0.15s ease-out, background-color 0.15s ease-out; }
+.argo-parada strong { display: block; font-size: 0.92rem; }
+.argo-parada .mini { font-size: 0.78rem; }
+.argo-parada.ligada { border-color: var(--down); background: rgba(243, 127, 127, 0.07); }
+.argo-parada.ligada strong { color: var(--down); }
+.argo-chave { position: relative; display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; flex-shrink: 0; font-size: 0.8rem; color: var(--muted); }
+.argo-chave input { position: absolute; opacity: 0; width: 44px; height: 24px; margin: 0; cursor: pointer; }
+.argo-chave .trilho { width: 44px; height: 24px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); position: relative; transition: background-color 0.15s ease-out, border-color 0.15s ease-out; }
+.argo-chave .trilho::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease-out; }
+.argo-chave input:checked + .trilho { background: var(--down); border-color: var(--down); }
+.argo-chave input:checked + .trilho::after { transform: translateX(20px); background: var(--bg); }
+.argo-chave input:checked ~ .rotulo { color: var(--down); font-weight: 700; }
+.argo-chave input:focus-visible + .trilho { outline: 2px solid var(--bege); outline-offset: 2px; }
+
+/* Rodapé preso ao pé da tela enquanto o formulário rola: quem mudou algo lá
+   em cima não precisa caçar o Salvar. */
+.argo-rodape { position: sticky; bottom: 0; display: flex; gap: 0.9rem; align-items: center; justify-content: flex-end; flex-wrap: wrap; margin: 1.4rem -1.4rem -1.3rem; padding: 0.85rem 1.4rem; background: var(--card); border-top: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); }
+.argo-pendente { color: var(--warn); font-size: 0.8rem; }
+.argo-pendente::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 0.45rem; vertical-align: 0.1em; }
+#argo-salvo { max-width: 60ch; }
+
+/* Registro: uma linha por rodada, detalhe sob demanda. */
+.argo-rodadas { list-style: none; }
+.argo-rodadas > li + li { border-top: 1px solid var(--border); }
+.argo-rodada summary { list-style: none; display: grid; grid-template-columns: 7.2rem 11rem minmax(0, 1fr) auto 0.9rem; gap: 1rem; align-items: center; padding: 0.7rem 0.4rem; cursor: pointer; border-radius: 0.5rem; transition: background-color 0.15s ease-out; }
+.argo-rodada summary::-webkit-details-marker { display: none; }
+.argo-rodada summary:hover { background: rgba(255, 255, 255, 0.025); }
+.argo-rodada summary:focus-visible { outline: 2px solid var(--bege); outline-offset: -2px; }
+.argo-quando { font-variant-numeric: tabular-nums; font-size: 0.84rem; }
+.argo-executor { color: var(--muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.argo-conclusao { color: var(--muted); font-size: 0.84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.argo-resultado { justify-self: end; font-size: 0.72rem; padding: 0.12rem 0.55rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.argo-resultado.ok { color: var(--up); border-color: rgba(93, 201, 134, 0.45); }
+.argo-resultado.falha { color: var(--down); border-color: rgba(243, 127, 127, 0.5); }
+.argo-resultado.desconhecido { color: var(--warn); border-color: var(--warn); font-weight: 700; }
+.argo-seta { width: 7px; height: 7px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); justify-self: center; transition: transform 0.18s ease-out; }
+.argo-rodada[open] .argo-seta { transform: rotate(45deg); }
+/* Aberta, a conclusão aparece inteira no detalhe; repeti-la cortada na linha
+   de cima era ler a mesma frase duas vezes. */
+.argo-rodada[open] .argo-conclusao { visibility: hidden; }
+.argo-detalhe { padding: 0.2rem 0.4rem 1rem 8.2rem; display: grid; gap: 0.7rem; }
+.argo-detalhe > p { color: var(--muted); font-size: 0.84rem; white-space: pre-line; max-width: 80ch; }
+.argo-detalhe ul { list-style: none; display: grid; gap: 0.5rem; }
+.argo-detalhe li { background: var(--card-2); border-radius: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.84rem; }
+.argo-detalhe li .mini { display: block; margin-top: 0.2rem; font-size: 0.78rem; }
+
+@media (max-width: 980px) {
+  .argo-faixa { flex-direction: column; gap: 0.6rem; }
+  .argo-rodada[open] .argo-conclusao { display: none; }
+  .argo-acao { grid-template-columns: 1fr; }
+  .argo-seg { justify-self: start; }
+  .argo-limites { grid-template-columns: 1fr; }
+  .argo-parada { flex-direction: column; align-items: flex-start; }
+  .argo-rodape { justify-content: space-between; }
+  .argo-rodada summary { grid-template-columns: auto minmax(0, 1fr) auto 0.9rem; gap: 0.3rem 0.7rem; }
+  .argo-executor { display: none; }
+  .argo-conclusao { grid-column: 1 / -1; grid-row: 2; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .argo-quando { grid-column: 1; grid-row: 1; }
+  .argo-resultado { grid-column: 3; grid-row: 1; }
+  .argo-seta { grid-column: 4; grid-row: 1; }
+  .argo-detalhe { padding-left: 0.4rem; }
+}
 </style>
 </head>
 <body>
@@ -791,17 +908,18 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
          válidas e estados permitidos vêm prontos de /api/argo/*. -->
     <section class="secao" id="secao-argo">
       <div id="argo-cabecalho"></div>
-      <div class="card">
+      <div class="card argo-comando">
         <h2>O que ele pode fazer <small>vale a partir da próxima rodada</small></h2>
         <div id="argo-grade"></div>
-        <div class="saude-acoes" style="justify-content:flex-end;margin-top:0.8rem">
+        <div class="argo-rodape">
+          <span class="argo-pendente" id="argo-pendente" hidden>Alterações não salvas</span>
           <span class="mini" id="argo-salvo" role="status" aria-live="polite"></span>
-          <button class="btn sec" type="button" id="argo-salvar">Salvar</button>
+          <button class="btn" type="button" id="argo-salvar" disabled>Salvar</button>
         </div>
       </div>
       <div class="card">
-        <h2>Registro <small>o que ele viu e o que executou, da rodada mais recente para trás</small></h2>
-        <div class="tabela-wrap" id="argo-registro"></div>
+        <h2>Registro <small>as últimas 20 rodadas, da mais recente para trás · clique para ver o detalhe</small></h2>
+        <div id="argo-registro"></div>
       </div>
     </section>
 
@@ -3261,47 +3379,141 @@ async function carregarArgo() {
   desenharGradeArgo(grade);
 }
 
+// O que cada ação faz, em uma frase. Só texto de tela: quais ações existem
+// continua vindo do `contrato`; ação sem frase aparece só com o nome.
+const ARGO_DESCRICOES = {
+  pausar_campanha_trafego: 'Pausa a campanha de aquisição cujo custo por visita ficou acima das outras.',
+  pausar_anuncio: 'Pausa o anúncio que gasta sem trazer lead qualificado.',
+  pausar_conjunto: 'Pausa um conjunto de anúncios inteiro.',
+  realocar_verba: 'Tira verba de uma campanha e coloca em outra.',
+  reduzir_orcamento: 'Diminui o orçamento diário de uma campanha.',
+  aumentar_orcamento: 'Aumenta o orçamento diário de uma campanha.',
+};
+const ARGO_ESTADO_ROTULO = { desligado: 'Desligado', propor: 'Propor', executar: 'Executar' };
+
+// A faixa do topo junta as duas leituras: a última rodada vem do registro e o
+// que está liberado vem da grade GRAVADA (não do que está sendo editado — a
+// faixa responde "como ele vai agir", e isso só muda depois do Salvar).
+let argoCabecalho = null;
+let argoGradeGravada = null;
+// Fotografia do formulário logo depois de desenhado: o Salvar só acende
+// quando o que está na tela é diferente dela.
+let argoFotoInicial = null;
+
+// "hoje às 08:50", "ontem às 08:50" ou "19/09 às 08:50".
+function argoQuando(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const dia = (x) => x.toLocaleDateString('pt-BR');
+  const hoje = new Date();
+  const ontem = new Date(hoje.getTime() - 86400000);
+  if (dia(d) === dia(hoje)) return `hoje às ${hora}`;
+  if (dia(d) === dia(ontem)) return `ontem às ${hora}`;
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${hora}`;
+}
+
 function desenharCabecalhoArgo(c) {
-  const quando = c.ultima_rodada_em
-    ? new Date(c.ultima_rodada_em).toLocaleString('pt-BR')
-    : 'nunca rodou';
+  argoCabecalho = c;
+  desenharFaixaArgo();
+}
+
+function desenharFaixaArgo() {
+  const c = argoCabecalho || {};
+  const g = argoGradeGravada;
   const avisos = [];
   if (c.ultima_falhou) {
-    avisos.push('<div class="aviso falha">A última rodada não terminou. O que está abaixo pode estar incompleto.</div>');
+    avisos.push('<div class="aviso alerta">A última rodada não terminou. O que está abaixo pode estar incompleto.</div>');
   }
   if (c.origem_permissao === 'markdown') {
-    avisos.push('<div class="aviso">A permissão está vindo do arquivo na VPS, não desta tela — o banco não respondeu na última rodada.</div>');
+    avisos.push('<div class="aviso alerta">A permissão está vindo do arquivo na VPS, não desta tela — o banco não respondeu na última rodada.</div>');
   }
-  $('#argo-cabecalho').innerHTML =
-    `<div class="aviso explica">Última rodada: <strong>${esc(quando)}</strong></div>` + avisos.join('');
+  const ultima = c.ultima_rodada_em ? argoQuando(c.ultima_rodada_em) : 'nunca rodou';
+
+  let classe = 'observando';
+  let selo = 'Observando';
+  let titulo = 'Não mexe em nada sozinho — só observa e relata.';
+  let propoe = [];
+  if (g) {
+    const contrato = g.contrato || {};
+    const comConsumidor = Array.isArray(contrato.acoes_com_consumidor) ? contrato.acoes_com_consumidor : [];
+    const permissoes = g.permissoes || {};
+    // Só entra no resumo o que tem efeito de verdade: ação marcada "executar"
+    // sem consumidor não faz nada, e dizer que faz seria mentir na faixa.
+    const executa = comConsumidor.filter((a) => permissoes[a] === 'executar');
+    propoe = comConsumidor.filter((a) => permissoes[a] === 'propor');
+    if (g.parada_geral) {
+      classe = 'parado'; selo = 'Parada geral';
+      titulo = 'Parado: não executa nada até a parada geral ser desligada.';
+    } else if (executa.length) {
+      classe = 'ativo'; selo = 'Ativo';
+      titulo = `Executa sozinho: <strong>${executa.map((a) => esc(argoRotulo(a))).join(', ')}</strong>`;
+    }
+  }
+  const meta = [`Última rodada <b>${esc(ultima)}</b>`];
+  if (propoe.length) meta.push(`Só propõe: ${propoe.map((a) => esc(argoRotulo(a))).join(', ')}`);
+
+  $('#argo-cabecalho').innerHTML = `<div class="faixa-estado argo-faixa ${classe}">
+      <span class="selo-estado">${esc(selo)}</span>
+      <div class="argo-faixa-texto">
+        <p class="argo-faixa-titulo">${titulo}</p>
+        <p class="argo-faixa-meta">${meta.join(' · ')}</p>
+      </div>
+    </div>` + avisos.join('');
+}
+
+// Selo de resultado de uma rodada, a partir dos desfechos que o backend já
+// classificou. Aqui só se CONTA — nenhum desfecho é reinterpretado.
+function argoResultadoRodada(r) {
+  const conta = (d) => r.acoes.filter((a) => a.desfecho === d).length;
+  const desconhecidas = conta('desfecho desconhecido');
+  const naoPausou = conta('não pausou');
+  const pausadas = conta('pausada com sucesso');
+  if (desconhecidas) return ['desconhecido', desconhecidas === 1 ? '⚠ confira a conta' : `⚠ ${desconhecidas} a conferir`];
+  if (r.falhou) return ['falha', 'não concluiu'];
+  if (naoPausou) return ['falha', naoPausou === 1 ? '1 não pausou' : `${naoPausou} não pausaram`];
+  if (pausadas) return ['ok', pausadas === 1 ? '1 pausa' : `${pausadas} pausas`];
+  if (r.acoes.length) return ['', r.acoes.length === 1 ? '1 ação' : `${r.acoes.length} ações`];
+  return ['', 'sem ação'];
 }
 
 function desenharRegistroArgo(rodadas) {
   if (!rodadas.length) {
-    $('#argo-registro').innerHTML = '<p class="mini">Nenhuma rodada registrada ainda.</p>';
+    $('#argo-registro').innerHTML = '<p class="aviso">Nenhuma rodada registrada ainda.</p>';
     return;
   }
-  $('#argo-registro').innerHTML = rodadas.map((r) => {
+  $('#argo-registro').innerHTML = '<ol class="argo-rodadas">' + rodadas.map((r) => {
+    const [classe, rotulo] = argoResultadoRodada(r);
     const acoes = r.acoes.length
       ? '<ul>' + r.acoes.map((a) => {
-          const classe = ARGO_DESFECHO_CLASSE[a.desfecho] || '';
-          return `<li><strong>${esc(a.alvo_nome || a.alvo_id)}</strong> — <span class="${classe}">${esc(a.desfecho)}</span><br><span class="mini">${esc(a.motivo)}</span></li>`;
+          const c = ARGO_DESFECHO_CLASSE[a.desfecho] || '';
+          return `<li><strong>${esc(a.alvo_nome || a.alvo_id)}</strong> — <span class="${c}">${esc(a.desfecho)}</span><span class="mini">${esc(a.motivo)}</span></li>`;
         }).join('') + '</ul>'
       : '<p class="mini">Nenhuma ação executada nesta rodada.</p>';
     // `falhou` vem pronto do backend (_argo-registro.js) — a tela não
     // reclassifica rodada nenhuma.
-    const falhou = r.falhou ? ' <span class="mini">(não concluiu)</span>' : '';
-    return `<div class="card">
-      <h2>${esc(new Date(r.iniciada_em).toLocaleString('pt-BR'))}${falhou}
-        <small>${esc(r.executor)}</small></h2>
-      <p>${esc(r.conclusao || '—')}</p>
-      ${acoes}
-    </div>`;
-  }).join('');
+    const falhou = r.falhou ? '<p class="falha">Esta rodada abriu e não fechou: o que ela fez pode estar incompleto.</p>' : '';
+    const completa = new Date(r.iniciada_em).toLocaleString('pt-BR');
+    return `<li><details class="argo-rodada">
+      <summary>
+        <time class="argo-quando" datetime="${esc(r.iniciada_em)}" title="${esc(completa)}">${esc(argoQuando(r.iniciada_em))}</time>
+        <span class="argo-executor">${esc(r.executor)}</span>
+        <span class="argo-conclusao">${esc(r.conclusao || '—')}</span>
+        <span class="argo-resultado ${classe}">${esc(rotulo)}</span>
+        <span class="argo-seta" aria-hidden="true"></span>
+      </summary>
+      <div class="argo-detalhe">
+        <p>${esc(r.conclusao || 'Sem conclusão registrada.')}</p>
+        ${falhou}${acoes}
+        <span class="mini">${esc(r.executor)} · ${esc(completa)}</span>
+      </div>
+    </details></li>`;
+  }).join('') + '</ol>';
 }
 
 function desenharGradeArgo(g) {
   argoAtualizadaEm = g.atualizada_em ?? null;
+  argoGradeGravada = g;
   const contrato = g.contrato || {};
   const acoes = Array.isArray(contrato.acoes) ? contrato.acoes : [];
   const estados = Array.isArray(contrato.estados) ? contrato.estados : [];
@@ -3309,52 +3521,96 @@ function desenharGradeArgo(g) {
   const estadosComConsumidor = Array.isArray(contrato.estados_com_consumidor) ? contrato.estados_com_consumidor : [];
   const permissoes = g.permissoes || {};
 
-  const linhas = acoes.map((chave) => {
+  const linha = (chave) => {
     const atual = permissoes[chave];
-    // Estado ausente ou fora da lista conhecida NÃO vira opção selecionada.
+    // Estado ausente ou fora da lista conhecida NÃO vira opção marcada.
     // Antes caía em `|| 'desligado'`: a tela desenhava "desligado" sem avisar
     // e o Salvar seguinte gravava isso — desligando a pausa automática sem
-    // que ninguém tivesse tocado no controle. Mesmo espírito do popularFunis,
-    // que também não finge que um valor desconhecido é um valor válido.
+    // que ninguém tivesse tocado no controle. Aqui nenhum botão fica marcado
+    // e o campo escondido fica vazio, o que trava o Salvar.
     const conhecido = estados.includes(atual);
-    const opcoes = (conhecido ? '' : '<option value="" selected>— escolha —</option>')
-      + estados.map((e) => `<option value="${esc(e)}"${conhecido && e === atual ? ' selected' : ''}>${esc(e)}</option>`).join('');
+    const nome = `argo-estado-${chave}`;
+    const opcoes = estados.map((e) => {
+      const semDestino = estadosComConsumidor.includes(e) ? '' : ' class="sem-destino" title="Ainda não chega a ninguém"';
+      return `<label${semDestino}><input type="radio" name="${esc(nome)}" value="${esc(e)}"${conhecido && e === atual ? ' checked' : ''}><span>${esc(ARGO_ESTADO_ROTULO[e] || e)}</span></label>`;
+    }).join('');
     const encontrado = atual === undefined || atual === null
       ? 'nenhum valor gravado'
       : `o valor "${esc(String(atual))}"`;
     const alerta = conhecido ? ''
-      : `<br><span class="falha">Esta linha está com ${encontrado}, que esta tela não conhece. Escolha um estado — até lá o Salvar fica travado.</span>`;
-    const legenda = comConsumidor.includes(chave) ? ''
-      : '<br><span class="mini">sem consumidor por enquanto — o agente ainda não faz nada com esta ação, seja qual for o estado</span>';
-    return `<tr><td>${esc(argoRotulo(chave))}${legenda}${alerta}</td>
-      <td><select data-argo-acao="${esc(chave)}" aria-label="Estado de ${esc(argoRotulo(chave))}">${opcoes}</select></td></tr>`;
-  }).join('');
+      : `<span class="falha">Esta linha está com ${encontrado}, que esta tela não conhece. Escolha um estado — até lá o Salvar fica travado.</span>`;
+    const desc = ARGO_DESCRICOES[chave] ? `<span class="argo-acao-desc">${esc(ARGO_DESCRICOES[chave])}</span>` : '';
+    const semEfeito = comConsumidor.includes(chave) ? '' : ' sem-efeito';
+    return `<div class="argo-acao${semEfeito}">
+        <div><span class="argo-acao-nome">${esc(argoRotulo(chave))}</span>${desc}${alerta}</div>
+        <div class="argo-seg" role="radiogroup" aria-label="Estado de ${esc(argoRotulo(chave))}">
+          <input type="hidden" data-argo-acao="${esc(chave)}" value="${conhecido ? esc(atual) : ''}">${opcoes}
+        </div>
+      </div>`;
+  };
 
+  const emUso = acoes.filter((a) => comConsumidor.includes(a));
+  const semUso = acoes.filter((a) => !comConsumidor.includes(a));
   const semContrato = acoes.length && estados.length ? ''
-    : '<p class="aviso falha">O servidor não informou quais ações e estados existem. Não dá para editar a grade com segurança agora — recarregue a página.</p>';
+    : '<p class="aviso alerta">O servidor não informou quais ações e estados existem. Não dá para editar a grade com segurança agora — recarregue a página.</p>';
   const semDestino = estados.filter((e) => !estadosComConsumidor.includes(e));
-  const legendaEstados = semDestino.length
-    ? `<p class="mini">O estado <strong>${semDestino.map(esc).join('</strong>, <strong>')}</strong> ainda não tem destino: a tabela de propostas existe, mas nada a consulta — marcar aqui não faz o agente propor nada a ninguém.</p>`
+  const notaEstados = semDestino.length
+    ? `<p class="argo-grupo-nota">O estado <strong>${semDestino.map((e) => esc(ARGO_ESTADO_ROTULO[e] || e)).join('</strong>, <strong>')}</strong> ainda não chega a ninguém: a tabela de propostas existe, mas nada a consulta. Marcar não faz o agente sugerir nada.</p>`
     : '';
   const reais = (c) => (c === null || c === undefined ? '' : (c / 100).toFixed(2));
-  $('#argo-grade').innerHTML = `${semContrato}<table><tbody>${linhas}</tbody></table>
-    ${legendaEstados}
-    <p><label>Teto mensal de Meta (R$) <input type="number" step="0.01" id="argo-teto" value="${reais(g.teto_mensal_meta_centavos)}"></label></p>
-    <p><label>Limite por ação (R$) <input type="number" step="0.01" id="argo-limite" value="${reais(g.limite_por_acao_centavos)}"></label></p>
-    <p><label>Máximo de pausas por rodada <input type="number" step="1" min="0" id="argo-maxpausas" value="${Number(g.max_pausas_por_rodada) || 0}"></label>
-      <br><span class="mini">informativo por enquanto — o laço de pausas ainda não aplica este limite</span></p>
-    <p><label><input type="checkbox" id="argo-parada"${g.parada_geral ? ' checked' : ''}> Parada geral — ele não executa nada</label></p>`;
+  const EM_REAIS = 'Só números, ponto antes dos centavos (ex.: 10000.00).';
+
+  $('#argo-grade').innerHTML = `${semContrato}
+    ${emUso.length ? `<div class="argo-grupo">${notaEstados}${emUso.map(linha).join('')}</div>` : notaEstados}
+    ${semUso.length ? `<div class="argo-grupo">
+        <h3 class="argo-grupo-titulo">Ainda sem efeito</h3>
+        <p class="argo-grupo-nota">O agente ainda não faz nada com estas ações, seja qual for o estado marcado.</p>
+        ${semUso.map(linha).join('')}
+      </div>` : ''}
+    <div class="argo-bloco">
+      <h3>Limites</h3>
+      <div class="argo-limites">
+        <label class="argo-campo"><span>Teto mensal de Meta</span>
+          <span class="argo-entrada"><i>R$</i><input type="number" step="0.01" inputmode="decimal" id="argo-teto" value="${reais(g.teto_mensal_meta_centavos)}"></span>
+          <small>${EM_REAIS}</small></label>
+        <label class="argo-campo"><span>Limite por ação</span>
+          <span class="argo-entrada"><i>R$</i><input type="number" step="0.01" inputmode="decimal" id="argo-limite" value="${reais(g.limite_por_acao_centavos)}"></span>
+          <small>${EM_REAIS}</small></label>
+        <label class="argo-campo"><span>Máximo de pausas por rodada</span>
+          <span class="argo-entrada"><input type="number" step="1" min="0" inputmode="numeric" id="argo-maxpausas" value="${Number(g.max_pausas_por_rodada) || 0}"></span>
+          <small>Informativo por enquanto — o laço de pausas ainda não aplica este limite.</small></label>
+      </div>
+    </div>
+    <div class="argo-parada${g.parada_geral ? ' ligada' : ''}" id="argo-parada-zona">
+      <div><strong>Parada geral</strong><span class="mini">Ligada, ele não executa nada, seja qual for a grade acima.</span></div>
+      <label class="argo-chave"><input type="checkbox" role="switch" id="argo-parada"${g.parada_geral ? ' checked' : ''}><span class="trilho" aria-hidden="true"></span><span class="rotulo">${g.parada_geral ? 'Ligada' : 'Desligada'}</span></label>
+    </div>`;
+  argoFotoInicial = argoFotografia();
   sincronizarSalvarArgo();
+  desenharFaixaArgo();
+}
+
+function argoFotografia() {
+  const valor = (id) => ($(id) ? $(id).value : '');
+  return JSON.stringify({
+    p: [...document.querySelectorAll('[data-argo-acao]')].map((s) => [s.dataset.argoAcao, s.value]),
+    t: valor('#argo-teto'), l: valor('#argo-limite'), m: valor('#argo-maxpausas'),
+    g: $('#argo-parada') ? $('#argo-parada').checked : null,
+  });
 }
 
 // Salvar travado enquanto existir linha sem escolha consciente: gravar a grade
-// inteira com um estado que a tela inventou é o pior caso desta aba.
+// inteira com um estado que a tela inventou é o pior caso desta aba. E apagado
+// enquanto nada mudou — "Salvar" aceso sem mudança convidava a gravar à toa.
 function sincronizarSalvarArgo() {
   const botao = $('#argo-salvar');
   if (!botao) return;
   const pendentes = [...document.querySelectorAll('[data-argo-acao]')].filter((s) => s.value === '');
-  botao.disabled = pendentes.length > 0;
-  botao.title = pendentes.length ? 'Escolha um estado nas linhas marcadas para poder salvar.' : '';
+  const mudou = argoFotoInicial !== null && argoFotografia() !== argoFotoInicial;
+  botao.disabled = pendentes.length > 0 || !mudou;
+  botao.title = pendentes.length ? 'Escolha um estado nas linhas marcadas para poder salvar.'
+    : (mudou ? '' : 'Nada mudou desde a última gravação.');
+  $('#argo-pendente').hidden = !mudou;
 }
 
 // Campo de dinheiro. Duas armadilhas diferentes do `input type=number`, as
@@ -3459,9 +3715,26 @@ async function salvarGradeArgo() {
 document.addEventListener('click', (ev) => {
   if (ev.target && ev.target.id === 'argo-salvar') salvarGradeArgo();
 });
-document.addEventListener('change', (ev) => {
-  if (ev.target && ev.target.matches && ev.target.matches('[data-argo-acao]')) sincronizarSalvarArgo();
-});
+// Qualquer mexida no formulário da aba: o botão escolhido vai para o campo
+// escondido que o salvarGradeArgo lê, a zona da parada acompanha a chave, e o
+// resultado da gravação anterior sai da tela (ele não vale mais para o que
+// está sendo editado).
+function aoMexerNaGradeArgo(ev) {
+  const alvo = ev.target;
+  if (!alvo || !alvo.closest || !alvo.closest('#argo-grade')) return;
+  if (alvo.type === 'radio') {
+    const campo = alvo.closest('.argo-seg').querySelector('[data-argo-acao]');
+    if (campo) campo.value = alvo.value;
+  }
+  if (alvo.id === 'argo-parada') {
+    $('#argo-parada-zona').classList.toggle('ligada', alvo.checked);
+    alvo.parentElement.querySelector('.rotulo').textContent = alvo.checked ? 'Ligada' : 'Desligada';
+  }
+  $('#argo-salvo').textContent = '';
+  sincronizarSalvarArgo();
+}
+document.addEventListener('change', aoMexerNaGradeArgo);
+document.addEventListener('input', aoMexerNaGradeArgo);
 
 R.argo = carregarArgo;
 
