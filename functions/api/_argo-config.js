@@ -34,16 +34,21 @@ export const ACOES = Object.freeze([
 
 export const ESTADOS = Object.freeze(['desligado', 'propor', 'executar']);
 
-// Quem de fato lê a grade hoje. `pausar_campanha_trafego` é a única ação com
-// consumidor (o laço de pausas que roda na VPS todo dia útil às 8h50); as
-// outras cinco vivem numa esteira que continua desligada. E dos três estados,
-// só `desligado` e `executar` têm destino: a tabela `argo.propostas` existe,
-// mas nada consulta `propor` ainda — marcar `propor` não propõe nada a
-// ninguém. A aba mostra essas listas como legenda para que ninguém saia da
-// tela achando que autorizou algo que não acontece. Vive aqui, e não na aba,
-// pelo mesmo motivo de ACOES/ESTADOS: uma fonte da verdade só.
-export const ACOES_COM_CONSUMIDOR = Object.freeze(['pausar_campanha_trafego']);
-export const ESTADOS_COM_CONSUMIDOR = Object.freeze(['desligado', 'executar']);
+// Quem de fato lê a grade hoje: o monitor de tráfego (8h50) e o de anúncios
+// (8h55), na VPS. As outras quatro ações vivem numa esteira que continua
+// desligada. Os três estados têm destino: `propor` vira proposta na aba
+// Propostas (issue 300/301). A aba mostra essas listas como legenda para que
+// ninguém saia da tela achando que autorizou algo que não acontece. Vive
+// aqui, e não na aba, pelo mesmo motivo de ACOES/ESTADOS: uma fonte da
+// verdade só.
+export const ACOES_COM_CONSUMIDOR = Object.freeze(['pausar_campanha_trafego', 'pausar_anuncio']);
+export const ESTADOS_COM_CONSUMIDOR = Object.freeze(['desligado', 'propor', 'executar']);
+
+// Ações em que `executar` ainda só propõe: o monitor de anúncios não pausa
+// sozinho até a régua nova de anúncio (issue 305) — sem piso de entrega, um
+// anúncio com 1 lead seria pausado por ruído. A faixa da aba lista estas em
+// "Propõe", nunca em "Executa sozinho".
+export const EXECUTAR_AINDA_PROPOE = Object.freeze(['pausar_anuncio']);
 
 // O contrato que o GET devolve à aba. A aba desenha a grade a partir DISTO,
 // nunca de uma cópia própria: uma sétima ação no backend passa a aparecer na
@@ -54,6 +59,7 @@ export const CONTRATO_GRADE = Object.freeze({
   estados: ESTADOS,
   acoes_com_consumidor: ACOES_COM_CONSUMIDOR,
   estados_com_consumidor: ESTADOS_COM_CONSUMIDOR,
+  executar_ainda_propoe: EXECUTAR_AINDA_PROPOE,
 });
 
 function ehObjetoSimples(v) {

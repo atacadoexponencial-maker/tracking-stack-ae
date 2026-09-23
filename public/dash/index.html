@@ -3530,8 +3530,11 @@ function desenharFaixaArgo() {
     const permissoes = g.permissoes || {};
     // Só entra no resumo o que tem efeito de verdade: ação marcada "executar"
     // sem consumidor não faz nada, e dizer que faz seria mentir na faixa.
-    const executa = comConsumidor.filter((a) => permissoes[a] === 'executar');
-    propoe = comConsumidor.filter((a) => permissoes[a] === 'propor');
+    // E "executar" numa ação que ainda só propõe (contrato
+    // `executar_ainda_propoe`) conta como proposta, não como execução.
+    const aindaPropoe = Array.isArray(contrato.executar_ainda_propoe) ? contrato.executar_ainda_propoe : [];
+    const executa = comConsumidor.filter((a) => permissoes[a] === 'executar' && !aindaPropoe.includes(a));
+    propoe = comConsumidor.filter((a) => permissoes[a] === 'propor' || (permissoes[a] === 'executar' && aindaPropoe.includes(a)));
     if (g.parada_geral) {
       classe = 'parado'; selo = 'Parada geral';
       titulo = 'Parado: não executa nada até a parada geral ser desligada.';
@@ -3541,7 +3544,7 @@ function desenharFaixaArgo() {
     }
   }
   const meta = [`Última rodada <b>${esc(ultima)}</b>`];
-  if (propoe.length) meta.push(`Só propõe: ${propoe.map((a) => esc(argoRotulo(a))).join(', ')}`);
+  if (propoe.length) meta.push(`Propõe: ${propoe.map((a) => esc(argoRotulo(a))).join(', ')}`);
 
   $('#argo-cabecalho').innerHTML = `<div class="faixa-estado argo-faixa ${classe}">
       <span class="selo-estado">${esc(selo)}</span>
@@ -3753,12 +3756,53 @@ function desenharPropostasArgo(dados) {
   el.dataset.paradaGeral = dados.parada_geral ? '1' : '';
 }
 
-// PROTÓTIPO (issue 298): a decisão ainda não é enviada. A issue 301 troca
-// este corpo pelo POST real — a tela em volta não muda.
-async function argoRegistrarDecisao(lugar, texto) {
-  const pe = lugar.querySelector('.argo-proposta-botoes') || lugar;
-  pe.innerHTML = `<span class="mini">${esc(texto)} (protótipo — nada foi gravado)</span>`;
-  return true;
+// Resultado de uma decisão, no topo da aba: a lista é redesenhada depois de
+// cada decisão, então a mensagem não pode morar dentro do cartão.
+function argoAvisoPropostas(texto, tipo) {
+  const el = $('#argo-vista-propostas');
+  el.querySelectorAll(':scope > .argo-aviso-decisao').forEach((a) => a.remove());
+  el.insertAdjacentHTML('afterbegin', `<div class="aviso ${tipo === 'erro' ? 'alerta' : 'explica'} argo-aviso-decisao" role="status">${esc(texto)}</div>`);
+}
+
+// Grava a decisão sobre a versão que está na tela. O backend recusa (409)
+// se a proposta mudou, já foi decidida ou venceu — nesses casos a lista é
+// recarregada para ela ver o estado de agora. Devolve false só quando não dá
+// para afirmar o que aconteceu (o botão volta para tentar de novo).
+async function argoDecidir(cartao, decisao, porQue) {
+  let resposta;
+  let corpo = {};
+  try {
+    resposta = await fetch(`/api/argo/propostas?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: cartao.dataset.proposta,
+        versao: Number(cartao.dataset.versao),
+        decisao,
+        por_que: porQue || null,
+      }),
+    });
+    corpo = await resposta.json().catch(() => ({}));
+  } catch {
+    argoAvisoPropostas('Não foi possível falar com o servidor. Não dá para afirmar que gravou — recarregue a aba e confira.', 'erro');
+    return false;
+  }
+  if (resposta.ok) {
+    await carregarPropostasArgo();
+    argoAvisoPropostas(decisao === 'aprovar'
+      ? 'Aprovada. O Argo executa em até ~10 minutos — acompanhe no histórico.'
+      : 'Rejeitada. O Argo não propõe este alvo de novo nos próximos dias.');
+    return true;
+  }
+  const msg = corpo.erro || corpo.error
+    || `O servidor respondeu ${resposta.status} sem explicar. Não dá para afirmar se gravou — recarregue a aba e confira.`;
+  if (resposta.status === 409 || resposta.status === 404) {
+    await carregarPropostasArgo();
+    argoAvisoPropostas(msg, 'erro');
+    return true;
+  }
+  argoAvisoPropostas(msg, 'erro');
+  return false;
 }
 
 document.addEventListener('click', (ev) => {
@@ -3779,7 +3823,7 @@ document.addEventListener('click', (ev) => {
     const pergunta = parada
       ? 'A parada geral está ligada: nada será executado enquanto ela estiver ligada. Aprovar mesmo assim?'
       : `${cartao.querySelector('.argo-proposta-acao').textContent} "${alvo}"?`;
-    pedirConfirmacao(aprovar, pergunta, () => argoRegistrarDecisao(cartao, 'Aprovada'), [{ valor: true, rotulo: 'Confirmar' }]);
+    pedirConfirmacao(aprovar, pergunta, () => argoDecidir(cartao, 'aprovar'), [{ valor: true, rotulo: 'Confirmar' }]);
     return;
   }
 
@@ -3797,15 +3841,16 @@ document.addEventListener('click', (ev) => {
       </span>`;
     botoes.querySelector('input').focus();
     botoes.querySelector('[data-argo-rejeitar-nao]').onclick = () => { botoes.innerHTML = antes; botoes.querySelector('[data-argo-rejeitar]').focus(); };
-    botoes.querySelector('[data-argo-rejeitar-ok]').onclick = () => argoRegistrarDecisao(cartao, 'Rejeitada');
+    botoes.querySelector('[data-argo-rejeitar-ok]').onclick = async (e) => {
+      botoes.querySelectorAll('button, input').forEach((b) => { b.disabled = true; });
+      const ok = await argoDecidir(cartao, 'rejeitar', botoes.querySelector('input').value);
+      // Sem certeza do que aconteceu: devolve os botões para tentar de novo.
+      if (!ok && botoes.isConnected) botoes.innerHTML = antes;
+    };
     return;
   }
-
-  const desfazer = t.closest('[data-argo-desfazer]');
-  if (desfazer) {
-    const alvo = desfazer.closest('details').querySelector('.argo-conclusao').textContent;
-    pedirConfirmacao(desfazer, `Reativar "${alvo}"?`, () => argoRegistrarDecisao(desfazer.closest('.argo-detalhe'), 'Desfazer pedido'), [{ valor: true, rotulo: 'Reativar' }]);
-  }
+  // O Desfazer (botão no histórico) é ligado pela issue 303; até lá o
+  // backend manda `pode_desfazer: false` e o botão não aparece.
 });
 
 function desenharGradeArgo(g) {
@@ -3836,7 +3881,9 @@ function desenharGradeArgo(g) {
       : `o valor "${esc(String(atual))}"`;
     const alerta = conhecido ? ''
       : `<span class="falha">Esta linha está com ${encontrado}, que esta tela não conhece. Escolha um estado — até lá o Salvar fica travado.</span>`;
-    const desc = ARGO_DESCRICOES[chave] ? `<span class="argo-acao-desc">${esc(ARGO_DESCRICOES[chave])}</span>` : '';
+    const aindaPropoe = Array.isArray(contrato.executar_ainda_propoe) && contrato.executar_ainda_propoe.includes(chave)
+      ? ' Em Executar, por enquanto vira proposta — ele só age sozinho depois da régua nova.' : '';
+    const desc = ARGO_DESCRICOES[chave] ? `<span class="argo-acao-desc">${esc(ARGO_DESCRICOES[chave] + aindaPropoe)}</span>` : '';
     const semEfeito = comConsumidor.includes(chave) ? '' : ' sem-efeito';
     return `<div class="argo-acao${semEfeito}">
         <div><span class="argo-acao-nome">${esc(argoRotulo(chave))}</span>${desc}${alerta}</div>

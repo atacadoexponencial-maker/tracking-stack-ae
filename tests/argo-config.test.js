@@ -212,11 +212,18 @@ test('o contrato é congelado: ninguém edita a lista canônica em tempo de exec
 test('ações e estados com consumidor são subconjuntos do que existe', () => {
   for (const acao of ACOES_COM_CONSUMIDOR) assert.ok(ACOES.includes(acao), acao);
   for (const estado of ESTADOS_COM_CONSUMIDOR) assert.ok(ESTADOS.includes(estado), estado);
-  // Hoje só a pausa de campanha de tráfego tem consumidor de verdade, e
-  // `propor` não tem destino nenhum. Se isto mudar, a legenda da aba muda
+  // Hoje as duas pausas têm consumidor (monitores de tráfego e de anúncios),
+  // e `propor` vira proposta na aba. Se isto mudar, a legenda da aba muda
   // junto — este teste é o lembrete.
-  assert.deepEqual([...ACOES_COM_CONSUMIDOR], ['pausar_campanha_trafego']);
-  assert.deepEqual([...ESTADOS_COM_CONSUMIDOR], ['desligado', 'executar']);
+  assert.deepEqual([...ACOES_COM_CONSUMIDOR], ['pausar_campanha_trafego', 'pausar_anuncio']);
+  assert.deepEqual([...ESTADOS_COM_CONSUMIDOR], ['desligado', 'propor', 'executar']);
+});
+
+// "Pausar anúncio" em Executar ainda só propõe (até a issue 305): a faixa da
+// aba não pode dizer que ele executa sozinho.
+test('executar-que-ainda-propõe está no contrato e só contém ações com consumidor', () => {
+  assert.deepEqual([...CONTRATO_GRADE.executar_ainda_propoe], ['pausar_anuncio']);
+  for (const acao of CONTRATO_GRADE.executar_ainda_propoe) assert.ok(ACOES_COM_CONSUMIDOR.includes(acao), acao);
 });
 
 test('as mensagens da grade moram aqui, junto de quem as usa', () => {
