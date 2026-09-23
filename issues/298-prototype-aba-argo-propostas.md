@@ -136,3 +136,5 @@ Nenhuma.
 - [x] Fixture com um exemplo de cada situação no proxy local
 - [x] Prints em 1440px e 390px para a usuária aprovar (aprovação pendente)
 - [x] `npm test` verde
+
+> ✅ Visual aprovado pela usuária em 23/09/2026.

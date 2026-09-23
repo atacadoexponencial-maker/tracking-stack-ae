@@ -425,6 +425,31 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .argo-detalhe li { background: var(--card-2); border-radius: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.84rem; }
 .argo-detalhe li .mini { display: block; margin-top: 0.2rem; font-size: 0.78rem; }
 
+/* Régua: cada regra numa linha — texto à esquerda, controle à direita. A
+   regra desligada esmaece, mas continua editável (dá para deixar o número
+   pronto antes de ligar). */
+.argo-regua-grupo { margin-top: 1.1rem; }
+.argo-regua-grupo h4 { font-size: 0.86rem; font-weight: 700; margin-bottom: 0.15rem; }
+.argo-regra { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 17rem); gap: 0.5rem 1.4rem; align-items: start; padding: 0.8rem 0; border-top: 1px solid var(--border); }
+.argo-regra:first-of-type { border-top: 0; }
+.argo-regra-controle { display: grid; gap: 0.3rem; justify-items: stretch; }
+.argo-regra-controle .argo-chave { justify-self: start; }
+.argo-regra.desligada .argo-entrada, .argo-regra.desligada .argo-acao-nome { opacity: 0.5; }
+.argo-entrada i.depois { padding: 0 0.7rem 0 0; }
+.argo-entrada.invalida { border-color: var(--down); }
+.argo-regra-ajuda { color: var(--muted); font-size: 0.74rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.argo-regra-ajuda .argo-ver-tudo { font-size: 0.74rem; }
+.argo-regra-erro { font-size: 0.74rem; }
+/* A chave da régua não é freio de emergência: ligada é bege (a voz da
+   marca), não o coral da parada geral. */
+.argo-regra .argo-chave input:checked + .trilho { background: var(--bege); border-color: var(--bege); }
+.argo-regra .argo-chave input:checked ~ .rotulo { color: var(--fg); }
+.argo-regua-alterada { margin-top: 0.9rem; color: var(--muted); font-size: 0.78rem; }
+
+@media (max-width: 980px) {
+  .argo-regra { grid-template-columns: 1fr; }
+}
+
 /* Abas internas: Controle (o que ele pode fazer) e Propostas (o que ele
    pede). Trocar entre elas só esconde e mostra — a grade não é redesenhada,
    para não perder alteração ainda não salva. */
@@ -3839,6 +3864,7 @@ function desenharGradeArgo(g) {
         <p class="argo-grupo-nota">Marcar aqui não muda nada por enquanto: o Argo ainda não tem rotina para estas ações.</p>
         ${semUso.map(linha).join('')}
       </div>` : ''}
+    ${desenharReguaArgo(g.regua)}
     <div class="argo-bloco">
       <h3>Limites</h3>
       <div class="argo-limites">
@@ -3862,12 +3888,128 @@ function desenharGradeArgo(g) {
   desenharFaixaArgo();
 }
 
+// ---------- Argo: régua editável (issue 299) ----------
+// Quais regras existem, seus padrões e limites vêm do backend em `regua`
+// (uma fonte da verdade, como o `contrato` da grade). Aqui moram só os
+// rótulos, as frases e a unidade de cada campo. `liga` aponta a chave
+// liga/desliga que governa o número.
+const ARGO_REGUA_GRUPOS = [
+  ['Anúncios de lead', 'Um anúncio de lead só é julgado depois de passar dos dois pisos. Sem lead, vira candidato; com lead, vale a segunda avaliação por MQL.', [
+    ['lead_multiplicador_cpl', 'Gasto mínimo para julgar', 'Múltiplo do CPL médio do funil do anúncio.', '×', 'decimal'],
+    ['lead_impressoes_min', 'Impressões mínimas', 'Abaixo disso o anúncio mal foi entregue — não é julgado.', 'impressões', 'inteiro'],
+    ['lead_janela_cpl_dias', 'Janela do CPL médio', 'Quantos dias para trás entram no CPL médio do funil.', 'dias', 'inteiro'],
+  ]],
+  ['Campanhas de tráfego', 'Cada campanha é comparada com ela mesma: o custo por visita recente contra o do próprio passado.', [
+    ['trafego_janela_recente_dias', 'Janela recente', 'O período que está sendo julgado.', 'dias', 'inteiro'],
+    ['trafego_janela_passado_dias', 'Janela do passado', 'Os dias antes da janela recente, usados como comparação.', 'dias', 'inteiro'],
+    ['trafego_tolerancia_pct', 'Tolerância', 'Quanto o custo recente pode passar do próprio passado.', '%', 'inteiro'],
+    ['trafego_gasto_min_reais', 'Gasto mínimo para julgar', 'Gasto na janela recente abaixo disso não é julgado.', 'R$', 'decimal'],
+  ]],
+  ['Travas para todos', 'Valem para qualquer ação, do Argo ou aprovada por você.', [
+    ['trava_aprendizado_dias', 'Não mexer em fase de aprendizado', 'Conjunto aprendendo não é tocado — até completar estes dias no ar. Aprendizado limitado não trava.', 'dias', 'inteiro', 'trava_aprendizado'],
+    ['intervalo_min_dias', 'Intervalo mínimo', 'Depois de qualquer mudança no alvo (sua, dele ou uma rejeição), espera estes dias antes de mexer de novo.', 'dias', 'inteiro'],
+    ['reduzir_pct', 'Reduzir antes de pausar', 'Onde há orçamento próprio, corta esta porcentagem primeiro; pausa só depois do intervalo, se continuar ruim.', '%', 'inteiro', 'reduzir_antes'],
+    ['reativar_tolerancia_pct', 'Reativar o que ele pausou', 'Religa uma vez se o custo, com o que chegou depois da pausa, ficar dentro da média mais esta tolerância. Lead caro não religa.', '%', 'inteiro', 'reativar'],
+  ]],
+];
+
+// "R$" vai antes do número; as outras unidades, depois.
+const argoUnidadeAntes = (u) => u === 'R$';
+const argoNumeroTela = (v) => (v === null || v === undefined ? '' : String(v));
+
+function desenharReguaArgo(regua) {
+  if (!regua || !regua.valores) {
+    return `<div class="argo-bloco"><h3>Régua</h3>
+      <p class="argo-grupo-nota">A régua ainda não está disponível neste servidor. O Argo segue com os números de hoje.</p></div>`;
+  }
+  const { valores, padroes = {}, limites = {} } = regua;
+  const grupos = ARGO_REGUA_GRUPOS.map(([titulo, nota, regras]) => {
+    const linhas = regras.map(([chave, rotulo, frase, unidade, tipo, liga]) => {
+      const lim = limites[chave] || {};
+      const ligada = liga ? valores[liga] === true : true;
+      const passo = lim.passo ?? (tipo === 'inteiro' ? 1 : 0.01);
+      const campo = `<input type="number" inputmode="${tipo === 'inteiro' ? 'numeric' : 'decimal'}" step="${passo}"
+          ${lim.min != null ? `min="${lim.min}"` : ''} ${lim.max != null ? `max="${lim.max}"` : ''}
+          data-argo-regra="${esc(chave)}" value="${esc(argoNumeroTela(valores[chave]))}" aria-label="${esc(rotulo)}">`;
+      const entrada = `<span class="argo-entrada">${argoUnidadeAntes(unidade) ? `<i>${esc(unidade)}</i>${campo}` : `${campo}<i class="depois">${esc(unidade)}</i>`}</span>`;
+      const chaveLiga = liga
+        ? `<label class="argo-chave"><input type="checkbox" role="switch" data-argo-regra-liga="${esc(liga)}"${ligada ? ' checked' : ''}><span class="trilho" aria-hidden="true"></span><span class="rotulo">${ligada ? 'Ligada' : 'Desligada'}</span></label>`
+        : '';
+      const padrao = padroes[chave] != null
+        ? `padrão: ${argoUnidadeAntes(unidade) ? `${esc(unidade)} ${esc(padroes[chave])}` : `${esc(padroes[chave])} ${esc(unidade)}`}` : '';
+      return `<div class="argo-regra${ligada ? '' : ' desligada'}" data-argo-regra-linha="${esc(chave)}">
+          <div class="argo-regra-texto">
+            <span class="argo-acao-nome">${esc(rotulo)}</span>
+            <span class="argo-acao-desc">${esc(frase)}</span>
+          </div>
+          <div class="argo-regra-controle">
+            ${chaveLiga}
+            ${entrada}
+            <small class="argo-regra-ajuda"><span data-argo-padrao-txt>${padrao}</span>
+              <button type="button" class="argo-ver-tudo" data-argo-padrao="${esc(chave)}" data-valor="${esc(argoNumeroTela(padroes[chave]))}" hidden>voltar ao padrão</button></small>
+            <small class="falha argo-regra-erro" hidden></small>
+          </div>
+        </div>`;
+    }).join('');
+    return `<div class="argo-regua-grupo"><h4>${esc(titulo)}</h4><p class="argo-grupo-nota">${esc(nota)}</p>${linhas}</div>`;
+  }).join('');
+  const quando = regua.alterada_em
+    ? `<p class="argo-regua-alterada">Régua alterada por ${esc(regua.alterada_por || '—')} ${esc(argoQuando(regua.alterada_em))}.</p>` : '';
+  return `<div class="argo-bloco argo-regua" id="argo-regua">
+      <h3>Régua</h3>
+      <p class="argo-grupo-nota">Os números que decidem o que ele julga. Valem a partir da próxima rodada.</p>
+      ${grupos}${quando}
+    </div>`;
+}
+
+// Liga/desliga, "voltar ao padrão" e o aviso de limite de cada linha. O
+// limite vem do servidor; esta conferência só avisa antes — quem recusa de
+// verdade é o backend.
+function sincronizarReguaArgo() {
+  const regua = argoGradeGravada && argoGradeGravada.regua;
+  const limites = (regua && regua.limites) || {};
+  let foraDoLimite = 0;
+  document.querySelectorAll('[data-argo-regra]').forEach((campo) => {
+    const chave = campo.dataset.argoRegra;
+    const linha = campo.closest('[data-argo-regra-linha]');
+    const lim = limites[chave] || {};
+    const bruto = campo.value.trim();
+    const n = Number(bruto);
+    const invalido = bruto === '' || (campo.validity && campo.validity.badInput) || Number.isNaN(n)
+      || (lim.min != null && n < lim.min) || (lim.max != null && n > lim.max);
+    const erro = linha.querySelector('.argo-regra-erro');
+    erro.hidden = !invalido;
+    erro.textContent = invalido ? `Use um valor entre ${lim.min ?? '0'} e ${lim.max ?? '∞'}.` : '';
+    linha.querySelector('.argo-entrada').classList.toggle('invalida', invalido);
+    if (invalido) foraDoLimite++;
+    const voltar = linha.querySelector('[data-argo-padrao]');
+    voltar.hidden = voltar.dataset.valor === '' || String(n) === voltar.dataset.valor;
+  });
+  document.querySelectorAll('[data-argo-regra-liga]').forEach((chave) => {
+    const linha = chave.closest('[data-argo-regra-linha]');
+    linha.classList.toggle('desligada', !chave.checked);
+    chave.parentElement.querySelector('.rotulo').textContent = chave.checked ? 'Ligada' : 'Desligada';
+  });
+  return foraDoLimite;
+}
+
+document.addEventListener('click', (ev) => {
+  const voltar = ev.target.closest && ev.target.closest('[data-argo-padrao]');
+  if (!voltar) return;
+  const campo = document.querySelector(`[data-argo-regra="${voltar.dataset.argoPadrao}"]`);
+  campo.value = voltar.dataset.valor;
+  campo.dispatchEvent(new Event('input', { bubbles: true }));
+  campo.focus();
+});
+
 function argoFotografia() {
   const valor = (id) => ($(id) ? $(id).value : '');
   return JSON.stringify({
     p: [...document.querySelectorAll('[data-argo-acao]')].map((s) => [s.dataset.argoAcao, s.value]),
     t: valor('#argo-teto'), l: valor('#argo-limite'), m: valor('#argo-maxpausas'),
     g: $('#argo-parada') ? $('#argo-parada').checked : null,
+    r: [...document.querySelectorAll('[data-argo-regra]')].map((c) => [c.dataset.argoRegra, c.value]),
+    rl: [...document.querySelectorAll('[data-argo-regra-liga]')].map((c) => [c.dataset.argoRegraLiga, c.checked]),
   });
 }
 
@@ -3879,8 +4021,10 @@ function sincronizarSalvarArgo() {
   if (!botao) return;
   const pendentes = [...document.querySelectorAll('[data-argo-acao]')].filter((s) => s.value === '');
   const mudou = argoFotoInicial !== null && argoFotografia() !== argoFotoInicial;
-  botao.disabled = pendentes.length > 0 || !mudou;
+  const foraDoLimite = sincronizarReguaArgo();
+  botao.disabled = pendentes.length > 0 || foraDoLimite > 0 || !mudou;
   botao.title = pendentes.length ? 'Escolha um estado nas linhas marcadas para poder salvar.'
+    : foraDoLimite ? 'Há número da régua fora do permitido — veja a linha marcada.'
     : (mudou ? '' : 'Nada mudou desde a última gravação.');
   $('#argo-pendente').hidden = !mudou;
 }
