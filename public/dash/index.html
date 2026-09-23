@@ -435,6 +435,8 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .argo-regra-controle { display: grid; gap: 0.3rem; justify-items: stretch; }
 .argo-regra-controle .argo-chave { justify-self: start; }
 .argo-regra.desligada .argo-entrada, .argo-regra.desligada .argo-acao-nome { opacity: 0.5; }
+.argo-regra.inativa .argo-acao-nome { color: var(--muted); font-weight: 400; }
+.argo-regra-inativa { display: block; margin-top: 0.3rem; font-size: 0.74rem; color: var(--taupe); }
 .argo-entrada i.depois { padding: 0 0.7rem 0 0; }
 .argo-entrada.invalida { border-color: var(--down); }
 .argo-regra-ajuda { color: var(--muted); font-size: 0.74rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
@@ -4006,6 +4008,7 @@ function desenharReguaArgo(regua) {
       <p class="argo-grupo-nota">A régua ainda não está disponível neste servidor. O Argo segue com os números de hoje.</p></div>`;
   }
   const { valores, padroes = {}, limites = {} } = regua;
+  const ativas = Array.isArray(regua.ativas) ? regua.ativas : [];
   const grupos = ARGO_REGUA_GRUPOS.map(([titulo, nota, regras]) => {
     const linhas = regras.map(([chave, rotulo, frase, unidade, tipo, liga]) => {
       const lim = limites[chave] || {};
@@ -4020,10 +4023,14 @@ function desenharReguaArgo(regua) {
         : '';
       const padrao = padroes[chave] != null
         ? `padrão: ${argoUnidadeAntes(unidade) ? `${esc(unidade)} ${esc(padroes[chave])}` : `${esc(padroes[chave])} ${esc(unidade)}`}` : '';
-      return `<div class="argo-regra${ligada ? '' : ' desligada'}" data-argo-regra-linha="${esc(chave)}">
+      // Regra sem lógica ainda (chega nas próximas entregas): editável, mas
+      // esmaecida e avisada — um número que não vale não pode parecer valer.
+      const inativa = !ativas.includes(chave);
+      return `<div class="argo-regra${ligada ? '' : ' desligada'}${inativa ? ' inativa' : ''}" data-argo-regra-linha="${esc(chave)}">
           <div class="argo-regra-texto">
             <span class="argo-acao-nome">${esc(rotulo)}</span>
             <span class="argo-acao-desc">${esc(frase)}</span>
+            ${inativa ? '<span class="argo-regra-inativa">Ainda sem efeito — entra em vigor com a régua nova.</span>' : ''}
           </div>
           <div class="argo-regra-controle">
             ${chaveLiga}
@@ -4084,6 +4091,16 @@ document.addEventListener('click', (ev) => {
   campo.dispatchEvent(new Event('input', { bubbles: true }));
   campo.focus();
 });
+
+// Régua como está na tela, no formato do backend: números e liga/desliga.
+// Campo fora do limite já trava o Salvar (sincronizarReguaArgo); quem recusa
+// de verdade é o servidor.
+function argoReguaDaTela() {
+  const regua = {};
+  document.querySelectorAll('[data-argo-regra]').forEach((c) => { regua[c.dataset.argoRegra] = Number(c.value); });
+  document.querySelectorAll('[data-argo-regra-liga]').forEach((c) => { regua[c.dataset.argoRegraLiga] = c.checked; });
+  return regua;
+}
 
 function argoFotografia() {
   const valor = (id) => ($(id) ? $(id).value : '');
@@ -4187,6 +4204,9 @@ async function salvarGradeArgo() {
         limite_por_acao_centavos: campos[1][1],
         max_pausas_por_rodada: campos[2][1],
         parada_geral: $('#argo-parada').checked,
+        // Régua (issue 304): só vai quando o servidor mandou uma — sem ela o
+        // bloco nem desenha campos, e mandar vazio seria recusado.
+        ...(document.querySelector('[data-argo-regra]') ? { regua: argoReguaDaTela() } : {}),
         // Versão que esta tela leu: se a grade mudou no intervalo, o backend
         // recusa (409) em vez de sobrescrever o que outra pessoa fez.
         atualizada_em: argoAtualizadaEm,

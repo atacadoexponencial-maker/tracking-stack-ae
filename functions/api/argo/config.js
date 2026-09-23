@@ -16,12 +16,14 @@ import {
   ERRO_SEM_GRADE,
   ERRO_GRADE_MUDOU,
 } from '../_argo-config.js';
+import { montarRegua, validarRegua } from '../_argo-regua.js';
 
 async function lerGrade(sql) {
   const linhas = await sql`
     SELECT conta, permissoes, teto_mensal_meta_centavos,
            limite_por_acao_centavos, max_pausas_por_rodada,
-           parada_geral, atualizada_em, atualizada_por
+           parada_geral, atualizada_em, atualizada_por,
+           regua, regua_atualizada_em, regua_atualizada_por
       FROM argo.config_conta WHERE conta = ${CONTA}
   `;
   return linhas[0] ?? null;
@@ -31,7 +33,14 @@ async function lerGrade(sql) {
 // partir de `contrato.acoes`/`contrato.estados`, em vez de manter uma segunda
 // cópia da lista que pode divergir desta sem ninguém notar.
 function respostaGrade(grade) {
-  return Response.json({ ...grade, contrato: CONTRATO_GRADE });
+  const { regua, regua_atualizada_em, regua_atualizada_por, ...resto } = grade;
+  return Response.json({
+    ...resto,
+    contrato: CONTRATO_GRADE,
+    // A régua sai montada (valores sobre padrões, limites, quais já têm
+    // efeito) — a aba não conhece padrão nem limite por conta própria.
+    regua: montarRegua(regua, regua_atualizada_em, regua_atualizada_por),
+  });
 }
 
 export async function onRequestGet({ request, env }) {
@@ -65,6 +74,15 @@ export async function onRequestPost({ request, env }) {
   if (!validacao.ok) {
     return Response.json({ erro: validacao.erros.join(' ') }, { status: 400 });
   }
+  // Régua é opcional no corpo: cliente antigo que não a manda não apaga a
+  // salva. Quando vem, vem inteira e validada.
+  let regua = null;
+  if (corpo.regua !== undefined) {
+    const r = validarRegua(corpo.regua);
+    if (!r.ok) return Response.json({ erro: r.erros.join(' ') }, { status: 400 });
+    regua = r.valores;
+  }
+  const reguaJson = regua === null ? null : JSON.stringify(regua);
   const {
     permissoes, teto_mensal_meta_centavos, limite_por_acao_centavos,
     max_pausas_por_rodada, parada_geral, atualizada_em,
@@ -89,6 +107,17 @@ export async function onRequestPost({ request, env }) {
              limite_por_acao_centavos = ${limite_por_acao_centavos},
              max_pausas_por_rodada = ${max_pausas_por_rodada},
              parada_geral = ${parada_geral},
+             regua = COALESCE(${reguaJson}::jsonb, regua),
+             -- "Régua alterada em" só anda quando a régua mudou de fato:
+             -- salvar a grade não pode fingir que alguém mexeu na régua.
+             regua_atualizada_em = CASE
+               WHEN ${reguaJson}::jsonb IS NOT NULL
+                AND ${reguaJson}::jsonb IS DISTINCT FROM regua
+               THEN now() ELSE regua_atualizada_em END,
+             regua_atualizada_por = CASE
+               WHEN ${reguaJson}::jsonb IS NOT NULL
+                AND ${reguaJson}::jsonb IS DISTINCT FROM regua
+               THEN 'painel' ELSE regua_atualizada_por END,
              atualizada_em = now(),
              atualizada_por = 'painel'
        WHERE conta = ${CONTA}
