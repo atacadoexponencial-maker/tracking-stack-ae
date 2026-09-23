@@ -90,8 +90,31 @@ function dataHora(iso) {
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).replace(',', ' às');
 }
 
+// Situação de um pedido de desfazer (issue 303), que se sobrepõe à da
+// execução: depois de pedido, o que importa é se a campanha voltou.
+function situacaoDoDesfazer(p, paradaGeral, agora) {
+  const frase = p.desfazer_detalhe && p.desfazer_detalhe.frase;
+  switch (p.desfazer_estado) {
+    case 'conferida':
+      return ['desfeita', 'Desfeita', `${frase || 'reativada e conferida no Meta'} — ${dataHora(p.desfazer_em)}`];
+    case 'nao_executou':
+      return ['desfeita', 'Desfeita', frase || 'já estava ativa quando o Argo foi desfazer'];
+    case 'nao_conferida':
+      return ['executada_nao_conferida', 'Desfazer não conferido', frase || 'o Meta não confirmou a reativação — confira no Gerenciador'];
+    case 'executando':
+      return agora - new Date(p.desfazer_em).getTime() > EXECUTANDO_TRAVADO_MS
+        ? ['executada_nao_conferida', 'Desfazer não conferido', 'o executor parou no meio — confira no Gerenciador']
+        : ['aguardando_execucao', 'Desfazendo agora', 'o Argo está reativando na conta'];
+    default:
+      return paradaGeral
+        ? ['aguardando_execucao', 'Desfazer pedido', 'a parada geral está ligada: nada é executado até ela ser desligada']
+        : ['aguardando_execucao', 'Desfazer pedido', 'o Argo reativa em até ~10 min'];
+  }
+}
+
 // Situação de uma proposta resolvida: [código, rótulo, detalhe].
 function situacaoDa(p, paradaGeral, agora) {
+  if (p.decisao === 'aprovada' && p.desfazer_pedido_em) return situacaoDoDesfazer(p, paradaGeral, agora);
   if (p.decisao === 'aprovada') {
     const frase = p.execucao_detalhe && p.execucao_detalhe.frase;
     switch (p.execucao_estado) {
@@ -155,14 +178,20 @@ export function montarPropostas({ pendentes = [], historico = [], parada_geral =
         decidida_em: p.decidida_em,
         por_que: p.por_que || null,
         execucao: execucaoDa(p),
-        desfeita: null,
-        pode_desfazer: false,
+        desfeita: p.desfazer_pedido_em ? { por: p.desfazer_pedido_por || 'painel', em: p.desfazer_pedido_em } : null,
+        // Só o que o Argo pausou E conferiu, e ainda não pedido: desfazer
+        // uma pausa que não aconteceu não tem para onde voltar.
+        pode_desfazer: p.decisao === 'aprovada' && p.execucao_estado === 'conferida' && !p.desfazer_pedido_em,
       };
     }),
   };
 }
 
-// Corpo do POST: {id, versao, decisao: 'aprovar'|'rejeitar', por_que?}.
+export const ERRO_DESFAZER_INVALIDO = 'Só dá para desfazer uma pausa que o Argo executou e conferiu, e uma vez só.';
+
+// Corpo do POST: {id, versao, decisao: 'aprovar'|'rejeitar', por_que?}
+// ou {id, decisao: 'desfazer'} — o desfazer não depende de versão: vale para
+// a pausa que já aconteceu.
 export function validarDecisao(corpo) {
   const erros = [];
   if (!corpo || typeof corpo !== 'object' || Array.isArray(corpo)) {
@@ -170,6 +199,9 @@ export function validarDecisao(corpo) {
   }
   const id = Number(corpo.id);
   if (!Number.isInteger(id) || id <= 0) erros.push('Proposta inválida.');
+  if (corpo.decisao === 'desfazer') {
+    return erros.length ? { ok: false, erros } : { ok: true, valores: { id, decisao: 'desfazer' } };
+  }
   const versao = Number(corpo.versao);
   if (!Number.isInteger(versao) || versao <= 0) erros.push('Versão da proposta ausente — recarregue a aba.');
   const decisao = DECISOES[corpo.decisao];

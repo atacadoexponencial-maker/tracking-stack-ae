@@ -8,7 +8,7 @@
 // rotas do Argo: a aba carrega ao abrir, nunca "tudo", nunca em laço.
 import { conectar, CONTA } from '../_argo-db.js';
 import { recusarSemChave } from '../_argo-auth.js';
-import { montarPropostas, validarDecisao, motivoDaRecusa } from '../_argo-propostas.js';
+import { montarPropostas, validarDecisao, motivoDaRecusa, ERRO_DESFAZER_INVALIDO } from '../_argo-propostas.js';
 
 const MAX_PENDENTES = 50;
 const MAX_HISTORICO = 100;
@@ -31,7 +31,9 @@ export async function onRequestGet({ request, env }) {
       sql`
         SELECT id, versao, tipo, alvo_id, alvo_nome, motivo, detalhe, criada_em,
                decisao, decidida_por, decidida_em, por_que,
-               execucao_estado, execucao_em, execucao_detalhe
+               execucao_estado, execucao_em, execucao_detalhe,
+               desfazer_pedido_em, desfazer_pedido_por, desfazer_estado,
+               desfazer_em, desfazer_detalhe
           FROM argo.propostas
          WHERE conta = ${CONTA} AND decisao IS NOT NULL
            AND decidida_em > now() - interval '30 days'
@@ -68,6 +70,29 @@ export async function onRequestPost({ request, env }) {
     return Response.json({ erro: validacao.erros.join(' ') }, { status: 400 });
   }
   const { id, versao, decisao, por_que } = validacao.valores;
+
+  if (decisao === 'desfazer') {
+    try {
+      const sql = conectar(env);
+      // Só a pausa executada e conferida, e uma vez: a guarda inteira na
+      // instrução, como na decisão. Quem reativa é o executor na VPS.
+      const pedidos = await sql`
+        UPDATE argo.propostas
+           SET desfazer_pedido_em = now(), desfazer_pedido_por = 'painel'
+         WHERE id = ${id} AND conta = ${CONTA}
+           AND decisao = 'aprovada' AND execucao_estado = 'conferida'
+           AND desfazer_pedido_em IS NULL
+        RETURNING id
+      `;
+      if (!pedidos.length) return Response.json({ erro: ERRO_DESFAZER_INVALIDO }, { status: 409 });
+      return Response.json({ ok: true, id: String(id), decisao });
+    } catch {
+      return Response.json(
+        { erro: 'Não foi possível pedir o desfazer agora. Não dá para afirmar se gravou — recarregue a aba e confira.' },
+        { status: 500 },
+      );
+    }
+  }
 
   try {
     const sql = conectar(env);

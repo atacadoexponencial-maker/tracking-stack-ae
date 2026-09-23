@@ -63,13 +63,24 @@ export const DESFECHO_PAUSADA_SUCESSO = 'pausada com sucesso';
 export const DESFECHO_JA_ESTAVA_PAUSADA = 'já estava pausada';
 export const DESFECHO_NAO_PAUSOU = 'não pausou';
 
+// O desfazer (issue 303) é uma ação NOVA, `tipo = desfazer_pausa`, ligada à
+// pausa original por `desfaz_acao_id` — a linha da pausa não é reescrita e
+// continua dizendo o que aconteceu naquele dia. Mesma regra de dado
+// insuficiente = desconhecido, com o status-alvo invertido.
+export const TIPO_DESFAZER = 'desfazer_pausa';
+export const DESFECHO_REATIVADA = 'reativada com sucesso';
+export const DESFECHO_JA_ESTAVA_ATIVA = 'já estava ativa';
+export const DESFECHO_NAO_REATIVOU = 'não reativou';
+
 function desfechoDaAcao(acao) {
   if (acao.desfeita_em != null) return DESFECHO_DESFEITA;
   if (acao.estado_posterior == null) return DESFECHO_DESCONHECIDO;
-  if (acao.aplicada === true) return DESFECHO_PAUSADA_SUCESSO;
+  const desfazer = acao.tipo === TIPO_DESFAZER;
+  if (acao.aplicada === true) return desfazer ? DESFECHO_REATIVADA : DESFECHO_PAUSADA_SUCESSO;
   if (acao.aplicada !== false) return DESFECHO_DESCONHECIDO;
   const status = acao.estado_posterior?.status;
   if (typeof status !== 'string' || status === '') return DESFECHO_DESCONHECIDO;
+  if (desfazer) return status === 'ACTIVE' ? DESFECHO_JA_ESTAVA_ATIVA : DESFECHO_NAO_REATIVOU;
   return status === 'PAUSED' ? DESFECHO_JA_ESTAVA_PAUSADA : DESFECHO_NAO_PAUSOU;
 }
 

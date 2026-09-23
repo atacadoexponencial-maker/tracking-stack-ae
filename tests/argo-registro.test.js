@@ -227,3 +227,23 @@ test('CAMPOS_ACAO é exatamente a lista esperada, para o SELECT do endpoint nunc
     'criada_em',
   ]);
 });
+
+// Issue 303: o desfazer é ação nova e tem desfechos próprios; a pausa
+// original continua dizendo "pausada com sucesso".
+test('desfazer tem desfecho de reativação e não reescreve a pausa original', async () => {
+  const { TIPO_DESFAZER, DESFECHO_REATIVADA, DESFECHO_JA_ESTAVA_ATIVA, DESFECHO_NAO_REATIVOU } =
+    await import('../functions/api/_argo-registro.js');
+  const r = montarRegistro({
+    rodadas: [{ id: 1, executor: 'argo_executor', iniciada_em: '2026-09-24T12:00:00Z', ok: true }],
+    acoes: [
+      { id: 1, rodada_id: 1, tipo: 'pausar_campanha_trafego', estado_posterior: { status: 'PAUSED' }, aplicada: true, desfeita_em: null },
+      { id: 2, rodada_id: 1, tipo: TIPO_DESFAZER, estado_posterior: { status: 'ACTIVE' }, aplicada: true, desfeita_em: null },
+      { id: 3, rodada_id: 1, tipo: TIPO_DESFAZER, estado_posterior: { status: 'ACTIVE' }, aplicada: false, desfeita_em: null },
+      { id: 4, rodada_id: 1, tipo: TIPO_DESFAZER, estado_posterior: { status: 'PAUSED' }, aplicada: false, desfeita_em: null },
+      { id: 5, rodada_id: 1, tipo: TIPO_DESFAZER, estado_posterior: null, aplicada: false, desfeita_em: null },
+    ],
+  });
+  assert.deepEqual(r.rodadas[0].acoes.map((a) => a.desfecho), [
+    DESFECHO_PAUSADA_SUCESSO, DESFECHO_REATIVADA, DESFECHO_JA_ESTAVA_ATIVA, DESFECHO_NAO_REATIVOU, DESFECHO_DESCONHECIDO,
+  ]);
+});

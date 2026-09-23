@@ -133,3 +133,41 @@ test('recusa explica o motivo certo', () => {
   assert.equal(motivoDaRecusa({ decisao: null, vence_em: '2026-09-23T14:00:00Z', versao: 1 }, 1, agora).erro, ERRO_VENCIDA);
   assert.equal(motivoDaRecusa({ decisao: null, vence_em: '2026-09-24T13:00:00Z', versao: 3 }, 2, agora).erro, ERRO_VERSAO_NOVA);
 });
+
+// Issue 303 — desfazer.
+test('desfazer: só a pausa conferida e ainda não pedida oferece o botão', () => {
+  const base = { ...TRAFEGO, decisao: 'aprovada', decidida_por: 'painel', decidida_em: '2026-09-23T14:00:00Z' };
+  const { historico } = montarPropostas({
+    historico: [
+      { ...base, execucao_estado: 'conferida', execucao_em: '2026-09-23T14:05:00Z' },
+      { ...base, execucao_estado: 'nao_conferida' },
+      { ...base, execucao_estado: 'conferida', desfazer_pedido_em: '2026-09-23T15:00:00Z' },
+      { ...base, decisao: 'rejeitada' },
+    ],
+  });
+  assert.deepEqual(historico.map((h) => h.pode_desfazer), [true, false, false, false]);
+});
+
+test('desfazer: situação acompanha o pedido e o resultado', () => {
+  const agora = new Date('2026-09-23T15:10:00Z').getTime();
+  const base = { ...TRAFEGO, decisao: 'aprovada', decidida_por: 'painel', decidida_em: '2026-09-23T14:00:00Z',
+    execucao_estado: 'conferida', desfazer_pedido_em: '2026-09-23T15:00:00Z', desfazer_pedido_por: 'painel' };
+  const { historico } = montarPropostas({
+    agora,
+    historico: [
+      { ...base },
+      { ...base, desfazer_estado: 'conferida', desfazer_em: '2026-09-23T15:05:00Z', desfazer_detalhe: { frase: 'reativada e conferida no Meta' } },
+      { ...base, desfazer_estado: 'nao_executou', desfazer_detalhe: { frase: 'já estava ativa quando o Argo foi desfazer' } },
+      { ...base, desfazer_estado: 'nao_conferida' },
+    ],
+  });
+  assert.deepEqual(historico.map((h) => h.situacao), ['aguardando_execucao', 'desfeita', 'desfeita', 'executada_nao_conferida']);
+  assert.equal(historico[0].situacao_rotulo, 'Desfazer pedido');
+  assert.deepEqual(historico[1].desfeita, { por: 'painel', em: '2026-09-23T15:00:00Z' });
+  assert.match(historico[2].situacao_detalhe, /já estava ativa/);
+});
+
+test('desfazer: corpo só precisa do id', () => {
+  assert.deepEqual(validarDecisao({ id: 7, decisao: 'desfazer' }), { ok: true, valores: { id: 7, decisao: 'desfazer' } });
+  assert.equal(validarDecisao({ decisao: 'desfazer' }).ok, false);
+});

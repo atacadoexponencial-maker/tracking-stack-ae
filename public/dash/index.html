@@ -3432,6 +3432,10 @@ const ARGO_DESFECHO_CLASSE = {
   'não pausou': 'falha',
   'desfeita': 'mini',
   'desfecho desconhecido': 'alerta-desconhecido',
+  // Desfazer (issue 303): ação própria, com desfechos de reativação.
+  'reativada com sucesso': 'ok',
+  'já estava ativa': 'mini',
+  'não reativou': 'falha',
 };
 
 // Pede à API com a chave do painel e devolve o JSON; erro vira exceção com a
@@ -3563,10 +3567,12 @@ function argoResultadoRodada(r) {
   const desconhecidas = conta('desfecho desconhecido');
   const naoPausou = conta('não pausou');
   const pausadas = conta('pausada com sucesso');
+  const reativadas = conta('reativada com sucesso');
   if (desconhecidas) return ['desconhecido', desconhecidas === 1 ? '⚠ confira a conta' : `⚠ ${desconhecidas} a conferir`];
   if (r.falhou) return ['falha', 'não concluiu'];
   if (naoPausou) return ['falha', naoPausou === 1 ? '1 não pausou' : `${naoPausou} não pausaram`];
   if (pausadas) return ['ok', pausadas === 1 ? '1 pausa' : `${pausadas} pausas`];
+  if (reativadas) return ['ok', reativadas === 1 ? '1 reativação' : `${reativadas} reativações`];
   if (r.acoes.length) return ['', r.acoes.length === 1 ? '1 ação' : `${r.acoes.length} ações`];
   return ['', 'sem ação'];
 }
@@ -3727,7 +3733,7 @@ function desenharPropostasArgo(dados) {
           ['Situação', p.situacao_detalhe],
           ['Antes → depois', ex.antes || ex.depois ? `${ex.antes || '—'} → ${ex.depois || '—'}` : null],
           ['Conferência', ex.conferencia],
-          ['Desfeita', p.desfeita ? `${p.desfeita.por} · ${argoQuando(p.desfeita.em)}` : null],
+          ['Desfazer pedido por', p.desfeita ? `${p.desfeita.por} · ${argoQuando(p.desfeita.em)}` : null],
         ].filter(([, v]) => v !== null && v !== undefined && v !== '');
         return `<li><details class="argo-rodada">
           <summary>
@@ -3849,9 +3855,39 @@ document.addEventListener('click', (ev) => {
     };
     return;
   }
-  // O Desfazer (botão no histórico) é ligado pela issue 303; até lá o
-  // backend manda `pode_desfazer: false` e o botão não aparece.
+
+  // Desfazer (issue 303): só aparece em pausa executada e conferida
+  // (`pode_desfazer` vem do backend). Pede; quem reativa é o executor.
+  const desfazer = t.closest('[data-argo-desfazer]');
+  if (desfazer) {
+    const detalhe = desfazer.closest('.argo-detalhe');
+    const alvo = desfazer.closest('details').querySelector('.argo-conclusao').textContent;
+    pedirConfirmacao(desfazer, `Reativar "${alvo}"?`, () => argoPedirDesfazer(detalhe.dataset.proposta), [{ valor: true, rotulo: 'Reativar' }]);
+  }
 });
+
+async function argoPedirDesfazer(id) {
+  let resposta;
+  let corpo = {};
+  try {
+    resposta = await fetch(`/api/argo/propostas?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, decisao: 'desfazer' }),
+    });
+    corpo = await resposta.json().catch(() => ({}));
+  } catch {
+    argoAvisoPropostas('Não foi possível falar com o servidor. Não dá para afirmar que o pedido foi gravado — recarregue a aba e confira.', 'erro');
+    return false;
+  }
+  await carregarPropostasArgo();
+  if (resposta.ok) {
+    argoAvisoPropostas('Desfazer pedido. O Argo reativa em até ~10 minutos — acompanhe no histórico.');
+    return true;
+  }
+  argoAvisoPropostas(corpo.erro || corpo.error || `O servidor respondeu ${resposta.status} sem explicar. Recarregue a aba e confira.`, 'erro');
+  return resposta.status === 409;
+}
 
 function desenharGradeArgo(g) {
   argoAtualizadaEm = g.atualizada_em ?? null;
