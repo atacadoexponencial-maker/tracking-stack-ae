@@ -14,8 +14,11 @@
 // `gestor-ia` da VPS. O contrato de resposta é consumido por `juntar()` lá.
 
 import { recusarSemChaveArgo } from '../_argo-auth.js';
-import { lerCardsCriadosNoPeriodo, lerTaskIdsDeTesteOuBot } from '../_feedback-marketing-crm.js';
+import { lerCardsCriadosNoPeriodo, lerTaskIdsDeTesteOuBot, atribuirCards } from '../_feedback-marketing-crm.js';
 import { agruparPorAnuncio } from '../_argo-leads-anuncio.js';
+import { reconhecerCampanhasDoPeriodo, montarInvestimento } from '../_feedback-marketing-investimento.js';
+import { listarFunisConhecidos } from '../_funil-campanha.js';
+import { funisParaArgo, campanhasParaArgo } from '../_argo-funis-anuncio.js';
 
 const DIA_MS = 86400000;
 const SEGUNDO_MS = 1000;
@@ -65,16 +68,51 @@ export async function onRequestGet({ request, env }) {
     // gestora criar um funil novo no relatório, ele já chega aqui com o tipo
     // certo. Sem esta leitura nenhum anúncio é julgável — silêncio em vez de
     // julgar todo mundo por MQL, que foi o erro de 22/09.
-    const funisRes = await env.DB.prepare(
-      `SELECT id, nome, tipo, origem_lead, opcoes_crm FROM funis_relatorio WHERE situacao = 'ativo'`,
-    ).all();
+    // Dia de Brasília, como o `ad_spend.date`: a mesma janela em dias.
+    const diaBrt = (ms) => new Date(ms - 3 * 3600000).toISOString().slice(0, 10);
+    const periodo = { inicio: diaBrt(desde), fim: diaBrt(agora) };
+    const [funisRes, gastosRes, overridesRes, vendaRes, funisConhecidos] = await Promise.all([
+      env.DB.prepare(`
+        SELECT id, nome, tipo, posicao, funil_tracking, trecho_campanha, opcoes_crm, origem_lead
+        FROM funis_relatorio WHERE situacao = 'ativo' ORDER BY posicao, id
+      `).all(),
+      env.DB.prepare(`
+        SELECT campaign_id, MAX(campaign_name) AS campaign_name, SUM(spend_cents) AS spend_cents
+        FROM ad_spend
+        WHERE platform = 'meta' AND date BETWEEN ? AND ?
+        GROUP BY campaign_id
+      `).bind(periodo.inicio, periodo.fim).all(),
+      env.DB.prepare('SELECT campaign_id, funnel FROM campaign_funnel_map').all(),
+      env.DB.prepare(`SELECT opcoes_crm FROM funis_relatorio WHERE tipo = 'venda_greenn'`).all(),
+      listarFunisConhecidos(env.DB),
+    ]);
     const funis = funisRes.results || [];
 
     const agrupado = agruparPorAnuncio({ cards, maduroAteMs: maduroAte, funis });
+
+    // Issue 305: o funil de cada CAMPANHA e o CPL médio de cada funil na
+    // janela — o mesmo reconhecimento e o mesmo CPL do feedback diário. É o
+    // que deixa o Argo julgar anúncio sem lead nenhum (antes ele só sabia o
+    // funil pelos leads).
+    const gastos = gastosRes.results || [];
+    const reconhecimento = reconhecerCampanhasDoPeriodo(gastos, {
+      overrides: overridesRes.results || [],
+      funisAtivos: funis,
+      funisConhecidos,
+    });
+    const investimento = montarInvestimento({ gastos, campanhas: reconhecimento.campanhas, funisAtivos: funis, periodo });
+    const leads = atribuirCards({
+      cards,
+      funisAtivos: funis,
+      limites: { desde: Math.floor(desde / SEGUNDO_MS), ate: Math.ceil(agora / SEGUNDO_MS) },
+      funisDeVenda: vendaRes.results || [],
+    });
     return Response.json({
       ...agrupado,
       descartados_teste_ou_bot: excluidos.size,
       julgaveis: agrupado.anuncios.filter((a) => a.julgavel).length,
+      funis: funisParaArgo({ funisAtivos: funis, investimento, leadsPorBloco: leads.blocos }),
+      campanhas: campanhasParaArgo(reconhecimento.campanhas),
       janela: {
         desde: new Date(desde).toISOString(),
         ate: new Date(agora).toISOString(),
