@@ -215,7 +215,7 @@ test('ações e estados com consumidor são subconjuntos do que existe', () => {
   // Hoje as duas pausas têm consumidor (monitores de tráfego e de anúncios),
   // e `propor` vira proposta na aba. Se isto mudar, a legenda da aba muda
   // junto — este teste é o lembrete.
-  assert.deepEqual([...ACOES_COM_CONSUMIDOR], ['pausar_campanha_trafego', 'pausar_anuncio']);
+  assert.deepEqual([...ACOES_COM_CONSUMIDOR], ['pausar_campanha_trafego', 'pausar_anuncio', 'reduzir_orcamento']);
   assert.deepEqual([...ESTADOS_COM_CONSUMIDOR], ['desligado', 'propor', 'executar']);
 });
 

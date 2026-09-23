@@ -20,7 +20,11 @@ export const ERRO_NAO_EXISTE = 'Proposta não encontrada.';
 const ROTULOS_ACAO = {
   pausar_campanha_trafego: 'Pausar campanha',
   pausar_anuncio: 'Pausar anúncio',
+  reduzir_orcamento: 'Reduzir orçamento',
 };
+
+// Orçamento vem do Meta em centavos (issue 317).
+const deCentavos = (v) => (Number.isFinite(Number(v)) && v !== null ? reais(Number(v) / 100) : null);
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const INT = new Intl.NumberFormat('pt-BR');
@@ -42,7 +46,14 @@ function quantosAnuncios(p) {
 // virar "R$ 0,00": ausência não é zero.
 function numerosDa(p) {
   const d = p.detalhe || {};
-  const lista = p.tipo === 'pausar_campanha_trafego'
+  const orc = d.orcamento || {};
+  const lista = p.tipo === 'reduzir_orcamento'
+    ? [
+        { rotulo: 'Orçamento diário', valor: deCentavos(orc.centavos), referencia: deCentavos(orc.novo_centavos) ? `vai para ${deCentavos(orc.novo_centavos)}` : undefined },
+        { rotulo: 'Custo por visita', valor: reais(d.cpv), referencia: reais(d.corte_cpv) ? `corte ${reais(d.corte_cpv)}` : undefined },
+        { rotulo: 'Gasto 7d', valor: reais(d.gasto_7d) },
+      ]
+    : p.tipo === 'pausar_campanha_trafego'
     ? [
         { rotulo: 'Gasto 7d', valor: reais(d.gasto_7d) },
         { rotulo: 'Custo por visita', valor: reais(d.cpv), referencia: reais(d.corte_cpv) ? `corte ${reais(d.corte_cpv)}` : undefined },
@@ -57,6 +68,10 @@ function numerosDa(p) {
 }
 
 function verificacaoDa(p) {
+  if (p.tipo === 'reduzir_orcamento') {
+    const novo = deCentavos(((p.detalhe || {}).orcamento || {}).novo_centavos);
+    return `O orçamento diário deve aparecer em ${novo || 'valor novo'} no Gerenciador, e a campanha continuar no ar.`;
+  }
   if (p.tipo === 'pausar_campanha_trafego') {
     return 'A campanha deve aparecer pausada no Gerenciador e o gasto dela parar.';
   }
@@ -151,7 +166,9 @@ function execucaoDa(p) {
   const objetos = p.execucao_detalhe && Array.isArray(p.execucao_detalhe.objetos) ? p.execucao_detalhe.objetos : [];
   if (!objetos.length) return null;
   const conferencia = { conferida: 'conferido', nao_conferida: 'não confirmado', nao_executou: 'sem ação' }[p.execucao_estado] || null;
-  return { antes: objetos[0].antes || null, depois: objetos[0].depois || null, conferencia };
+  // Na redução, antes e depois são orçamentos em centavos, não status.
+  const fmt = p.tipo === 'reduzir_orcamento' ? (v) => deCentavos(v) : (v) => v || null;
+  return { antes: fmt(objetos[0].antes) || null, depois: fmt(objetos[0].depois) || null, conferencia };
 }
 
 export function montarPropostas({ pendentes = [], historico = [], parada_geral = false, agora = Date.now() } = {}) {
@@ -181,7 +198,10 @@ export function montarPropostas({ pendentes = [], historico = [], parada_geral =
         desfeita: p.desfazer_pedido_em ? { por: p.desfazer_pedido_por || 'painel', em: p.desfazer_pedido_em } : null,
         // Só o que o Argo pausou E conferiu, e ainda não pedido: desfazer
         // uma pausa que não aconteceu não tem para onde voltar.
-        pode_desfazer: p.decisao === 'aprovada' && p.execucao_estado === 'conferida' && !p.desfazer_pedido_em,
+        // Desfazer existe para PAUSA (issue 312); redução de orçamento se
+        // desfaz subindo o orçamento no Gerenciador.
+        pode_desfazer: p.decisao === 'aprovada' && p.execucao_estado === 'conferida' && !p.desfazer_pedido_em
+          && String(p.tipo || '').startsWith('pausar'),
       };
     }),
   };

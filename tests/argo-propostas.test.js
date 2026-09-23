@@ -171,3 +171,22 @@ test('desfazer: corpo só precisa do id', () => {
   assert.deepEqual(validarDecisao({ id: 7, decisao: 'desfazer' }), { ok: true, valores: { id: 7, decisao: 'desfazer' } });
   assert.equal(validarDecisao({ decisao: 'desfazer' }).ok, false);
 });
+
+// Issue 317 — reduzir orçamento.
+test('proposta de redução mostra o orçamento atual e o novo', () => {
+  const [p] = montarPropostas({ pendentes: [{ ...TRAFEGO, tipo: 'reduzir_orcamento',
+    detalhe: { cpv: 0.5, corte_cpv: 0.3, gasto_7d: 40, orcamento: { centavos: 2000, novo_centavos: 1400 } } }] }).pendentes;
+  assert.equal(p.acao_rotulo, 'Reduzir orçamento');
+  assert.match(p.numeros[0].valor, /20,00/);
+  assert.match(p.numeros[0].referencia, /vai para R\$\s14,00/);
+  assert.match(p.verificacao, /14,00 no Gerenciador/);
+});
+
+test('redução executada mostra orçamentos e não oferece desfazer', () => {
+  const { historico } = montarPropostas({ historico: [{ ...TRAFEGO, tipo: 'reduzir_orcamento', decisao: 'aprovada',
+    decidida_por: 'painel', decidida_em: '2026-09-23T14:00:00Z', execucao_estado: 'conferida', execucao_em: '2026-09-23T14:05:00Z',
+    execucao_detalhe: { frase: 'orçamento reduzido', objetos: [{ antes: 2000, depois: 1400, resultado: 'reduziu' }] } }] });
+  assert.match(historico[0].execucao.antes, /20,00/);
+  assert.match(historico[0].execucao.depois, /14,00/);
+  assert.equal(historico[0].pode_desfazer, false);
+});

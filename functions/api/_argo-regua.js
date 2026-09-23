@@ -23,8 +23,8 @@ export const REGRAS = Object.freeze({
   trava_aprendizado: { tipo: 'booleano', padrao: true, ativa: true },
   trava_aprendizado_dias: { tipo: 'inteiro', padrao: 7, min: 1, max: 60, ativa: true },
   intervalo_min_dias: { tipo: 'inteiro', padrao: 3, min: 1, max: 30, ativa: true },
-  reduzir_antes: { tipo: 'booleano', padrao: true, ativa: false },
-  reduzir_pct: { tipo: 'inteiro', padrao: 30, min: 5, max: 90, ativa: false },
+  reduzir_antes: { tipo: 'booleano', padrao: true, ativa: true },
+  reduzir_pct: { tipo: 'inteiro', padrao: 30, min: 5, max: 90, ativa: true },
   reativar: { tipo: 'booleano', padrao: false, ativa: false },
   reativar_tolerancia_pct: { tipo: 'inteiro', padrao: 20, min: 0, max: 200, ativa: false },
 });

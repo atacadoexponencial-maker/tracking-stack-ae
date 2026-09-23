@@ -41,7 +41,7 @@ export const ESTADOS = Object.freeze(['desligado', 'propor', 'executar']);
 // ninguém saia da tela achando que autorizou algo que não acontece. Vive
 // aqui, e não na aba, pelo mesmo motivo de ACOES/ESTADOS: uma fonte da
 // verdade só.
-export const ACOES_COM_CONSUMIDOR = Object.freeze(['pausar_campanha_trafego', 'pausar_anuncio']);
+export const ACOES_COM_CONSUMIDOR = Object.freeze(['pausar_campanha_trafego', 'pausar_anuncio', 'reduzir_orcamento']);
 export const ESTADOS_COM_CONSUMIDOR = Object.freeze(['desligado', 'propor', 'executar']);
 
 // Ações em que `executar` ainda só propõe. Vazia desde a issue 316: com a
