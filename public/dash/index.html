@@ -3984,10 +3984,10 @@ const ARGO_REGUA_GRUPOS = [
     ['lead_impressoes_min', 'Impressões mínimas', 'Abaixo disso o anúncio mal foi entregue — não é julgado.', 'impressões', 'inteiro'],
     ['lead_janela_cpl_dias', 'Janela do CPL médio', 'Quantos dias para trás entram no CPL médio do funil.', 'dias', 'inteiro'],
   ]],
-  ['Campanhas de tráfego', 'Cada campanha é comparada com ela mesma: o custo por visita recente contra o do próprio passado.', [
-    ['trafego_janela_recente_dias', 'Janela recente', 'O período que está sendo julgado.', 'dias', 'inteiro'],
-    ['trafego_janela_passado_dias', 'Janela do passado', 'Os dias antes da janela recente, usados como comparação.', 'dias', 'inteiro'],
-    ['trafego_tolerancia_pct', 'Tolerância', 'Quanto o custo recente pode passar do próprio passado.', '%', 'inteiro'],
+  ['Campanhas de tráfego', 'Primeiro a conta: o custo por visita dos últimos dias contra a média. Depois, cada campanha contra a média das campanhas ativas de tráfego.', [
+    ['trafego_janela_recente_dias', 'Janela avaliada', 'Os últimos dias de cada campanha que são julgados.', 'dias', 'inteiro'],
+    ['trafego_janela_media_dias', 'Janela da média da conta', 'Média do custo por visita de todas as campanhas ativas de tráfego nestes dias.', 'dias', 'inteiro'],
+    ['trafego_tolerancia_pct', 'Tolerância', 'Quanto o custo da campanha pode passar da média da conta.', '%', 'inteiro'],
     ['trafego_gasto_min_reais', 'Gasto mínimo para julgar', 'Gasto na janela recente abaixo disso não é julgado.', 'R$', 'decimal'],
   ]],
   ['Travas para todos', 'Valem para qualquer ação, do Argo ou aprovada por você.', [

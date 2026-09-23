@@ -16,7 +16,9 @@ export const REGRAS = Object.freeze({
   lead_janela_cpl_dias: { tipo: 'inteiro', padrao: 30, min: 7, max: 90, ativa: true },
   // Campanhas de tráfego (janelas: issue 315 — no ar)
   trafego_janela_recente_dias: { tipo: 'inteiro', padrao: 7, min: 3, max: 30, ativa: true },
-  trafego_janela_passado_dias: { tipo: 'inteiro', padrao: 21, min: 7, max: 90, ativa: true },
+  // A média é de TODAS as campanhas ativas de tráfego nesta janela, a
+  // própria incluída (regra da gestora, 23/09).
+  trafego_janela_media_dias: { tipo: 'inteiro', padrao: 30, min: 7, max: 90, ativa: true },
   trafego_tolerancia_pct: { tipo: 'inteiro', padrao: 30, min: 5, max: 300, ativa: true },
   trafego_gasto_min_reais: { tipo: 'numero', padrao: 30, min: 0, max: 5000, passo: 0.01, ativa: true },
   // Travas (316), reduzir (317) e reativar (318) — no ar
