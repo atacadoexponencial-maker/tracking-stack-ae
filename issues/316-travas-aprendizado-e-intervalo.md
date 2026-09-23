@@ -10,3 +10,7 @@ Antes de propor ou agir: não mexer em conjunto "aprendendo" há menos dias no a
 ## Pronto quando
 
 Um alvo alterado à mão no Gerenciador ontem aparece no Slack como "mudou em <data>, reavalia a partir de <data>" com o antes/depois, e um conjunto novo em aprendizado aparece como segurado — nenhum dos dois vira proposta.
+
+## Status
+
+- [x] Entregue em 23/09 (`argo_travas.py`): o Meta não informa `learning_stage_info` nesta conta — aprendizado = tempo no ar (< N dias trava, salvo o Meta dizer que terminou; limitado não trava). Intervalo = `updated_time` do alvo/conjunto/campanha. Leitura falhou = segura. Antes/depois de CPV só para campanhas de tráfego (anúncio de lead não tem indicador diário por anúncio). Executar de anúncio passou a valer.

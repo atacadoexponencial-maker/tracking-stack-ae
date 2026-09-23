@@ -10,3 +10,7 @@ Trocar a comparação com as outras campanhas pela comparação do custo por vis
 ## Pronto quando
 
 O relatório das 8h50 mostra, para cada campanha, custo recente, custo do próprio passado e corte, e marca "sem passado suficiente" nas campanhas novas; nenhuma comparação com outras campanhas sobra.
+
+## Status
+
+- [x] Entregue em 23/09: referência = CPV da própria campanha na janela anterior (7 + 21 dias da régua); menos dias no ar que as duas janelas = não julgada. Saiu o leave-one-out. Efeito medido: posts impulsionados recentes ficam sem julgamento por 28 dias — decisão pendente com a usuária.

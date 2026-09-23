@@ -10,3 +10,7 @@ Regra desligada por padrão: um alvo pausado pelo Argo é reativado (ou proposto
 ## Pronto quando
 
 Com a regra desligada nada muda; ligada, um alvo pausado cujo custo voltou para dentro da média aparece como proposta de reativar, e um com lead novo mas caro aparece no relatório como "não reativa: custo acima da média".
+
+## Status
+
+- [x] Entregue em 23/09: só anúncio de lead (tráfego não tem visita atrasada). CPL com os leads pós-pausa dentro da média + tolerância; com lead maduro exige qualificado; uma vez por anúncio. Segue a permissão de Pausar anúncio. Desligado por padrão.

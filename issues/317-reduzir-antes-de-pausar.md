@@ -10,3 +10,7 @@ Onde o alvo tem orçamento próprio (conjunto ou campanha), a primeira ação é
 ## Pronto quando
 
 Uma candidata com orçamento próprio vira "reduzir 30%" em vez de pausa; aprovada, o orçamento cai 30% no Gerenciador e o histórico mostra antes/depois; passado o intervalo, se continuar ruim, vira proposta de pausa.
+
+## Status
+
+- [x] Entregue em 23/09 (`argo_orcamento.py`): orçamento diário da campanha (ou do único conjunto com orçamento); Executar dentro do limite por ação reduz, senão proposta; já reduzida e ainda ruim → pausa. Desfazer continua só para pausas.

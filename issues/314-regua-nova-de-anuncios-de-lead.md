@@ -10,3 +10,7 @@ Julgar anúncio de lead só depois de gastar multiplicador × CPL médio do funi
 ## Pronto quando
 
 Numa rodada real o `ad12_depoimentos-jaque-322_vd` é julgado pela régua nova e o Slack explica por quê, com o CPL médio de cada funil; salvar "Pausar anúncio" em Executar passa a ser aceito e o monitor pausa sozinho um candidato.
+
+## Status
+
+- [x] Entregue em 23/09: funil do anúncio pela campanha (`/api/argo/leads-por-anuncio` devolve `funis` e `campanhas`); piso = multiplicador × CPL médio do funil + impressões mínimas; sem lead → candidato; com lead → MQL. Executar liberado depois da 316.
