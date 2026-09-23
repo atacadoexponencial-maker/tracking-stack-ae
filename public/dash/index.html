@@ -3563,8 +3563,8 @@ function desenharGradeArgo(g) {
   $('#argo-grade').innerHTML = `${semContrato}
     ${emUso.length ? `<div class="argo-grupo">${notaEstados}${emUso.map(linha).join('')}</div>` : notaEstados}
     ${semUso.length ? `<div class="argo-grupo">
-        <h3 class="argo-grupo-titulo">Ainda sem efeito</h3>
-        <p class="argo-grupo-nota">O agente ainda não faz nada com estas ações, seja qual for o estado marcado.</p>
+        <h3 class="argo-grupo-titulo">Ainda não implementadas</h3>
+        <p class="argo-grupo-nota">Marcar aqui não muda nada por enquanto: o Argo ainda não tem rotina para estas ações.</p>
         ${semUso.map(linha).join('')}
       </div>` : ''}
     <div class="argo-bloco">
