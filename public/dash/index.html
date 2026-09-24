@@ -3438,6 +3438,11 @@ const ARGO_DESFECHO_CLASSE = {
   'reativada com sucesso': 'ok',
   'já estava ativa': 'mini',
   'não reativou': 'falha',
+  // Orçamento (issue 317 e plano 3).
+  'orçamento alterado': 'ok',
+  'orçamento não mudou': 'mini',
+  'orçamento devolvido': 'ok',
+  'orçamento não voltou': 'falha',
 };
 
 // Pede à API com a chave do painel e devolve o JSON; erro vira exceção com a
@@ -3480,10 +3485,10 @@ async function carregarArgo() {
 const ARGO_DESCRICOES = {
   pausar_campanha_trafego: 'Pausa a campanha de aquisição cujo custo por visita ficou acima das outras.',
   pausar_anuncio: 'Pausa o anúncio que gasta sem trazer lead qualificado.',
-  pausar_conjunto: 'Pausa um conjunto de anúncios inteiro.',
-  realocar_verba: 'Tira verba de uma campanha e coloca em outra.',
+  pausar_conjunto: 'Pausa o conjunto quando todos os anúncios ativos dele estão abaixo da régua.',
+  realocar_verba: 'Tira 20% do orçamento do pior e põe no melhor do mesmo funil — o total do dia não muda.',
   reduzir_orcamento: 'Diminui o orçamento diário de uma campanha.',
-  aumentar_orcamento: 'Aumenta o orçamento diário de uma campanha.',
+  aumentar_orcamento: 'Sobe 20% o orçamento de quem está com custo bem abaixo da média, dentro do teto mensal.',
 };
 const ARGO_ESTADO_ROTULO = { desligado: 'Desligado', propor: 'Propor', executar: 'Executar' };
 
@@ -3673,6 +3678,8 @@ const ARGO_SITUACAO_CLASSE = {
   executada_conferida: 'ok',
   executada_nao_conferida: 'desconhecido',
   nao_executou: 'falha',
+  // Realocação com um lado só (plano 3): em destaque, é dinheiro fora do lugar.
+  nao_completou: 'desconhecido',
   rejeitada: '',
   vencida: '',
   desfeita: '',
@@ -3955,7 +3962,8 @@ function desenharGradeArgo(g) {
       <div class="argo-limites">
         <label class="argo-campo"><span>Teto mensal de Meta</span>
           <span class="argo-entrada"><i>R$</i><input type="number" step="0.01" inputmode="decimal" id="argo-teto" value="${reais(g.teto_mensal_meta_centavos)}"></span>
-          <small>${EM_REAIS}</small></label>
+          <small>${EM_REAIS}</small>
+          ${g.teto_mensal_meta_centavos === null || g.teto_mensal_meta_centavos === undefined ? '<small class="falha">Sem teto, o Argo não aumenta orçamento.</small>' : ''}</label>
         <label class="argo-campo"><span>Limite por ação</span>
           <span class="argo-entrada"><i>R$</i><input type="number" step="0.01" inputmode="decimal" id="argo-limite" value="${reais(g.limite_por_acao_centavos)}"></span>
           <small>${EM_REAIS}</small></label>

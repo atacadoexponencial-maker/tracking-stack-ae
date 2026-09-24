@@ -200,3 +200,76 @@ test('proposta de reativar tem rótulo e verificação próprios e não oferece 
     decidida_por: 'painel', decidida_em: '2026-09-23T14:00:00Z', execucao_estado: 'conferida', execucao_em: '2026-09-23T14:05:00Z' }] });
   assert.equal(historico[0].pode_desfazer, false);
 });
+
+// Plano 3 — pausar conjunto, aumentar orçamento, realocar verba.
+const APROVADA = { decisao: 'aprovada', decidida_por: 'painel', decidida_em: '2026-09-24T14:00:00Z', execucao_em: '2026-09-24T14:05:00Z' };
+
+test('pausar conjunto mostra quantos anúncios ativos e a verificação do conjunto', () => {
+  const [p] = montarPropostas({ pendentes: [{ ...ANUNCIO, tipo: 'pausar_conjunto', alvo_tipo: 'conjunto', alvo_nome: 'lkl1-mqls',
+    detalhe: { adset_id: '9', anuncios: ['ad1', 'ad2', 'ad3'], gasto: 400, leads_maduros: 2, qualificados: 0 } }] }).pendentes;
+  assert.equal(p.acao_rotulo, 'Pausar conjunto');
+  assert.equal(p.numeros[0].valor, '3');
+  assert.match(p.numeros[0].referencia, /todos abaixo da régua/);
+  assert.match(p.verificacao, /conjunto deve aparecer pausado/);
+  assert.equal(p.qtd_anuncios, null);
+});
+
+test('aumentar orçamento mostra antes → depois, resultado × média e folga do teto', () => {
+  const [p] = montarPropostas({ pendentes: [{ ...TRAFEGO, tipo: 'aumentar_orcamento',
+    detalhe: { metrica: 'cpv', valor: 0.12, media: 0.25, orcamento: { centavos: 2000, novo_centavos: 2400 },
+      folga: { disponivel_dia_centavos: 30000, soma_depois_centavos: 12400 } } }] }).pendentes;
+  assert.equal(p.acao_rotulo, 'Aumentar orçamento');
+  assert.deepEqual(p.numeros.map((n) => n.rotulo), ['Orçamento diário', 'Custo por visita 7d', 'Cabe por dia no teto']);
+  assert.match(p.numeros[0].referencia, /vai para R\$\s24,00/);
+  assert.match(p.numeros[1].referencia, /média R\$\s0,25/);
+  assert.match(p.numeros[2].referencia, /124,00 depois/);
+  assert.match(p.verificacao, /24,00 no Gerenciador/);
+});
+
+test('aumentar na SE mostra CPL e MQLs', () => {
+  const [p] = montarPropostas({ pendentes: [{ ...TRAFEGO, tipo: 'aumentar_orcamento',
+    detalhe: { metrica: 'cpl', valor: 50, media: 110, mqls: 4, orcamento: { centavos: 5000, novo_centavos: 6000 } } }] }).pendentes;
+  assert.deepEqual(p.numeros.map((n) => n.rotulo), ['Orçamento diário', 'CPL 7d', 'MQLs no período']);
+});
+
+test('realocar mostra os dois lados e o valor movido', () => {
+  const [p] = montarPropostas({ pendentes: [{ ...TRAFEGO, tipo: 'realocar_verba', alvo_tipo: 'par', alvo_nome: 'A → B',
+    detalhe: { metrica: 'cpv', media: 0.25, valor_centavos: 400,
+      origem: { nome: 'A', centavos: 2000, novo_centavos: 1600, valor: 0.5 },
+      destino: { nome: 'B', centavos: 2000, novo_centavos: 2400, valor: 0.1 } } }] }).pendentes;
+  assert.equal(p.acao_rotulo, 'Realocar verba');
+  assert.deepEqual(p.numeros.map((n) => n.rotulo), ['Move por dia', 'De: A', 'Para: B', 'Custo por visita 7d (origem × destino)']);
+  assert.match(p.numeros[1].referencia, /16,00/);
+  assert.match(p.numeros[2].referencia, /24,00/);
+  assert.match(p.verificacao, /total do dia não muda/);
+});
+
+test('aumento executado mostra orçamentos e oferece desfazer', () => {
+  const { historico } = montarPropostas({ historico: [{ ...TRAFEGO, ...APROVADA, tipo: 'aumentar_orcamento', execucao_estado: 'conferida',
+    execucao_detalhe: { frase: 'orçamento aumentado', objetos: [{ antes: 2000, depois: 2400, resultado: 'aplicou' }] } }] });
+  assert.match(historico[0].execucao.antes, /20,00/);
+  assert.match(historico[0].execucao.depois, /24,00/);
+  assert.equal(historico[0].pode_desfazer, true);
+});
+
+test('realocação executada mostra os dois lados; não completou fica em destaque e sem desfazer', () => {
+  const objetos = [{ lado: 'origem', antes: 2000, depois: 1600, resultado: 'aplicou' }, { lado: 'destino', antes: 2000, depois: 2400, resultado: 'aplicou' }];
+  const { historico } = montarPropostas({ historico: [
+    { ...TRAFEGO, ...APROVADA, tipo: 'realocar_verba', execucao_estado: 'conferida', execucao_detalhe: { frase: 'ok', objetos } },
+    { ...TRAFEGO, ...APROVADA, tipo: 'realocar_verba', execucao_estado: 'nao_conferida', execucao_detalhe: { nao_completou: true, objetos } },
+  ] });
+  assert.match(historico[0].execucao.antes, /origem R\$\s20,00 · destino R\$\s20,00/);
+  assert.match(historico[0].execucao.depois, /origem R\$\s16,00 · destino R\$\s24,00/);
+  assert.equal(historico[0].pode_desfazer, true);
+  assert.equal(historico[1].situacao, 'nao_completou');
+  assert.equal(historico[1].pode_desfazer, false);
+});
+
+test('pausar conjunto executado oferece desfazer; desfazer de orçamento tem texto de orçamento', () => {
+  const { historico } = montarPropostas({ historico: [
+    { ...ANUNCIO, ...APROVADA, tipo: 'pausar_conjunto', execucao_estado: 'conferida' },
+    { ...TRAFEGO, ...APROVADA, tipo: 'aumentar_orcamento', execucao_estado: 'conferida', desfazer_pedido_em: '2026-09-24T15:00:00Z' },
+  ] });
+  assert.equal(historico[0].pode_desfazer, true);
+  assert.match(historico[1].situacao_detalhe, /devolve o orçamento/);
+});

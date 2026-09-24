@@ -35,13 +35,17 @@ export const ACOES = Object.freeze([
 export const ESTADOS = Object.freeze(['desligado', 'propor', 'executar']);
 
 // Quem de fato lê a grade hoje: o monitor de tráfego (8h50) e o de anúncios
-// (8h55), na VPS. As outras quatro ações vivem numa esteira que continua
-// desligada. Os três estados têm destino: `propor` vira proposta na aba
-// Propostas (issue 309/310). A aba mostra essas listas como legenda para que
-// ninguém saia da tela achando que autorizou algo que não acontece. Vive
-// aqui, e não na aba, pelo mesmo motivo de ACOES/ESTADOS: uma fonte da
-// verdade só.
-export const ACOES_COM_CONSUMIDOR = Object.freeze(['pausar_campanha_trafego', 'pausar_anuncio', 'reduzir_orcamento']);
+// (8h55), na VPS. Desde o plano 3 (spec-argo-plano-3.md) as seis ações têm
+// rotina: pausar conjunto e aumentar/realocar na SE no de anúncios; aumentar
+// e realocar no tráfego no de tráfego. Os três estados têm destino: `propor`
+// vira proposta na aba Propostas (issue 309/310). A aba mostra essas listas
+// como legenda para que ninguém saia da tela achando que autorizou algo que
+// não acontece. Vive aqui, e não na aba, pelo mesmo motivo de
+// ACOES/ESTADOS: uma fonte da verdade só.
+export const ACOES_COM_CONSUMIDOR = Object.freeze([
+  'pausar_campanha_trafego', 'pausar_anuncio', 'pausar_conjunto',
+  'realocar_verba', 'reduzir_orcamento', 'aumentar_orcamento',
+]);
 export const ESTADOS_COM_CONSUMIDOR = Object.freeze(['desligado', 'propor', 'executar']);
 
 // Ações em que `executar` ainda só propõe. Vazia desde a issue 316: com a

@@ -72,9 +72,26 @@ export const DESFECHO_REATIVADA = 'reativada com sucesso';
 export const DESFECHO_JA_ESTAVA_ATIVA = 'já estava ativa';
 export const DESFECHO_NAO_REATIVOU = 'não reativou';
 
+// Ações de orçamento (issue 317 e plano 3) não são pausa: `estado_posterior`
+// guarda `daily_budget`, não `status`. Sem este ramo a redução aparecia como
+// "pausada com sucesso". O desfazer de orçamento é ação nova também
+// (`desfazer_orcamento`), ligada à original.
+export const TIPOS_ORCAMENTO = Object.freeze(['reduzir_orcamento', 'aumentar_orcamento', 'realocar_verba']);
+export const TIPO_DESFAZER_ORCAMENTO = 'desfazer_orcamento';
+export const DESFECHO_ORCAMENTO_ALTERADO = 'orçamento alterado';
+export const DESFECHO_ORCAMENTO_NAO_MUDOU = 'orçamento não mudou';
+export const DESFECHO_ORCAMENTO_DEVOLVIDO = 'orçamento devolvido';
+export const DESFECHO_ORCAMENTO_NAO_VOLTOU = 'orçamento não voltou';
+
 function desfechoDaAcao(acao) {
   if (acao.desfeita_em != null) return DESFECHO_DESFEITA;
   if (acao.estado_posterior == null) return DESFECHO_DESCONHECIDO;
+  if (TIPOS_ORCAMENTO.includes(acao.tipo) || acao.tipo === TIPO_DESFAZER_ORCAMENTO) {
+    const devolve = acao.tipo === TIPO_DESFAZER_ORCAMENTO;
+    if (acao.aplicada === true) return devolve ? DESFECHO_ORCAMENTO_DEVOLVIDO : DESFECHO_ORCAMENTO_ALTERADO;
+    if (acao.aplicada === false) return devolve ? DESFECHO_ORCAMENTO_NAO_VOLTOU : DESFECHO_ORCAMENTO_NAO_MUDOU;
+    return DESFECHO_DESCONHECIDO;
+  }
   const desfazer = acao.tipo === TIPO_DESFAZER;
   if (acao.aplicada === true) return desfazer ? DESFECHO_REATIVADA : DESFECHO_PAUSADA_SUCESSO;
   if (acao.aplicada !== false) return DESFECHO_DESCONHECIDO;

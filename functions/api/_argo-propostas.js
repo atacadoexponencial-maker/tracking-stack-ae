@@ -22,7 +22,19 @@ const ROTULOS_ACAO = {
   pausar_anuncio: 'Pausar anúncio',
   reduzir_orcamento: 'Reduzir orçamento',
   reativar_anuncio: 'Reativar anúncio',
+  pausar_conjunto: 'Pausar conjunto',
+  aumentar_orcamento: 'Aumentar orçamento',
+  realocar_verba: 'Realocar verba',
 };
+
+// Ações que mexem em orçamento diário: antes/depois são centavos, não status.
+const TIPOS_ORCAMENTO = new Set(['reduzir_orcamento', 'aumentar_orcamento', 'realocar_verba']);
+// O desfazer de orçamento (plano 3) devolve o valor anterior. A redução não
+// entra: ela se desfaz subindo o orçamento no Gerenciador (issue 317).
+const TIPOS_DESFAZIVEIS_ORCAMENTO = new Set(['aumentar_orcamento', 'realocar_verba']);
+
+// Qual resultado sustenta a decisão de orçamento: CPL (SE) ou custo por visita (tráfego).
+const rotuloMetrica = (d) => (d.metrica === 'cpl' ? 'CPL 7d' : 'Custo por visita 7d');
 
 // Orçamento vem do Meta em centavos (issue 317).
 const deCentavos = (v) => (Number.isFinite(Number(v)) && v !== null ? reais(Number(v) / 100) : null);
@@ -48,7 +60,39 @@ function quantosAnuncios(p) {
 function numerosDa(p) {
   const d = p.detalhe || {};
   const orc = d.orcamento || {};
-  const lista = p.tipo === 'reduzir_orcamento'
+  const folga = d.folga || {};
+  const origem = d.origem || {};
+  const destino = d.destino || {};
+  const vaiPara = (o) => (deCentavos(o.novo_centavos) ? `vai para ${deCentavos(o.novo_centavos)}` : undefined);
+  const lista = p.tipo === 'pausar_conjunto'
+    ? [
+        { rotulo: 'Anúncios ativos', valor: inteiro(Array.isArray(d.anuncios) ? d.anuncios.length : null), referencia: 'todos abaixo da régua' },
+        { rotulo: 'Gasto', valor: reais(d.gasto) },
+        { rotulo: 'Leads maduros', valor: inteiro(d.leads_maduros) },
+        { rotulo: 'Qualificados', valor: inteiro(d.qualificados) },
+      ]
+    : p.tipo === 'aumentar_orcamento'
+    ? [
+        { rotulo: 'Orçamento diário', valor: deCentavos(orc.centavos), referencia: vaiPara(orc) },
+        { rotulo: rotuloMetrica(d), valor: reais(d.valor), referencia: reais(d.media) ? `média ${reais(d.media)}` : undefined },
+        { rotulo: 'MQLs no período', valor: d.metrica === 'cpl' ? inteiro(d.mqls) : null },
+        {
+          rotulo: 'Cabe por dia no teto', valor: deCentavos(folga.disponivel_dia_centavos),
+          referencia: deCentavos(folga.soma_depois_centavos) ? `orçamentos somam ${deCentavos(folga.soma_depois_centavos)} depois` : undefined,
+        },
+      ]
+    : p.tipo === 'realocar_verba'
+    ? [
+        { rotulo: 'Move por dia', valor: deCentavos(d.valor_centavos) },
+        { rotulo: `De: ${origem.nome || 'origem'}`, valor: deCentavos(origem.centavos), referencia: vaiPara(origem) },
+        { rotulo: `Para: ${destino.nome || 'destino'}`, valor: deCentavos(destino.centavos), referencia: vaiPara(destino) },
+        {
+          rotulo: `${rotuloMetrica(d)} (origem × destino)`,
+          valor: reais(origem.valor) && reais(destino.valor) ? `${reais(origem.valor)} × ${reais(destino.valor)}` : null,
+          referencia: reais(d.media) ? `média ${reais(d.media)}` : undefined,
+        },
+      ]
+    : p.tipo === 'reduzir_orcamento'
     ? [
         { rotulo: 'Orçamento diário', valor: deCentavos(orc.centavos), referencia: deCentavos(orc.novo_centavos) ? `vai para ${deCentavos(orc.novo_centavos)}` : undefined },
         { rotulo: 'Custo por visita', valor: reais(d.cpv), referencia: reais(d.corte_cpv) ? `corte ${reais(d.corte_cpv)}` : undefined },
@@ -71,6 +115,19 @@ function numerosDa(p) {
 function verificacaoDa(p) {
   if (p.tipo === 'reativar_anuncio') {
     return 'O anúncio deve voltar a aparecer ativo no Gerenciador e voltar a gastar.';
+  }
+  if (p.tipo === 'pausar_conjunto') {
+    return 'O conjunto deve aparecer pausado no Gerenciador e o gasto dele parar.';
+  }
+  if (p.tipo === 'aumentar_orcamento') {
+    const novo = deCentavos(((p.detalhe || {}).orcamento || {}).novo_centavos);
+    return `O orçamento diário deve aparecer em ${novo || 'valor novo'} no Gerenciador, e o custo continuar abaixo da média nos próximos dias.`;
+  }
+  if (p.tipo === 'realocar_verba') {
+    const d = p.detalhe || {};
+    const o = deCentavos((d.origem || {}).novo_centavos);
+    const de = deCentavos((d.destino || {}).novo_centavos);
+    return `A origem deve aparecer com ${o || 'o valor novo'} e o destino com ${de || 'o valor novo'} por dia no Gerenciador — o total do dia não muda.`;
   }
   if (p.tipo === 'reduzir_orcamento') {
     const novo = deCentavos(((p.detalhe || {}).orcamento || {}).novo_centavos);
@@ -113,21 +170,23 @@ function dataHora(iso) {
 // execução: depois de pedido, o que importa é se a campanha voltou.
 function situacaoDoDesfazer(p, paradaGeral, agora) {
   const frase = p.desfazer_detalhe && p.desfazer_detalhe.frase;
+  // Desfazer de orçamento devolve o valor anterior; o de pausa reativa.
+  const orc = TIPOS_ORCAMENTO.has(p.tipo);
   switch (p.desfazer_estado) {
     case 'conferida':
-      return ['desfeita', 'Desfeita', `${frase || 'reativada e conferida no Meta'} — ${dataHora(p.desfazer_em)}`];
+      return ['desfeita', 'Desfeita', `${frase || (orc ? 'orçamento de volta ao valor anterior, conferido no Meta' : 'reativada e conferida no Meta')} — ${dataHora(p.desfazer_em)}`];
     case 'nao_executou':
-      return ['desfeita', 'Desfeita', frase || 'já estava ativa quando o Argo foi desfazer'];
+      return ['desfeita', 'Desfeita', frase || (orc ? 'o orçamento já não era o que o Argo deixou — ele não mexeu' : 'já estava ativa quando o Argo foi desfazer')];
     case 'nao_conferida':
-      return ['executada_nao_conferida', 'Desfazer não conferido', frase || 'o Meta não confirmou a reativação — confira no Gerenciador'];
+      return ['executada_nao_conferida', 'Desfazer não conferido', frase || (orc ? 'o Meta não confirmou o orçamento de volta — confira no Gerenciador' : 'o Meta não confirmou a reativação — confira no Gerenciador')];
     case 'executando':
       return agora - new Date(p.desfazer_em).getTime() > EXECUTANDO_TRAVADO_MS
         ? ['executada_nao_conferida', 'Desfazer não conferido', 'o executor parou no meio — confira no Gerenciador']
-        : ['aguardando_execucao', 'Desfazendo agora', 'o Argo está reativando na conta'];
+        : ['aguardando_execucao', 'Desfazendo agora', orc ? 'o Argo está devolvendo o orçamento na conta' : 'o Argo está reativando na conta'];
     default:
       return paradaGeral
         ? ['aguardando_execucao', 'Desfazer pedido', 'a parada geral está ligada: nada é executado até ela ser desligada']
-        : ['aguardando_execucao', 'Desfazer pedido', 'o Argo reativa em até ~10 min'];
+        : ['aguardando_execucao', 'Desfazer pedido', orc ? 'o Argo devolve o orçamento em até ~10 min' : 'o Argo reativa em até ~10 min'];
   }
 }
 
@@ -140,6 +199,12 @@ function situacaoDa(p, paradaGeral, agora) {
       case 'conferida':
         return ['executada_conferida', 'Executada e conferida', `${frase || 'pausada e conferida no Meta'} — ${dataHora(p.execucao_em)}`];
       case 'nao_conferida':
+        // Realocação com só um lado aplicado (plano 3): o pior caso de
+        // dinheiro, por isso situação própria e em destaque. O banco só aceita
+        // os quatro estados de execução, então a marca vem no detalhe.
+        if (p.execucao_detalhe && p.execucao_detalhe.nao_completou) {
+          return ['nao_completou', 'Não completou', frase || 'só um dos lados mudou — confira os dois no Gerenciador'];
+        }
         return ['executada_nao_conferida', 'Executada — não conferida', frase || 'o Meta não confirmou a pausa — confira no Gerenciador'];
       case 'nao_executou':
         return ['nao_executou', 'Aprovada — não executou', frase || 'o Argo não precisou agir'];
@@ -170,8 +235,14 @@ function execucaoDa(p) {
   const objetos = p.execucao_detalhe && Array.isArray(p.execucao_detalhe.objetos) ? p.execucao_detalhe.objetos : [];
   if (!objetos.length) return null;
   const conferencia = { conferida: 'conferido', nao_conferida: 'não confirmado', nao_executou: 'sem ação' }[p.execucao_estado] || null;
-  // Na redução, antes e depois são orçamentos em centavos, não status.
-  const fmt = p.tipo === 'reduzir_orcamento' ? (v) => deCentavos(v) : (v) => v || null;
+  // Orçamento: antes e depois são centavos, não status.
+  const fmt = TIPOS_ORCAMENTO.has(p.tipo) ? (v) => deCentavos(v) : (v) => v || null;
+  if (p.tipo === 'realocar_verba') {
+    // Os dois lados, origem e destino.
+    const lados = (campo) => objetos
+      .map((o) => `${o.lado === 'destino' ? 'destino' : 'origem'} ${fmt(o[campo]) || '—'}`).join(' · ');
+    return { antes: lados('antes'), depois: lados('depois'), conferencia };
+  }
   return { antes: fmt(objetos[0].antes) || null, depois: fmt(objetos[0].depois) || null, conferencia };
 }
 
@@ -202,16 +273,17 @@ export function montarPropostas({ pendentes = [], historico = [], parada_geral =
         desfeita: p.desfazer_pedido_em ? { por: p.desfazer_pedido_por || 'painel', em: p.desfazer_pedido_em } : null,
         // Só o que o Argo pausou E conferiu, e ainda não pedido: desfazer
         // uma pausa que não aconteceu não tem para onde voltar.
-        // Desfazer existe para PAUSA (issue 312); redução de orçamento se
-        // desfaz subindo o orçamento no Gerenciador.
+        // Desfazer existe para PAUSA (issue 312) e, no plano 3, para aumento
+        // e realocação (voltam ao orçamento anterior). Redução de orçamento
+        // se desfaz subindo o orçamento no Gerenciador.
         pode_desfazer: p.decisao === 'aprovada' && p.execucao_estado === 'conferida' && !p.desfazer_pedido_em
-          && String(p.tipo || '').startsWith('pausar'),
+          && (String(p.tipo || '').startsWith('pausar') || TIPOS_DESFAZIVEIS_ORCAMENTO.has(p.tipo)),
       };
     }),
   };
 }
 
-export const ERRO_DESFAZER_INVALIDO = 'Só dá para desfazer uma pausa que o Argo executou e conferiu, e uma vez só.';
+export const ERRO_DESFAZER_INVALIDO = 'Só dá para desfazer uma ação que o Argo executou e conferiu, e uma vez só.';
 
 // Corpo do POST: {id, versao, decisao: 'aprovar'|'rejeitar', por_que?}
 // ou {id, decisao: 'desfazer'} — o desfazer não depende de versão: vale para

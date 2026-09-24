@@ -247,3 +247,17 @@ test('desfazer tem desfecho de reativação e não reescreve a pausa original', 
     DESFECHO_PAUSADA_SUCESSO, DESFECHO_REATIVADA, DESFECHO_JA_ESTAVA_ATIVA, DESFECHO_NAO_REATIVOU, DESFECHO_DESCONHECIDO,
   ]);
 });
+
+// Plano 3 — ação de orçamento não é pausa.
+test('ação de orçamento tem desfecho de orçamento, não de pausa', () => {
+  const acao = (tipo, aplicada) => ({ id: 1, rodada_id: 2, tipo, estado_posterior: { daily_budget: 2400 }, aplicada, desfeita_em: null });
+  const r = montarRegistro(cenario({ acoes: [
+    acao('reduzir_orcamento', true), acao('aumentar_orcamento', false), acao('realocar_verba', true),
+    acao('desfazer_orcamento', true), acao('desfazer_orcamento', false),
+    { ...acao('aumentar_orcamento', null) },
+  ] }));
+  assert.deepEqual(r.rodadas[0].acoes.map((a) => a.desfecho), [
+    'orçamento alterado', 'orçamento não mudou', 'orçamento alterado',
+    'orçamento devolvido', 'orçamento não voltou', DESFECHO_DESCONHECIDO,
+  ]);
+});
