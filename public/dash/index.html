@@ -425,6 +425,71 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .argo-detalhe li { background: var(--card-2); border-radius: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.84rem; }
 .argo-detalhe li .mini { display: block; margin-top: 0.2rem; font-size: 0.78rem; }
 
+/* Veredito (issue 325): o selo fica ao lado do desfecho. "Acertou" é verde,
+   "errou" é coral, "inconclusivo" é âmbar; "aguardando", "sem avaliação" e
+   "indisponível" são neutros — ausência de dado nunca ganha cor de juízo. */
+.argo-veredito { display: inline-block; font-size: 0.7rem; padding: 0.08rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; margin-left: 0.4rem; vertical-align: 0.1em; font-variant-numeric: tabular-nums; }
+.argo-veredito.ok { color: var(--up); border-color: rgba(93, 201, 134, 0.45); font-weight: 700; }
+.argo-veredito.falha { color: var(--down); border-color: rgba(243, 127, 127, 0.5); font-weight: 700; }
+.argo-veredito.alerta { color: var(--warn); border-color: rgba(224, 179, 76, 0.5); }
+.argo-veredito.neutro { color: var(--muted); }
+.argo-origem-manual { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--taupe); margin-right: 0.3rem; }
+/* O summary da ação NÃO herda o grid do summary da rodada (`.argo-rodada
+   summary` alcança os dois): aqui é linha corrida, como o <li> sem detalhe. */
+.argo-rodada .argo-acao-detalhe { display: block; }
+.argo-rodada .argo-acao-detalhe summary { list-style: none; cursor: pointer; display: block; padding: 0; border-radius: 0; }
+.argo-rodada .argo-acao-detalhe summary:hover { background: none; }
+.argo-acao-detalhe summary::-webkit-details-marker { display: none; }
+.argo-acao-detalhe summary::after { content: "ver antes e depois"; display: inline-block; margin-left: 0.5rem; font-size: 0.74rem; color: var(--bege); text-decoration: underline; text-underline-offset: 3px; }
+.argo-acao-detalhe[open] summary::after { content: "fechar"; }
+.argo-veredito-motivo { margin: 0.6rem 0 0.4rem; font-size: 0.84rem; color: var(--fg); max-width: 80ch; }
+.argo-veredito-meta { display: block; margin-top: 0.45rem; font-size: 0.74rem; color: var(--muted); }
+.argo-antes-depois { width: 100%; border-collapse: collapse; margin-top: 0.3rem; font-size: 0.84rem; }
+.argo-antes-depois th { text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--taupe); font-weight: 400; padding: 0.25rem 0.6rem 0.25rem 0; }
+.argo-antes-depois td { padding: 0.35rem 0.6rem 0.35rem 0; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; vertical-align: top; }
+.argo-antes-depois td.num { font-weight: 700; }
+.argo-antes-depois td.num.semdado { font-weight: 400; }
+.argo-antes-depois small { display: block; color: var(--muted); font-size: 0.74rem; font-weight: 400; }
+
+/* Placar: cartões reaproveitam .kpi; os de tipo são botões que filtram a
+   lista abaixo. Três grupos — o Argo, cada tipo de ação e as mudanças
+   manuais — para a taxa dele nunca se misturar com a de quem mexe à mão. */
+.argo-placar { display: grid; gap: 0.9rem; margin-bottom: 1.1rem; }
+.argo-placar-topo { display: flex; gap: 0.8rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.argo-placar-topo h3 { font-size: 0.95rem; font-weight: 700; }
+.argo-placar-topo h3 small { color: var(--muted); font-weight: 400; font-size: 0.78rem; margin-left: 0.4rem; }
+.argo-placar-periodo { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.argo-placar-periodo select, .argo-placar-periodo input { background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.35rem 0.6rem; font: inherit; font-size: 0.84rem; }
+.argo-placar-grupos { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 2.4fr) minmax(0, 1.1fr); gap: 0.9rem; align-items: start; }
+.argo-placar-grupo h4 { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--taupe); font-weight: 400; margin-bottom: 0.45rem; }
+.argo-placar-grupo .grid-kpi { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; margin-bottom: 0; }
+.argo-cartao { font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; }
+.argo-cartao[aria-pressed="true"] { border-color: var(--bege); }
+.argo-cartao:focus-visible { outline: 2px solid var(--bege); outline-offset: 2px; }
+.argo-cartao .valor.ok { color: var(--up); }
+.argo-cartao .valor.falha { color: var(--down); }
+.argo-cartao-linha { font-size: 0.74rem; color: var(--muted); margin-top: 0.3rem; font-variant-numeric: tabular-nums; }
+.argo-cartao-linha b { color: var(--fg); font-weight: 400; }
+.argo-placar-aviso { font-size: 0.78rem; color: var(--warn); }
+
+/* Filtro do Registro: pílulas como as das vistas; a de tipo aparece só
+   quando um cartão foi clicado, com o × para voltar a "Todas". */
+.argo-filtros { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.argo-filtros .tipo-pill { font-size: 0.8rem; padding: 0.3rem 0.8rem; }
+.argo-filtros .tipo-pill.tipo-ativo { border-color: var(--bege); }
+
+@media (max-width: 980px) {
+  .argo-placar-grupos { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .argo-placar-grupo .grid-kpi { grid-template-columns: 1fr 1fr; }
+  .argo-antes-depois thead { display: none; }
+  .argo-antes-depois tr { display: grid; grid-template-columns: 1fr 1fr; gap: 0 0.6rem; padding: 0.35rem 0; border-top: 1px solid var(--border); }
+  .argo-antes-depois td { border-top: 0; padding: 0.1rem 0; }
+  .argo-antes-depois td.rotulo { grid-column: 1 / -1; color: var(--taupe); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .argo-antes-depois td.num::before { content: attr(data-coluna); display: block; font-size: 0.68rem; color: var(--muted); font-weight: 400; }
+}
+
 /* Régua: cada regra numa linha — texto à esquerda, controle à direita. A
    regra desligada esmaece, mas continua editável (dá para deixar o número
    pronto antes de ligar). */
@@ -1005,7 +1070,11 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
         </div>
       </div>
       <div class="card">
-        <h2>Registro <small>as últimas 20 rodadas, da mais recente para trás · clique para ver o detalhe</small></h2>
+        <h2>Registro <small>as últimas 20 rodadas, da mais recente para trás, com o veredito de cada ação · clique para ver o detalhe</small></h2>
+        <!-- Placar e filtro (issue 325): a tela só desenha o que /api/argo/registro
+             já classificou — taxa, "aguardando até" e aviso de régua vêm prontos. -->
+        <div id="argo-placar"></div>
+        <div id="argo-filtro-veredito" class="argo-filtros" role="group" aria-label="Filtrar ações pelo veredito" hidden></div>
         <div id="argo-registro"></div>
       </div>
       </div>
@@ -3417,6 +3486,7 @@ const ARGO_ROTULOS = {
   realocar_verba: 'Realocar verba',
   reduzir_orcamento: 'Reduzir orçamento',
   aumentar_orcamento: 'Aumentar orçamento',
+  reativar_anuncio: 'Reativar anúncio',
 };
 const argoRotulo = (chave) => ARGO_ROTULOS[chave] || chave;
 // Carimbo da versão que esta tela leu, devolvido no POST para o backend
@@ -3445,6 +3515,179 @@ const ARGO_DESFECHO_CLASSE = {
   'orçamento não voltou': 'falha',
 };
 
+// ---------- Argo: veredito, placar e filtro (issue 325) ----------
+// A situação e o rótulo vêm prontos do backend (`veredito.situacao` e
+// `veredito.situacao_rotulo`); aqui mora só a cor. Tudo que não é juízo
+// (aguardando, sem avaliação, indisponível) é neutro de propósito.
+const ARGO_VEREDITO_CLASSE = {
+  acertou: 'ok',
+  errou: 'falha',
+  inconclusivo: 'alerta',
+  aguardando: 'neutro',
+  avaliando: 'neutro',
+  sem_avaliacao: 'neutro',
+  indisponivel: 'neutro',
+};
+const argoDataCurta = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+};
+
+// Selo do veredito de uma ação. Sem `veredito` a tela diz que não sabe — nunca
+// inventa "aguardando" ou "sem avaliação" por conta própria.
+function argoVereditoSeloHtml(v) {
+  if (!v || !v.situacao) return '<span class="argo-veredito neutro">veredito indisponível</span>';
+  const classe = ARGO_VEREDITO_CLASSE[v.situacao] || 'neutro';
+  let texto = v.situacao_rotulo || v.situacao;
+  if (v.situacao === 'aguardando') texto += v.avalia_em ? ` · avalia em ${argoDataCurta(v.avalia_em)}` : '';
+  else if (v.situacao === 'avaliando') texto += ' · avaliando agora';
+  else if (v.situacao === 'sem_avaliacao' && v.motivo) texto += ` — ${v.motivo}`;
+  return `<span class="argo-veredito ${classe}">${esc(texto)}</span>`;
+}
+
+// Tabela antes × depois: rótulo, antes, depois; a referência vai embaixo do
+// "depois". Célula sem número mostra "—", nunca zero.
+function argoAntesDepoisHtml(v) {
+  const celula = (valor, coluna) => (valor === null || valor === undefined || valor === ''
+    ? `<td class="num semdado" data-coluna="${coluna}">—</td>`
+    : `<td class="num" data-coluna="${coluna}">${esc(valor)}</td>`);
+  const linhas = (v.numeros || []).map((n) => `<tr>
+      <td class="rotulo">${esc(n.rotulo)}</td>${celula(n.antes, 'antes')}
+      ${celula(n.depois, 'depois').replace('</td>', n.referencia ? `<small>${esc(n.referencia)}</small></td>` : '</td>')}
+    </tr>`).join('');
+  const meta = [v.janela_dias ? `janela de ${v.janela_dias} dias` : null, v.avaliada_em ? `avaliado ${argoQuando(v.avaliada_em)}` : null]
+    .filter(Boolean).join(' · ');
+  return `${v.motivo ? `<p class="argo-veredito-motivo">${esc(v.motivo)}</p>` : ''}
+    <table class="argo-antes-depois"><thead><tr><th></th><th>Antes</th><th>Depois</th></tr></thead><tbody>${linhas}</tbody></table>
+    ${meta ? `<span class="argo-veredito-meta">${esc(meta)}</span>` : ''}`;
+}
+
+// Filtro do Registro: 'todas', uma situação, 'manual' ou 'tipo:<tipo>'.
+let argoFiltro = 'todas';
+let argoRodadasLidas = [];
+const ARGO_FILTROS = [
+  ['todas', 'Todas'], ['acertou', 'Acertos'], ['errou', 'Erros'],
+  ['inconclusivo', 'Inconclusivas'], ['aguardando', 'Aguardando'], ['manual', 'Manuais'],
+];
+
+function argoAcaoPassa(a) {
+  if (argoFiltro === 'todas') return true;
+  if (argoFiltro === 'manual') return a.origem === 'manual';
+  if (argoFiltro.startsWith('tipo:')) return a.tipo === argoFiltro.slice(5);
+  const s = a.veredito && a.veredito.situacao;
+  if (argoFiltro === 'aguardando') return s === 'aguardando' || s === 'avaliando';
+  return s === argoFiltro;
+}
+
+function desenharFiltroArgo() {
+  const el = $('#argo-filtro-veredito');
+  const pilulas = ARGO_FILTROS.map(([valor, rotulo]) => `<button type="button" class="tipo-pill" data-argo-filtro="${valor}" aria-pressed="${String(argoFiltro === valor)}">${esc(rotulo)}</button>`);
+  if (argoFiltro.startsWith('tipo:')) {
+    pilulas.push(`<button type="button" class="tipo-pill tipo-ativo" data-argo-filtro="todas" aria-pressed="true" title="Tirar o filtro de tipo">${esc(argoRotulo(argoFiltro.slice(5)))} ×</button>`);
+  }
+  el.innerHTML = pilulas.join('');
+  el.hidden = false;
+}
+
+function trocarFiltroArgo(filtro) {
+  argoFiltro = filtro || 'todas';
+  desenharFiltroArgo();
+  desenharRegistroArgo(argoRodadasLidas);
+  document.querySelectorAll('.argo-cartao').forEach((b) => b.setAttribute('aria-pressed', String(argoFiltro !== 'todas' && b.dataset.argoFiltro === argoFiltro)));
+}
+
+document.addEventListener('click', (ev) => {
+  const alvo = ev.target.closest && ev.target.closest('[data-argo-filtro]');
+  if (!alvo || !alvo.closest('#secao-argo')) return;
+  trocarFiltroArgo(alvo.dataset.argoFiltro);
+  if (alvo.classList.contains('argo-cartao')) $('#argo-registro').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// Placar: a taxa, a contagem e o aviso de régua chegam calculados. Cartão
+// sem ação avaliada conclusiva mostra "—", nunca "0%".
+let argoPlacarPeriodo = '30';
+function argoPlacarQuery() {
+  if (argoPlacarPeriodo === 'custom') {
+    const de = $('#argo-placar-de') ? $('#argo-placar-de').value : '';
+    const ate = $('#argo-placar-ate') ? $('#argo-placar-ate').value : '';
+    return (de ? `&placar_de=${encodeURIComponent(de)}` : '') + (ate ? `&placar_ate=${encodeURIComponent(ate)}` : '');
+  }
+  return argoPlacarPeriodo === '30' ? '' : `&placar_dias=${encodeURIComponent(argoPlacarPeriodo)}`;
+}
+
+function argoCartaoHtml(c, titulo, filtro, manuaisLigadas) {
+  const conclusivas = (c.acertos || 0) + (c.erros || 0);
+  let valor;
+  if (c.origem === 'manual' && manuaisLigadas === false) valor = '<div class="valor semdado">desligado</div>';
+  else if (!c.avaliadas) valor = '<div class="valor semdado">—</div>';
+  else if (c.taxa_pct === null || c.taxa_pct === undefined || !conclusivas) valor = '<div class="valor semdado">—</div>';
+  else valor = `<div class="valor ${c.taxa_pct >= 50 ? 'ok' : 'falha'}">${esc(fmtPct(c.taxa_pct, 0))}</div>`;
+  const contagem = c.avaliadas
+    ? `<b>${fmtInt(c.acertos)}</b> acertos · <b>${fmtInt(c.erros)}</b> erros · <b>${fmtInt(c.inconclusivas)}</b> inconclusivas`
+    : (c.origem === 'manual' && manuaisLigadas === false ? 'avaliação de mudanças manuais desligada na régua' : 'sem ação avaliada no período');
+  const gasto = c.gasto_erradas_centavos ? `<div class="argo-cartao-linha">${esc(money(c.gasto_erradas_centavos / 100))} gastos nas erradas</div>` : '';
+  return `<button type="button" class="kpi argo-cartao" data-argo-filtro="${esc(filtro)}" aria-pressed="${String(filtro !== 'todas' && argoFiltro === filtro)}">
+      <div class="rotulo">${esc(titulo)}</div>${valor}
+      <div class="argo-cartao-linha">${contagem}</div>${gasto}
+    </button>`;
+}
+
+function desenharPlacarArgo(placar) {
+  const el = $('#argo-placar');
+  const periodo = `<div class="argo-placar-periodo">
+      <select id="argo-placar-periodo" aria-label="Período do placar">
+        <option value="30"${argoPlacarPeriodo === '30' ? ' selected' : ''}>Últimos 30 dias</option>
+        <option value="60"${argoPlacarPeriodo === '60' ? ' selected' : ''}>Últimos 60 dias</option>
+        <option value="90"${argoPlacarPeriodo === '90' ? ' selected' : ''}>Últimos 90 dias</option>
+        <option value="custom"${argoPlacarPeriodo === 'custom' ? ' selected' : ''}>Personalizado…</option>
+      </select>
+      <input type="date" id="argo-placar-de" aria-label="De"${argoPlacarPeriodo === 'custom' ? '' : ' hidden'}>
+      <input type="date" id="argo-placar-ate" aria-label="Até"${argoPlacarPeriodo === 'custom' ? '' : ' hidden'}>
+    </div>`;
+  if (!placar || !Array.isArray(placar.cartoes)) {
+    el.innerHTML = `<div class="argo-placar"><div class="argo-placar-topo"><h3>Placar</h3>${periodo}</div>
+      <p class="aviso explica">Não foi possível ler o placar. O registro abaixo continua valendo.</p></div>`;
+    return;
+  }
+  const geral = placar.cartoes.find((c) => c.chave === 'argo');
+  const manual = placar.cartoes.find((c) => c.chave === 'manual');
+  const tipos = placar.cartoes.filter((c) => c.tipo);
+  const quando = placar.periodo && placar.periodo.de && placar.periodo.ate
+    ? `<small>${esc(argoDataCurta(placar.periodo.de))} – ${esc(argoDataCurta(placar.periodo.ate))}, pela data da ação</small>` : '';
+  const aviso = placar.regua_alterada_em
+    ? `<p class="argo-placar-aviso">Régua alterada em ${esc(argoDataCurta(placar.regua_alterada_em))}: o período mistura duas réguas.</p>` : '';
+  el.innerHTML = `<div class="argo-placar">
+      <div class="argo-placar-topo"><h3>Placar ${quando}</h3>${periodo}</div>
+      ${aviso}
+      <div class="argo-placar-grupos">
+        <div class="argo-placar-grupo"><h4>O Argo</h4><div class="grid-kpi">${geral ? argoCartaoHtml(geral, 'Taxa de acerto', 'todas') : '<p class="aviso">—</p>'}</div></div>
+        <div class="argo-placar-grupo"><h4>Por tipo de ação</h4><div class="grid-kpi">${tipos.length ? tipos.map((c) => argoCartaoHtml(c, argoRotulo(c.tipo), `tipo:${c.tipo}`)).join('') : '<p class="aviso">Nenhuma ação avaliada no período.</p>'}</div></div>
+        <div class="argo-placar-grupo"><h4>Mudanças manuais</h4><div class="grid-kpi">${manual ? argoCartaoHtml(manual, 'Taxa de acerto', 'manual', placar.manuais_ligadas) : '<p class="aviso">—</p>'}</div></div>
+      </div>
+    </div>`;
+  $('#argo-placar-periodo').addEventListener('change', (ev) => {
+    argoPlacarPeriodo = ev.target.value;
+    const custom = argoPlacarPeriodo === 'custom';
+    $('#argo-placar-de').hidden = !custom; $('#argo-placar-ate').hidden = !custom;
+    if (!custom) recarregarRegistroArgo();
+  });
+  ['#argo-placar-de', '#argo-placar-ate'].forEach((id) => $(id).addEventListener('change', () => {
+    if ($('#argo-placar-de').value && $('#argo-placar-ate').value) recarregarRegistroArgo();
+  }));
+}
+
+// Relê só o registro (placar + rodadas) — a grade em edição não é tocada.
+async function recarregarRegistroArgo() {
+  try {
+    const registro = await argoApi('/api/argo/registro?limite=20' + argoPlacarQuery());
+    desenharCabecalhoArgo(registro.cabecalho);
+    desenharPlacarArgo(registro.placar);
+    desenharRegistroArgo(registro.rodadas);
+  } catch (e) {
+    $('#argo-placar').innerHTML = `<p class="aviso explica">${esc(e.mensagemUsuario || 'Não foi possível reler o registro do Argo.')}</p>`;
+  }
+}
+
 // Pede à API com a chave do painel e devolve o JSON; erro vira exceção com a
 // mensagem QUE VEIO DO SERVIDOR. Trocar tudo por um texto genérico fazia
 // "grade não configurada" e "banco fora do ar" virarem a mesma frase — e a
@@ -3468,10 +3711,12 @@ const comFallback = (promessa, generica) => promessa.catch((e) => {
 
 async function carregarArgo() {
   const [registro, grade] = await Promise.all([
-    comFallback(argoApi('/api/argo/registro?limite=20'), 'Não foi possível ler o registro do Argo.'),
+    comFallback(argoApi('/api/argo/registro?limite=20' + argoPlacarQuery()), 'Não foi possível ler o registro do Argo.'),
     comFallback(argoApi('/api/argo/config'), 'Não foi possível ler a configuração do Argo.'),
   ]);
   desenharCabecalhoArgo(registro.cabecalho);
+  desenharPlacarArgo(registro.placar);
+  desenharFiltroArgo();
   desenharRegistroArgo(registro.rodadas);
   desenharGradeArgo(grade);
   mostrarVistaArgo();
@@ -3585,16 +3830,33 @@ function argoResultadoRodada(r) {
 }
 
 function desenharRegistroArgo(rodadas) {
+  argoRodadasLidas = Array.isArray(rodadas) ? rodadas : [];
+  rodadas = argoRodadasLidas;
   if (!rodadas.length) {
     $('#argo-registro').innerHTML = '<p class="aviso">Nenhuma rodada registrada ainda.</p>';
     return;
   }
-  $('#argo-registro').innerHTML = '<ol class="argo-rodadas">' + rodadas.map((r) => {
+  // Filtro por veredito (issue 325): rodada sem ação visível some da lista;
+  // com filtro ativo e nada sobrando, a tela diz isso em vez de ficar vazia.
+  const visiveis = argoFiltro === 'todas' ? rodadas : rodadas.filter((r) => r.acoes.some(argoAcaoPassa));
+  if (!visiveis.length) {
+    $('#argo-registro').innerHTML = '<p class="aviso">Nenhuma ação com este veredito no período.</p>';
+    return;
+  }
+  $('#argo-registro').innerHTML = '<ol class="argo-rodadas">' + visiveis.map((r) => {
     const [classe, rotulo] = argoResultadoRodada(r);
-    const acoes = r.acoes.length
-      ? '<ul>' + r.acoes.map((a) => {
+    const lista = argoFiltro === 'todas' ? r.acoes : r.acoes.filter(argoAcaoPassa);
+    const acoes = lista.length
+      ? '<ul>' + lista.map((a) => {
           const c = ARGO_DESFECHO_CLASSE[a.desfecho] || '';
-          return `<li><strong>${esc(a.alvo_nome || a.alvo_id)}</strong> — <span class="${c}">${esc(a.desfecho)}</span><span class="mini">${esc(a.motivo)}</span></li>`;
+          const v = a.veredito;
+          const manual = a.origem === 'manual'
+            ? `<span class="argo-origem-manual">manual · ${esc(a.feita_por || 'não identificado')}</span>` : '';
+          const linha = `${manual}<strong>${esc(a.alvo_nome || a.alvo_id)}</strong> — <span class="${c}">${esc(a.desfecho)}</span>${argoVereditoSeloHtml(v)}<span class="mini">${esc(a.motivo)}</span>`;
+          if (v && Array.isArray(v.numeros) && v.numeros.length) {
+            return `<li><details class="argo-acao-detalhe"><summary>${linha}</summary>${argoAntesDepoisHtml(v)}</details></li>`;
+          }
+          return `<li>${linha}</li>`;
         }).join('') + '</ul>'
       : '<p class="mini">Nenhuma ação executada nesta rodada.</p>';
     // `falhou` vem pronto do backend (_argo-registro.js) — a tela não
@@ -4004,6 +4266,16 @@ const ARGO_REGUA_GRUPOS = [
     ['reduzir_pct', 'Reduzir antes de pausar', 'Onde há orçamento próprio, corta esta porcentagem primeiro; pausa só depois do intervalo, se continuar ruim.', '%', 'inteiro', 'reduzir_antes'],
     ['reativar_tolerancia_pct', 'Reativar o que ele pausou', 'Religa uma vez se o custo, com o que chegou depois da pausa, ficar dentro da média mais esta tolerância. Lead caro não religa.', '%', 'inteiro', 'reativar'],
   ]],
+  // Avaliação do resultado (issue 325; a régua de verdade chega na 328).
+  // Linha só com interruptor: `chave` numérica nula, `liga` preenchida.
+  ['Avaliação do resultado', 'Dias depois de cada ação, o Argo confere se ela deu certo e grava o veredito. Vale só para ações ainda não avaliadas.', [
+    ['avaliacao_janela_dias', 'Janela de avaliação', 'Dias completos depois da ação antes de dar o veredito.', 'dias', 'inteiro'],
+    ['avaliacao_piso_visita_reais', 'Gasto mínimo em visita', 'Abaixo disso o veredito de tráfego é inconclusivo.', 'R$', 'decimal'],
+    ['avaliacao_piso_lead_multiplicador', 'Gasto mínimo em lead', 'Múltiplo do CPL médio do funil; abaixo disso o veredito de lead é inconclusivo.', '×', 'decimal'],
+    ['avaliacao_tolerancia_pct', 'Tolerância do "acertou"', 'Quanto a métrica pode ficar acima da referência e ainda contar como acerto.', '%', 'inteiro'],
+    ['avaliacao_releitura_dias', 'Tentar reler por', 'Dias, depois da janela, em que a leitura que falhou é tentada de novo antes de virar "sem leitura".', 'dias', 'inteiro'],
+    [null, 'Avaliar mudanças manuais', 'Mudanças feitas à mão na conta também ganham veredito, separadas do Argo no placar.', null, null, 'avaliacao_manuais'],
+  ]],
 ];
 
 // "R$" vai antes do número; as outras unidades, depois.
@@ -4018,9 +4290,28 @@ function desenharReguaArgo(regua) {
   const { valores, padroes = {}, limites = {} } = regua;
   const ativas = Array.isArray(regua.ativas) ? regua.ativas : [];
   const grupos = ARGO_REGUA_GRUPOS.map(([titulo, nota, regras]) => {
-    const linhas = regras.map(([chave, rotulo, frase, unidade, tipo, liga]) => {
-      const lim = limites[chave] || {};
+    // Regra que o servidor não conhece (chave fora de `valores`) não desenha:
+    // um campo vazio travaria o Salvar da grade inteira e mandaria ao
+    // backend uma chave que ele recusaria. Grupo sem regra conhecida some.
+    const conhecidas = regras.filter(([chave, , , , , liga]) => Object.prototype.hasOwnProperty.call(valores, chave === null ? liga : chave));
+    if (!conhecidas.length) return '';
+    const linhas = conhecidas.map(([chave, rotulo, frase, unidade, tipo, liga]) => {
       const ligada = liga ? valores[liga] === true : true;
+      // Linha só de interruptor (sem número): desenha o texto e a chave.
+      if (chave === null) {
+        const inativaLiga = !ativas.includes(liga);
+        return `<div class="argo-regra${ligada ? '' : ' desligada'}${inativaLiga ? ' inativa' : ''}" data-argo-regra-linha="${esc(liga)}">
+          <div class="argo-regra-texto">
+            <span class="argo-acao-nome">${esc(rotulo)}</span>
+            <span class="argo-acao-desc">${esc(frase)}</span>
+            ${inativaLiga ? '<span class="argo-regra-inativa">Ainda sem efeito — entra em vigor com a régua nova.</span>' : ''}
+          </div>
+          <div class="argo-regra-controle">
+            <label class="argo-chave"><input type="checkbox" role="switch" data-argo-regra-liga="${esc(liga)}"${ligada ? ' checked' : ''}><span class="trilho" aria-hidden="true"></span><span class="rotulo">${ligada ? 'Ligada' : 'Desligada'}</span></label>
+          </div>
+        </div>`;
+      }
+      const lim = limites[chave] || {};
       const passo = lim.passo ?? (tipo === 'inteiro' ? 1 : 0.01);
       const campo = `<input type="number" inputmode="${tipo === 'inteiro' ? 'numeric' : 'decimal'}" step="${passo}"
           ${lim.min != null ? `min="${lim.min}"` : ''} ${lim.max != null ? `max="${lim.max}"` : ''}
