@@ -18,6 +18,8 @@
 // já aconteceu) faria toda ação real virar "desfecho desconhecido" em
 // silêncio; com a lista compartilhada não há o que divergir para quebrar
 // isso de novo. Se este módulo passar a ler outro campo, acrescente-o aqui.
+import { ymdBrt } from './_data-brt.js';
+
 export const CAMPOS_ACAO = Object.freeze([
   'id',
   'rodada_id',
@@ -101,11 +103,111 @@ function desfechoDaAcao(acao) {
   return status === 'PAUSED' ? DESFECHO_JA_ESTAVA_PAUSADA : DESFECHO_NAO_PAUSOU;
 }
 
-export function montarRegistro({ rodadas = [], acoes = [] } = {}) {
+// ---------------------------------------------------------------------------
+// Veredito (issue 329): o que o Argo concluiu, dias depois, sobre cada ação.
+// A linha vem de `argo.vereditos` (LEFT JOIN, colunas `v_*`); sem linha, a
+// situação é derivada AQUI, com a mesma régua do monitor (`argo_veredito`,
+// gestor-ae): a tela recebe rótulo e frase prontos e não interpreta nada.
+// ---------------------------------------------------------------------------
+export const TIPO_REATIVACAO = 'reativar_anuncio';
+export const VEREDITO_ROTULO = Object.freeze({
+  acertou: 'Acertou',
+  errou: 'Errou',
+  inconclusivo: 'Inconclusivo',
+  aguardando: 'Aguardando',
+  avaliando: 'Aguardando',
+  sem_avaliacao: 'Sem avaliação',
+});
+export const MOTIVO_E_DESFAZER = 'é um desfazer';
+export const MOTIVO_DESFEITA = 'desfeita antes da janela';
+export const MOTIVO_NAO_APLICADA = 'não aplicada';
+export const MOTIVO_DESCONHECIDO = 'desfecho desconhecido';
+export const MOTIVO_AINDA_NAO_AVALIADA = 'ainda não avaliada';
+export const JANELA_PADRAO_DIAS = 7;
+
+// 'YYYY-MM-DD' + n dias, em calendário (sem fuso: a data já é a de Brasília).
+function somarDias(ymd, n) {
+  const [ano, mes, dia] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(ano, mes - 1, dia + n)).toISOString().slice(0, 10);
+}
+
+const semAvaliacao = (motivo, janelaDias) => ({
+  situacao: 'sem_avaliacao',
+  situacao_rotulo: VEREDITO_ROTULO.sem_avaliacao,
+  motivo,
+  janela_dias: janelaDias,
+  numeros: [],
+});
+
+export function classificarVeredito(acao, janelaDias = JANELA_PADRAO_DIAS, hoje = ymdBrt(Date.now() / 1000)) {
+  const situacao = acao.v_situacao;
+  if (typeof situacao === 'string' && situacao !== '') {
+    if (situacao === 'avaliando') {
+      return {
+        situacao: 'avaliando',
+        situacao_rotulo: VEREDITO_ROTULO.avaliando,
+        // Só o TIPO do erro chega do monitor; a frase é montada aqui.
+        motivo: acao.v_ultimo_erro ? `a última leitura falhou (${acao.v_ultimo_erro}); tenta de novo na próxima rodada` : null,
+        janela_dias: acao.v_janela_dias ?? janelaDias,
+        numeros: [],
+      };
+    }
+    return {
+      situacao,
+      situacao_rotulo: VEREDITO_ROTULO[situacao] ?? situacao,
+      motivo: acao.v_motivo ?? null,
+      avaliada_em: acao.v_avaliada_em ?? null,
+      janela_dias: acao.v_janela_dias ?? janelaDias,
+      numeros: Array.isArray(acao.v_numeros) ? acao.v_numeros : [],
+    };
+  }
+  const desfazer = acao.tipo === TIPO_DESFAZER || acao.tipo === TIPO_DESFAZER_ORCAMENTO;
+  if (desfazer && acao.reativacao !== true) return semAvaliacao(MOTIVO_E_DESFAZER, janelaDias);
+  if (acao.desfeita_em != null) return semAvaliacao(MOTIVO_DESFEITA, janelaDias);
+  if (acao.aplicada !== true) return semAvaliacao(MOTIVO_NAO_APLICADA, janelaDias);
+  if (acao.estado_posterior == null) return semAvaliacao(MOTIVO_DESCONHECIDO, janelaDias);
+  const momento = new Date(acao.criada_em).getTime();
+  const dia = Number.isFinite(momento) ? ymdBrt(momento / 1000) : null;
+  if (!dia || !hoje) return semAvaliacao(MOTIVO_AINDA_NAO_AVALIADA, janelaDias);
+  // Janela de dias COMPLETOS: fecha quando `dia + janela` já ficou para trás.
+  if (somarDias(dia, janelaDias) >= hoje) {
+    return {
+      situacao: 'aguardando',
+      situacao_rotulo: VEREDITO_ROTULO.aguardando,
+      motivo: null,
+      avalia_em: somarDias(dia, janelaDias + 1),
+      janela_dias: janelaDias,
+      numeros: [],
+    };
+  }
+  // Janela fechada e nenhuma linha: o monitor ainda não passou por ela (ou
+  // vai marcá-la como prazo vencido). Não se inventa veredito.
+  return semAvaliacao(MOTIVO_AINDA_NAO_AVALIADA, janelaDias);
+}
+
+export function montarRegistro({ rodadas = [], acoes = [], janelaDias = JANELA_PADRAO_DIAS, hoje } = {}) {
+  const hojeBrt = hoje ?? ymdBrt(Date.now() / 1000);
   const porRodada = new Map();
   for (const acao of acoes) {
     if (!porRodada.has(acao.rodada_id)) porRodada.set(acao.rodada_id, []);
-    porRodada.get(acao.rodada_id).push({ ...acao, desfecho: desfechoDaAcao(acao) });
+    // O desfecho usa o tipo ORIGINAL (um desfazer de reativação continua
+    // tendo desfecho de reativação); o `tipo` devolvido é o efetivo, para o
+    // filtro e o placar da aba baterem com o monitor.
+    const desfecho = desfechoDaAcao(acao);
+    const veredito = classificarVeredito(acao, janelaDias, hojeBrt);
+    const tipoEfetivo = acao.reativacao === true && acao.tipo === TIPO_DESFAZER ? TIPO_REATIVACAO : acao.tipo;
+    const {
+      v_situacao, v_motivo, v_numeros, v_janela_dias, v_avaliada_em, v_origem, v_ultimo_erro, reativacao, ...resto
+    } = acao;
+    porRodada.get(acao.rodada_id).push({
+      ...resto,
+      tipo: tipoEfetivo,
+      tipo_original: acao.tipo,
+      desfecho,
+      origem: v_origem || 'argo',
+      feita_por: null,
+      veredito,
+    });
   }
 
   const lista = rodadas.map((r) => ({
