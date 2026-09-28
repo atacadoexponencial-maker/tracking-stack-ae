@@ -14,6 +14,15 @@
  * - showInvestimento: renderiza o <select name="investimento"> na etapa 2
  *   (após faturamento). O script tolera campos ausentes (if (!el) continue),
  *   então páginas sem o campo seguem com o payload de sempre.
+ * - material: slug do material rico (páginas /materiais/[slug]). Vai em
+ *   data-material e entra em lead_data.material — é por ele que o /tracker
+ *   resolve o link do PDF. Ausente nas aplicações: payload inalterado.
+ * - titulo / textoEnviar / privacidade: textos do cartão, com o padrão da
+ *   aplicação para mentoria.
+ * - slot "rosto": quando preenchido, vira a etapa 0 (folha de rosto) — o
+ *   cartão abre nela e o botão .aplicacao__rosto-cta leva à etapa 1. Não
+ *   dispara FormStep: a folha de rosto não é etapa do formulário, e o toque
+ *   no botão já é contado como CTAClick pelo BaseLayout (classe btn-cta).
  */
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo.png';
@@ -21,9 +30,24 @@ import logo from '../assets/brand/logo.png';
 interface Props {
   funnel: string;
   showInvestimento?: boolean;
+  material?: string;
+  titulo?: string;
+  textoEnviar?: string;
+  privacidade?: string;
 }
 
-const { funnel, showInvestimento = false } = Astro.props;
+const {
+  funnel,
+  showInvestimento = false,
+  material = '',
+  titulo = 'FORMULÁRIO DE APLICAÇÃO',
+  textoEnviar = 'ENVIAR APLICAÇÃO →',
+  privacidade = 'Seus dados ficam seguros. O time entra em contato pelo WhatsApp/email informados.',
+} = Astro.props;
+
+const temRosto = Astro.slots.has('rosto');
+// Com folha de rosto, o título da página (h1) é o do material, dentro do slot.
+const TituloTag = temRosto ? 'p' : 'h1';
 
 // As 10 faixas de faturamento — idênticas ao LeadFormModal/LeadChat;
 // o backend (functions/tracker.js) roteia pelo texto, não alterar.
@@ -59,10 +83,16 @@ const investimentoOptions = [
   <div class="container aplicacao__inner">
     <Image src={logo} alt="Atacado Exponencial" height={72} class="aplicacao__logo" />
 
-    <form class="aplicacao__form" id="aplicacao-form-el" data-funnel={funnel}>
-      <h1 class="aplicacao__card-titulo">FORMULÁRIO DE APLICAÇÃO <span class="aplicacao__card-etapa" id="aplicacao-etapa-indicador">1 de 3</span></h1>
+    <form class="aplicacao__form" id="aplicacao-form-el" data-funnel={funnel} data-material={material || undefined} data-rosto={temRosto ? '' : undefined}>
+      {temRosto && (
+        <div class="aplicacao__etapa aplicacao__rosto" data-etapa="0">
+          <slot name="rosto" />
+        </div>
+      )}
 
-      <div class="aplicacao__etapa" data-etapa="1">
+      <TituloTag class="aplicacao__card-titulo" id="aplicacao-card-titulo" hidden={temRosto}>{titulo} <span class="aplicacao__card-etapa" id="aplicacao-etapa-indicador">1 de 3</span></TituloTag>
+
+      <div class="aplicacao__etapa" data-etapa="1" hidden={temRosto}>
         <label class="aplicacao__field">
           <span>Nome *</span>
           <input name="nome" type="text" placeholder="Nome" autocomplete="name" />
@@ -129,14 +159,14 @@ const investimentoOptions = [
 
       <p id="aplicacao-erro" class="aplicacao__erro" hidden></p>
 
-      <div class="aplicacao__nav">
+      <div class="aplicacao__nav" id="aplicacao-nav" hidden={temRosto}>
         <button type="button" id="aplicacao-voltar" aria-label="Voltar" hidden>←</button>
         <button type="button" id="aplicacao-avancar" aria-label="Avançar">→</button>
-        <button type="submit" id="aplicacao-submit" class="btn-cta aplicacao__submit" hidden>ENVIAR APLICAÇÃO →</button>
+        <button type="submit" id="aplicacao-submit" class="btn-cta aplicacao__submit" hidden>{textoEnviar}</button>
       </div>
     </form>
 
-    <p class="aplicacao__privacidade">Seus dados ficam seguros. O time entra em contato pelo WhatsApp/email informados.</p>
+    <p class="aplicacao__privacidade">{privacidade}</p>
   </div>
 </main>
 
@@ -156,7 +186,10 @@ const investimentoOptions = [
   }
   .aplicacao__card-etapa { color: hsl(var(--muted-foreground)); }
   .aplicacao__etapa { display: flex; flex-direction: column; gap: 1rem; padding: 0 1.25rem; }
-  .aplicacao__etapa[hidden] { display: none; }
+  .aplicacao__etapa[hidden],
+  .aplicacao__card-titulo[hidden],
+  .aplicacao__nav[hidden] { display: none; }
+  .aplicacao__rosto { padding: 1.5rem 1.25rem; }
   .aplicacao__field { display: flex; flex-direction: column; gap: 0.4rem; }
   .aplicacao__field > span { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: hsl(var(--light-bg)); }
   .aplicacao__field input,
@@ -219,7 +252,7 @@ const investimentoOptions = [
   const form = document.getElementById('aplicacao-form-el') as HTMLFormElement | null;
 
   if (form) {
-    ativarFormStart(form, { funnel: form.dataset.funnel ?? '' });
+    ativarFormStart(form, { funnel: form.dataset.funnel ?? '', material: form.dataset.material ?? '' });
 
     type FieldEl = HTMLInputElement | HTMLSelectElement;
 
@@ -265,13 +298,17 @@ const investimentoOptions = [
       ['email', 'faturamento', 'investimento', 'cargo'],
       ['justificativa', 'objetivo'],
     ];
-    let currentStep = 1;
+    // Com folha de rosto o cartão abre na etapa 0 (ver props no frontmatter).
+    const temRosto = form.dataset.rosto !== undefined;
+    let currentStep = temRosto ? 0 : 1;
 
     const etapaEls = form.querySelectorAll<HTMLElement>('.aplicacao__etapa[data-etapa]');
     const voltarBtn = document.getElementById('aplicacao-voltar') as HTMLButtonElement | null;
     const avancarBtn = document.getElementById('aplicacao-avancar') as HTMLButtonElement | null;
     const submitBtn = document.getElementById('aplicacao-submit') as HTMLButtonElement | null;
     const etapaIndicador = document.getElementById('aplicacao-etapa-indicador');
+    const cardTitulo = document.getElementById('aplicacao-card-titulo');
+    const navEl = document.getElementById('aplicacao-nav');
 
     // Igual ao validateAll, mas só nos campos da etapa n; campos das outras
     // etapas não são tocados (etapas não visitadas nunca exibem erro).
@@ -295,6 +332,8 @@ const investimentoOptions = [
     // Mostra só a etapa n, ajusta botões e indicador. Não valida, não limpa valores.
     function showStep(n: number) {
       etapaEls.forEach((el) => { el.hidden = el.dataset.etapa !== String(n); });
+      if (cardTitulo) cardTitulo.hidden = n === 0;
+      if (navEl) navEl.hidden = n === 0;
       if (voltarBtn) voltarBtn.hidden = !(n > 1);
       if (avancarBtn) avancarBtn.hidden = !(n < 3);
       if (submitBtn) submitBtn.hidden = n !== 3;
@@ -313,6 +352,13 @@ const investimentoOptions = [
     }
 
     avancarBtn?.addEventListener('click', avancar);
+
+    // Folha de rosto → etapa 1. No celular a folha é mais alta que a etapa 1,
+    // então o topo do cartão sai da tela: rola de volta até ele.
+    form.querySelector('.aplicacao__rosto-cta')?.addEventListener('click', () => {
+      showStep(1);
+      if (form.getBoundingClientRect().top < 0) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     voltarBtn?.addEventListener('click', () => showStep(currentStep - 1));
 
     // Máscara compartilhada (BR com DDD; "+..." libera formato internacional).
@@ -335,6 +381,7 @@ const investimentoOptions = [
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       // Enter num input das etapas 1/2 dispara submit — tratar como "→".
+      if (currentStep === 0) return;
       if (currentStep < 3) { avancar(); return; }
       const firstInvalid = validateAll();
       if (firstInvalid) {
@@ -367,6 +414,8 @@ const investimentoOptions = [
       // o payload das páginas sem o campo permanece idêntico ao de antes.
       const investimentoEl = getEl('investimento');
       if (investimentoEl) lead.investimento = investimentoEl.value;
+      // Idem 'material': só nas páginas de iscas, onde decide o PDF entregue.
+      if (form.dataset.material) lead.material = form.dataset.material;
       let redirect = '/obrigada';
       const eventId = 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
       try { if (typeof (window as any).fbq === 'function') (window as any).fbq('track', 'Lead', {}, { eventID: eventId }); } catch (e) { /* espelho browser nunca bloqueia o envio */ }
