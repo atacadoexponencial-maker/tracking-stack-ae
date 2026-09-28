@@ -56,6 +56,19 @@ export const MATERIAIS = [
     ],
     destino: 'https://drive.google.com/file/d/1UdFjtfgGX-bQEFUwBdVcSGMYIPC_fovl/view',
   },
+  {
+    slug: 'black-atacado',
+    titulo: 'Black Atacado: o duplo pico de vendas',
+    subtitulo:
+      'Como transformar a Black do varejo em dois eventos de venda: um que traz revendedor novo e outro que faz a sua base repor.',
+    itens: [
+      'Por que o seu revendedor precisa comprar antes da Black do varejo',
+      'O duplo pico: Black Antecipada em outubro e Black Reposição em novembro',
+      'As ofertas de cada pico sem queimar a sua margem',
+      'O calendário 2026 semana a semana, os 5 erros e o checklist',
+    ],
+    destino: 'https://drive.google.com/file/d/1ejrBm3n-2CA7SyPaLKal9kBaRaPb-Owa/view',
+  },
 ];
 
 export function materialPorSlug(slug) {
