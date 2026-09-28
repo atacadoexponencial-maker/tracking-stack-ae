@@ -28,16 +28,15 @@ test('valor salvo inválido cai no padrão, nunca aparece na tela', () => {
 
 test('só as regras com lógica de hoje estão ativas', () => {
   assert.deepEqual(montarRegua(null).ativas.sort(), [
-    'avaliacao_janela_dias', 'avaliacao_piso_lead_multiplicador', 'avaliacao_piso_visita_reais',
+    'avaliacao_janela_dias', 'avaliacao_manuais', 'avaliacao_piso_lead_multiplicador', 'avaliacao_piso_visita_reais',
     'avaliacao_releitura_dias', 'avaliacao_tolerancia_pct',
     'intervalo_min_dias', 'lead_impressoes_min', 'lead_janela_cpl_dias', 'lead_multiplicador_cpl',
     'reativar', 'reativar_tolerancia_pct', 'reduzir_antes', 'reduzir_pct',
     'trafego_gasto_min_reais', 'trafego_janela_media_dias', 'trafego_janela_recente_dias', 'trafego_tolerancia_pct',
     'trava_aprendizado', 'trava_aprendizado_dias',
   ]);
-  // A detecção de mudanças manuais ainda não existe (issue 331): a chave
-  // aparece, mas esmaecida.
-  assert.equal(montarRegua(null).ativas.includes('avaliacao_manuais'), false);
+  // Detecção de mudanças manuais no ar (issue 331): a chave vale.
+  assert.equal(montarRegua(null).ativas.includes('avaliacao_manuais'), true);
 });
 
 test('avaliação do resultado (issue 328): padrões iguais aos dos monitores e pisos aceitam zero', () => {

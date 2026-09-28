@@ -38,8 +38,8 @@ export const REGRAS = Object.freeze({
   avaliacao_piso_lead_multiplicador: { tipo: 'numero', padrao: 3, min: 0, max: 10, passo: 0.5, ativa: true },
   avaliacao_tolerancia_pct: { tipo: 'inteiro', padrao: 30, min: 0, max: 100, ativa: true },
   avaliacao_releitura_dias: { tipo: 'inteiro', padrao: 3, min: 0, max: 30, ativa: true },
-  // Só é consumida pela detecção de mudanças manuais (issue 331).
-  avaliacao_manuais: { tipo: 'booleano', padrao: true, ativa: false },
+  // Liga a detecção e o veredito das mudanças manuais (issue 331).
+  avaliacao_manuais: { tipo: 'booleano', padrao: true, ativa: true },
 });
 
 const CHAVES = Object.keys(REGRAS);

@@ -85,7 +85,22 @@ export const DESFECHO_ORCAMENTO_NAO_MUDOU = 'orçamento não mudou';
 export const DESFECHO_ORCAMENTO_DEVOLVIDO = 'orçamento devolvido';
 export const DESFECHO_ORCAMENTO_NAO_VOLTOU = 'orçamento não voltou';
 
+// Mudança manual (issue 331): linha de `argo.acoes` que registra o que foi
+// alterado à mão na conta. O "desfecho" é o subtipo inferido pelo monitor
+// (`estado_posterior.subtipo`), nunca "pausada com sucesso".
+export const TIPO_MUDANCA_MANUAL = 'mudanca_manual';
+export const FEITA_POR_NAO_IDENTIFICADO = 'não identificado';
+export const SUBTIPO_MANUAL_ROTULO = Object.freeze({
+  pausa: 'pausa',
+  reativacao: 'reativação',
+  orcamento_para_cima: 'orçamento para cima',
+  orcamento_para_baixo: 'orçamento para baixo',
+  outro: 'outro',
+});
+export const desfechoManual = (subtipo) => `mudança manual: ${SUBTIPO_MANUAL_ROTULO[subtipo] ?? 'outro'}`;
+
 function desfechoDaAcao(acao) {
+  if (acao.tipo === TIPO_MUDANCA_MANUAL) return desfechoManual(acao.estado_posterior?.subtipo);
   if (acao.desfeita_em != null) return DESFECHO_DESFEITA;
   if (acao.estado_posterior == null) return DESFECHO_DESCONHECIDO;
   if (TIPOS_ORCAMENTO.includes(acao.tipo) || acao.tipo === TIPO_DESFAZER_ORCAMENTO) {
@@ -199,13 +214,14 @@ export function montarRegistro({ rodadas = [], acoes = [], janelaDias = JANELA_P
     const {
       v_situacao, v_motivo, v_numeros, v_janela_dias, v_avaliada_em, v_origem, v_ultimo_erro, reativacao, ...resto
     } = acao;
+    const manual = acao.tipo === TIPO_MUDANCA_MANUAL;
     porRodada.get(acao.rodada_id).push({
       ...resto,
       tipo: tipoEfetivo,
       tipo_original: acao.tipo,
       desfecho,
-      origem: v_origem || 'argo',
-      feita_por: null,
+      origem: manual ? 'manual' : (v_origem || 'argo'),
+      feita_por: manual ? FEITA_POR_NAO_IDENTIFICADO : null,
       veredito,
     });
   }

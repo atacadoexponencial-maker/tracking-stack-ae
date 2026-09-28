@@ -369,3 +369,29 @@ test('montarRegistro: sem janela nem hoje, usa o padrão e a data de Brasília d
   assert.equal(v.situacao, 'aguardando');
   assert.equal(v.janela_dias, m.JANELA_PADRAO_DIAS);
 });
+
+// Mudança manual (issue 331).
+test('mudança manual: desfecho é o subtipo, origem manual e feita_por não identificado', async () => {
+  const m = await import('../functions/api/_argo-registro.js');
+  const r = m.montarRegistro({
+    rodadas: [{ id: 1, executor: 'ae_anuncios_monitor', iniciada_em: '2026-09-27T12:00:00Z', ok: true }],
+    acoes: [
+      { id: 1, rodada_id: 1, tipo: m.TIPO_MUDANCA_MANUAL, aplicada: true, desfeita_em: null, criada_em: '2026-09-27T12:00:00Z',
+        estado_anterior: { daily_budget: '2000' }, estado_posterior: { daily_budget: '4000', mudou_em: '2026-09-18T13:00:00Z', subtipo: 'orcamento_para_cima' } },
+      { id: 2, rodada_id: 1, tipo: m.TIPO_MUDANCA_MANUAL, aplicada: true, desfeita_em: null, criada_em: '2026-09-27T12:00:00Z',
+        estado_posterior: { status: 'PAUSED', mudou_em: '2026-09-25T13:00:00Z', subtipo: 'pausa' },
+        v_situacao: 'errou', v_motivo: 'caro', v_origem: 'manual', v_numeros: [] },
+    ],
+    janelaDias: 7,
+    hoje: '2026-09-27',
+  });
+  const [a, b] = r.rodadas[0].acoes;
+  assert.equal(a.desfecho, 'mudança manual: orçamento para cima');
+  assert.equal(a.origem, 'manual');
+  assert.equal(a.feita_por, m.FEITA_POR_NAO_IDENTIFICADO);
+  assert.equal(a.tipo, m.TIPO_MUDANCA_MANUAL);
+  assert.equal(b.desfecho, 'mudança manual: pausa');
+  assert.equal(b.veredito.situacao, 'errou');
+  assert.equal(b.origem, 'manual');
+  assert.equal(m.desfechoManual('inexistente'), 'mudança manual: outro');
+});
