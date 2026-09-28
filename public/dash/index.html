@@ -481,6 +481,52 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 @media (max-width: 980px) {
   .argo-placar-grupos { grid-template-columns: 1fr; }
 }
+/* Metas por funil (issue 332). Cores do DESIGN.md: dentro = verde, perto =
+   âmbar, fora = coral; sem meta ou sem dado = neutro, nunca uma cor de juízo. */
+.metas-card { margin-bottom: 1rem; }
+.metas-topo { display: flex; gap: 0.8rem; align-items: baseline; justify-content: space-between; flex-wrap: wrap; margin-bottom: 0.7rem; }
+.metas-topo h2 { margin: 0; }
+.metas-topo .mini { font-variant-numeric: tabular-nums; }
+.metas-nota { font-size: 0.76rem; color: var(--taupe); margin-bottom: 0.6rem; }
+.metas-avisos { display: grid; gap: 0.3rem; margin-bottom: 0.6rem; }
+.metas-funil + .metas-funil { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.metas-funil-nome { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--taupe); margin-bottom: 0.45rem; display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.metas-funil-nome span { text-transform: none; letter-spacing: 0; color: var(--muted); }
+.metas-linha { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.7rem; }
+.meta-ind { background: var(--card-2); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: 0.5rem; padding: 0.6rem 0.75rem; min-width: 0; display: grid; gap: 0.2rem; align-content: start; }
+.meta-ind .rotulo { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--taupe); }
+.meta-ind .valor { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.meta-ind .valor.semdado { color: var(--muted); font-weight: 400; font-size: 1rem; }
+.meta-ind .alvo { font-size: 0.76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meta-ind .extra { font-size: 0.74rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meta-ind.dentro { border-left-color: var(--up); } .meta-ind.dentro .valor { color: var(--up); }
+.meta-ind.perto { border-left-color: var(--warn); } .meta-ind.perto .valor { color: var(--warn); }
+.meta-ind.fora { border-left-color: var(--down); } .meta-ind.fora .valor { color: var(--down); }
+.meta-barra { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin: 0.2rem 0; }
+.meta-barra i { display: block; height: 100%; background: var(--muted); border-radius: 3px; }
+.meta-ind.dentro .meta-barra i { background: var(--up); }
+.meta-ind.perto .meta-barra i { background: var(--warn); }
+.meta-ind.fora .meta-barra i { background: var(--down); }
+.metas-compacto .meta-ind .valor { font-size: 1.1rem; }
+.metas-compacto { cursor: pointer; }
+.metas-compacto:hover { border-color: #4f4a4b; }
+.metas-rodape { margin-top: 0.7rem; font-size: 0.76rem; color: var(--muted); display: flex; gap: 1rem; flex-wrap: wrap; justify-content: space-between; }
+.metas-vazio { color: var(--muted); font-size: 0.86rem; }
+.metas-vazio a { color: var(--bege); }
+.metas-form-funil + .metas-form-funil { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+.metas-form-funil.bloqueado { opacity: 0.55; }
+.metas-campos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; margin: 0.5rem 0; }
+.metas-campos label { display: grid; gap: 0.25rem; font-size: 0.78rem; color: var(--muted); }
+.metas-campos .campo-erro { color: var(--down); font-size: 0.72rem; }
+.metas-hist { margin-top: 0.5rem; font-size: 0.78rem; }
+.metas-hist summary { cursor: pointer; color: var(--bege); }
+.metas-hist ul { list-style: none; display: grid; gap: 0.3rem; margin-top: 0.4rem; }
+.metas-hist li { color: var(--muted); font-variant-numeric: tabular-nums; }
+.metas-acoes { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .metas-linha, .metas-campos { grid-template-columns: 1fr 1fr; }
+}
+
 @media (max-width: 640px) {
   .argo-placar-grupo .grid-kpi { grid-template-columns: 1fr 1fr; }
   .argo-antes-depois thead { display: none; }
@@ -659,12 +705,16 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
         <p class="manchete" id="visao-manchete"></p>
         <div class="grid-heroi" id="visao-herois"></div>
       </div>
+      <!-- Metas (issue 332): sempre o mês corrente até ontem, não segue o filtro. -->
+      <div id="visao-metas"></div>
       <div class="grid-kpi" id="visao-kpis"></div>
       <div class="card"><h2>Leads por dia <small id="visao-serie-nota"></small></h2><div class="grafico" id="visao-grafico"></div></div>
       <div class="card"><h2>Conversão por LP <small>resumo</small></h2><div class="tabela-wrap" id="visao-lps"></div></div>
     </section>
 
     <section class="secao" id="secao-leads">
+      <!-- Metas (issue 332): detalhe com progresso e projeção do mês corrente. -->
+      <div id="leads-metas"></div>
       <div class="card"><h2>CRM <small>novos × retornando (ClickUp)</small></h2>
         <div class="grid-kpi" id="crm-kpis"></div>
         <div class="duas-colunas">
@@ -929,6 +979,12 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
             <button class="btn sec" type="button" id="funisrel-cancelar" hidden>Cancelar edição</button>
           </div>
         </form>
+      </div>
+      <!-- Metas mensais (issue 332): card próprio, fora do formulário do funil,
+           que edita um funil por vez e não tem onde caber histórico. -->
+      <div class="card">
+        <h2>Metas mensais <small>sobre leads novos · valem a partir do mês corrente até serem mudadas</small></h2>
+        <div id="funisrel-metas"></div>
       </div>
     </section>
 
@@ -1429,8 +1485,251 @@ function desenharFunilLp(linha) {
 // ---------- seções ----------
 const R = {};
 
+// ---------- Metas por funil (issues 332–335) ----------
+// Tudo chega pronto de /api/metas e /api/metas/acompanhamento: realizado,
+// projeção, "precisa de N por dia", situação e frases. Aqui só se desenha.
+// As metas são sempre do MÊS CORRENTE até ontem — não seguem o filtro.
+const METAS_CLASSE = { dentro: 'dentro', perto: 'perto', fora: 'fora', sem_meta: 'neutro', sem_dado: 'neutro' };
+let metasAcompanhamento = null; // promessa por render, dividida por Visão geral e Leads
+
+function carregarMetasAcompanhamento(forcar) {
+  if (!metasAcompanhamento || forcar) {
+    metasAcompanhamento = fetchJson('/api/metas/acompanhamento').catch(() => ({ falhou: true }));
+  }
+  return metasAcompanhamento;
+}
+
+function metasIndicadorHtml(ind, crmOk, detalhe) {
+  const volume = ind.tipo === 'volume';
+  // CRM fora do ar: volumes dizem que não deu para ler; custos viram "—"
+  // (sem leads não há divisor), sem inventar número.
+  if (crmOk === false) {
+    const frase = volume ? 'não foi possível ler os leads agora' : '—';
+    return `<div class="meta-ind neutro"><span class="rotulo">${esc(ind.rotulo)}</span>
+      <span class="valor semdado">${frase}</span>
+      ${ind.meta ? `<span class="alvo">meta ${esc(ind.meta)}</span>` : ''}</div>`;
+  }
+  const classe = METAS_CLASSE[ind.situacao] || 'neutro';
+  const semDado = ind.realizado === null || ind.realizado === undefined || ind.realizado === '';
+  const valor = semDado ? '<span class="valor semdado">—</span>' : `<span class="valor">${esc(ind.realizado)}</span>`;
+  const alvo = ind.meta ? `meta ${esc(ind.meta)}` : 'sem meta';
+  let extra = '';
+  if (detalhe && volume && ind.meta) {
+    const pct = Math.max(0, Math.min(100, Number(ind.pct) || 0));
+    extra = `<span class="meta-barra" aria-hidden="true"><i style="width:${pct}%"></i></span>
+      <span class="extra">${esc(fmtPct(ind.pct ?? 0, 0))} da meta · projeção ${esc(ind.projecao ?? '—')}</span>
+      <span class="extra">${ind.atingida ? 'meta atingida' : esc(ind.por_dia || '')}</span>`;
+  } else if (detalhe && !volume && ind.diferenca) {
+    extra = `<span class="extra">${esc(ind.diferenca)}</span>`;
+  }
+  return `<div class="meta-ind ${classe}"><span class="rotulo">${esc(ind.rotulo)}</span>${valor}
+    <span class="alvo">${alvo}</span>${extra}</div>`;
+}
+
+function metasTopoHtml(d) {
+  const faltam = d.dias_restantes === 1 ? 'falta 1 dia' : `faltam ${d.dias_restantes} dias`;
+  const ate = d.dados_ate
+    ? `dados até ${esc(argoDataCurta(d.dados_ate + 'T12:00:00'))} (ontem) · ${faltam}`
+    : 'ainda sem dia fechado no mês';
+  return `<div class="metas-topo"><h2>Metas de ${esc(d.mes_rotulo || d.mes)}</h2><span class="mini">${ate}</span></div>`;
+}
+
+function metasVazioHtml() {
+  return '<p class="metas-vazio">Nenhuma meta cadastrada — cadastre em <a href="#funis-relatorio" data-ir-secao="funis-relatorio">Funis do relatório</a>.</p>';
+}
+
+// Visão geral: compacto, um indicador por meta, clicável para o detalhe.
+async function desenharMetasCompacto() {
+  const el = $('#visao-metas');
+  const d = await carregarMetasAcompanhamento();
+  if (!d || d.falhou) {
+    el.innerHTML = '<div class="card metas-card"><p class="aviso explica">Não foi possível ler as metas agora.</p></div>';
+    return;
+  }
+  const nota = $('#preset').value !== 'mes'
+    ? '<p class="metas-nota">As metas mostram sempre o mês corrente, qualquer que seja o filtro de datas.</p>' : '';
+  if (!d.funis || !d.funis.length) {
+    el.innerHTML = `<div class="card metas-card">${metasTopoHtml(d)}${metasVazioHtml()}</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card metas-card metas-compacto" role="link" tabindex="0" data-ir-secao="leads" title="Ver o detalhe na aba Leads">
+    ${metasTopoHtml(d)}${nota}
+    ${d.funis.map((f) => `<div class="metas-funil"><div class="metas-funil-nome">${esc(f.nome)}</div>
+      <div class="metas-linha">${f.indicadores.map((i) => metasIndicadorHtml(i, f.crm_ok, false)).join('')}</div></div>`).join('')}
+  </div>`;
+}
+
+// Aba Leads: detalhe com barra, projeção, "precisa de N por dia" e avisos.
+async function desenharMetasDetalhe() {
+  const el = $('#leads-metas');
+  const d = await carregarMetasAcompanhamento();
+  if (!d || d.falhou) {
+    el.innerHTML = '<div class="card metas-card"><p class="aviso explica">Não foi possível ler as metas agora. O restante da aba continua valendo.</p></div>';
+    return;
+  }
+  if (!d.funis || !d.funis.length) {
+    el.innerHTML = `<div class="card metas-card">${metasTopoHtml(d)}${metasVazioHtml()}</div>`;
+    return;
+  }
+  const avisos = (d.avisos || []).map((a) => `<div class="aviso alerta">${esc(a)}</div>`).join('');
+  el.innerHTML = `<div class="card metas-card">${metasTopoHtml(d)}
+    ${avisos ? `<div class="metas-avisos">${avisos}</div>` : ''}
+    ${d.funis.map((f) => {
+      const alterada = f.meta_alterada_no_mes_em
+        ? `<span>a meta deste mês foi alterada em ${esc(argoDataCurta(f.meta_alterada_no_mes_em))}</span>` : '';
+      const ultima = f.alterada_em ? `meta alterada por ${esc(f.alterada_por || '—')} ${esc(argoQuando(f.alterada_em))}` : '';
+      return `<div class="metas-funil"><div class="metas-funil-nome">${esc(f.nome)}${alterada}</div>
+        <div class="metas-linha">${f.indicadores.map((i) => metasIndicadorHtml(i, f.crm_ok, true)).join('')}</div>
+        <div class="metas-rodape"><span>Investido no mês: ${esc(money((f.investido_centavos || 0) / 100))}</span>
+          <span>${ultima}</span><a href="#funis-relatorio" data-ir-secao="funis-relatorio" class="argo-ver-tudo">editar metas</a></div></div>`;
+    }).join('')}
+  </div>`;
+}
+
+// Atalhos dos cartões para outras abas.
+document.addEventListener('click', (ev) => {
+  const alvo = ev.target.closest && ev.target.closest('[data-ir-secao]');
+  if (!alvo) return;
+  ev.preventDefault();
+  location.hash = alvo.dataset.irSecao;
+});
+document.addEventListener('keydown', (ev) => {
+  if (ev.key !== 'Enter') return;
+  const alvo = ev.target.closest && ev.target.closest('.metas-compacto[data-ir-secao]');
+  if (alvo) location.hash = alvo.dataset.irSecao;
+});
+
+// Cadastro (aba Funis do relatório). Quatro campos por funil; em branco =
+// sem meta naquele indicador. Validação de verdade é do servidor; aqui só a
+// defesa por forma do dinheiro, a mesma da régua do Argo.
+const METAS_CAMPOS = [
+  ['cpl_max_centavos', 'CPL máximo', 'dinheiro'],
+  ['leads_novos', 'Leads novos no mês', 'inteiro'],
+  ['mqls', 'MQLs no mês', 'inteiro'],
+  ['custo_mql_max_centavos', 'Custo por MQL máximo', 'dinheiro'],
+];
+let metasCadastro = null;
+
+const metasValorTela = (tipo, v) => (v === null || v === undefined ? '' : tipo === 'dinheiro' ? (v / 100).toFixed(2) : String(v));
+// Só formatação: "2026-09" → "setembro de 2026"; dinheiro do histórico em reais.
+const metasMesTexto = (ym) => {
+  const m = /^(\d{4})-(\d{2})$/.exec(ym || '');
+  return m ? new Date(Date.UTC(+m[1], +m[2] - 1, 15)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : (ym || '');
+};
+const metasValorHistorico = (tipo, v) => (v === null || v === undefined ? 'sem meta' : tipo === 'dinheiro' ? money(v / 100) : String(v));
+
+function metasLerCampo(input, tipo) {
+  const bruto = input.value.trim();
+  if (input.validity && input.validity.badInput) return { ok: false, motivo: 'não é um número' };
+  if (bruto === '') return { ok: true, valor: null };
+  if (tipo === 'dinheiro') {
+    if (!ARGO_DINHEIRO.test(bruto)) return { ok: false, motivo: 'só números, com ponto e até duas casas (ex.: 90.00)' };
+    return { ok: true, valor: Math.round(Number(bruto) * 100) };
+  }
+  if (!/^\d+$/.test(bruto)) return { ok: false, motivo: 'número inteiro, sem casas decimais' };
+  return { ok: true, valor: Number(bruto) };
+}
+
+const metasFotografia = (bloco) => JSON.stringify([...bloco.querySelectorAll('[data-meta-campo]')].map((i) => i.value.trim()));
+
+function metasHistoricoHtml(f) {
+  if (!(f.historico || []).length) return '';
+  const linhas = f.historico.map((h) => {
+    const mudou = METAS_CAMPOS.map(([c, r, t]) => {
+      const a = metasValorHistorico(t, h.antes ? h.antes[c] : null);
+      const b = metasValorHistorico(t, h.depois ? h.depois[c] : null);
+      return a === b ? '' : `${r}: ${a} → ${b}`;
+    }).filter(Boolean).join('; ');
+    return `<li>${esc(argoQuando(h.em))} · ${esc(h.por || '—')} · ${esc(mudou || 'sem mudança de valor')}</li>`;
+  }).join('');
+  return `<details class="metas-hist"><summary>Histórico (${f.historico.length})</summary><ul>${linhas}</ul></details>`;
+}
+
+function desenharMetasCadastro(d) {
+  metasCadastro = d;
+  const el = $('#funisrel-metas');
+  if (!d || d.falhou) {
+    el.innerHTML = '<p class="aviso falha">Não foi possível ler as metas agora.</p>';
+    return;
+  }
+  if (!d.funis || !d.funis.length) {
+    el.innerHTML = '<p class="metas-vazio">Nenhum funil de lead cadastrado ainda.</p>';
+    return;
+  }
+  el.innerHTML = d.funis.map((f) => {
+    const bloq = !f.editavel;
+    const campos = METAS_CAMPOS.map(([chave, rotulo, tipo]) => `<label>${esc(rotulo)}
+        <span class="argo-entrada">${tipo === 'dinheiro' ? '<i>R$</i>' : ''}<input type="number" inputmode="${tipo === 'dinheiro' ? 'decimal' : 'numeric'}"
+          step="${tipo === 'dinheiro' ? '0.01' : '1'}" min="0" data-meta-campo="${chave}" data-meta-tipo="${tipo}"
+          value="${esc(metasValorTela(tipo, f.meta ? f.meta[chave] : null))}" placeholder="sem meta"${bloq ? ' disabled' : ''}></span>
+        <span class="campo-erro" data-meta-erro="${chave}" hidden></span></label>`).join('');
+    const ultima = f.alterada_em ? `Última alteração: ${esc(f.alterada_por || '—')}, ${esc(argoQuando(f.alterada_em))}` : 'Sem meta cadastrada.';
+    const legenda = bloq ? esc(f.motivo_bloqueio || 'sem meta para este funil') : `vale a partir de ${esc(metasMesTexto(f.vigente_desde || d.mes))} até ser mudada`;
+    const acoes = bloq ? '' : `<div class="metas-acoes"><button class="btn" type="button" data-meta-salvar disabled>Salvar</button>
+        <span class="mini">${ultima}</span><span class="mini" data-meta-aviso role="status" aria-live="polite"></span></div>`;
+    return `<div class="metas-form-funil${bloq ? ' bloqueado' : ''}" data-meta-funil="${esc(f.funil_id)}">
+      <div class="metas-funil-nome">${esc(f.nome)}<span>${legenda}</span></div>
+      <div class="metas-campos">${campos}</div>${acoes}${metasHistoricoHtml(f)}</div>`;
+  }).join('');
+  el.querySelectorAll('[data-meta-funil]').forEach((bloco) => { bloco.dataset.foto = metasFotografia(bloco); });
+}
+
+document.addEventListener('input', (ev) => {
+  const bloco = ev.target.closest && ev.target.closest('#funisrel-metas [data-meta-funil]');
+  if (!bloco) return;
+  const botao = bloco.querySelector('[data-meta-salvar]');
+  if (botao) botao.disabled = metasFotografia(bloco) === bloco.dataset.foto;
+});
+
+document.addEventListener('click', async (ev) => {
+  const botao = ev.target.closest && ev.target.closest('#funisrel-metas [data-meta-salvar]');
+  if (!botao) return;
+  const bloco = botao.closest('[data-meta-funil]');
+  const aviso = bloco.querySelector('[data-meta-aviso]');
+  aviso.textContent = '';
+  const meta = {};
+  let invalido = false;
+  bloco.querySelectorAll('[data-meta-campo]').forEach((input) => {
+    const r = metasLerCampo(input, input.dataset.metaTipo);
+    const erro = bloco.querySelector(`[data-meta-erro="${input.dataset.metaCampo}"]`);
+    erro.hidden = r.ok;
+    erro.textContent = r.ok ? '' : r.motivo;
+    if (r.ok) meta[input.dataset.metaCampo] = r.valor; else invalido = true;
+  });
+  if (invalido) { aviso.textContent = 'Corrija os campos marcados. Nada foi salvo.'; return; }
+  const funil = ((metasCadastro && metasCadastro.funis) || []).find((f) => String(f.funil_id) === bloco.dataset.metaFunil);
+  botao.disabled = true;
+  try {
+    const resposta = await fetch(`/api/metas?key=${encodeURIComponent(key)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ funil_id: funil ? funil.funil_id : null, meta, versao: funil ? funil.versao ?? null : null }),
+    });
+    const corpo = await resposta.json().catch(() => ({}));
+    if (!resposta.ok) {
+      Object.entries(corpo.campos || {}).forEach(([c, motivo]) => {
+        const erro = bloco.querySelector(`[data-meta-erro="${c}"]`);
+        if (erro) { erro.hidden = false; erro.textContent = motivo; }
+      });
+      aviso.textContent = corpo.erro || `O servidor respondeu ${resposta.status} sem explicar. Recarregue a aba e confira antes de sair.`;
+      botao.disabled = false;
+      return;
+    }
+    const funis = (metasCadastro.funis || []).map((f) => (String(f.funil_id) === String(corpo.funil_id) ? corpo : f));
+    desenharMetasCadastro({ ...metasCadastro, funis });
+    metasAcompanhamento = null; // a próxima Visão geral/Leads relê
+    const novo = $(`#funisrel-metas [data-meta-funil="${corpo.funil_id}"] [data-meta-aviso]`);
+    if (novo) novo.textContent = 'Salvo. Vale para o mês corrente e os seguintes.';
+  } catch {
+    aviso.textContent = 'A conexão caiu antes da resposta. Não dá para afirmar se salvou — recarregue a aba e confira.';
+    botao.disabled = false;
+  }
+});
+
 R.visao = async () => {
   const p = intervalo();
+  // Metas: carga própria, fora do Promise.all — falha nela não derruba a aba.
+  carregarMetasAcompanhamento(true);
+  desenharMetasCompacto();
   const [leadsA, leadsB, convA, convB, atrA, atrB, revA, revB] = await Promise.all([
     fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&limit=500`),
     // Do período anterior só entram os totais para o delta — sem linhas, sem
@@ -1502,6 +1801,8 @@ R.visao = async () => {
 
 R.leads = async () => {
   const p = intervalo();
+  carregarMetasAcompanhamento(true);
+  desenharMetasDetalhe();
   // A lista de funis (história inteira) só é pedida uma vez por sessão da
   // página: depois disso `popularFunis` usa a guardada em `funisConhecidos`.
   const comFunis = funisConhecidos.length ? '' : '&with=funnels';
@@ -2667,6 +2968,8 @@ async function restaurarBloqueio(btn) {
 let funisRelSituacao = 'ativos';
 
 R['funis-relatorio'] = async () => {
+  // Metas mensais: só o D1, independe do CRM e do restante da aba.
+  fetchJson('/api/metas').then(desenharMetasCadastro).catch(() => desenharMetasCadastro({ falhou: true }));
   // Conflitos calculados no servidor (últimos 30 dias). Falha aqui não pode
   // derrubar a lista — e também não pode sumir calada, como se não houvesse
   // conflito nenhum.
