@@ -931,6 +931,9 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
   const material = materialSlug
     ? (materialPorSlug(materialSlug)?.titulo || materialSlug)
     : '';
+  // Iscas: o card leva a tag do material (isca-<slug>). No card existente a
+  // tag é acrescentada às que já tem, então quem baixa vários acumula todas.
+  if (!tag && materialSlug) tag = `isca-${materialSlug}`;
 
   const utm = sessionData || {};
   const utmSource = utm.utm_source || '';
