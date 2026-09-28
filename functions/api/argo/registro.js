@@ -7,6 +7,8 @@ import { conectar, CONTA } from '../_argo-db.js';
 import { recusarSemChave } from '../_argo-auth.js';
 import { montarRegistro, CAMPOS_ACAO } from '../_argo-registro.js';
 import { montarRegua } from '../_argo-regua.js';
+import { montarPlacar, resolverPeriodo } from '../_argo-placar.js';
+import { ymdBrt } from '../_data-brt.js';
 
 // Teto explícito das ações. As rodadas já são limitadas; sem limite aqui uma
 // única rodada muito movimentada poderia devolver uma resposta sem tamanho
@@ -50,8 +52,9 @@ export async function onRequestGet({ request, env }) {
     const ids = rodadas.map((r) => r.id);
     // Janela da avaliação (issue 329) vem da régua salva, com o padrão do
     // catálogo quando não há valor — a mesma fonte que a aba edita (328).
-    const [config] = await sql`SELECT regua FROM argo.config_conta WHERE conta = ${CONTA}`;
-    const janelaDias = montarRegua(config?.regua).valores.avaliacao_janela_dias;
+    const [config] = await sql`SELECT regua, regua_atualizada_em FROM argo.config_conta WHERE conta = ${CONTA}`;
+    const regua = montarRegua(config?.regua);
+    const janelaDias = regua.valores.avaliacao_janela_dias;
     // Colunas vêm de CAMPOS_ACAO (_argo-registro.js): fonte única, para o
     // SELECT nunca divergir dos campos que montarRegistro lê e repassa.
     // `sql.unsafe` é seguro AQUI e só aqui: COLUNAS_ACAO é montada de
@@ -77,7 +80,38 @@ export async function onRequestGet({ request, env }) {
         `
       : [];
 
-    return Response.json(montarRegistro({ rodadas, acoes, janelaDias }));
+    const resposta = montarRegistro({ rodadas, acoes, janelaDias });
+
+    // Placar (issue 330): pela data da AÇÃO em Brasília, no período pedido
+    // pela aba. Falha aqui não derruba o registro — a resposta sai sem
+    // `placar` e a aba diz que não conseguiu ler o placar.
+    try {
+      const periodo = resolverPeriodo({
+        placar_dias: url.searchParams.get('placar_dias') ?? undefined,
+        placar_de: url.searchParams.get('placar_de') ?? undefined,
+        placar_ate: url.searchParams.get('placar_ate') ?? undefined,
+      }, ymdBrt(Date.now() / 1000));
+      const linhas = await sql`
+        SELECT v.situacao, v.origem,
+               CASE WHEN ${sql.unsafe(SQL_REATIVACAO)} THEN 'reativar_anuncio' ELSE a.tipo END AS tipo,
+               COALESCE(v.depois->'destino'->>'gasto', v.depois->>'gasto') AS gasto_reais
+          FROM argo.vereditos v
+          JOIN argo.acoes a ON a.id = v.acao_id
+         WHERE v.conta = ${CONTA}
+           AND v.situacao IN ('acertou', 'errou', 'inconclusivo')
+           AND (a.criada_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN ${periodo.de}::date AND ${periodo.ate}::date
+      `;
+      resposta.placar = montarPlacar({
+        linhas,
+        periodo,
+        reguaAlteradaEm: config?.regua_atualizada_em ?? null,
+        manuaisLigadas: regua.valores.avaliacao_manuais,
+      });
+    } catch {
+      // Sem placar nesta resposta; o registro acima continua válido.
+    }
+
+    return Response.json(resposta);
   } catch {
     return Response.json(
       { erro: 'Não foi possível ler o registro do Argo agora.' },

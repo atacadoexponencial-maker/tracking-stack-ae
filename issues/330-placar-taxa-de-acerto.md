@@ -28,17 +28,65 @@ Em produção, o topo do Registro mostra os cartões com os números do período
 ### Cenário de Erro
 - Endpoint falha → cartões mostram "não foi possível ler o placar" e o Registro continua funcionando.
 
+## Desvio registrado
+
+A quebra original previa `GET /api/argo/placar`. O protótipo aprovado (325)
+fixou o placar **dentro** de `GET /api/argo/registro` (`registro.placar`),
+com o período em `placar_dias` | `placar_de`+`placar_ate` na mesma query. O
+contrato que a tela usa é o que vale: o placar entra na resposta do registro
+e não há endpoint novo. A agregação continua num módulo puro próprio.
+
+## Pesquisa (27/09)
+
+- `argo/registro.js` já lê `config_conta.regua` (328/329) e já tem `SQL_REATIVACAO` (tipo efetivo); `_argo-db.js` dá `conectar`/`CONTA`; `_data-brt.js` dá `ymdBrt`.
+- O Slack usa `argo_estado.placar_vereditos` (gestor-ae): `acertos/erros/inconclusivas` pela data da ação, origem `argo`, e `linha_placar` calcula `taxa = acertos ÷ (acertos + erros)` arredondada. A mesma fórmula fica documentada nos dois lados; nenhuma mudança no Python.
+- `gasto` nas erradas: `vereditos.depois->>'gasto'` está em REAIS (o Python grava `round(gasto, 2)`); na realocação `depois` é `{origem, destino}` → usar `destino.gasto`. A aba espera **centavos**.
+- A tela desenha `cartoes` na ordem recebida: primeiro `chave: 'argo'`, depois um por tipo, e `chave: 'manual'`; cartão de tipo sem avaliada mostra "—" — por isso os 7 tipos vão SEMPRE, com zeros.
+
+## Contrato (o que a 325 já espera)
+
+```json
+"placar": {
+  "periodo": { "de": "2026-08-28", "ate": "2026-09-27", "preset": 30 },
+  "regua_alterada_em": "2026-09-23T14:10:00Z",
+  "manuais_ligadas": true,
+  "cartoes": [
+    { "chave": "argo", "origem": "argo", "tipo": null, "avaliadas": 12, "acertos": 8, "erros": 2, "inconclusivas": 2, "taxa_pct": 80, "gasto_erradas_centavos": 41250 },
+    { "chave": "pausar_campanha_trafego", "origem": "argo", "tipo": "pausar_campanha_trafego", "...": "..." },
+    { "chave": "manual", "origem": "manual", "tipo": null, "...": "..." }
+  ]
+}
+```
+
+`preset` = 30 | 60 | 90 | "custom". `taxa_pct` = `Math.round(100 × acertos ÷ (acertos + erros))`, ou `null` sem conclusivas. `regua_alterada_em` só quando `config_conta.regua_atualizada_em` cai dentro do período (senão `null`).
+
+## Período
+
+- `placar_dias` ∈ {30, 60, 90} (padrão 30): `ate` = hoje BRT, `de` = hoje − (dias − 1).
+- `placar_de` e `placar_ate` em `YYYY-MM-DD`, `de ≤ ate`, no máximo 366 dias; `preset: "custom"`. Inválido → cai no padrão de 30 dias (nunca 400: a lista de rodadas não pode sumir por causa do placar).
+- Conta pela data da AÇÃO em Brasília: `(a.criada_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN de AND ate`.
+
 ## Arquivos
 
-- **Criar:** `functions/api/_argo-placar.js` — agregação pura, testável.
-- **Criar:** `functions/api/argo/placar.js` — endpoint autenticado como os demais de `argo/`.
-- **Modificar:** `public/dash/index.html` — cartões, período e clique-filtro (marcação do protótipo 325).
-- **Modificar:** `gestor-ae/profiles/gestor-ia/scripts/argo_veredito.py` — linha de placar do relatório com a mesma fórmula.
-- **Criar:** `tests/argo-placar.test.js`.
+- **Criar:** `functions/api/_argo-placar.js` — módulo puro:
+  - `TIPOS_PLACAR` (os 7 tipos, na ordem da aba) e `SITUACOES_CONCLUSIVAS`.
+  - `resolverPeriodo({ placar_dias, placar_de, placar_ate }, hojeYmd)` → `{ de, ate, preset }` com as regras acima.
+  - `montarPlacar({ linhas, periodo, reguaAlteradaEm, manuaisLigadas })` → o objeto do contrato. `linhas` = `[{ situacao, origem, tipo, gasto_reais }]`; `gasto_erradas_centavos` soma `Math.round(gasto × 100)` das linhas `errou`.
+- **Modificar:** `functions/api/argo/registro.js`
+  - Lê `regua_atualizada_em` junto com `regua`; `manuaisLigadas = montarRegua(regua).valores.avaliacao_manuais`.
+  - `resolverPeriodo` a partir da query; um SELECT novo em `argo.vereditos JOIN argo.acoes` filtrado pelo período, devolvendo `situacao`, `origem`, tipo efetivo (`CASE WHEN ${SQL_REATIVACAO} THEN 'reativar_anuncio' ELSE a.tipo END`) e `COALESCE(v.depois->'destino'->>'gasto', v.depois->>'gasto')::numeric AS gasto_reais`.
+  - Resposta: `{ ...montarRegistro(...), placar: montarPlacar(...) }`. Se só o SELECT do placar falhar, a resposta sai **sem** `placar` (a aba mostra "não foi possível ler o placar") e o registro continua.
+- **Criar:** `tests/argo-placar.test.js` — período (preset, custom, inválidos, teto de 366 dias), cartões sempre presentes e na ordem, taxa `null` sem conclusivas, gasto das erradas em centavos, manual separado do argo, `regua_alterada_em` dentro/fora do período.
+
+Nenhuma alteração em `public/dash/index.html` nem no `gestor-ae` (a fórmula do Slack já é a mesma).
+
+## Dependências Externas
+
+Nenhuma.
 
 ## Checklist
 
-- [ ] Agregação com testes (inclui "—" e gasto das erradas).
-- [ ] Cartões, período e clique-filtro na aba.
-- [ ] Aviso de régua alterada.
-- [ ] Slack e aba batem no mesmo período.
+- [x] Agregação com testes (inclui "—" e gasto das erradas) — `_argo-placar.js`, `tests/argo-placar.test.js`; 851 verdes.
+- [x] Cartões, período e clique-filtro na aba — entregues no protótipo 325; backend agora responde `registro.placar` com `placar_dias`/`placar_de`/`placar_ate`.
+- [x] Aviso de régua alterada (`regua_atualizada_em` dentro do período).
+- [x] Slack e aba usam a mesma fórmula (acertos ÷ (acertos + erros), pela data da ação); conferência com número real fica para a 1ª semana de vereditos.
