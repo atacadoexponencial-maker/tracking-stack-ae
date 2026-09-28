@@ -27,17 +27,39 @@ Na configuração da aba Argo aparecem os cinco campos novos com os valores atua
 - Valor fora da faixa ou texto no campo numérico: resposta de validação e a aba mostra o motivo ao lado do campo, como já faz nos demais.
 - Locale do navegador: campo de dinheiro segue a defesa por forma (`^\d+(\.\d{1,2})?$`) já usada.
 
+## Pesquisa (27/09)
+
+- `functions/api/_argo-regua.js` é a fonte única: `REGRAS` (tipo, padrão, min, max, passo, ativa), `montarRegua` (valores/padroes/limites/ativas) e `validarRegua` (exige TODAS as chaves, recusa desconhecida). `argo/config.js` só importa as duas funções; nada mais lista chaves.
+- A aba (issue 325) já desenha o grupo "Avaliação do resultado" para toda chave presente em `regua.valores`, envia todas em `argoReguaDaTela()` (números e interruptores) e mostra "Ainda sem efeito" para chave fora de `ativas`. **Nenhuma alteração no `index.html`.**
+- Os monitores (`gestor-ae/argo_veredito.regua_avaliacao`) já leem `avaliacao_janela_dias`, `avaliacao_piso_visita_reais`, `avaliacao_piso_lead_multiplicador`, `avaliacao_tolerancia_pct`, `avaliacao_releitura_dias` com padrões 7 / 30 / 3 / 30 / 3 e `aceita_zero` nos quatro últimos. Os limites aqui têm de bater com isso (mínimo 0 onde `aceita_zero`; janela mínimo 1).
+- `avaliacao_manuais` só é consumida na 331: entra com `ativa: false` (a aba já mostra o aviso).
+- `tests/argo-regua.test.js` tem o caso "só as regras com lógica de hoje estão ativas", que lista as ativas; precisa das chaves novas.
+
 ## Arquivos
 
-- **Modificar:** `functions/api/_argo-regua.js` — chaves, faixas e padrões novos.
-- **Modificar:** `functions/api/_argo-config.js` e `functions/api/argo/config.js` — leitura e gravação das chaves.
-- **Modificar:** `public/dash/index.html` — campos na seção da régua (marcação vinda do protótipo 325).
-- **Modificar:** `gestor-ae/profiles/gestor-ia/scripts/argo_veredito.py` — passa a ler a régua em vez das constantes da 326.
-- **Modificar:** `tests/argo-regua.test.js` e `gestor-ae/.../test_argo_veredito.py`.
+- **Modificar:** `functions/api/_argo-regua.js` — seis entradas novas em `REGRAS`, bloco "Avaliação do resultado (issues 326–331)":
+  - `avaliacao_janela_dias: { tipo: 'inteiro', padrao: 7, min: 1, max: 30, ativa: true }`
+  - `avaliacao_piso_visita_reais: { tipo: 'numero', padrao: 30, min: 0, max: 5000, passo: 0.01, ativa: true }`
+  - `avaliacao_piso_lead_multiplicador: { tipo: 'numero', padrao: 3, min: 0, max: 10, passo: 0.5, ativa: true }`
+  - `avaliacao_tolerancia_pct: { tipo: 'inteiro', padrao: 30, min: 0, max: 100, ativa: true }`
+  - `avaliacao_releitura_dias: { tipo: 'inteiro', padrao: 3, min: 0, max: 30, ativa: true }`
+  - `avaliacao_manuais: { tipo: 'booleano', padrao: true, ativa: false }`
+- **Modificar:** `tests/argo-regua.test.js` — ativas com as cinco numéricas e sem `avaliacao_manuais`; padrões novos presentes; `validarRegua` recusa janela 0 e aceita piso 0.
+- Sem mudança em `_argo-config.js`, `argo/config.js`, `index.html` ou no `gestor-ae` (a leitura já existe; `regra_versao` já é gravada em cada veredito, então vereditos dados não mudam).
+
+## Dependências Externas
+
+Nenhuma.
+
+## Verificação
+
+1. `npm test`.
+2. Preview local: `npx wrangler pages dev . --port 8788` → `/dash/#argo`: o grupo aparece sem o aviso "ainda sem efeito" nas cinco numéricas, com ele em "Avaliar mudanças manuais"; alterar a janela e salvar → recarregar mostra o valor.
+3. Produção: merge da branch `argo-veredito` na `main` (o Pages builda da main); depois `GET /api/argo/config` devolve as chaves; conferir na VPS que `regua_avaliacao` lê o valor salvo (`argo_veredito.regua_avaliacao(argo_estado.ler_grade(...))`, só leitura).
 
 ## Checklist
 
-- [ ] Chaves + validação no backend com testes.
-- [ ] Campos na aba, salvar e ver o valor voltar.
-- [ ] Monitores lendo a régua nova (teste com grade simulada).
-- [ ] `regua_versao` gravada em cada veredito.
+- [x] Chaves + validação no backend com testes (`_argo-regua.js`, `tests/argo-regua.test.js`; 837 verdes).
+- [x] Campos na aba: conferido no proxy local com o catálogo real (5 numéricas ativas, manuais esmaecida; print `.playwright-mcp/print-1440-regua-avaliacao.png`). Salvar de verdade só em produção, após o merge (sem `.dev.vars` local para a Neon).
+- [x] Monitores lendo a régua nova (`test_argo_veredito.TestFila.test_regua_da_grade_e_lida`, 326).
+- [x] `regra_versao` gravada em cada veredito (coluna da 0006, preenchida em `abrir_veredito`).

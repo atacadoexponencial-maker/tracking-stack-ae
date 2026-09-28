@@ -28,11 +28,34 @@ test('valor salvo inválido cai no padrão, nunca aparece na tela', () => {
 
 test('só as regras com lógica de hoje estão ativas', () => {
   assert.deepEqual(montarRegua(null).ativas.sort(), [
+    'avaliacao_janela_dias', 'avaliacao_piso_lead_multiplicador', 'avaliacao_piso_visita_reais',
+    'avaliacao_releitura_dias', 'avaliacao_tolerancia_pct',
     'intervalo_min_dias', 'lead_impressoes_min', 'lead_janela_cpl_dias', 'lead_multiplicador_cpl',
     'reativar', 'reativar_tolerancia_pct', 'reduzir_antes', 'reduzir_pct',
     'trafego_gasto_min_reais', 'trafego_janela_media_dias', 'trafego_janela_recente_dias', 'trafego_tolerancia_pct',
     'trava_aprendizado', 'trava_aprendizado_dias',
   ]);
+  // A detecção de mudanças manuais ainda não existe (issue 331): a chave
+  // aparece, mas esmaecida.
+  assert.equal(montarRegua(null).ativas.includes('avaliacao_manuais'), false);
+});
+
+test('avaliação do resultado (issue 328): padrões iguais aos dos monitores e pisos aceitam zero', () => {
+  const r = montarRegua(null);
+  assert.equal(r.valores.avaliacao_janela_dias, 7);
+  assert.equal(r.valores.avaliacao_piso_visita_reais, 30);
+  assert.equal(r.valores.avaliacao_piso_lead_multiplicador, 3);
+  assert.equal(r.valores.avaliacao_tolerancia_pct, 30);
+  assert.equal(r.valores.avaliacao_releitura_dias, 3);
+  assert.equal(r.valores.avaliacao_manuais, true);
+  assert.deepEqual(r.limites.avaliacao_janela_dias, { min: 1, max: 30, passo: 1 });
+  // Piso zero desliga o piso (como `aceita_zero` no Python); janela zero não vale.
+  assert.equal(validarRegua({ ...padroes(), avaliacao_piso_visita_reais: 0 }).ok, true);
+  const semJanela = validarRegua({ ...padroes(), avaliacao_janela_dias: 0 });
+  assert.equal(semJanela.ok, false);
+  assert.match(semJanela.erros.join(' '), /avaliacao_janela_dias/);
+  // Valor salvo fora do limite volta ao padrão na tela.
+  assert.equal(montarRegua({ avaliacao_tolerancia_pct: 500 }).valores.avaliacao_tolerancia_pct, 30);
 });
 
 test('booleanos não têm limite numérico; números têm', () => {
