@@ -79,7 +79,7 @@ const investimentoOptions = [
 ];
 ---
 
-<main class="section aplicacao">
+<main class:list={['section aplicacao', { 'aplicacao--rosto': temRosto }]}>
   <div class="container aplicacao__inner">
     <Image src={logo} alt="Atacado Exponencial" height={72} class="aplicacao__logo" />
 
@@ -190,6 +190,19 @@ const investimentoOptions = [
   .aplicacao__card-titulo[hidden],
   .aplicacao__nav[hidden] { display: none; }
   .aplicacao__rosto { padding: 1.5rem 1.25rem; }
+
+  /* Com folha de rosto (iscas): logo discreta e menos respiro no topo — a
+     folha já é longa no celular e a logo não pode roubar a primeira tela. */
+  .aplicacao--rosto { padding-block: 1.25rem 2rem; }
+  .aplicacao--rosto .aplicacao__logo { height: 1.5rem; margin-bottom: 0; }
+  .aplicacao--rosto .aplicacao__form { margin-top: 0.25rem; }
+  /* No desktop a folha de rosto usa duas colunas (capa | texto) para caber numa
+     tela; ao seguir para o formulário o cartão volta à largura normal. */
+  @media (min-width: 900px) {
+    .aplicacao--rosto { padding-block: 2rem; }
+    .aplicacao__inner:has(.aplicacao__rosto:not([hidden])) { max-width: 58rem; }
+    .aplicacao__rosto { padding: 2.5rem 3rem; }
+  }
   .aplicacao__field { display: flex; flex-direction: column; gap: 0.4rem; }
   .aplicacao__field > span { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: hsl(var(--light-bg)); }
   .aplicacao__field input,

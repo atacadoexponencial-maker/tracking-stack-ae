@@ -35,7 +35,7 @@ const capa = capas[`../../assets/materiais/${slug}.png`]?.default;
 ---
 
 <BaseLayout
-  title={`${titulo} — Atacado Exponencial`}
+  title={`${titulo} | Atacado Exponencial`}
   description={subtitulo}
   showHeader={false}
   showFooter={false}
@@ -48,12 +48,13 @@ const capa = capas[`../../assets/materiais/${slug}.png`]?.default;
     privacidade="Seus dados ficam seguros. O material abre logo depois do envio."
   >
     <div slot="rosto" class="rosto">
-      <span class="rosto__badge">Material gratuito</span>
       {capa && (
         <div class="rosto__capa">
-          <Image src={capa} alt={`Capa do material ${titulo}`} widths={[240, 480]} sizes="240px" loading="eager" />
+          <Image src={capa} alt={`Capa do material ${titulo}`} widths={[280, 560]} sizes="(min-width: 900px) 272px, 176px" loading="eager" />
         </div>
       )}
+      <div class="rosto__texto">
+      <span class="rosto__badge">Material gratuito</span>
       <h1 class="rosto__titulo">{titulo}</h1>
       <p class="rosto__sub">{subtitulo}</p>
       {itens.length > 0 && (
@@ -66,16 +67,23 @@ const capa = capas[`../../assets/materiais/${slug}.png`]?.default;
       )}
       <button type="button" class="btn-cta aplicacao__rosto-cta rosto__cta">Quero receber o material</button>
       <p class="rosto__nota">Leva menos de 1 minuto.</p>
+      </div>
     </div>
   </AplicacaoForm>
 </BaseLayout>
 
 <style>
   .rosto { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  /* No celular o bloco de texto se dissolve no fluxo (selo acima da capa); no
+     desktop ele vira a coluna da direita. */
+  .rosto__texto { display: contents; }
+  .rosto__badge { order: -1; }
   .rosto__badge {
     font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em;
-    color: hsl(var(--light-bg)); border: 1px solid hsl(var(--border)); border-radius: 999px;
-    padding: 0.35rem 0.9rem;
+    /* verde-alta do DESIGN.md, o mesmo dos ✓ da lista */
+    color: #5dc986; background: rgba(93, 201, 134, 0.12);
+    border: 1px solid rgba(93, 201, 134, 0.45); border-radius: 999px;
+    padding: 0.4rem 0.95rem;
   }
   .rosto__capa {
     margin-top: 1.5rem; width: 9.5rem;
@@ -115,5 +123,15 @@ const capa = capas[`../../assets/materiais/${slug}.png`]?.default;
   @media (min-width: 640px) {
     .rosto__capa { width: 11rem; }
     .rosto__titulo { font-size: 2rem; }
+  }
+
+  @media (min-width: 900px) {
+    .rosto { flex-direction: row; align-items: center; gap: 3rem; text-align: left; }
+    .rosto__capa { order: 0; flex: 0 0 17rem; width: 17rem; margin-top: 0; }
+    .rosto__texto { display: flex; flex-direction: column; align-items: flex-start; flex: 1; }
+    .rosto__titulo { margin-top: 1.25rem; font-size: 2.1rem; }
+    .rosto__dentro { margin-top: 1.25rem; }
+    .rosto__cta { margin-top: 1.5rem; }
+    .rosto__nota { align-self: center; }
   }
 </style>

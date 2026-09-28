@@ -21,7 +21,7 @@ export const MATERIAIS = [
     slug: 'icp',
     titulo: 'Mapeie seu Cliente Ideal (ICP)',
     subtitulo:
-      'O framework completo para marcas de atacado definirem, estruturarem e ativarem seu perfil de cliente ideal com dados reais — não achismo.',
+      'O framework completo para marcas de atacado definirem, estruturarem e ativarem seu perfil de cliente ideal com dados reais, não achismo.',
     itens: [
       'Quadro do cliente ideal: dados firmográficos, tecnográficos e comportamentais',
       'Referências de mercado: 3 perfis para estudar e se inspirar',
@@ -39,7 +39,7 @@ export const MATERIAIS = [
       'Por que cliente nova precisa de um catálogo só para a primeira compra',
       'Os 7 elementos que não podem faltar no seu catálogo',
       'Os 5 erros que matam a conversão',
-      'Como usar o catálogo na sequência comercial — com checklist final',
+      'Como usar o catálogo na sequência comercial, com checklist final',
     ],
     destino: 'https://drive.google.com/file/d/1BhwUlvIC2uEdFjB2CLYSDrfXzr9B8npN/view',
   },
@@ -47,12 +47,12 @@ export const MATERIAIS = [
     slug: 'sell-out',
     titulo: 'Sell-Out: a venda depois da venda',
     subtitulo:
-      'Como ajudar o seu revendedor a vender mais — e transformar o sucesso dele em recompra para a sua marca.',
+      'Como ajudar o seu revendedor a vender mais e transformar o sucesso dele em recompra para a sua marca.',
     itens: [
       'Sell-in × sell-out e o ciclo da felicidade do método',
       'As 4 vantagens que o sell-out constrói para a marca',
       'O arsenal em 3 níveis: dos materiais essenciais aos eventos',
-      'Onde o sell-out entra na sua operação — com checklist',
+      'Onde o sell-out entra na sua operação, com checklist',
     ],
     destino: 'https://drive.google.com/file/d/1UdFjtfgGX-bQEFUwBdVcSGMYIPC_fovl/view',
   },
