@@ -7,7 +7,7 @@
 <title>Site Felipe Santos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800;900&family=Inter:wght@300;400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Inter:wght@300;400;500;700&display=swap">
 <style>
 :root{
   color-scheme: dark;
@@ -71,22 +71,22 @@ body.limpo .site-header{top:calc(env(safe-area-inset-top,0px) + 2.6rem)}
 
 /* ---------- hero ---------- */
 .hero{position:relative;overflow:hidden;background:var(--bg);padding-top:clamp(1rem,3vw,2.5rem)}
-.hero-stage{position:relative;max-width:1400px;margin-inline:auto;display:grid;place-items:center;min-height:clamp(420px,52vw,700px)}
-.hero-nome{position:absolute;z-index:3;left:0;right:0;bottom:6%;display:flex;flex-direction:column;padding-inline:clamp(12px,3vw,48px);pointer-events:none}
-.hero-nome span{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:clamp(3.4rem,14vw,14rem);line-height:.82;letter-spacing:-.045em}
-.hero-nome span:last-child{align-self:flex-end}
-.hero-foto{position:relative;z-index:2;width:clamp(260px,36vw,520px);align-self:end;margin:0}
-.hero-foto img{width:100%;filter:grayscale(1) contrast(1.08) brightness(.9)}
+.hero-stage{position:relative;max-width:1400px;margin-inline:auto;display:grid;place-items:end center;height:clamp(440px,calc(100svh - 190px),680px)}
+.hero-nome{position:absolute;z-index:3;left:0;right:0;top:30%;display:flex;justify-content:space-between;align-items:baseline;padding-inline:clamp(16px,3vw,56px);pointer-events:none}
+.hero-nome span{font-family:var(--display);font-weight:600;text-transform:uppercase;font-size:clamp(2.4rem,6.4vw,6.6rem);line-height:1;letter-spacing:-.01em}
+.hero-foto{position:relative;z-index:2;height:100%;max-width:34vw;margin:0;overflow:hidden;display:flex;justify-content:center}
+.hero-foto img{height:100%;width:auto;max-width:none;object-fit:cover;filter:grayscale(1) contrast(1.08) brightness(.9)}
 .hero-foto::after{content:"";position:absolute;inset:-1px;background:radial-gradient(ellipse 58% 62% at 50% 38%,transparent 40%,var(--bg) 78%),linear-gradient(180deg,transparent 55%,var(--bg) 96%)}
-.hero-selo{position:absolute;z-index:4;right:clamp(16px,14vw,260px);top:clamp(40px,12vw,200px);display:flex;align-items:center;gap:.8rem}
-.hero-selo b{font-family:var(--display);font-weight:800;font-size:clamp(1rem,2.2vw,1.8rem);background:var(--text);color:var(--bg);padding:.25em .6em;border-radius:3px;transform:rotate(-2deg);display:inline-block}
-.hero-selo svg{width:clamp(40px,6vw,80px);height:auto;color:var(--text)}
+.hero-selo{position:absolute;z-index:4;right:clamp(16px,4vw,72px);top:calc(30% + clamp(3.2rem,8vw,8rem));display:flex;align-items:center;gap:.7rem}
+.hero-selo b{font-family:var(--display);font-weight:700;font-size:clamp(.95rem,1.6vw,1.35rem);background:var(--text);color:var(--bg);padding:.3em .7em;border-radius:3px;transform:rotate(-2deg);display:inline-block}
+.hero-selo svg{width:clamp(36px,4.5vw,64px);height:auto;color:var(--text)}
 .hero-base{position:relative;z-index:3;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding-block:1.1rem;color:var(--muted);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase}
 @media (max-width:640px){
-  .hero-nome span{font-size:clamp(3.4rem,19vw,6rem)}
-  .hero-stage{min-height:520px}
-  .hero-foto{width:80vw}
-  .hero-selo{right:16px;top:24px}
+  .hero-nome{top:1rem;flex-direction:column;align-items:center}
+  .hero-nome span{font-size:clamp(2.4rem,13vw,3.6rem)}
+  .hero-stage{height:540px}
+  .hero-foto{height:78%;max-width:92vw}
+  .hero-selo{right:16px;top:auto;bottom:18%}
 }
 
 /* ---------- números ---------- */
@@ -138,7 +138,7 @@ body.limpo .site-header{top:calc(env(safe-area-inset-top,0px) + 2.6rem)}
 .evento{position:relative;overflow:hidden;background:var(--deep)}
 .evento .wrap{position:relative;z-index:2;display:grid;grid-template-columns:1.3fr 1fr;gap:3rem;align-items:center}
 .evento h2{font-size:clamp(2.6rem,7vw,6.2rem);font-weight:900;text-transform:uppercase;line-height:.92}
-.evento h2 span{display:block;-webkit-text-stroke:1.5px var(--text);color:transparent}
+.evento h2 span{display:block;color:rgba(255,255,255,.38)}
 .evento-info{display:flex;flex-direction:column;gap:1.2rem;border-left:1px solid var(--border);padding-left:2rem}
 .evento-info dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.6rem 1.2rem;font-size:.95rem}
 .evento-info dt{color:var(--muted);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;padding-top:.2rem}
@@ -164,10 +164,12 @@ body.limpo .site-header{top:calc(env(safe-area-inset-top,0px) + 2.6rem)}
 .logos{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:1rem;margin-bottom:3.5rem}
 .logos img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:50%;filter:grayscale(1) contrast(1.1);opacity:.75;transition:opacity .2s ease}
 .logos img:hover{opacity:1}
-.prints{columns:3 260px;column-gap:1.25rem}
-.prints figure{break-inside:avoid;margin:0 0 1.25rem;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg)}
-.prints img{width:100%;filter:grayscale(1)}
-.prints figcaption{padding:.7rem 1rem;font-size:.78rem;color:var(--muted)}
+.videos{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem}
+.videos figure{margin:0;display:flex;flex-direction:column;gap:.7rem}
+.videos .frame{aspect-ratio:9/16;border-radius:8px;overflow:hidden;background:var(--surface);border:1px solid var(--border)}
+.videos iframe{width:100%;height:100%;border:0;display:block}
+.videos figcaption{font-size:.85rem;color:var(--text-2);font-weight:500}
+@media (max-width:860px){.videos{grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:70%;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:.5rem}.videos figure{scroll-snap-align:start}}
 
 /* ---------- consultoria ---------- */
 .consultoria{position:relative;overflow:hidden;background:var(--text);color:var(--bg)}
@@ -242,11 +244,6 @@ footer{background:var(--deep);border-top:1px solid var(--border);padding-block:4
   </div>
 </header>
 
-<aside class="nota"><div>
-  <span class="n">00</span>
-  <span class="t">Menu fixo <span class="chip tem">Já temos</span></span>
-  <span class="ref">No Pedro, o botão azul leva ao "Universo Subido". Aqui o botão de destaque leva ao Atacado Exponencial, que já é a nossa LP de captura. O site do Felipe é a marca pessoal; o AE é a empresa.</span>
-</div></aside>
 
 <!-- HERO -->
 <section class="hero" id="topo">
@@ -266,8 +263,8 @@ footer{background:var(--deep);border-top:1px solid var(--border);padding-block:4
 
 <aside class="nota"><div>
   <span class="n">01</span>
-  <span class="t">Abertura com o nome <span class="chip tem">Já temos</span></span>
-  <span class="ref">Igual ao Pedro: nome gigante e a foto no meio, sem botão. O selo "O cara do atacado" faz o papel do "O Subido". Foto atual do ensaio; o ideal é uma foto de palco ou de bastidor com marcas.</span>
+  <span class="t">Menu e abertura <span class="chip tem">Já temos</span></span>
+  <span class="ref">Abertura no estilo do Pedro: nome e foto no meio, sem botão, tudo na primeira tela. O selo "O cara do atacado" faz o papel do "O Subido". No menu, o botão de destaque leva ao Atacado Exponencial (no Pedro, leva ao "Universo Subido"): o site do Felipe é a marca pessoal e o AE é a empresa.</span>
 </div></aside>
 
 <!-- NÚMEROS -->
@@ -443,10 +440,11 @@ footer{background:var(--deep);border-top:1px solid var(--border);padding-block:4
     <div class="logos">
       <img src="/felipesantos/img/logo-01.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-02.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-03.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-04.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-05.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-06.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-07.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-08.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-09.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-10.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-11.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-12.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-13.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-14.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-15.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-16.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-17.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-18.webp" alt="Marca cliente"><img src="/felipesantos/img/logo-19.webp" alt="Marca cliente">
     </div>
-    <div class="prints">
-      <figure><img src="/felipesantos/img/proof-2.png" alt="Conversa de WhatsApp com cliente após o workshop"><figcaption>Depois do workshop, no WhatsApp</figcaption></figure>
-      <figure><img src="/felipesantos/img/proof-4.png" alt="Comentários no chat do workshop"><figcaption>Chat do workshop ao vivo</figcaption></figure>
-      <figure><img src="/felipesantos/img/proof-1.jpg" alt="Depoimento de cliente"><figcaption>Depoimento de cliente</figcaption></figure>
+    <div class="videos">
+      <figure><div class="frame"><iframe src="https://player-vz-718ea161-967.tv.pandavideo.com.br/embed/?v=101c1525-fa13-4fe6-a61e-fe38600dec12" title="Depoimento de Jaque" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div><figcaption>Jaque</figcaption></figure>
+      <figure><div class="frame"><iframe src="https://player-vz-718ea161-967.tv.pandavideo.com.br/embed/?v=a7d5602a-4f1e-4d28-9b83-9cfc53fde08a" title="Depoimento de Barraca do Willinha" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div><figcaption>Barraca do Willinha</figcaption></figure>
+      <figure><div class="frame"><iframe src="https://player-vz-718ea161-967.tv.pandavideo.com.br/embed/?v=03f4e18a-1f52-40f5-844a-3f900f705126" title="Depoimento de Adriana" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div><figcaption>Adriana</figcaption></figure>
+      <figure><div class="frame"><iframe src="https://player-vz-718ea161-967.tv.pandavideo.com.br/embed/?v=d8d67535-9b07-4713-a21f-14eb4cd70f6b" title="Depoimento de Jossanclê" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div><figcaption>Jossanclê</figcaption></figure>
     </div>
   </div>
 </section>
@@ -454,7 +452,7 @@ footer{background:var(--deep);border-top:1px solid var(--border);padding-block:4
 <aside class="nota"><div>
   <span class="n">07</span>
   <span class="t">Prova social <span class="chip tem">Já temos</span></span>
-  <span class="ref">O Pedro usa depoimentos de famosos (Joel Jota, Ícaro de Carvalho) e depois casos de alunos. Aqui a força está nas marcas: parede de logos que já usamos nas LPs e prints reais. Se houver vídeo de um dono de marca, ele entra no topo desta seção.</span>
+  <span class="ref">O Pedro usa depoimentos de famosos (Joel Jota, Ícaro de Carvalho) e depois casos de alunos. Aqui a força está nas marcas: parede de logos e os depoimentos em vídeo de donos de marca que já usamos na home.</span>
 </div></aside>
 
 <!-- CONSULTORIA -->
