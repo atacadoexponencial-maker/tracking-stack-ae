@@ -90,7 +90,8 @@ export async function onRequest(context) {
 }
 
 // Leituras e montagem. Qualquer exceção sobe para o erro geral de onRequest.
-async function montarFeedback(env, periodo, avisosDoPeriodo) {
+// Exportada para as metas (issue 334): mesma conta, números nunca divergem.
+export async function montarFeedback(env, periodo, avisosDoPeriodo) {
   const limites = limitesDoPeriodoUnix(periodo);
   // Só leitura. `ad_spend.date` já é dia de Brasília: o recorte é direto por
   // intervalo de data, pelo índice (platform, date), agregado por campanha.
