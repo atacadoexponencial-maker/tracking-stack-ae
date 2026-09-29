@@ -1,0 +1,267 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+import felipe from '../assets/brand/felipe.webp';
+import LeadFormModal from '../components/LeadFormModal.astro';
+
+// LP perene do workshop quinzenal gratuito (copy aprovada em 28-29/09/2026).
+// Não tem edição, data nem material: vende o formato e a Equação Exponencial.
+// O formulário (LeadFormModal) manda para o /tracker com funnel "workshop";
+// o backend cria o card no ClickUp e devolve o destino (env
+// LEAD_REDIRECT_WORKSHOP = grupo de WhatsApp dos workshops).
+
+const tensao = [
+  'Você já assistiu aula de marketing que só falava de seguidor, engajamento e cliente final.',
+  'Anotou tudo. Na segunda-feira abriu o WhatsApp da marca e não sabia por onde começar.',
+];
+
+const passos = [
+  'Você se inscreve e entra no grupo de WhatsApp dos workshops.',
+  'A cada 15 dias, o tema e o link da aula chegam no grupo.',
+  'Você assiste ao vivo com o Felipe.',
+];
+
+const faqs = [
+  { q: 'Preciso já vender no atacado?', a: 'Sim. É para marca que já tem base de revendedores e fatura acima de R$ 20 mil por mês.' },
+  { q: 'Quanto custa?', a: 'Nada. O workshop é gratuito.' },
+  { q: 'E se eu não puder assistir ao vivo?', a: 'A aula não fica gravada. Por isso a data chega com antecedência no grupo, para você se organizar.' },
+  { q: 'Serve para o meu nicho?', a: 'O método é de atacado, não de produto. Funciona para moda, íntima, praia, calçados, acessórios, casa e o que mais você vender para lojista.' },
+];
+---
+
+<BaseLayout
+  title="Workshop gratuito quinzenal para marcas de atacado | Atacado Exponencial"
+  description="A cada 15 dias, uma aula gratuita e ao vivo com Felipe Santos sobre um dos dois lados que fazem um atacado crescer."
+  showHeader={false}
+>
+  <div class="wg">
+    <!-- [0] Barra fixa -->
+    <div class="wg-barra">
+      <div class="container wg-barra__inner">
+        <span class="wg-barra__txt">Workshop gratuito ao vivo a cada 15 dias</span>
+        <button type="button" class="wg-barra__btn" data-open-form>Quero minha vaga</button>
+      </div>
+    </div>
+
+    <!-- [1] Hero -->
+    <header class="wg-hero">
+      <div class="container wg-hero__grid">
+        <div class="wg-hero__txt">
+          <Image src={logo} alt="Atacado Exponencial" height={72} class="wg-hero__logo" />
+          <span class="wg-eyebrow">Workshops gratuitos ao vivo para marcas de atacado que faturam acima de R$ 20 mil por mês</span>
+          <h1 class="wg-hero__title">A conta que faz um atacado crescer tem dois lados. A cada 15 dias, o Felipe abre um deles <em>ao vivo</em>.</h1>
+          <p class="wg-hero__sub">Um tema por edição, sempre sobre revendedor, pedido e recompra. Você só precisa estar no grupo para receber o link.</p>
+          <div class="wg-hero__acao">
+            <button type="button" class="wg-cta" data-open-form>Quero participar do próximo workshop</button>
+            <span class="wg-micro">Gratuito · a data de cada edição chega no grupo de WhatsApp</span>
+          </div>
+        </div>
+        <figure class="wg-hero__foto">
+          <Image src={felipe} alt="Felipe Santos" widths={[360, 560]} sizes="(min-width: 900px) 28rem, 80vw" loading="eager" />
+          <figcaption>Felipe Santos · fundador do Atacado Exponencial</figcaption>
+        </figure>
+      </div>
+    </header>
+
+    <main>
+      <!-- [2] Tensão -->
+      <section class="wg-sec wg-tensao">
+        <div class="container wg-estreito">
+          {tensao.map((t) => <p class="wg-tensao__linha">{t}</p>)}
+          <p class="wg-tensao__linha wg-tensao__linha--forte">Aqui o assunto é revendedor, pedido mínimo, grade e recompra. Mais nada.</p>
+        </div>
+      </section>
+
+      <!-- [3] A Equação Exponencial -->
+      <section class="wg-sec wg-equacao">
+        <div class="container">
+          <div class="wg-head">
+            <span class="wg-eyebrow">A Equação Exponencial</span>
+            <p class="wg-head__txt">Um atacado cresce por dois lados. O primeiro é revendedor novo entrando todo mês. O segundo é quem já compra voltando a comprar.</p>
+            <p class="wg-head__txt">Cada workshop pega um desses lados e vai até o fim nele, em uma aula.</p>
+          </div>
+          <div class="wg-pilares">
+            <div class="wg-pilar">
+              <span class="wg-pilar__num">Pilar I</span>
+              <strong class="wg-pilar__nome">Novos revendedores de forma previsível</strong>
+            </div>
+            <span class="wg-pilares__mais" aria-hidden="true">+</span>
+            <div class="wg-pilar">
+              <span class="wg-pilar__num">Pilar II</span>
+              <strong class="wg-pilar__nome">Alta retenção de revendedores ativos</strong>
+            </div>
+          </div>
+          <p class="wg-equacao__nota">O tema da edição diz de qual lado você vai trabalhar.</p>
+        </div>
+      </section>
+
+      <!-- [4] Como funciona -->
+      <section class="wg-sec wg-como">
+        <div class="container">
+          <div class="wg-head">
+            <span class="wg-eyebrow">Como funciona</span>
+          </div>
+          <ol class="wg-passos">
+            {passos.map((p, i) => (
+              <li class="wg-passo">
+                <span class="wg-passo__n">{String(i + 1).padStart(2, '0')}</span>
+                <p>{p}</p>
+              </li>
+            ))}
+          </ol>
+          <div class="wg-centro">
+            <button type="button" class="wg-cta" data-open-form>Garantir minha vaga</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- [5] Felipe -->
+      <section class="wg-sec wg-felipe">
+        <div class="container wg-estreito">
+          <span class="wg-eyebrow">Quem conduz</span>
+          <p class="wg-felipe__bio"><strong>Felipe Santos</strong>, fundador do Atacado Exponencial. Em 2019 assumiu o marketing de uma marca de atacado no Bom Retiro e aprendeu na prática que atacado não é varejo com outra embalagem. Em 2021 fundou a Sete Aceleradora, só para marcas de atacado.</p>
+        </div>
+      </section>
+
+      <!-- [6] Inscrição, FAQ e fecho -->
+      <section class="wg-sec wg-fecho">
+        <div class="container wg-fecho__grid">
+          <div class="wg-inscricao">
+            <strong class="wg-inscricao__titulo">Workshop quinzenal · ao vivo · gratuito</strong>
+            <p>Ao se inscrever, você entra no grupo de WhatsApp dos workshops e recebe o link de cada edição.</p>
+            <button type="button" class="wg-cta" data-open-form>Quero minha vaga</button>
+          </div>
+          <div class="wg-faq">
+            {faqs.map((f) => (
+              <details class="wg-faq__item">
+                <summary>{f.q}</summary>
+                <p>{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+        <div class="container wg-final">
+          <p class="wg-final__frase">Uma aula e uma decisão tomada para a sua marca.</p>
+          <button type="button" class="wg-cta" data-open-form>Quero participar</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <LeadFormModal />
+</BaseLayout>
+
+<style>
+  .wg {
+    --wg-bg: #0f0e0d;
+    --wg-bg-2: #171513;
+    --wg-linha: rgba(255, 255, 255, 0.1);
+    --wg-texto-2: rgba(255, 255, 255, 0.68);
+    --wg-cobre: #c8703a;
+    --wg-cobre-claro: #e08a52;
+    background: var(--wg-bg);
+    color: #fff;
+  }
+
+  /* [0] Barra fixa */
+  .wg-barra {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(15, 14, 13, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--wg-linha);
+  }
+  .wg-barra__inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 0.6rem; }
+  .wg-barra__txt { font-size: 0.8rem; color: var(--wg-texto-2); }
+  .wg-barra__btn {
+    flex-shrink: 0; background: var(--wg-cobre); color: #fff; border: none; border-radius: 9999px;
+    font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.6rem 1rem;
+  }
+
+  /* Peças comuns */
+  .wg-eyebrow { display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--wg-cobre); line-height: 1.5; }
+  .wg-cta {
+    display: inline-flex; align-items: center; justify-content: center; text-align: center;
+    background: var(--wg-cobre); color: #fff; border: none; border-radius: 9999px;
+    font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 1.1rem 2rem; transition: background 0.2s ease;
+  }
+  .wg-cta:hover, .wg-barra__btn:hover { background: var(--wg-cobre-claro); }
+  .wg-micro { font-size: 0.8rem; color: var(--wg-texto-2); }
+  .wg-sec { padding-block: clamp(3.5rem, 8vw, 6rem); border-top: 1px solid var(--wg-linha); }
+  .wg-estreito { max-width: 46rem; }
+  .wg-head { display: flex; flex-direction: column; gap: 1rem; max-width: 44rem; margin-bottom: 2.5rem; }
+  .wg-head__txt { font-size: clamp(1.1rem, 2.2vw, 1.35rem); line-height: 1.5; color: var(--wg-texto-2); }
+  .wg-centro { margin-top: 2.5rem; }
+
+  /* [1] Hero */
+  .wg-hero { padding-block: clamp(2.5rem, 6vw, 5rem); }
+  .wg-hero__grid { display: grid; gap: 2.5rem; align-items: center; }
+  .wg-hero__txt { display: flex; flex-direction: column; gap: 1.5rem; }
+  .wg-hero__logo { height: 2rem; width: auto; filter: brightness(0) invert(1); }
+  .wg-hero__title { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.08; font-weight: 800; letter-spacing: -0.02em; }
+  .wg-hero__title em { font-style: normal; color: var(--wg-cobre); }
+  .wg-hero__sub { font-size: 1.1rem; color: var(--wg-texto-2); max-width: 34rem; }
+  .wg-hero__acao { display: flex; flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  .wg-hero__foto { margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+  .wg-hero__foto img {
+    width: 100%; height: auto; max-width: 28rem; aspect-ratio: 4 / 5; object-fit: cover;
+    border-radius: 0.5rem; border-bottom: 4px solid var(--wg-cobre);
+  }
+  .wg-hero__foto figcaption { font-size: 0.8rem; color: var(--wg-texto-2); }
+
+  /* [2] Tensão */
+  .wg-tensao { background: var(--wg-bg-2); }
+  .wg-tensao .container { display: flex; flex-direction: column; gap: 1.25rem; }
+  .wg-tensao__linha { font-size: clamp(1.2rem, 2.6vw, 1.6rem); line-height: 1.45; color: var(--wg-texto-2); }
+  .wg-tensao__linha--forte { color: #fff; font-weight: 700; border-left: 3px solid var(--wg-cobre); padding-left: 1rem; }
+
+  /* [3] Equação */
+  .wg-pilares { display: grid; gap: 1rem; align-items: stretch; }
+  .wg-pilar {
+    display: flex; flex-direction: column; gap: 0.75rem; padding: 1.75rem;
+    border: 1px solid rgba(200, 112, 58, 0.45); border-radius: 0.75rem;
+    background: linear-gradient(180deg, rgba(200, 112, 58, 0.12), rgba(200, 112, 58, 0.02));
+  }
+  .wg-pilar__num { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--wg-cobre); }
+  .wg-pilar__nome { font-size: clamp(1.25rem, 2.6vw, 1.6rem); line-height: 1.25; }
+  .wg-pilares__mais { align-self: center; justify-self: center; font-size: 2rem; font-weight: 300; color: var(--wg-cobre); }
+  .wg-equacao__nota { margin-top: 1.5rem; color: var(--wg-texto-2); }
+
+  /* [4] Como funciona */
+  .wg-passos { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; }
+  .wg-passo { display: flex; gap: 1rem; align-items: baseline; padding: 1.5rem; border: 1px solid var(--wg-linha); border-radius: 0.75rem; background: var(--wg-bg-2); }
+  .wg-passo__n { font-size: 1.5rem; font-weight: 800; color: var(--wg-cobre); font-variant-numeric: tabular-nums; }
+  .wg-passo p { font-size: 1.05rem; line-height: 1.5; }
+
+  /* [5] Felipe */
+  .wg-felipe .container { display: flex; flex-direction: column; gap: 1rem; }
+  .wg-felipe__bio { font-size: clamp(1.1rem, 2.2vw, 1.3rem); line-height: 1.6; color: var(--wg-texto-2); }
+  .wg-felipe__bio strong { color: #fff; }
+
+  /* [6] Fecho */
+  .wg-fecho__grid { display: grid; gap: 2.5rem; }
+  .wg-inscricao { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .wg-inscricao__titulo { font-size: clamp(1.3rem, 2.8vw, 1.75rem); line-height: 1.25; }
+  .wg-inscricao p { color: var(--wg-texto-2); }
+  .wg-faq { display: flex; flex-direction: column; gap: 0.75rem; }
+  .wg-faq__item { border: 1px solid var(--wg-linha); border-radius: 0.75rem; padding: 1.1rem 1.25rem; background: var(--wg-bg-2); }
+  .wg-faq__item summary { cursor: pointer; font-weight: 700; }
+  .wg-faq__item p { margin-top: 0.75rem; color: var(--wg-texto-2); line-height: 1.55; }
+  .wg-final { margin-top: clamp(3rem, 7vw, 5rem); display: flex; flex-direction: column; align-items: center; gap: 1.5rem; text-align: center; }
+  .wg-final__frase { font-size: clamp(1.5rem, 3.6vw, 2.4rem); font-weight: 800; line-height: 1.15; max-width: 32rem; }
+
+  @media (max-width: 480px) {
+    .wg-barra__txt { font-size: 0.72rem; }
+    .wg-cta { width: 100%; }
+    .wg-hero__acao { align-items: stretch; }
+  }
+  @media (min-width: 900px) {
+    .wg-hero__grid { grid-template-columns: 1.3fr 1fr; }
+    .wg-hero__foto { align-items: flex-end; }
+    .wg-pilares { grid-template-columns: 1fr auto 1fr; }
+    .wg-passos { grid-template-columns: repeat(3, 1fr); }
+    .wg-passo { flex-direction: column; gap: 0.75rem; }
+    .wg-fecho__grid { grid-template-columns: 1fr 1.2fr; align-items: start; }
+  }
+</style>

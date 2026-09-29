@@ -260,6 +260,7 @@ export const KNOWN_PAGE_PATHS = new Set([
   '/consultoria-gratuita-atacado',
   '/video-workshop-instagram',
   '/vsl',
+  '/workshop-gratuito',
   '/workshop-gratuito-atacado',
   '/obrigada',
   '/calculadora-atacado',

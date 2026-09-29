@@ -24,3 +24,9 @@
 # com barra final (308 do Astro).
 /se-v2 / 301
 /se-v2/ / 301
+
+# A masterclass /workshop-gratuito-atacado foi desativada em 29/09/2026 e deu
+# lugar à LP perene do workshop quinzenal. Link antigo em anúncio ou bio cai
+# na página nova (mesmo funil "workshop" no ClickUp).
+/workshop-gratuito-atacado /workshop-gratuito 301
+/workshop-gratuito-atacado/ /workshop-gratuito 301

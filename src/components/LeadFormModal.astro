@@ -1,10 +1,12 @@
 ---
 /**
  * Formulário modal de captação (issue 14, variante do funil Workshop).
- * Capta nome, telefone, email, instagram e faturamento e envia ao backend
- * (/tracker, event Lead, funnel "workshop"), que registra a atribuição,
- * dispara Meta CAPI, encaminha ao CRM do workshop e devolve o destino
- * (página do vídeo). Abre ao clicar em [data-open-form].
+ * Capta nome, WhatsApp e email e envia ao backend (/tracker, event Lead,
+ * funnel "workshop"), que registra a atribuição, dispara Meta CAPI,
+ * encaminha ao CRM do workshop e devolve o destino (grupo de WhatsApp dos
+ * workshops, env LEAD_REDIRECT_WORKSHOP). Abre ao clicar em [data-open-form].
+ * Usado pela LP perene /workshop-gratuito (29/09/2026: saíram Instagram e
+ * faturamento, o corte de R$ 20 mil fica só no texto da página).
  */
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo.png';
@@ -19,38 +21,18 @@ import logo from '../assets/brand/logo.png';
     <form class="lform__form" id="lead-form-el">
       <label class="lform__field">
         <span>Nome</span>
-        <input name="nome" type="text" placeholder="Nome" required minlength="2" />
+        <input name="nome" type="text" placeholder="Seu nome" required minlength="2" />
       </label>
       <label class="lform__field">
-        <span>Telefone</span>
-        <input name="telefone" type="tel" placeholder="Telefone" required />
+        <span>WhatsApp</span>
+        <input name="telefone" type="tel" placeholder="(11) 99999-9999" required />
       </label>
       <label class="lform__field">
-        <span>Email</span>
-        <input name="email" type="email" placeholder="Email" required />
-      </label>
-      <label class="lform__field">
-        <span>Instagram da marca</span>
-        <input name="instagram" type="text" placeholder="@ do Instagram" required />
-      </label>
-      <label class="lform__field">
-        <span>Faturamento mensal</span>
-        <select name="faturamento" required>
-          <option value="" disabled selected>Selecione…</option>
-          <option>Menos de 20 Mil</option>
-          <option>De 20 a 30 Mil</option>
-          <option>De 30 a 40 Mil</option>
-          <option>De 40 a 75 Mil</option>
-          <option>De 75 a 100 Mil</option>
-          <option>De 100 a 150 Mil</option>
-          <option>De 150 a 200 Mil</option>
-          <option>De 200 a 300 Mil</option>
-          <option>De 300 a 500 Mil</option>
-          <option>Mais de 500 Mil</option>
-        </select>
+        <span>E-mail</span>
+        <input name="email" type="email" placeholder="seu@email.com" required />
       </label>
       <p class="lform__error" id="lead-form-error" hidden></p>
-      <button type="submit" class="lform__submit" id="lead-form-submit">Quero assistir agora</button>
+      <button type="submit" class="lform__submit" id="lead-form-submit">Entrar no grupo do workshop</button>
     </form>
   </div>
 </div>
@@ -80,7 +62,7 @@ import logo from '../assets/brand/logo.png';
   .lform__field input:focus, .lform__field select:focus { outline: none; border-color: rgba(255, 255, 255, 0.6); }
   .lform__error { color: #f87171; font-size: 0.8rem; }
   .lform__submit {
-    background: #fff; color: #1e1e1e; border: none; font-weight: 700;
+    background: #c8703a; color: #fff; border: none; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8rem; padding: 1rem; margin-top: 0.5rem;
   }
   .lform__submit:disabled { opacity: 0.5; }
@@ -121,8 +103,6 @@ import logo from '../assets/brand/logo.png';
         nome: String(data.get('nome') || ''),
         telefone: String(data.get('telefone') || ''),
         email: String(data.get('email') || ''),
-        instagram: String(data.get('instagram') || ''),
-        faturamento: String(data.get('faturamento') || ''),
         funnel: 'workshop',
       };
       if (!telefoneValido(lead.telefone)) {
