@@ -65,7 +65,12 @@ const proofImages = Object.entries(proofModules)
 // (um vídeo a cada dois prints), como a usuária pediu em 29/09.
 const storiesItens = [];
 {
-  const prints = proofImages.map((img) => ({ tipo: 'print' as const, img, rotulo: 'Workshop' }));
+  // Fora dos stories: proof-2 é print do WhatsApp Web (tela de desktop, larga
+  // demais para ler no celular). Continua na grade de prints lá embaixo.
+  const prints = Object.entries(proofModules)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .filter(([caminho]) => !caminho.includes('proof-2.'))
+    .map(([, m]) => ({ tipo: 'print' as const, img: (m as { default: ImageMetadata }).default, rotulo: 'Workshop' }));
   const videos = depoimentos.map((d) => ({ tipo: 'video' as const, videoId: d.videoId, rotulo: d.name }));
   while (prints.length || videos.length) {
     if (videos.length) storiesItens.push(videos.shift()!);
@@ -267,6 +272,9 @@ const varejoAtacado = [
        grande demais (pedido da usuária em 29/09): menor e centralizada. */
     .hero nav.hero__nav { justify-content: center; padding-block: 1rem; }
     .hero img.hero__logo { height: 1.5rem; }
+    /* Menos respiro entre a logo e o selo (pedido da usuária em 29/09): a
+       primeira tela sobra para o botão e os stories. */
+    .hero div.hero__body { padding-top: 1rem; }
   }
 </style>
 

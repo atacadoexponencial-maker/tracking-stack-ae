@@ -49,7 +49,7 @@ const stories = await Promise.all(
       <li>
         <button type="button" class="stories__bolinha" data-story-abrir={i} aria-label={`Abrir depoimento: ${s.rotulo}`}>
           <span class="stories__anel">
-            <img src={s.miniatura} alt="" width="64" height="64" loading="eager" decoding="async" />
+            <img src={s.miniatura} alt="" width="76" height="76" loading="eager" decoding="async" />
             {s.tipo === 'video' && <span class="stories__play" aria-hidden="true">▶</span>}
           </span>
         </button>
@@ -88,7 +88,7 @@ const stories = await Promise.all(
     background: none; border: 0; padding: 0; cursor: pointer; scroll-snap-align: start; color: inherit;
   }
   .stories__anel {
-    position: relative; display: block; width: 3.75rem; height: 3.75rem; border-radius: 50%; padding: 3px;
+    position: relative; display: block; width: 4.75rem; height: 4.75rem; border-radius: 50%; padding: 3px;
     background: conic-gradient(from 200deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5, #feda75);
   }
   .stories__anel img {
