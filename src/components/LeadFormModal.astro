@@ -3,8 +3,9 @@
  * Formulário modal de captação (issue 14, variante do funil Workshop).
  * Capta nome, WhatsApp e email e envia ao backend (/tracker, event Lead,
  * funnel "workshop"), que registra a atribuição, dispara Meta CAPI,
- * encaminha ao CRM do workshop e devolve o destino (grupo de WhatsApp dos
- * workshops, env LEAD_REDIRECT_WORKSHOP). Abre ao clicar em [data-open-form].
+ * encaminha ao CRM do workshop e devolve o destino (/obrigado-workshop-gratuito,
+ * cujo botão leva ao grupo via /grupo-workshop-gratuito). Abre ao clicar em
+ * [data-open-form] ou [data-open-chat].
  * Usado pela LP perene /workshop-gratuito (29/09/2026: saíram Instagram e
  * faturamento, o corte de R$ 20 mil fica só no texto da página).
  */
@@ -32,7 +33,7 @@ import logo from '../assets/brand/logo.png';
         <input name="email" type="email" placeholder="seu@email.com" required />
       </label>
       <p class="lform__error" id="lead-form-error" hidden></p>
-      <button type="submit" class="lform__submit" id="lead-form-submit">Entrar no grupo do workshop</button>
+      <button type="submit" class="lform__submit" id="lead-form-submit">Confirmar inscrição</button>
     </form>
   </div>
 </div>
@@ -115,7 +116,7 @@ import logo from '../assets/brand/logo.png';
       }
       submitBtn.disabled = true;
       submitBtn.textContent = 'Enviando…';
-      let redirect = '/video-workshop-instagram';
+      let redirect = '/obrigado-workshop-gratuito';
       const eventId = 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
       try { if (typeof (window as any).fbq === 'function') (window as any).fbq('track', 'Lead', {}, { eventID: eventId }); } catch (e) { /* espelho browser nunca bloqueia o envio */ }
       try {

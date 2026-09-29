@@ -6,6 +6,7 @@ import { registrarPrimeiraTentativa } from './api/_meta-fila.js';
 import { fbcValido } from './_fbc.js';
 import { normalizarSituacaoAviso } from './_aviso-cookies.js';
 import { padronizarTelefone } from './_telefone.js';
+import { enviarLeadAoManyChat } from './api/_lead-manychat.js';
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -357,6 +358,10 @@ export async function onRequestPost(context) {
       // Só marca — não dispara automação. Independente dos outros destinos.
       context.waitUntil(sendToGHL({ leadData: body.lead_data || {}, env }));
 
+      // ManyChat: contato + tag do formulário, só para os funis configurados em
+      // functions/api/_lead-manychat.js (hoje só 'workshop'). Os demais saem na hora.
+      context.waitUntil(enviarLeadAoManyChat({ leadData: body.lead_data || {}, env }));
+
       // Demais destinos desacoplados (inalterados): CRM Supabase + barramento
       // WhatsApp (n8n). Cada um dispara independente; se um falhar, os outros seguem.
       const crmDestinations = [
@@ -495,7 +500,9 @@ function resolverRedirectDoLead(body, env) {
   if ((body.event_name || '').toLowerCase() !== 'lead') return null;
   const leadFunnel = ((body.lead_data && body.lead_data.funnel) || 'diagnostico').toLowerCase();
   if (leadFunnel === 'workshop') {
-    return env.LEAD_REDIRECT_WORKSHOP || '/video-workshop-instagram';
+    // Página de obrigado com o botão do grupo (29/09/2026). O link do grupo
+    // continua em LEAD_REDIRECT_WORKSHOP, lido por /grupo-workshop-gratuito.
+    return '/obrigado-workshop-gratuito';
   }
   if (leadFunnel === 'lives-semanais-v1') {
     return env.LEAD_REDIRECT_LIVE || '/obrigada';

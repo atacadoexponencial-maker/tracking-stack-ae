@@ -1,0 +1,149 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo-horizontal-preto.png';
+
+// Página de obrigado do formulário da /workshop-gratuito (29/09/2026). O
+// /tracker devolve este endereço como destino do Lead do funil "workshop".
+//
+// Mesmo molde da /obrigado-black-exponencial (a do workshop pago), a pedido da
+// usuária: um botão só, verde do WhatsApp, levando ao grupo. O grupo é
+// resolvido por /grupo-workshop-gratuito (env LEAD_REDIRECT_WORKSHOP).
+//
+// NÃO se chama /obrigado-workshop: esse slug é um 301 legado para
+// /video-workshop-instagram (public/_redirects).
+//
+// Sem rastreamento próprio: o Lead já saiu no envio do formulário. Aqui só o
+// pageview padrão do BaseLayout.
+//
+// CABE NA TELA SEM ROLAR, como a página do workshop pago. Medir antes de
+// acrescentar qualquer bloco.
+const GRUPO_URL = '/grupo-workshop-gratuito';
+---
+
+<BaseLayout
+  title="Inscrição confirmada | Workshop gratuito Atacado Exponencial"
+  description="Sua inscrição no workshop gratuito está feita. Entre no grupo para receber o tema e o link de cada aula."
+  showHeader={false}
+  showFooter={false}
+  noindex
+>
+  <section class="obg">
+    <div class="container obg__inner">
+      <Image
+        src={logo}
+        alt="Atacado Exponencial"
+        width={939}
+        height={253}
+        loading="eager"
+        class="obg__logo"
+      />
+
+      <span class="obg__selo">Inscrição confirmada</span>
+
+      <h1 class="obg__titulo">Falta um passo: entrar no grupo.</h1>
+
+      <div class="obg__quando">
+        <span class="obg__quando-rotulo">Como funciona</span>
+        <strong class="obg__quando-data">A cada 15 dias, ao vivo</strong>
+        <span class="obg__quando-nota">Cerca de 1 hora · com Felipe Santos</span>
+      </div>
+
+      <a class="btn-cta obg__cta" href={GRUPO_URL}>Entrar no grupo do workshop</a>
+
+      <p class="obg__aviso">
+        O tema e o link de cada aula chegam <strong>só no grupo</strong>.
+      </p>
+
+      <p class="obg__rodape">O grupo só recebe aviso de workshop. Você pode sair quando quiser.</p>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  /* Estilos iguais aos da /obrigado-black-exponencial. */
+  .obg {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    background: hsl(var(--light-bg));
+    color: hsl(var(--light-fg));
+    padding-block: clamp(1.5rem, 5vh, 3rem);
+  }
+  .obg__inner {
+    max-width: 34rem;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: clamp(0.75rem, 2.2vh, 1.35rem);
+  }
+  .obg__logo {
+    height: auto;
+    width: clamp(9rem, 42vw, 13rem);
+    margin-bottom: clamp(0.25rem, 1vh, 0.75rem);
+  }
+  .obg__selo {
+    display: inline-block;
+    border: 1px solid rgba(30, 30, 30, 0.2);
+    border-radius: 9999px;
+    padding: 0.4rem 1rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(30, 30, 30, 0.7);
+  }
+  .obg__titulo {
+    margin: 0;
+    font-size: clamp(1.6rem, 5.5vw, 2.4rem);
+    line-height: 1.1;
+  }
+  .obg__quando {
+    width: 100%;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    border-radius: 1rem;
+    padding: clamp(1rem, 3vh, 1.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .obg__quando-rotulo {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: hsl(var(--muted-foreground));
+  }
+  .obg__quando-data {
+    font-size: clamp(1.25rem, 4.5vw, 1.75rem);
+    line-height: 1.15;
+  }
+  .obg__quando-nota {
+    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+    color: hsl(var(--muted-foreground));
+  }
+  /* Verde do WhatsApp com texto escuro (branco sobre #25D366 fica ilegível). */
+  .obg__cta {
+    width: 100%;
+    justify-content: center;
+    background: #25d366;
+    color: hsl(var(--light-fg));
+  }
+  .obg__aviso {
+    margin: 0;
+    font-size: clamp(0.85rem, 2.6vw, 0.95rem);
+    color: rgba(30, 30, 30, 0.75);
+  }
+  .obg__rodape {
+    margin: 0;
+    font-size: 0.75rem;
+    color: rgba(30, 30, 30, 0.5);
+  }
+  @media (max-height: 600px) {
+    .obg__selo { display: none; }
+    .obg__rodape { display: none; }
+  }
+</style>

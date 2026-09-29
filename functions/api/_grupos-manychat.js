@@ -107,7 +107,9 @@ async function tratarEntrada(telefone, cfg, env) {
 // exata — então a saída de quem já estava na base nunca achava ninguém e a tag
 // não era aplicada, em silêncio. É o mesmo motivo de
 // `searchClickUpTaskPorTelefone` tentar as variantes no CRM.
-async function acharPorTelefone(telefone, env) {
+// Exportada: o formulário do workshop (functions/api/_lead-manychat.js) usa a
+// mesma busca antes de criar contato.
+export async function acharPorTelefone(telefone, env) {
   for (const variante of variantesTelefone(telefone)) {
     const id = await buscarInscrito('phone', variante, env);
     if (id) return id;
