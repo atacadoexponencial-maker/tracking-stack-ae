@@ -62,7 +62,7 @@ import logo from '../assets/brand/logo.png';
   .lform__field input:focus, .lform__field select:focus { outline: none; border-color: rgba(255, 255, 255, 0.6); }
   .lform__error { color: #f87171; font-size: 0.8rem; }
   .lform__submit {
-    background: #c8703a; color: #fff; border: none; font-weight: 700;
+    background: #fff; color: #1e1e1e; border: none; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8rem; padding: 1rem; margin-top: 0.5rem;
   }
   .lform__submit:disabled { opacity: 0.5; }
@@ -88,7 +88,10 @@ import logo from '../assets/brand/logo.png';
     const open = () => { overlay.hidden = false; document.body.style.overflow = 'hidden'; };
     const close = () => { overlay.hidden = true; document.body.style.overflow = ''; };
 
-    document.querySelectorAll('[data-open-form]').forEach((el) => {
+    // [data-open-chat] vem dos componentes de seção da home (Hero, FinalCta,
+    // StickyCta). Nas páginas que usam este modal no lugar do LeadChat, o mesmo
+    // botão abre o formulário.
+    document.querySelectorAll('[data-open-form], [data-open-chat]').forEach((el) => {
       el.addEventListener('click', (e) => { e.preventDefault(); open(); });
     });
     overlay.querySelectorAll('[data-close-form]').forEach((el) => el.addEventListener('click', close));
