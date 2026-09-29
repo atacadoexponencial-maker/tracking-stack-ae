@@ -261,6 +261,7 @@ export const KNOWN_PAGE_PATHS = new Set([
   '/video-workshop-instagram',
   '/vsl',
   '/workshop-gratuito',
+  '/workshop-gratuito-v2',
   '/workshop-gratuito-atacado',
   '/obrigada',
   '/calculadora-atacado',

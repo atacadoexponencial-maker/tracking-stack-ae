@@ -1,0 +1,16 @@
+---
+/**
+ * Versão B do teste A/B de headline da /workshop-gratuito (29/09/2026).
+ *
+ * A: metáfora ("a conta tem dois lados"). B: promessa direta. Todo o resto é o
+ * mesmo componente, então a diferença de conversão mede só a headline.
+ * noindex: é variante, não pode competir com a A na busca.
+ */
+import WorkshopGratuito from '../components/WorkshopGratuito.astro';
+---
+
+<WorkshopGratuito
+  headline="Como ter revendedor novo entrando todo mês e fazer quem já comprou voltar a comprar. Ao vivo, a cada 15 dias, com o Felipe."
+  highlight="revendedor novo entrando todo mês"
+  noindex
+/>
