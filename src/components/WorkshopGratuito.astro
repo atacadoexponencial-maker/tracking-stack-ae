@@ -16,8 +16,8 @@
  * dos workshops). Os botões dos componentes de seção carregam
  * data-open-chat, que o LeadFormModal também escuta.
  *
- * Os números do hero seguem os da home. [PREENCHER]: a resposta sobre venda
- * no final (FAQ).
+ * Os números do hero seguem os da home. A pergunta "vai ter venda no final?"
+ * ficou fora do FAQ por decisão da usuária (29/09).
  */
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
@@ -216,7 +216,6 @@ const varejoAtacado = [
         { q: 'Quanto custa?', a: 'Nada. O workshop é gratuito.' },
         { q: 'Quanto tempo dura?', a: 'Cerca de 1 hora, ao vivo.' },
         { q: 'E se eu não puder assistir ao vivo?', a: 'A aula não fica gravada. Por isso a data chega com antecedência no grupo, para você se organizar.' },
-        { q: 'Vai ter venda no final?', a: '[PREENCHER]' },
         { q: 'Vou receber muita mensagem no grupo?', a: 'O grupo só recebe aviso de workshop. Você pode sair quando quiser.' },
         { q: 'Serve para o meu nicho?', a: 'O método é de atacado, não de produto. Funciona para moda, íntima, praia, calçados, acessórios, casa e o que mais você vender para lojista.' },
       ]}
@@ -233,6 +232,21 @@ const varejoAtacado = [
   <StickyCta label="Quero participar" note="grátis · ao vivo" />
   <LeadFormModal />
 </BaseLayout>
+
+<style is:global>
+  /* As headlines do workshop são mais longas que a da home: no tamanho padrão
+     do Hero o botão saía da primeira tela do celular (medido em 390x664).
+     Global porque .hero__title é do componente Hero; só vale nas páginas que
+     usam este componente. */
+  @media (max-width: 767px) {
+    /* Seletor reforçado: precisa vencer o estilo com escopo do Hero. */
+    .hero h1.hero__title { font-size: 1.75rem; }
+    /* O botão do topo some no celular e a logo ficava sozinha à esquerda,
+       grande demais (pedido da usuária em 29/09): menor e centralizada. */
+    .hero nav.hero__nav { justify-content: center; padding-block: 1rem; }
+    .hero img.hero__logo { height: 1.5rem; }
+  }
+</style>
 
 <style>
   .va__tabela { margin-top: 2.5rem; max-width: 52rem; margin-inline: auto; display: grid; gap: 0.5rem; }
