@@ -14,8 +14,8 @@
  * dos workshops). Os botões dos componentes de seção carregam
  * data-open-chat, que o LeadFormModal também escuta.
  *
- * [PREENCHER]: números de resultado de clientes (stats do hero), duração da
- * aula e a resposta sobre venda no final. A usuária vai consultar.
+ * Os números do hero seguem os da home. [PREENCHER]: a resposta sobre venda
+ * no final (FAQ).
  */
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
@@ -71,9 +71,9 @@ const varejoAtacado = [
     trust={['Gratuito', 'Ao vivo', 'A cada 15 dias', 'Para quem fatura acima de R$ 20 mil/mês']}
     stats={[
       { value: '+100', label: 'marcas de atacado atendidas' },
-      { value: '[PREENCHER]', label: '[resultado de cliente]' },
-      { value: '[PREENCHER]', label: '[resultado de cliente]' },
+      { value: '1h', label: 'de aula ao vivo' },
       { value: 'R$ 0', label: 'para participar' },
+      { value: '1º', label: 'método próprio para atacado' },
     ]}
   />
 
@@ -153,7 +153,7 @@ const varejoAtacado = [
 
     <HowItWorks
       title="Como funciona"
-      sub="[PREENCHER: duração da aula]"
+      sub="Uma aula de cerca de 1 hora, ao vivo, a cada 15 dias."
       steps={[
         { number: '01', title: 'Inscrição', description: 'Você se inscreve e entra no grupo de WhatsApp dos workshops.' },
         { number: '02', title: 'Tema e link', description: 'A cada 15 dias, o tema e o link da aula chegam no grupo.' },
@@ -202,7 +202,7 @@ const varejoAtacado = [
       faqs={[
         { q: 'Preciso já vender no atacado?', a: 'Sim. É para marca que já tem base de revendedores e fatura acima de R$ 20 mil por mês.' },
         { q: 'Quanto custa?', a: 'Nada. O workshop é gratuito.' },
-        { q: 'Quanto tempo dura?', a: '[PREENCHER]' },
+        { q: 'Quanto tempo dura?', a: 'Cerca de 1 hora, ao vivo.' },
         { q: 'E se eu não puder assistir ao vivo?', a: 'A aula não fica gravada. Por isso a data chega com antecedência no grupo, para você se organizar.' },
         { q: 'Vai ter venda no final?', a: '[PREENCHER]' },
         { q: 'Vou receber muita mensagem no grupo?', a: 'O grupo só recebe aviso de workshop. Você pode sair quando quiser.' },
