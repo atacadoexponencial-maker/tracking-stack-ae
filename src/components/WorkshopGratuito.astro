@@ -1,8 +1,8 @@
 ---
 /**
  * Conteúdo da LP perene do workshop quinzenal gratuito. Usado pela
- * /workshop-gratuito (A) e pela /workshop-gratuito-v2 (B, teste A/B da
- * headline): as duas páginas só passam a headline, então a copy nunca diverge.
+ * /workshop-gratuito (A) e pela /workshop-gratuito-v2 (B, teste A/B dos
+ * stories no hero): a copy é uma só e nunca diverge.
  *
  * Refeita em 29/09/2026 com os componentes de seção da home, para ter a cara
  * das outras páginas do site (a primeira versão usava uma paleta própria).
@@ -33,15 +33,17 @@ import Faq from './sections/Faq.astro';
 import FinalCta from './sections/FinalCta.astro';
 import StickyCta from './StickyCta.astro';
 import LeadFormModal from './LeadFormModal.astro';
+import StoriesDepoimentos from './StoriesDepoimentos.astro';
 
 interface Props {
-  /** Headline do hero. É a única coisa que muda entre as páginas A e B do teste. */
-  headline: string;
-  /** Trecho da headline com marca-texto. */
-  highlight?: string;
+  /**
+   * Versão B do teste A/B: stories de depoimento no hero, no lugar dos selos
+   * (Gratuito, Ao vivo...). É a única diferença entre as duas páginas.
+   */
+  stories?: boolean;
   noindex?: boolean;
 }
-const { headline, highlight, noindex = false } = Astro.props;
+const { stories = false, noindex = false } = Astro.props;
 
 const CTA = 'Quero participar do próximo workshop';
 
@@ -58,6 +60,18 @@ const proofModules = import.meta.glob('../assets/proof/*.{jpg,png}', { eager: tr
 const proofImages = Object.entries(proofModules)
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([, m]) => (m as { default: ImageMetadata }).default);
+
+// Stories da versão B: prints do workshop e vídeos da mentoria, intercalados
+// (um vídeo a cada dois prints), como a usuária pediu em 29/09.
+const storiesItens = [];
+{
+  const prints = proofImages.map((img) => ({ tipo: 'print' as const, img, rotulo: 'Workshop' }));
+  const videos = depoimentos.map((d) => ({ tipo: 'video' as const, videoId: d.videoId, rotulo: d.name }));
+  while (prints.length || videos.length) {
+    if (videos.length) storiesItens.push(videos.shift()!);
+    storiesItens.push(...prints.splice(0, 2));
+  }
+}
 
 // Comparação no molde do "Pago x Gratuito" da Orbyka: o atacado vem primeiro,
 // em cartão claro com etiqueta amarela; o varejo fica ao lado, apagado.
@@ -77,8 +91,8 @@ const varejoAtacado = [
 >
   <Hero
     badge="Método aplicado em mais de 100 marcas de atacado"
-    headline={headline}
-    highlight={highlight}
+    headline="A conta que faz um atacado crescer tem dois lados. A cada 15 dias, o Felipe abre um deles ao vivo."
+    highlight="ao vivo"
     subheadline="Cada aula pega um lado e vai até o fim nele: como fazer entrar revendedor novo todo mês, ou como fazer quem já comprou voltar a comprar."
     navCtaLabel="Quero participar"
     ctaLabel={CTA}
@@ -89,7 +103,9 @@ const varejoAtacado = [
       { value: 'R$ 0', label: 'para participar' },
       { value: '1º', label: 'método próprio para atacado' },
     ]}
-  />
+  >
+    {stories && <StoriesDepoimentos slot="abaixo-cta" itens={storiesItens} />}
+  </Hero>
 
   <main>
     <Pain

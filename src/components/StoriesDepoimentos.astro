@@ -1,0 +1,223 @@
+---
+/**
+ * Fileira de depoimentos em formato de stories do Instagram, com visualizador
+ * em tela cheia. Criada para a versão B do teste A/B da /workshop-gratuito
+ * (29/09/2026): as bolinhas entram no hero, no lugar dos selos.
+ *
+ * Mistura dois tipos de depoimento, na ordem recebida:
+ * - print: imagem de src/assets (retorno de quem assistiu ao workshop). A
+ *   bolinha é um recorte do próprio print.
+ * - video: vídeo do Panda (clientes da mentoria). A bolinha é a miniatura que
+ *   o Panda publica para o vídeo.
+ *
+ * Cada toque numa bolinha envia o evento interno `StoryOpen` ao /tracker
+ * (fica no event_log, não vai a Meta/GA4/CRM): serve para saber se as pessoas
+ * tocam, não para decidir o teste.
+ */
+import { getImage } from 'astro:assets';
+
+type Item =
+  | { tipo: 'print'; img: ImageMetadata; rotulo: string }
+  | { tipo: 'video'; videoId: string; rotulo: string };
+
+interface Props {
+  itens: Item[];
+}
+const { itens } = Astro.props;
+
+// Library do Panda Video da marca (a mesma do VideoTestimonials).
+const PANDA_EMBED = 'https://player-vz-718ea161-967.tv.pandavideo.com.br/embed/?v=';
+const PANDA_THUMB = (id: string) => `https://b-vz-718ea161-967.tv.pandavideo.com.br/${id}/thumbnail.jpg`;
+
+const stories = await Promise.all(
+  itens.map(async (item) => {
+    if (item.tipo === 'print') {
+      const [miniatura, cheia] = await Promise.all([
+        getImage({ src: item.img, width: 160, format: 'webp' }),
+        getImage({ src: item.img, width: 1080, format: 'webp' }),
+      ]);
+      return { tipo: 'print', rotulo: item.rotulo, miniatura: miniatura.src, src: cheia.src };
+    }
+    return { tipo: 'video', rotulo: item.rotulo, miniatura: PANDA_THUMB(item.videoId), src: PANDA_EMBED + item.videoId };
+  })
+);
+---
+
+<div class="stories" data-stories>
+  <ul class="stories__fila" aria-label="Depoimentos">
+    {stories.map((s, i) => (
+      <li>
+        <button type="button" class="stories__bolinha" data-story-abrir={i} aria-label={`Abrir depoimento: ${s.rotulo}`}>
+          <span class="stories__anel">
+            <img src={s.miniatura} alt="" width="64" height="64" loading="eager" decoding="async" />
+            {s.tipo === 'video' && <span class="stories__play" aria-hidden="true">▶</span>}
+          </span>
+        </button>
+      </li>
+    ))}
+  </ul>
+
+  <div class="stories__tela" data-story-tela hidden role="dialog" aria-modal="true" aria-label="Depoimentos">
+    <div class="stories__barras">
+      {stories.map(() => <span class="stories__barra"><span class="stories__barra-fill"></span></span>)}
+    </div>
+    <button type="button" class="stories__fechar" data-story-fechar aria-label="Fechar">&times;</button>
+    <div class="stories__palco" data-story-palco></div>
+    <button type="button" class="stories__nav stories__nav--ant" data-story-ant aria-label="Anterior"></button>
+    <button type="button" class="stories__nav stories__nav--prox" data-story-prox aria-label="Próximo"></button>
+  </div>
+
+  <script type="application/json" data-story-dados set:html={JSON.stringify(stories)} />
+</div>
+
+<style>
+  /* Largura pela TELA, não pelo pai: o hero se ajusta ao conteúdo, e uma
+     fileira de 13 bolinhas o esticava além da tela (rolagem lateral). */
+  /* 5rem = respiro de 24px de cada lado do hero + margem para a barra de
+     rolagem do navegador no desktop. */
+  .stories { width: calc(100vw - 5rem); max-width: 48rem; }
+  .stories__fila {
+    list-style: none; margin: 0; padding: 0.25rem 0.25rem 0.5rem;
+    display: flex; gap: 0.875rem; overflow-x: auto; scroll-snap-type: x proximity;
+    justify-content: flex-start; scrollbar-width: none;
+  }
+  .stories__fila::-webkit-scrollbar { display: none; }
+  @media (min-width: 900px) { .stories__fila { justify-content: center; } }
+  .stories__bolinha {
+    display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+    background: none; border: 0; padding: 0; cursor: pointer; scroll-snap-align: start; color: inherit;
+  }
+  .stories__anel {
+    position: relative; display: block; width: 3.75rem; height: 3.75rem; border-radius: 50%; padding: 3px;
+    background: conic-gradient(from 200deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5, #feda75);
+  }
+  .stories__anel img {
+    width: 100%; height: 100%; border-radius: 50%; object-fit: cover; object-position: top;
+    border: 3px solid hsl(var(--light-bg)); display: block; background: #1e1e1e;
+  }
+  .stories__play {
+    position: absolute; right: 0; bottom: 0; width: 1.35rem; height: 1.35rem; border-radius: 50%;
+    background: #1e1e1e; color: #fff; font-size: 0.55rem; display: grid; place-items: center;
+    border: 2px solid hsl(var(--light-bg));
+  }
+
+  .stories__tela {
+    position: fixed; inset: 0; z-index: 1000; background: #000;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stories__tela[hidden] { display: none; }
+  .stories__barras {
+    position: absolute; top: 0.75rem; left: 0.75rem; right: 0.75rem; z-index: 3;
+    display: flex; gap: 0.25rem;
+  }
+  .stories__barra { flex: 1; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.3); overflow: hidden; }
+  .stories__barra-fill { display: block; height: 100%; width: 0; background: #fff; }
+  .stories__fechar {
+    position: absolute; top: 1.5rem; right: 0.75rem; z-index: 4;
+    background: none; border: 0; color: #fff; font-size: 2rem; line-height: 1; cursor: pointer;
+  }
+  .stories__palco { width: 100%; height: 100%; max-width: 30rem; display: flex; align-items: center; justify-content: center; }
+  /* :global porque img e iframe são criados pelo script, e o CSS com escopo
+     do Astro só pega elementos escritos no template. */
+  .stories__palco :global(img) { max-width: 100%; max-height: 100%; object-fit: contain; }
+  /* Vídeo ocupa a tela toda, como um story (pedido da usuária em 29/09); as
+     barrinhas e o × ficam por cima. No desktop, a coluna do palco limita a
+     largura e o vídeo fica em pé no centro. */
+  .stories__palco :global(iframe) { width: 100%; height: 100%; border: 0; display: block; }
+  /* Toque nas laterais passa o story, como no Instagram. No vídeo, as áreas
+     ficam só nas bordas para não roubar o toque do player. */
+  .stories__nav { position: absolute; top: 4rem; bottom: 0; z-index: 2; background: none; border: 0; cursor: pointer; }
+  .stories__nav--ant { left: 0; width: 30%; }
+  .stories__nav--prox { right: 0; width: 70%; }
+  .stories__tela[data-tipo='video'] .stories__nav--ant,
+  .stories__tela[data-tipo='video'] .stories__nav--prox { width: 12%; }
+</style>
+
+<script>
+  import { enviarEventoInterno } from '../scripts/funil';
+
+  type Story = { tipo: 'print' | 'video'; rotulo: string; miniatura: string; src: string };
+  const DURACAO_PRINT = 6000;
+
+  document.querySelectorAll<HTMLElement>('[data-stories]').forEach((raiz) => {
+    const dadosEl = raiz.querySelector('[data-story-dados]');
+    const tela = raiz.querySelector<HTMLElement>('[data-story-tela]');
+    const palco = raiz.querySelector<HTMLElement>('[data-story-palco]');
+    if (!dadosEl || !tela || !palco) return;
+    const stories: Story[] = JSON.parse(dadosEl.textContent || '[]');
+    const fills = Array.from(raiz.querySelectorAll<HTMLElement>('.stories__barra-fill'));
+
+    let atual = 0;
+    let timer: number | undefined;
+
+    const pintarBarras = () => {
+      fills.forEach((f, i) => {
+        f.style.transition = 'none';
+        f.style.width = i < atual ? '100%' : '0';
+      });
+    };
+
+    const mostrar = (i: number) => {
+      window.clearTimeout(timer);
+      if (i < 0) i = 0;
+      if (i >= stories.length) { fechar(); return; }
+      atual = i;
+      const s = stories[i];
+      tela.dataset.tipo = s.tipo;
+      pintarBarras();
+      palco.innerHTML = '';
+      if (s.tipo === 'print') {
+        const img = document.createElement('img');
+        img.src = s.src;
+        img.alt = `Depoimento: ${s.rotulo}`;
+        palco.appendChild(img);
+        const fill = fills[i];
+        requestAnimationFrame(() => {
+          fill.style.transition = `width ${DURACAO_PRINT}ms linear`;
+          fill.style.width = '100%';
+        });
+        timer = window.setTimeout(() => mostrar(atual + 1), DURACAO_PRINT);
+      } else {
+        // Vídeo não passa sozinho: a pessoa assiste e toca para seguir.
+        const f = document.createElement('iframe');
+        f.src = s.src;
+        f.title = `Depoimento em vídeo: ${s.rotulo}`;
+        f.allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture';
+        f.allowFullscreen = true;
+        palco.appendChild(f);
+        fills[i].style.width = '100%';
+      }
+    };
+
+    const abrir = (i: number) => {
+      tela.hidden = false;
+      document.body.style.overflow = 'hidden';
+      mostrar(i);
+    };
+    const fechar = () => {
+      window.clearTimeout(timer);
+      palco.innerHTML = '';
+      tela.hidden = true;
+      document.body.style.overflow = '';
+    };
+
+    raiz.querySelectorAll<HTMLElement>('[data-story-abrir]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const i = Number(b.dataset.storyAbrir) || 0;
+        enviarEventoInterno('StoryOpen', 'sto-', {
+          lead_data: { story: i + 1, story_tipo: stories[i]?.tipo || '' },
+        });
+        abrir(i);
+      });
+    });
+    raiz.querySelector('[data-story-fechar]')?.addEventListener('click', fechar);
+    raiz.querySelector('[data-story-prox]')?.addEventListener('click', () => mostrar(atual + 1));
+    raiz.querySelector('[data-story-ant]')?.addEventListener('click', () => mostrar(atual - 1));
+    document.addEventListener('keydown', (e) => {
+      if (tela.hidden) return;
+      if (e.key === 'Escape') fechar();
+      if (e.key === 'ArrowRight') mostrar(atual + 1);
+      if (e.key === 'ArrowLeft') mostrar(atual - 1);
+    });
+  });
+</script>

@@ -24,6 +24,8 @@ interface Props {
    * é o formato de todas as outras páginas.
    */
   comFoto?: boolean;
+  // Slot opcional `abaixo-cta`: quando a página passa, ele entra NO LUGAR dos
+  // selos de `trust` (usado pelos stories da /workshop-gratuito-v2).
 }
 const {
   headline,
@@ -42,6 +44,13 @@ const {
     { value: '1º', label: 'método próprio para atacado' },
   ],
 } = Astro.props;
+
+// Renderiza o slot e confere se veio algo: `Astro.slots.has` dá true mesmo
+// quando a página passa `{cond && <X slot="abaixo-cta" />}` com cond falso, e
+// aí os selos sumiriam sem nada no lugar.
+const abaixoCta = Astro.slots.has('abaixo-cta')
+  ? (await Astro.slots.render('abaixo-cta')).trim()
+  : '';
 
 // Parte o título na primeira ocorrência do trecho destacado. Sem ocorrência,
 // o título sai inteiro e sem marca-texto: destaque é enfeite, nunca requisito.
@@ -103,9 +112,13 @@ const titulo =
         <span class="hero__cta-arrow" aria-hidden="true">→</span>
       </button>
     )}
-    <div class="hero__trust">
-      {trust.map((t) => <span class="hero__trust-item">{t}</span>)}
-    </div>
+    {abaixoCta ? (
+      <Fragment set:html={abaixoCta} />
+    ) : (
+      <div class="hero__trust">
+        {trust.map((t) => <span class="hero__trust-item">{t}</span>)}
+      </div>
+    )}
     </div>
     {comFoto && (
       <div class="hero__visual">

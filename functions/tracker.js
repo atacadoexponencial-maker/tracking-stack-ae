@@ -484,7 +484,9 @@ export function isInternalTestEmail(email) {
 // ainda nem terminou de digitar.
 // `avisocookiesfechado`: clique no "Entendi" do aviso de cookies — ciência,
 // não conversão (spec-aviso-cookies.md).
-const EVENTOS_INTERNOS = new Set(['formstart', 'ctaclick', 'formstep', 'avisocookiesfechado']);
+// `storyopen`: toque numa bolinha de depoimento (stories) do hero da
+// /workshop-gratuito-v2 (teste A/B de 29/09). Mede se as pessoas tocam.
+const EVENTOS_INTERNOS = new Set(['formstart', 'ctaclick', 'formstep', 'avisocookiesfechado', 'storyopen']);
 
 // Destino pós-captação de um evento de Lead (null para os demais eventos).
 // Pura: só lê body e env, sem D1 — por isso serve tanto à resposta normal
