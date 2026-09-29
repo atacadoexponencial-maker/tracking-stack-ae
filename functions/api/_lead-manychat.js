@@ -22,11 +22,13 @@ import { normalizePhone } from './_hash.js';
 export const FUNIS_MANYCHAT = {
   workshop: {
     tagForm: 97746964, // form-workshop-gratuito (criada em 2026-09-29)
-    // Sem fluxo por enquanto: não existe mensagem pronta para quem preenche.
-    // Quando a usuária criar, é só pôr o `ns` aqui. Lembrete: tag aplicada
-    // pela API NÃO dispara automação no ManyChat, então a mensagem precisa vir
-    // por este fluxo.
-    fluxo: '',
+    // "Entre no grupo" (criado pela usuária em 29/09). Disparado na hora do
+    // formulário; a espera de 30 min e a checagem "não tem a tag
+    // grupo-workshop" ficam DENTRO do fluxo, no ManyChat (Atraso Inteligente +
+    // Condição). A mensagem é um modelo da API oficial, porque a pessoa ainda
+    // não falou com a conta e está fora da janela de 24h. Lembrete: tag
+    // aplicada pela API NÃO dispara automação, por isso o fluxo vem daqui.
+    fluxo: 'content20260929233329_927636',
     consentimento: 'formulário da LP /workshop-gratuito',
   },
 };
