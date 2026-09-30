@@ -112,6 +112,9 @@ function resumoDoPeriodo(linhas, dias) {
     interAds: somaOuNull(com.map((l) => anuncio(l.interacoes_por_tipo))),
     visitas: somaOuNull(com.map((l) => l.visitas_perfil)),
     toques: somaOuNull(com.map((l) => l.toques_link)),
+    // Seguidores têm janela própria (a Meta guarda 30 dias e o último dia
+    // chega atrasado): só compara quando todos os dias têm o número.
+    seguidoresCompleto: dias.length > 0 && doDia.every((l) => l && l.seguidores_ganhos !== null && l.seguidores_ganhos !== undefined),
     ganhos: somaOuNull(doDia.map((l) => (l ? l.seguidores_ganhos : null))),
     perdidos: somaOuNull(doDia.map((l) => (l ? l.seguidores_perdidos : null))),
     quebra: {
@@ -179,7 +182,7 @@ export function montarCrescimento({ de, ate, antDe, antAte, linhas = [], linhasA
       visualizacoes: { organico: atual.viewsOrg, anuncios: atual.viewsAds, delta: comparar(atual.viewsOrg, ant.viewsOrg) },
       interacoes: { organico: atual.interOrg, anuncios: atual.interAds, delta: comparar(atual.interOrg, ant.interOrg), quebra: atual.quebra },
       seguidores: { saldo, ganhos: atual.ganhos, perdidos: atual.perdidos, total: ultimoTotal ? ultimoTotal.seguidores_total : null,
-        delta: comparar(saldo, saldoAnt), inclui_anuncios: true },
+        delta: atual.seguidoresCompleto && ant.seguidoresCompleto ? variacao(saldo, saldoAnt) : null, inclui_anuncios: true },
       visitas_perfil: { valor: atual.visitas, delta: comparar(atual.visitas, ant.visitas), inclui_anuncios: true },
       toques_link: { valor: atual.toques, delta: comparar(atual.toques, ant.toques), inclui_anuncios: true },
     },
