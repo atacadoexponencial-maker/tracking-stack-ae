@@ -88,11 +88,12 @@ a.btn { display: inline-block; text-decoration: none; }
 
 /* ---------- Etiqueta: cada número é uma etiqueta de papel com furo e ilhós ---------- */
 .grid-etiquetas, .grid-kpi, .grid-heroi { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem; margin-bottom: 1.6rem; }
-.etiqueta, .kpi { position: relative; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px 2px 3px 3px; padding: 2rem 1.1rem 1rem; min-width: 0; box-shadow: 0 1px 0 rgba(22,21,19,0.06), 0 6px 14px -10px rgba(22,21,19,0.25); }
+.etiqueta, .kpi { position: relative; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px 2px 3px 3px; padding: 2rem 1.1rem 1rem; min-width: 0; container-type: inline-size; box-shadow: 0 1px 0 rgba(22,21,19,0.06), 0 6px 14px -10px rgba(22,21,19,0.25); }
 .etiqueta::before { content: ""; position: absolute; top: 0.7rem; left: 50%; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--papel); box-shadow: inset 0 0 0 2px var(--fio-forte); }
 .etiqueta .ref, .kpi .rotulo { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--apagado); }
-.etiqueta .valor, .kpi .valor { font-size: 2.2rem; font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 0.25rem 0 0.5rem; overflow-wrap: anywhere; }
-.etiqueta.heroi .valor { font-size: 2.9rem; }
+/* O valor encolhe com a largura da etiqueta (cqw) em vez de quebrar "R$ 23.620,00" em duas linhas. */
+.etiqueta .valor, .kpi .valor { font-size: min(2.2rem, 13cqw); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 0.25rem 0 0.5rem; white-space: nowrap; }
+.etiqueta.heroi .valor { font-size: min(2.9rem, 15cqw); }
 .etiqueta .rodape { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; border-top: 1px dashed var(--fio); padding-top: 0.55rem; min-height: 1.9rem; }
 .etiqueta .nota { font-size: 0.72rem; color: var(--apagado); margin-left: auto; text-align: right; }
 .semdado { color: var(--apagado); }
@@ -288,7 +289,6 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
   .conteudo { padding: 1.2rem 1rem 3rem; }
   .duas, .duas-colunas { grid-template-columns: 1fr; }
   .manchete { font-size: 1.2rem; }
-  .etiqueta.heroi .valor { font-size: 2.4rem; }
   .topo { align-items: flex-start; }
 }
 
@@ -2039,7 +2039,7 @@ R.visao = async () => {
   ], porFunil, undefined, 'Nenhum lead no período. Aqui aparece um funil por linha, com a comparação ao período anterior.');
 
   tabela($('#visao-lps'), [
-    { titulo: 'LP', campo: 'lp', render: (r) => esc(r.lp) },
+    { titulo: 'LP', campo: 'lp', render: (r) => `<b>${esc(r.lp)}</b>` },
     { titulo: 'Visitantes', num: true, campo: 'visitors', render: (r) => fmtInt(r.visitors) },
     { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
     { titulo: 'Conversão', num: true, campo: 'rate', render: (r) => fmtPct(r.rate * 100, 1) },
