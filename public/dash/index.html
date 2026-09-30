@@ -566,8 +566,8 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 /* Abas internas: Controle (o que ele pode fazer) e Propostas (o que ele
    pede). Trocar entre elas só esconde e mostra — a grade não é redesenhada,
    para não perder alteração ainda não salva. */
-.argo-vistas { display: flex; gap: 0.4rem; margin-bottom: 1.1rem; }
-.argo-vistas .tipo-pill { font-size: 0.86rem; padding: 0.4rem 0.95rem; display: inline-flex; align-items: center; gap: 0.45rem; }
+.argo-vistas, .ig-vistas { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.1rem; }
+.argo-vistas .tipo-pill, .ig-vistas .tipo-pill { font-size: 0.86rem; padding: 0.4rem 0.95rem; display: inline-flex; align-items: center; gap: 0.45rem; }
 .argo-contador { background: var(--bege); color: var(--bg); font-weight: 700; font-size: 0.72rem; border-radius: 999px; padding: 0 0.45rem; min-width: 1.3rem; text-align: center; font-variant-numeric: tabular-nums; }
 .argo-faixa-chamada { background: none; border: 0; padding: 0; font: inherit; font-size: 0.84rem; color: var(--bege); cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(245, 240, 235, 0.35); justify-self: start; }
 .argo-faixa-chamada:hover { text-decoration-color: var(--bege); }
@@ -633,6 +633,68 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
   .argo-seta { grid-column: 4; grid-row: 1; }
   .argo-detalhe { padding-left: 0.4rem; }
 }
+
+/* ---------- Central de Marketing: Instagram (issues 336, 340–343) ---------- */
+.ig-falhou > :not(.ig-erro) { display: none; }
+.ig-topo { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; align-items: baseline; justify-content: space-between; margin-bottom: 0.8rem; font-size: 0.9rem; color: var(--muted); }
+.ig-topo b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.ig-topo .ok-coleta::before { content: '✓ '; color: var(--up); }
+.grafico .marca { fill: var(--info); stroke: var(--card); stroke-width: 2; }
+.grafico .barra { fill: var(--serie); }
+.grafico .barra.neg { fill: var(--serie2); }
+.grafico .barra.apagada { opacity: 0.45; }
+.ig-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 0.9rem; }
+.ig-trio span { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--taupe); }
+.ig-trio b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.ig-cabeca { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+.ig-cabeca h2 { margin-bottom: 0; }
+.ig-sub { font-size: 0.86rem; margin: 1.2rem 0 0.4rem; }
+.ig-sub small { color: var(--muted); font-weight: 400; font-size: 0.76rem; }
+.selo.pago { color: var(--warn); }
+.selo.ar { color: var(--up); }
+.selo.parcial { color: var(--warn); }
+.ig-formatos { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.75rem; }
+.ig-formato { background: linear-gradient(180deg, #292929 0%, var(--card) 55%); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem; display: flex; flex-direction: column; gap: 0.55rem; text-align: left; font: inherit; color: inherit; cursor: pointer; min-width: 0; }
+.ig-formato:hover { border-color: #4f4a4b; }
+.ig-formato.lider { border-color: var(--bege); }
+.ig-formato .topo { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.ig-formato .topo span { color: var(--muted); font-size: 0.8rem; }
+.ig-formato dl { display: grid; grid-template-columns: 1fr auto; gap: 0.2rem 0.6rem; font-size: 0.82rem; margin: 0; }
+.ig-formato dt { color: var(--muted); }
+.ig-formato dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.ig-melhor { display: flex; gap: 0.6rem; align-items: center; border-top: 1px solid var(--border); padding-top: 0.6rem; font-size: 0.78rem; color: var(--muted); }
+.ig-melhor b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.ig-thumb { width: 36px; height: 48px; object-fit: cover; border-radius: 0.3rem; background: var(--card-2); display: block; flex: none; }
+.ig-filtros { display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; margin-bottom: 0.8rem; }
+td.ig-legenda { white-space: normal; min-width: 220px; max-width: 320px; color: var(--muted); font-size: 0.8rem; }
+td.ig-legenda a, td.ig-legenda a:visited { color: var(--fg); text-decoration: none; }
+td.ig-legenda a:hover { text-decoration: underline; }
+td.pago, th.pago { color: var(--warn); }
+.ig-stories { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; }
+.ig-story { background: linear-gradient(180deg, #292929 0%, var(--card) 55%); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem; display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 0.8rem; }
+.ig-story img, .ig-story .sem-img { width: 84px; aspect-ratio: 9 / 16; max-width: 100%; object-fit: cover; border-radius: 0.5rem; background: var(--card-2); display: block; }
+.ig-story .info { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
+.ig-story header { display: flex; justify-content: space-between; gap: 0.4rem; align-items: center; font-size: 0.8rem; color: var(--muted); }
+.ig-story dl { display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.5rem; font-size: 0.8rem; margin: 0; }
+.ig-story dt { color: var(--muted); } .ig-story dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.ig-nav { display: flex; height: 8px; border-radius: 3px; overflow: hidden; gap: 2px; background: var(--card-2); }
+.ig-nav span { display: block; height: 100%; }
+.ig-nav-leg { display: flex; flex-wrap: wrap; gap: 0.15rem 0.6rem; font-size: 0.7rem; color: var(--muted); }
+.ig-nav-leg i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 0.25rem; }
+.ig-barras-h { display: flex; flex-direction: column; gap: 0.45rem; }
+.ig-barra-h { display: grid; grid-template-columns: minmax(90px, 34%) minmax(0, 1fr) 64px; gap: 0.6rem; align-items: center; font-size: 0.82rem; }
+.ig-barra-h .rot { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ig-barra-h .trilho { height: 10px; background: var(--card-2); border-radius: 3px; overflow: hidden; }
+.ig-barra-h .trilho span { display: block; height: 100%; background: var(--bege); border-radius: 0 3px 3px 0; }
+.ig-barra-h .val { text-align: right; font-variant-numeric: tabular-nums; }
+.ig-genero { display: flex; height: 26px; border-radius: 0.4rem; overflow: hidden; gap: 2px; margin-bottom: 0.6rem; }
+.ig-genero span { display: flex; align-items: center; padding-left: 0.5rem; font-size: 0.74rem; font-weight: 700; color: var(--bg); white-space: nowrap; overflow: hidden; }
+.ig-legenda-cor { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.78rem; color: var(--muted); }
+.ig-legenda-cor i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; }
+@media (max-width: 520px) {
+  .ig-trio b { font-size: 1.05rem; }
+  .ig-barra-h { grid-template-columns: minmax(70px, 38%) minmax(0, 1fr) 56px; }
+}
 </style>
 </head>
 <body>
@@ -677,6 +739,10 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
         <a href="#eventos" data-secao="eventos">Eventos</a>
         <a href="#saude-meta" data-secao="saude-meta">Saúde das integrações</a>
         <a href="#argo" data-secao="argo">Argo</a>
+      </div>
+      <div class="nav-grupo" role="group" aria-labelledby="nav-marketing">
+        <span class="nav-rotulo" id="nav-marketing">Marketing</span>
+        <a href="#instagram" data-secao="instagram">Instagram</a>
       </div>
     </nav>
   </aside>
@@ -1136,6 +1202,72 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
       </div>
     </section>
 
+    <!-- Central de Marketing: Instagram do @felipesantosae (issues 336, 340–343).
+         Tudo chega calculado de /api/marketing/instagram/*; aqui só se desenha. -->
+    <section class="secao" id="secao-instagram">
+      <div id="ig-cabecalho"></div>
+      <div class="ig-vistas" role="group" aria-label="Parte da aba Instagram">
+        <button type="button" class="tipo-pill" data-ig-vista="crescimento" aria-pressed="true">Crescimento</button>
+        <button type="button" class="tipo-pill" data-ig-vista="conteudo" aria-pressed="false">Conteúdo</button>
+        <button type="button" class="tipo-pill" data-ig-vista="stories" aria-pressed="false">Stories</button>
+        <button type="button" class="tipo-pill" data-ig-vista="publico" aria-pressed="false">Público</button>
+      </div>
+
+      <div id="ig-vista-crescimento">
+        <div class="grid-kpi" id="ig-kpis"></div>
+        <div class="card">
+          <h2>Seguidores <small id="ig-seg-desde"></small></h2>
+          <div id="ig-seg"></div>
+        </div>
+        <div class="card">
+          <div class="ig-cabeca">
+            <h2>Evolução diária</h2>
+            <div class="tipos" id="ig-metricas" role="group" aria-label="Métrica do gráfico"></div>
+          </div>
+          <div class="grafico" id="ig-g-evo"></div>
+        </div>
+      </div>
+
+      <div id="ig-vista-conteudo" hidden>
+        <div class="card">
+          <h2>Desempenho por formato <small>médias por publicação no período, só orgânico</small></h2>
+          <div id="ig-formatos"></div>
+        </div>
+        <div class="card">
+          <h2>Ranking de posts e reels <small>alcance e visualizações orgânicos; o pago fica nas colunas em âmbar</small></h2>
+          <div class="ig-filtros">
+            <div class="tipos" id="ig-f-formato" role="group" aria-label="Filtrar por formato"></div>
+            <div class="tipos" id="ig-f-pago" role="group" aria-label="Filtrar por impulsionamento"></div>
+          </div>
+          <div class="tabela-wrap" id="ig-ranking"></div>
+        </div>
+      </div>
+
+      <div id="ig-vista-stories" hidden>
+        <div class="grid-kpi" id="ig-st-kpis"></div>
+        <div id="ig-st-avisos"></div>
+        <div class="card">
+          <div class="ig-cabeca">
+            <h2>Stories do período</h2>
+            <div class="tipos" id="ig-st-ordem" role="group" aria-label="Ordenar stories"></div>
+          </div>
+          <div id="ig-stories"></div>
+        </div>
+      </div>
+
+      <div id="ig-vista-publico" hidden>
+        <div class="ig-cabeca">
+          <div class="tipos" id="ig-pub-quem" role="group" aria-label="Qual público"></div>
+          <span class="mini" id="ig-pub-nota"></span>
+        </div>
+        <div id="ig-pub-corpo"></div>
+        <div class="card">
+          <h2>Quando os seguidores estão online <small id="ig-horas-nota"></small></h2>
+          <div class="grafico" id="ig-g-horas"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="secao" id="secao-eventos">
       <div class="card"><h2>Saúde da captura <small>recuperação de rastreio</small></h2><div class="grid-kpi" id="ev-saude"></div></div>
       <div class="card"><h2>Eventos recentes</h2><div class="tabela-wrap" id="ev-tabela"></div></div>
@@ -1355,6 +1487,7 @@ const observadorGraficos = new ResizeObserver((entradas) => {
   for (const e of entradas) {
     const el = e.target, w = Math.round(e.contentRect.width);
     if (el._grafico && w > 0 && Math.abs(w - el._grafico.w) > 24) grafico(el, ...el._grafico.args);
+    if (el._barras && w > 0 && Math.abs(w - el._barras.w) > 24) barrasIg(el, ...el._barras.args);
   }
 });
 
@@ -1377,33 +1510,45 @@ function grafico(el, serie, valorFmt, opcoes) {
   el._grafico = { w: W, args: [serie, valorFmt, opcoes] };
   observadorGraficos.observe(el);
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
-  const todos = serie.map((p) => p.v).concat(serie2 ? serie2.map((p) => p.v) : []);
+  // `v: null` é dia sem dado (aba Instagram): vira lacuna na linha, nunca zero.
+  // As outras abas não mandam null, então para elas nada muda.
+  const temValor = (p) => p.v !== null && p.v !== undefined;
+  const todos = serie.filter(temValor).map((p) => p.v).concat(serie2 ? serie2.filter(temValor).map((p) => p.v) : []);
+  if (!todos.length) { el.innerHTML = '<div class="aviso">Sem dados no período.</div>'; return; }
+  // `opcoes.zoom`: o eixo começa perto do menor valor em vez do zero — para
+  // séries que variam pouco em torno de um número grande (total de seguidores).
+  const redondo = (bruto) => { const ordem = 10 ** Math.floor(Math.log10(Math.max(bruto, 1))); return Math.ceil((bruto / ordem) * 2) / 2 * ordem; };
+  const lo = opcoes && opcoes.zoom ? Math.floor(Math.min(...todos) / redondo((Math.max(...todos) - Math.min(...todos)) || 1)) * redondo((Math.max(...todos) - Math.min(...todos)) || 1) : 0;
   // Topo do eixo arredondado para um número limpo (40, não 39,96), em meios de
   // potência de 10 — assim a marca do meio também sai redonda.
-  const bruto = Math.max(...todos, 1) * 1.08;
-  const ordem = 10 ** Math.floor(Math.log10(bruto));
-  const max = Math.ceil((bruto / ordem) * 2) / 2 * ordem;
+  const max = lo + redondo((Math.max(...todos, lo + 1) - lo) * 1.08);
   const x = (i) => m.l + (serie.length === 1 ? iw / 2 : (i / (serie.length - 1)) * iw);
-  const y = (v) => m.t + ih - (v / max) * ih;
-  const caminho = (s) => 'M' + s.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('L');
+  const y = (v) => m.t + ih - ((v - lo) / (max - lo)) * ih;
+  const caminho = (s) => s.map((p, i) => (temValor(p) ? `${!i || !temValor(s[i - 1]) ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}` : '')).join('');
   const linha = caminho(serie);
+  const comLacuna = serie.some((p) => !temValor(p));
   // Área em degradê bege (forte junto à linha, some no eixo) e um ponto com halo
-  // no último valor — o "agora" da série.
+  // no último valor — o "agora" da série. Com lacuna não há área: o fechamento
+  // do polígono atravessaria os dias sem dado.
   const idGrad = 'grad-' + (++seqGrafico);
-  const area = serie2 ? '' : `<defs><linearGradient id="${idGrad}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f5f0eb" stop-opacity="0.30"/><stop offset="100%" stop-color="#f5f0eb" stop-opacity="0"/></linearGradient></defs><path class="area" style="fill:url(#${idGrad})" d="${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z"/>`;
-  const ultimo = serie[serie.length - 1];
-  const ponta = serie2 ? '' : `<circle class="ponta-halo" cx="${x(serie.length - 1)}" cy="${y(ultimo.v)}" r="9"/><circle class="ponta" cx="${x(serie.length - 1)}" cy="${y(ultimo.v)}" r="3.5"/>`;
+  const area = serie2 || comLacuna ? '' : `<defs><linearGradient id="${idGrad}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f5f0eb" stop-opacity="0.30"/><stop offset="100%" stop-color="#f5f0eb" stop-opacity="0"/></linearGradient></defs><path class="area" style="fill:url(#${idGrad})" d="${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z"/>`;
+  let iUlt = serie.length - 1;
+  while (iUlt > 0 && !temValor(serie[iUlt])) iUlt--;
+  const ultimo = serie[iUlt];
+  const ponta = serie2 ? '' : `<circle class="ponta-halo" cx="${x(iUlt)}" cy="${y(ultimo.v)}" r="9"/><circle class="ponta" cx="${x(iUlt)}" cy="${y(ultimo.v)}" r="3.5"/>`;
   const linha2 = serie2 ? `<path class="linha2" d="${caminho(serie2)}"/>` : '';
-  const yt = [0, 0.5, 1].map((f) => { const v = max * f, yy = y(v); return `<line class="eixo" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/><text class="rot-eixo" x="${m.l - 6}" y="${yy + 3}" text-anchor="end">${valorFmt(v, true)}</text>`; }).join('');
+  // `opcoes.marcas`: índices de dias a marcar no pé do gráfico (dia com publicação).
+  const marcas = (opcoes && opcoes.marcas || []).map((i) => `<circle class="marca" cx="${x(i)}" cy="${m.t + ih}" r="4"/>`).join('');
+  const yt = [0, 0.5, 1].map((f) => { const v = lo + (max - lo) * f, yy = y(v); return `<line class="eixo" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/><text class="rot-eixo" x="${m.l - 6}" y="${yy + 3}" text-anchor="end">${valorFmt(v, true)}</text>`; }).join('');
   // Um rótulo de data a cada ~64px, para não encavalar em tela estreita.
   const passo = Math.max(1, Math.ceil(serie.length / Math.max(2, Math.floor(iw / 64))));
   const xt = serie.map((p, i) => i % passo ? '' : `<text class="rot-eixo" x="${x(i)}" y="${H - 8}" text-anchor="middle">${diaBR(p.d)}</text>`).join('');
   const legenda = serie2 ? `<div class="legenda"><span class="s1">${esc(opcoes.rotulo1 || '')}</span><span class="s2">${esc(opcoes.rotulo2 || '')}</span></div>` : '';
   const pt2 = serie2 ? '<circle class="p2" r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>' : '';
   // Resumo para leitor de tela: o pico da série principal.
-  const pico = serie.reduce((a, b) => (b.v > a.v ? b : a), serie[0]);
+  const pico = serie.filter(temValor).reduce((a, b) => (b.v > a.v ? b : a));
   const resumo = `Gráfico de ${serie.length} dias, de ${diaBR(serie[0].d)} a ${diaBR(serie[serie.length - 1].d)}. Pico de ${valorFmt(pico.v)} em ${diaBR(pico.d)}.`;
-  el.innerHTML = `${legenda}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumo)}">${yt}${xt}${area}<path class="linha" d="${linha}"/>${ponta}${linha2}<line class="cursor" y1="${m.t}" y2="${m.t + ih}" x1="-9" x2="-9" style="display:none"/><circle r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>${pt2}</svg><div class="tooltip"></div>`;
+  el.innerHTML = `${legenda}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumo)}">${yt}${xt}${area}<path class="linha" d="${linha}"/>${ponta}${linha2}${marcas}<line class="cursor" y1="${m.t}" y2="${m.t + ih}" x1="-9" x2="-9" style="display:none"/><circle r="4" stroke="var(--bg)" stroke-width="2" style="display:none"/>${pt2}</svg><div class="tooltip"></div>`;
   const svg = el.querySelector('svg'), tip = el.querySelector('.tooltip');
   const cur = el.querySelector('.cursor'), pt = el.querySelector('circle:not(.p2)');
   const ptB = el.querySelector('circle.p2');
@@ -1411,13 +1556,15 @@ function grafico(el, serie, valorFmt, opcoes) {
     const r = svg.getBoundingClientRect();
     const px = ((ev.clientX - r.left) / r.width) * W;
     const i = Math.max(0, Math.min(serie.length - 1, Math.round(((px - m.l) / iw) * (serie.length - 1))));
-    const cx = x(i), cy = y(serie[i].v);
+    const semValor = !temValor(serie[i]);
+    const cx = x(i), cy = semValor ? m.t + ih : y(serie[i].v);
     cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.style.display = '';
-    pt.setAttribute('cx', cx); pt.setAttribute('cy', cy); pt.style.display = '';
+    pt.setAttribute('cx', cx); pt.setAttribute('cy', cy); pt.style.display = semValor ? 'none' : '';
     if (ptB) { ptB.setAttribute('cx', cx); ptB.setAttribute('cy', y(serie2[i].v)); ptB.style.display = ''; }
+    const extra = opcoes && opcoes.dicaExtra ? opcoes.dicaExtra(i) : '';
     tip.innerHTML = serie2
       ? `${diaBR(serie[i].d)}<b>${esc(opcoes.rotulo1 || '')}: ${valorFmt(serie[i].v)}</b><b>${esc(opcoes.rotulo2 || '')}: ${valorFmt(serie2[i].v)}</b>`
-      : `${diaBR(serie[i].d)}<b>${valorFmt(serie[i].v)}</b>`;
+      : `${diaBR(serie[i].d)}<b>${semValor ? (opcoes && opcoes.semValor) || 'sem dado' : valorFmt(serie[i].v)}</b>${extra}`;
     tip.style.display = 'block';
     // A caixa não passa da borda: perto dela, o centro é empurrado para dentro.
     const meia = tip.offsetWidth / 2 + 4;
@@ -4859,8 +5006,407 @@ document.addEventListener('input', aoMexerNaGradeArgo);
 
 R.argo = carregarArgo;
 
+// ---------- Central de Marketing: Instagram (issues 336, 340–343) ----------
+// Tudo chega pronto de /api/marketing/instagram/*: orgânico × anúncio, médias,
+// variações, "ainda chegando", captura parcial, fuso dos horários. Aqui só se
+// desenha. Cada bloco carrega e falha sozinho.
+const IG_VISTAS = ['crescimento', 'conteudo', 'stories', 'publico'];
+let igVista = 'crescimento';
+let igMetrica = 'alcance_org';
+let igFormato = 'todos';
+let igPago = 'todos';
+let igOrdem = { k: 'alcance', dir: -1 };
+let igOrdemStories = 'recentes';
+let igQuem = 'seguidores';
+const igDados = {};
+const igNada = '<span class="semdado">—</span>';
+const igN = (v) => (v === null || v === undefined ? igNada : fmtInt(Math.round(v)));
+const igP = (v) => (v === null || v === undefined ? igNada : fmtPct(v, 1));
+const igDataHora = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: FUSO_BRT });
+const igData = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: FUSO_BRT });
+const igDiaCurto = (ymd) => ymd ? `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}/${ymd.slice(0, 4)}` : '';
+const IG_COLETAS = { diaria: 'do perfil e dos seguidores', stories: 'dos stories', posts: 'dos posts e reels' };
+
+function igPills(el, opcoes, atual, aoEscolher) {
+  el.innerHTML = opcoes.map(([v, r]) => `<button type="button" class="tipo-pill" data-v="${esc(v)}" aria-pressed="${v === atual}">${esc(r)}</button>`).join('');
+  el.onclick = (e) => {
+    const b = e.target.closest('[data-v]');
+    if (!b) return;
+    el.querySelectorAll('[data-v]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    aoEscolher(b.dataset.v);
+  };
+}
+
+// Um bloco que carrega e, se falhar, oferece tentar de novo sem derrubar o resto.
+// O erro entra por cima e esconde os números antigos (para não serem lidos
+// como atuais), sem apagar a estrutura que o próximo desenho usa.
+async function igBloco(el, url, desenhar) {
+  el.querySelectorAll(':scope > .ig-erro').forEach((e) => e.remove());
+  el.classList.remove('ig-falhou');
+  try {
+    desenhar(await fetchJson(url));
+  } catch {
+    el.classList.add('ig-falhou');
+    el.insertAdjacentHTML('afterbegin', '<div class="aviso alerta ig-erro" role="alert">Não foi possível carregar este bloco agora. <button class="btn sec" type="button">Tentar de novo</button></div>');
+    el.querySelector(':scope > .ig-erro button').onclick = () => igBloco(el, url, desenhar);
+  }
+}
+
+// Barras verticais (seguidores ganhos × perdidos, horários). `v2` desenha para
+// baixo, em coral: quem perde fica abaixo da linha, não só em outra cor.
+function barrasIg(el, itens, opcoes = {}) {
+  if (!itens.length) { el.innerHTML = '<div class="aviso">Sem dados.</div>'; return; }
+  const W = Math.max(280, Math.round(el.clientWidth || 700));
+  el._barras = { w: W, args: [itens, opcoes] };
+  el._grafico = null;
+  observadorGraficos.observe(el);
+  const H = opcoes.altura || 190, m = { t: 10, r: 8, b: 24, l: 44 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const dois = itens.some((i) => i.v2);
+  const maior = Math.max(1, ...itens.map((i) => Math.max(i.v || 0, i.v2 || 0)));
+  const ordem = 10 ** Math.floor(Math.log10(maior));
+  const topo = Math.ceil((maior * 1.08 / ordem) * 2) / 2 * ordem;
+  const meia = dois ? ih / 2 : ih;
+  const zero = m.t + meia;
+  const bw = iw / itens.length, larg = Math.max(2, bw - 2), r = Math.min(3, larg / 2);
+  const barra = (x0, alt, desce, cls) => {
+    if (alt <= 0) return '';
+    const h = Math.max(alt, r + 0.5);
+    return desce
+      ? `<path class="barra ${cls}" d="M${x0},${zero + 1}V${zero + h - r}q0,${r} ${r},${r}h${larg - 2 * r}q${r},0 ${r},-${r}V${zero + 1}Z"/>`
+      : `<path class="barra ${cls}" d="M${x0},${zero - 1}V${zero - h + r}q0,-${r} ${r},-${r}h${larg - 2 * r}q${r},0 ${r},${r}V${zero - 1}Z"/>`;
+  };
+  const marcasY = (dois ? [topo, topo / 2, 0, -topo / 2, -topo] : [topo, topo / 2, 0]).map((v) => {
+    const yy = zero - (v / topo) * meia;
+    return `<line class="eixo" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/><text class="rot-eixo" x="${m.l - 6}" y="${yy + 3}" text-anchor="end">${v > 0 && dois ? '+' : ''}${fmtInt(v)}</text>`;
+  }).join('');
+  const passo = Math.max(1, Math.ceil(itens.length / Math.max(2, Math.floor(iw / 44))));
+  const corpo = itens.map((it, i) => {
+    const x0 = m.l + i * bw + 1;
+    return barra(x0, ((it.v || 0) / topo) * meia, false, it.apagada ? 'apagada' : '')
+      + barra(x0, ((it.v2 || 0) / topo) * meia, true, 'neg')
+      + (i % passo ? '' : `<text class="rot-eixo" x="${x0 + larg / 2}" y="${H - 8}" text-anchor="middle">${esc(it.rot)}</text>`);
+  }).join('');
+  const alvos = itens.map((it, i) => `<rect data-i="${i}" x="${m.l + i * bw}" y="${m.t}" width="${bw}" height="${ih}" fill="transparent"/>`).join('');
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opcoes.resumo || '')}">${marcasY}${corpo}${alvos}</svg><div class="tooltip"></div>`;
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tooltip');
+  const mostrar = (ev) => {
+    const alvo = ev.target.closest('rect[data-i]');
+    if (!alvo) return;
+    const i = Number(alvo.dataset.i), rr = svg.getBoundingClientRect();
+    tip.innerHTML = itens[i].dica;
+    tip.style.display = 'block';
+    const meiaTip = tip.offsetWidth / 2 + 4;
+    tip.style.left = Math.min(Math.max(((m.l + (i + 0.5) * bw) / W) * rr.width, meiaTip), rr.width - meiaTip) + 'px';
+    tip.style.top = ((zero - ((itens[i].v || 0) / topo) * meia) / H) * rr.height + 'px';
+  };
+  svg.addEventListener('pointermove', mostrar);
+  svg.addEventListener('pointerdown', mostrar);
+  svg.addEventListener('pointerleave', (ev) => { if (ev.pointerType !== 'touch') tip.style.display = 'none'; });
+  el._esconder = () => { tip.style.display = 'none'; };
+}
+
+// ----- cabeçalho: perfil e frescor dos dados
+function desenharCabecalhoIg(d) {
+  const el = $('#ig-cabecalho');
+  if (d.nunca_coletou) {
+    el.innerHTML = '<div class="aviso explica">A coleta ainda não rodou. Os números aparecem depois da primeira coleta.</div>';
+    return;
+  }
+  const atrasos = Object.entries(d.coletas).filter(([, c]) => c.atrasada).map(([nome, c]) => {
+    const desde = c.ultima_ok_em ? `desde ${igDataHora(c.ultima_ok_em)}` : 'sem nenhuma coleta concluída';
+    const falha = c.ultima_falha ? ` Última falha em ${igDataHora(c.ultima_falha.em)}: ${esc(c.ultima_falha.motivo)}.` : '';
+    return `<div class="aviso alerta">A coleta ${IG_COLETAS[nome]} está parada ${desde}.${falha}</div>`;
+  }).join('');
+  el.innerHTML = `<div class="ig-topo">
+      <span><b>@${esc(d.perfil.usuario)}</b> · <b>${igN(d.perfil.seguidores)}</b> seguidores · <b>${igN(d.perfil.posts)}</b> posts</span>
+      <span class="ok-coleta" title="Última coleta concluída: ${esc(new Date(d.atualizado_em).toLocaleString('pt-BR', { timeZone: FUSO_BRT }))}">Atualizado ${esc(argoQuando(d.atualizado_em))}</span>
+    </div>${atrasos}`;
+}
+
+// ----- Crescimento
+const IG_METRICAS = [
+  ['alcance_org', 'Alcance orgânico'], ['alcance_ads', 'Alcance de anúncios'],
+  ['views_org', 'Visualizações orgânicas'], ['views_ads', 'Visualizações de anúncios'],
+  ['visitas', 'Visitas ao perfil'], ['ganhos', 'Seguidores ganhos'],
+];
+const IG_SELO_ADS = '<span class="selo" title="A Meta não separa o que veio de anúncio nesta métrica">inclui anúncios</span>';
+
+function desenharCrescimentoIg(d) {
+  igDados.crescimento = d;
+  const k = d.kpis;
+  const semComparacao = d.comparacao_disponivel ? '' : ' · sem comparação';
+  const q = k.interacoes.quebra;
+  const quebra = `Curtidas ${fmtInt(q.curtidas || 0)}, comentários ${fmtInt(q.comentarios || 0)}, compartilhamentos ${fmtInt(q.compartilhamentos || 0)}, salvamentos ${fmtInt(q.salvamentos || 0)}, respostas ${fmtInt(q.respostas || 0)}, reposts ${fmtInt(q.reposts || 0)} (inclui anúncios)`;
+  const saldo = k.seguidores.saldo;
+  $('#ig-kpis').innerHTML = [
+    tile({ rotulo: 'Alcance orgânico por dia', valor: k.alcance_medio.organico === null ? null : fmtInt(Math.round(k.alcance_medio.organico)), delta: k.alcance_medio.delta,
+      nota: `Anúncios: ${igN(k.alcance_medio.anuncios)} por dia${semComparacao}` }),
+    tile({ rotulo: 'Visualizações orgânicas', valor: k.visualizacoes.organico === null ? null : fmtInt(k.visualizacoes.organico), delta: k.visualizacoes.delta,
+      nota: `Anúncios: ${igN(k.visualizacoes.anuncios)}${semComparacao}` }),
+    tile({ rotulo: 'Interações orgânicas', valor: k.interacoes.organico === null ? null : fmtInt(k.interacoes.organico), delta: k.interacoes.delta,
+      nota: `<span title="${esc(quebra)}">Anúncios: ${igN(k.interacoes.anuncios)} · ver detalhe</span>` }),
+    tile({ rotulo: 'Seguidores', valor: saldo === null ? null : `${saldo > 0 ? '+' : ''}${fmtInt(saldo)}`, delta: k.seguidores.delta,
+      nota: `${igN(k.seguidores.ganhos)} ganhos, ${igN(k.seguidores.perdidos)} perdidos · total ${igN(k.seguidores.total)} ${IG_SELO_ADS}` }),
+    tile({ rotulo: 'Visitas ao perfil', valor: k.visitas_perfil.valor === null ? null : fmtInt(k.visitas_perfil.valor), delta: k.visitas_perfil.delta, nota: IG_SELO_ADS }),
+    tile({ rotulo: 'Toques no link', valor: k.toques_link.valor === null ? null : fmtInt(k.toques_link.valor), delta: k.toques_link.delta, nota: IG_SELO_ADS }),
+  ].join('');
+
+  const s = d.seguidores;
+  $('#ig-seg-desde').textContent = s.historico_desde
+    ? `histórico disponível desde ${igDiaCurto(s.historico_desde)} (a Meta só guarda 30 dias para trás)` : '';
+  const sinal = (v) => (v === null ? igNada : `${v > 0 ? '+' : ''}${fmtInt(v)}`);
+  $('#ig-seg').innerHTML = `<div class="ig-trio">
+      <div><span>Ganhos</span><b>${s.ganhos === null ? igNada : '+' + fmtInt(s.ganhos)}</b></div>
+      <div><span>Perdidos</span><b>${s.perdidos === null ? igNada : '-' + fmtInt(s.perdidos)}</b></div>
+      <div><span>Saldo</span><b>${sinal(s.saldo)}</b></div>
+    </div>
+    <div class="ig-legenda-cor"><span><i style="background:var(--serie)"></i>Ganhos (acima da linha)</span><span><i style="background:var(--serie2)"></i>Perdidos (abaixo da linha)</span></div>
+    <div class="grafico" id="ig-g-seg"></div>
+    <h3 class="ig-sub">Total de seguidores por dia <small>dias antigos reconstruídos a partir do total observado</small></h3>
+    <div class="grafico" id="ig-g-total"></div>`;
+  barrasIg($('#ig-g-seg'), d.serie.map((p) => ({
+    rot: diaBR(p.d), v: p.ganhos, v2: p.perdidos,
+    dica: p.ganhos === null
+      ? `${diaBR(p.d)}<b>${p.seguidores_chegando ? 'ainda chegando da Meta' : 'sem dado'}</b>`
+      : `${diaBR(p.d)}<b>+${fmtInt(p.ganhos)} ganhos</b><b>-${fmtInt(p.perdidos)} perdidos</b><b>saldo ${sinal(p.ganhos - p.perdidos)}</b>`,
+  })), { resumo: 'Seguidores ganhos e perdidos por dia' });
+  grafico($('#ig-g-total'), d.serie.map((p) => ({ d: p.d, v: p.total })), (v) => fmtInt(Math.round(v)), {
+    zoom: true, semValor: 'sem dado',
+    dicaExtra: (i) => (d.serie[i].total_reconstruido ? '<span class="mini">reconstruído</span>' : ''),
+  });
+
+  igPills($('#ig-metricas'), IG_METRICAS, igMetrica, (v) => { igMetrica = v; desenharEvolucaoIg(); });
+  desenharEvolucaoIg();
+}
+
+function desenharEvolucaoIg() {
+  const d = igDados.crescimento;
+  if (!d) return;
+  const serie = d.serie.map((p) => ({ d: p.d, v: p[igMetrica] }));
+  const marcas = d.serie.map((p, i) => (p.publicacoes.length ? i : -1)).filter((i) => i >= 0);
+  grafico($('#ig-g-evo'), serie, (v) => fmtInt(Math.round(v)), {
+    marcas,
+    semValor: igMetrica === 'ganhos' ? 'ainda chegando ou sem dado' : 'sem coleta neste dia',
+    dicaExtra: (i) => {
+      const pubs = d.serie[i].publicacoes;
+      return pubs.length ? `<span class="mini" style="color:var(--info)">● ${esc(pubs.join(', '))} publicado</span>` : '';
+    },
+  });
+  const el = $('#ig-g-evo');
+  el.insertAdjacentHTML('afterbegin', '<div class="ig-legenda-cor" style="margin-bottom:0.4rem"><span><i style="background:var(--serie)"></i>'
+    + esc(IG_METRICAS.find(([v]) => v === igMetrica)[1]) + '</span><span><i style="background:var(--info)"></i>Dia com post ou reel publicado</span></div>');
+}
+
+// ----- Conteúdo
+const IG_COLUNAS = [
+  { k: 'miniatura', r: '' },
+  { k: 'formato', r: 'Formato' },
+  { k: 'legenda', r: 'Post' },
+  { k: 'publicado_em', r: 'Data', ord: true },
+  { k: 'alcance', r: 'Alcance', ord: true, num: true },
+  { k: 'views', r: 'Visualiz.', ord: true, num: true },
+  { k: 'curtidas', r: 'Curtidas', ord: true, num: true },
+  { k: 'comentarios', r: 'Coment.', ord: true, num: true },
+  { k: 'compartilhamentos', r: 'Compart.', ord: true, num: true },
+  { k: 'salvamentos', r: 'Salvam.', ord: true, num: true },
+  { k: 'engajamento', r: 'Engaj.', ord: true, num: true, fmt: igP },
+  { k: 'tempo_medio_s', r: 'Tempo médio', ord: true, num: true, fmt: (v) => (v === null ? igNada : fmtNum(v, 1) + ' s') },
+  { k: 'visitas_perfil', r: 'Visitas perfil', ord: true, num: true },
+  { k: 'seguidores', r: 'Seguidores', ord: true, num: true },
+  { k: 'pago_alcance', r: 'Alcance pago', ord: true, num: true, pago: true },
+  { k: 'pago_investimento', r: 'Investimento', ord: true, num: true, pago: true, fmt: (v) => (v === null ? igNada : money(v)) },
+];
+const igValor = (p, k) => (k === 'pago_alcance' ? (p.impulsionado ? p.impulsionado.alcance : null)
+  : k === 'pago_investimento' ? (p.impulsionado ? p.impulsionado.investimento : null) : p[k]);
+
+function igPeriodoAnuncio(i) {
+  const ini = i.inicio ? diaBR(i.inicio) : '?';
+  const quando = i.em_veiculacao ? `desde ${ini}, ainda no ar` : `de ${ini} a ${i.fim ? diaBR(i.fim) : '?'}`;
+  return `${i.campanhas.join(' | ')} · ${quando}`;
+}
+
+function desenharConteudoIg(d) {
+  igDados.conteudo = d;
+  $('#ig-formatos').innerHTML = `<div class="ig-formatos">${d.formatos.map((f) => {
+    if (!f.quantidade) return `<div class="ig-formato"><div class="topo"><b>${esc(f.rotulo)}</b><span>nenhum publicado</span></div></div>`;
+    const selos = [f.formato === d.lider_alcance ? '<span class="selo">maior alcance</span>' : '', f.formato === d.lider_engajamento ? '<span class="selo">maior engajamento</span>' : ''].join('');
+    const m = f.melhor;
+    return `<button type="button" class="ig-formato${f.formato === d.lider_alcance ? ' lider' : ''}" data-formato="${esc(f.formato)}">
+      <div class="topo"><b>${esc(f.rotulo)}</b><span>${f.quantidade} ${f.formato === 'Story' ? 'no período' : f.quantidade === 1 ? 'publicado' : 'publicados'}</span></div>
+      ${selos ? `<div>${selos}</div>` : ''}
+      <dl><dt>Alcance médio</dt><dd>${igN(f.alcance_medio)}</dd><dt>Visualizações médias</dt><dd>${igN(f.views_medio)}</dd>
+        <dt>Interações médias</dt><dd>${igN(f.interacoes_medio)}</dd><dt>Engajamento médio</dt><dd>${igP(f.engajamento_medio)}</dd>
+        <dt>Seguidores gerados</dt><dd>${igN(f.seguidores)}</dd></dl>
+      <div class="ig-melhor">${m.miniatura ? `<img class="ig-thumb" src="${esc(m.miniatura)}" alt="">` : ''}<span>Melhor: <b>${igN(m.alcance)}</b> de alcance, ${esc(igData(m.publicado_em))}</span></div>
+    </button>`;
+  }).join('')}</div>`;
+  $('#ig-formatos').onclick = (e) => {
+    const b = e.target.closest('[data-formato]');
+    if (!b) return;
+    if (b.dataset.formato === 'Story') { igVista = 'stories'; escreverUrl(); render(); return; }
+    igFormato = b.dataset.formato;
+    desenharFiltrosConteudoIg();
+    desenharRankingIg();
+    $('#ig-ranking').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  desenharFiltrosConteudoIg();
+  desenharRankingIg();
+}
+
+function desenharFiltrosConteudoIg() {
+  igPills($('#ig-f-formato'), [['todos', 'Todos'], ['Reel', 'Reels'], ['Carrossel', 'Carrosséis'], ['Foto', 'Fotos']], igFormato, (v) => { igFormato = v; desenharRankingIg(); });
+  igPills($('#ig-f-pago'), [['todos', 'Com e sem anúncio'], ['sim', 'Impulsionados'], ['nao', 'Não impulsionados']], igPago, (v) => { igPago = v; desenharRankingIg(); });
+}
+
+function desenharRankingIg() {
+  const d = igDados.conteudo;
+  if (!d) return;
+  const el = $('#ig-ranking');
+  const linhas = d.posts
+    .filter((p) => igFormato === 'todos' || p.formato === igFormato)
+    .filter((p) => igPago === 'todos' || (igPago === 'sim') === !!p.impulsionado)
+    .sort((a, b) => {
+      const va = igValor(a, igOrdem.k), vb = igValor(b, igOrdem.k);
+      if (va === null || va === undefined) return 1;
+      if (vb === null || vb === undefined) return -1;
+      return (va > vb ? 1 : va < vb ? -1 : 0) * igOrdem.dir;
+    });
+  if (!d.posts.length) { el.innerHTML = '<div class="aviso">Nenhum post publicado neste período.</div>'; return; }
+  if (!linhas.length) { el.innerHTML = '<div class="aviso">Nenhum post com esses filtros no período.</div>'; return; }
+  const cab = IG_COLUNAS.map((c) => {
+    const cls = [c.num ? 'num' : '', c.pago ? 'pago' : '', c.ord ? 'ordenavel' : ''].filter(Boolean).join(' ');
+    const seta = igOrdem.k === c.k ? (igOrdem.dir < 0 ? ' ▼' : ' ▲') : '';
+    const aria = c.ord ? ` aria-sort="${igOrdem.k === c.k ? (igOrdem.dir < 0 ? 'descending' : 'ascending') : 'none'}" data-k="${c.k}" tabindex="0"` : '';
+    return `<th class="${cls}"${aria}>${esc(c.r)}${seta}</th>`;
+  }).join('');
+  const corpo = linhas.map((p) => '<tr>' + IG_COLUNAS.map((c) => {
+    if (c.k === 'miniatura') return `<td><a href="${esc(p.link)}" target="_blank" rel="noopener" aria-label="Abrir no Instagram">${p.miniatura ? `<img class="ig-thumb" src="${esc(p.miniatura)}" alt="">` : ''}</a></td>`;
+    if (c.k === 'formato') return `<td>${esc(p.formato)}${p.impulsionado ? `<br><span class="selo pago" title="${esc(igPeriodoAnuncio(p.impulsionado))}">impulsionado</span>` : ''}</td>`;
+    if (c.k === 'legenda') return `<td class="ig-legenda"><a href="${esc(p.link)}" target="_blank" rel="noopener" title="${esc(p.legenda)}\n\nNúmeros atualizados em ${esc(igDataHora(p.atualizado_em))}">${esc((p.legenda.split('\n')[0] || 'Sem legenda').slice(0, 90))}</a></td>`;
+    if (c.k === 'publicado_em') return `<td>${esc(igData(p.publicado_em))}</td>`;
+    const v = igValor(p, c.k);
+    return `<td class="num${c.pago ? ' pago' : ''}">${c.fmt ? c.fmt(v) : igN(v)}</td>`;
+  }).join('') + '</tr>').join('');
+  el.innerHTML = `<table><thead><tr>${cab}</tr></thead><tbody>${corpo}</tbody></table>`;
+  const ordenar = (th) => { igOrdem = igOrdem.k === th.dataset.k ? { k: th.dataset.k, dir: -igOrdem.dir } : { k: th.dataset.k, dir: -1 }; desenharRankingIg(); };
+  el.querySelectorAll('th[data-k]').forEach((th) => {
+    th.onclick = () => ordenar(th);
+    th.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ordenar(th); } };
+  });
+}
+
+// ----- Stories
+const IG_NAV = [['avancou', 'Avançou', 'var(--serie)'], ['proximo', 'Pulou para o próximo perfil', 'var(--taupe)'], ['voltou', 'Voltou', 'var(--info)'], ['saiu', 'Saiu', 'var(--serie2)']];
+
+function desenharStoriesIg(d) {
+  igDados.stories = d;
+  const t = d.totais;
+  $('#ig-st-kpis').innerHTML = [
+    tile({ rotulo: 'Stories no período', valor: fmtInt(t.quantidade) }),
+    tile({ rotulo: 'Alcance médio por story', valor: t.alcance_medio === null ? null : fmtInt(Math.round(t.alcance_medio)) }),
+    tile({ rotulo: 'Visualizações', valor: t.visualizacoes === null ? null : fmtInt(t.visualizacoes) }),
+    tile({ rotulo: 'Respostas', valor: t.respostas === null ? null : fmtInt(t.respostas) }),
+    tile({ rotulo: 'Taxa de saída', valor: t.taxa_saida === null ? null : fmtPct(t.taxa_saida, 1), nota: 'saídas ÷ alcance' }),
+  ].join('');
+  const desde = d.registro_desde ? igDataHora(d.registro_desde) : null;
+  $('#ig-st-avisos').innerHTML = desde
+    ? `<div class="aviso ${d.periodo_antes_do_registro ? 'alerta' : 'explica'}">Stories só podem ser lidos enquanto estão no ar (24h). O registro começou em ${esc(desde)}${d.periodo_antes_do_registro ? '; antes disso não há como recuperar.' : '.'}</div>`
+    : '<div class="aviso explica">Nenhum story registrado ainda. A captura roda de hora em hora.</div>';
+  igPills($('#ig-st-ordem'), [['recentes', 'Mais recentes'], ['alcance', 'Maior alcance'], ['views', 'Mais visualizações']], igOrdemStories, (v) => { igOrdemStories = v; desenharListaStoriesIg(); });
+  desenharListaStoriesIg();
+}
+
+function desenharListaStoriesIg() {
+  const d = igDados.stories;
+  const el = $('#ig-stories');
+  if (!d.stories.length) { el.innerHTML = '<div class="aviso">Nenhum story registrado neste período.</div>'; return; }
+  const ordem = { recentes: (a, b) => (a.publicado_em < b.publicado_em ? 1 : -1), alcance: (a, b) => (b.alcance ?? -1) - (a.alcance ?? -1), views: (a, b) => (b.views ?? -1) - (a.views ?? -1) }[igOrdemStories];
+  el.innerHTML = `<div class="ig-stories">${[...d.stories].sort(ordem).map((s) => {
+    const tot = IG_NAV.reduce((a, [k]) => a + (s.navegacao[k] || 0), 0) || 1;
+    const selo = s.no_ar ? '<span class="selo ar">no ar</span>'
+      : s.captura_parcial ? '<span class="selo parcial" title="A última captura foi bem antes do story expirar; o número final pode ter sido maior.">captura parcial</span>' : '';
+    const img = s.miniatura ? `<img src="${esc(s.miniatura)}" alt="Story de ${esc(igDataHora(s.publicado_em))}">` : '<div class="sem-img"></div>';
+    return `<article class="ig-story">${s.link ? `<a href="${esc(s.link)}" target="_blank" rel="noopener">${img}</a>` : img}
+      <div class="info"><header><span>${esc(igDataHora(s.publicado_em))}</span>${selo}</header>
+      <dl><dt>Alcance</dt><dd>${igN(s.alcance)}</dd><dt>Visualizações</dt><dd>${igN(s.views)}</dd><dt>Respostas</dt><dd>${igN(s.respostas)}</dd>
+        <dt>Compartilhamentos</dt><dd>${igN(s.compartilhamentos)}</dd><dt>Visitas ao perfil</dt><dd>${igN(s.visitas_perfil)}</dd><dt>Seguidores gerados</dt><dd>${igN(s.seguidores)}</dd></dl>
+      <div class="ig-nav" title="${esc(IG_NAV.map(([k, r]) => `${r}: ${s.navegacao[k] || 0}`).join(' | '))}">${IG_NAV.map(([k, , c]) => (s.navegacao[k] ? `<span style="width:${(s.navegacao[k] / tot) * 100}%;background:${c}"></span>` : '')).join('')}</div>
+      <div class="ig-nav-leg">${IG_NAV.map(([k, r, c]) => `<span><i style="background:${c}"></i>${esc(r)} ${fmtInt(s.navegacao[k] || 0)}</span>`).join('')}</div>
+      <span class="mini">Última captura: ${esc(igDataHora(s.ultima_captura_em))}</span>
+      </div></article>`;
+  }).join('')}</div>`;
+}
+
+// ----- Público
+function igBarrasH(itens) {
+  const mx = Math.max(1, ...itens.map((i) => i.valor));
+  return `<div class="ig-barras-h">${itens.map((i) => `<div class="ig-barra-h" title="${esc(i.rotulo)}: ${fmtInt(i.valor)} (${fmtPct(i.pct, 1)})">
+    <span class="rot">${esc(i.rotulo)}</span><span class="trilho"><span style="width:${(i.valor / mx) * 100}%"></span></span><span class="val">${fmtPct(i.pct, 1)}</span></div>`).join('')}</div>`;
+}
+
+function desenharPublicoIg(d) {
+  igDados.publico = d;
+  $('#ig-pub-nota').textContent = d.retrato_dia ? `Retrato de ${igDiaCurto(d.retrato_dia)}. Não muda com o filtro de datas.` : '';
+  igPills($('#ig-pub-quem'), [['seguidores', 'Seguidores'], ['engajados', 'Quem interagiu']], igQuem, (v) => { igQuem = v; desenharCorpoPublicoIg(); });
+  desenharCorpoPublicoIg();
+  const el = $('#ig-g-horas');
+  if (!d.online) { $('#ig-horas-nota').textContent = ''; el.innerHTML = '<div class="aviso">A Meta ainda não informou os horários.</div>'; return; }
+  $('#ig-horas-nota').textContent = `horário de Brasília, dia ${igDiaCurto(d.online.dia)} · pico às ${d.online.pico}h`;
+  barrasIg(el, d.online.por_hora.map((v, h) => ({
+    rot: `${h}h`, v, apagada: h !== d.online.pico, dica: `${h}h às ${h + 1}h<b>${fmtInt(v)} seguidores online</b>`,
+  })), { altura: 180, resumo: `Seguidores online por hora; pico às ${d.online.pico}h` });
+}
+
+function desenharCorpoPublicoIg() {
+  const p = igDados.publico[igQuem];
+  const el = $('#ig-pub-corpo');
+  if (!p || p.vazio) {
+    el.innerHTML = `<div class="card"><div class="aviso">A Meta não devolveu o perfil de ${igQuem === 'engajados' ? 'quem interagiu' : 'seguidores'} neste retrato. A coleta diária tenta de novo todo dia.</div></div>`;
+    return;
+  }
+  const g = Object.fromEntries(p.genero.map((i) => [i.chave, i]));
+  const faixa = (k, cor) => (g[k] && g[k].pct ? `<span style="width:${g[k].pct}%;background:${cor}">${g[k].pct >= 12 ? esc(g[k].rotulo) + ' ' + fmtPct(g[k].pct, 0) : ''}</span>` : '');
+  el.innerHTML = `<div class="duas-colunas">
+      <div class="card"><h2>Idade</h2>${igBarrasH(p.idade)}</div>
+      <div class="card"><h2>Gênero</h2>
+        <div class="ig-genero">${faixa('F', 'var(--serie)')}${faixa('M', 'var(--info)')}${faixa('U', 'var(--taupe)')}</div>
+        <div class="ig-legenda-cor">${p.genero.map((i) => `<span><i style="background:${{ F: 'var(--serie)', M: 'var(--info)', U: 'var(--taupe)' }[i.chave] || 'var(--muted)'}"></i>${esc(i.rotulo)} ${fmtInt(i.valor)} (${fmtPct(i.pct, 1)})</span>`).join('')}</div>
+      </div>
+    </div>
+    <div class="duas-colunas">
+      <div class="card"><h2>Principais cidades <small>top 10</small></h2>${igBarrasH(p.cidades)}</div>
+      <div class="card"><h2>Países <small>top 5</small></h2>${igBarrasH(p.paises)}</div>
+    </div>`;
+}
+
+function mostrarVistaIg() {
+  document.querySelectorAll('[data-ig-vista]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.igVista === igVista)));
+  IG_VISTAS.forEach((v) => { $('#ig-vista-' + v).hidden = v !== igVista; });
+}
+document.querySelectorAll('[data-ig-vista]').forEach((b) => b.addEventListener('click', () => {
+  if (igVista === b.dataset.igVista) return;
+  igVista = b.dataset.igVista;
+  escreverUrl();
+  render();
+}));
+
+R.instagram = async () => {
+  mostrarVistaIg();
+  const p = intervalo();
+  const periodo = `from=${p.de}&to=${p.ate}`;
+  const cabecalho = igBloco($('#ig-cabecalho'), '/api/marketing/instagram/resumo', desenharCabecalhoIg);
+  const vista = {
+    crescimento: () => igBloco($('#ig-vista-crescimento'), `/api/marketing/instagram/crescimento?${periodo}&antFrom=${p.antDe}&antTo=${p.antAte}`, desenharCrescimentoIg),
+    conteudo: () => igBloco($('#ig-vista-conteudo'), `/api/marketing/instagram/conteudo?${periodo}`, desenharConteudoIg),
+    stories: () => igBloco($('#ig-vista-stories'), `/api/marketing/instagram/stories?${periodo}`, desenharStoriesIg),
+    publico: () => igBloco($('#ig-vista-publico'), '/api/marketing/instagram/publico', desenharPublicoIg),
+  }[igVista]();
+  await Promise.all([cabecalho, vista]);
+};
+
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', argo: 'Argo' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', argo: 'Argo', instagram: 'Instagram' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
@@ -4883,6 +5429,8 @@ const FILTROS = {
   eventos: { nota: 'eventos mais recentes · não usa o filtro de datas' },
   'saude-meta': { periodo: true },
   argo: { nota: 'últimas rodadas · não usa o filtro de datas' },
+  // Público é o retrato atual e avisa na própria sub-aba que não segue as datas.
+  instagram: { periodo: true, compara: true },
 };
 let secao = 'visao';
 let renderAtual = 0;
@@ -4915,6 +5463,7 @@ function escreverUrl() {
   }
   if ($('#funil').value) ps.set('f', $('#funil').value);
   if (secao === 'argo' && argoVista === 'propostas') ps.set('v', 'propostas');
+  if (secao === 'instagram' && igVista !== 'crescimento') ps.set('v', igVista);
   const qs = ps.toString();
   history.replaceState(null, '', location.pathname + location.search + '#' + secao + (qs ? '?' + qs : ''));
 }
@@ -4924,6 +5473,9 @@ function lerUrl() {
   secao = TITULOS[aba] ? aba : 'visao';
   // A aba Argo abre em Controle, a não ser que o link peça Propostas.
   argoVista = new URLSearchParams(qs || '').get('v') === 'propostas' ? 'propostas' : 'controle';
+  // A aba Instagram abre em Crescimento, a não ser que o link peça outra sub-aba.
+  const vIg = new URLSearchParams(qs || '').get('v');
+  igVista = IG_VISTAS.includes(vIg) ? vIg : 'crescimento';
   // Hash sem parâmetros (clique na navegação) mantém os filtros que já estão na tela.
   if (!qs) return;
   const ps = new URLSearchParams(qs);
