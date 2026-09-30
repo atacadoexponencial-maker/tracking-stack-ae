@@ -14,3 +14,9 @@ Reestilizar as duas abas de WhatsApp com os componentes da fundação: Grupos co
 - Ligar ou desligar o monitoramento de um grupo pela chave e buscar pelo nome funcionam; estado da conexão aparece como selo com texto.
 - Arrastar um arquivo sobre a área acende a borda; a prévia do texto aparece em balão antes de agendar; clicar num dia mostra os itens dele; item que falhou fica em coral.
 - Cancelar um disparo pede confirmação dentro da própria linha e nunca abre `confirm()` do navegador.
+
+## Resultado (30/09/2026)
+
+Implementada no branch `design/dash-etiqueta` junto com as demais abas (commit "18 abas no mundo Etiqueta"): o CSS específico da aba foi reescrito nos tokens do papel (sem gradiente, sem canto grande, rótulos apagados, acentos em tinta), `.card` virou `.bloco`, grades de KPI viraram grades de etiqueta, e os apelidos dos tokens antigos foram removidos. Nenhum dado, cálculo ou chamada mudou. Verificação: preview com respostas simuladas (Playwright) e leitura do CSS; a conferência com dados reais é dela, em produção.
+
+Específico: balão de prévia em etiqueta com sombra curta; dia de hoje com fio forte no topo; item agendado como etiqueta pequena com contorno; área de soltar acende na tinta. Cancelar disparo já confirmava na própria linha (`pedirConfirmacao`), nada a mudar. Disparos conferida na preview.

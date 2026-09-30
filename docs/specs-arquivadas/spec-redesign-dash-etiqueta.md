@@ -7,7 +7,7 @@
 > de aba clara convivendo com aba escura em produção.
 >
 > Contrato de direção (tese, mundo próprio, primeira dobra): `.impeccable/surfaces/public-dash-index-html.md`.
-> Verdade do produto: `PRODUCT.md`. Quando entrar no ar, mover esta spec para `docs/specs-arquivadas/`.
+> Verdade do produto: `PRODUCT.md`. Entrou no ar em 30/09/2026 (issues 344–355); arquivada.
 
 ## Visão Geral
 

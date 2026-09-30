@@ -14,3 +14,9 @@ Reestilizar a aba do operador de conta com os componentes da fundação: faixa d
 - Aprovar ou rejeitar uma proposta confirma na própria linha; rejeitar pede o "por quê".
 - Ligar ou desligar uma regra salva e mostra o estado; o seletor segmentado alterna observar × executar.
 - Abrir uma rodada mostra antes × depois; filtrar propostas por tipo nas pílulas funciona.
+
+## Resultado (30/09/2026)
+
+Implementada no branch `design/dash-etiqueta` junto com as demais abas (commit "18 abas no mundo Etiqueta"): o CSS específico da aba foi reescrito nos tokens do papel (sem gradiente, sem canto grande, rótulos apagados, acentos em tinta), `.card` virou `.bloco`, grades de KPI viraram grades de etiqueta, e os apelidos dos tokens antigos foram removidos. Nenhum dado, cálculo ou chamada mudou. Verificação: preview com respostas simuladas (Playwright) e leitura do CSS; a conferência com dados reais é dela, em produção.
+
+Específico: cartões do placar viraram etiquetas (`.etiqueta.argo-cartao`, rótulo em `.ref`); "executar" escolhido e contador em tinta/papel; chave da régua ligada na tinta (parada geral segue coral); rodapé fixo sem as margens negativas do card antigo. Conferida na preview (faixa de estado, grade, parada geral, registro).
