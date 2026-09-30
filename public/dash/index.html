@@ -6,208 +6,291 @@
 <meta name="robots" content="noindex">
 <title>Tracking — Atacado Exponencial</title>
 <style>
-/* Redesign do dash de tracking (issues 108–117) — mesmos tokens/componentes
-   do painel de clientes (painel/src/styles/dash.css), adaptados. */
+/* ============================================================================
+   Direção "Etiqueta" (spec de 30/09/2026, issue 344): o painel lido como um
+   catálogo de atacado. Papel claro levemente quente, tinta preta, fio fino
+   entre linhas e fio forte acima de cada bloco. Cada número vive numa
+   etiqueta pendurada; a tabela é uma grade de tamanhos; o delta é um
+   carimbo. A barra lateral fica carvão com bege: a assinatura da marca
+   dentro do papel. Contrato de direção: .impeccable/surfaces/public-dash-index-html.md
+   ============================================================================ */
 @font-face { font-family: 'Satoshi'; src: url('/fonts/Satoshi-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'Satoshi'; src: url('/fonts/Satoshi-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
 :root {
+  color-scheme: light;
   --font-sans: 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --bg: #1e1e1e; --card: #242424; --card-2: #2a2a2a; --border: #393536;
-  --fg: #ffffff; --muted: #a6a6a6; --bege: #f5f0eb;
-  /* --serie2: cor da 2ª linha do gráfico de duas séries; reusa o tom de
-     --down ("para baixo") porque a 2ª série normalmente é saída de gente */
-  --serie: #f5f0eb; --serie-area: rgba(245,240,235,0.13); --serie2: #f37f7f;
-  --up: #5dc986; --down: #f37f7f; --info: #7fb5f3; --warn: #e0b34c;
-  --radius: 0.75rem;
+  /* Paleta da spec (Módulo 0). */
+  --papel: #f3f1ec; --etiqueta: #fbfaf7; --papel-escuro: #ebe8e1;
+  --tinta: #161513; --tinta-2: #4f4b45; --apagado: #8b857c;
+  --fio: #d9d3c9; --fio-forte: #161513;
+  --carvao: #1e1e1e; --bege: #f5f0eb; --taupe: #b8ada1;
+  --alta: #2f9a5d; --queda: #d24a3f; --info: #2f6db3; --alerta: #b7791f;
+  /* Apelidos TEMPORÁRIOS dos nomes antigos, para as abas que ainda não foram
+     reestilizadas (issues 345–354) abrirem legíveis no papel. A issue 355
+     apaga esta lista quando nada mais os usar. */
+  --bg: var(--papel); --card: var(--etiqueta); --card-2: var(--papel-escuro); --border: var(--fio);
+  --fg: var(--tinta); --muted: var(--apagado);
+  --serie: var(--tinta); --serie-area: rgba(22,21,19,0.12); --serie2: var(--queda);
+  --up: var(--alta); --down: var(--queda); --warn: var(--alerta);
+  --radius: 2px;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { color-scheme: dark; }
-body { font-family: var(--font-sans); background: var(--bg); color: var(--fg); font-size: 15px; line-height: 1.45; }
-.layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
-.sidebar { border-right: 1px solid var(--border); padding: 1.25rem 0.9rem; display: flex; flex-direction: column; gap: 1.5rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-.marca { font-weight: 700; font-size: 1rem; padding: 0 0.6rem; }
-.marca small { display: block; color: var(--muted); font-weight: 400; font-size: 0.72rem; }
+html { color-scheme: light; }
+/* overflow-x no body: a página nunca rola de lado; tabela larga rola dentro do bloco. */
+body { font-family: var(--font-sans); background: var(--papel); color: var(--tinta); font-size: 14px; line-height: 1.45; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--carvao); color: var(--bege); }
+:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
+.layout { display: grid; grid-template-columns: 224px minmax(0, 1fr); min-height: 100vh; }
+
+/* ---------- Barra lateral: carvão e bege ---------- */
+.sidebar { background: var(--carvao); color: var(--bege); padding: 1.4rem 1rem 1.2rem; display: flex; flex-direction: column; gap: 1.5rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.sidebar :focus-visible { outline-color: var(--bege); }
+.marca { padding: 0 0.55rem; }
 /* Logo branco sem fundo; largura e altura no HTML reservam o espaço antes de carregar. */
-.marca-logo { display: block; width: 168px; height: auto; margin-bottom: 0.45rem; }
-@media (max-width: 980px) { .marca-logo { width: 132px; margin-bottom: 0.3rem; } }
-/* Navegação em três grupos (resultado, operação, diagnóstico): 15 itens soltos
-   não deixavam ver que Links ou Bloqueios são cadastro, não leitura de número. */
-.nav { display: flex; flex-direction: column; gap: 0.9rem; }
-.nav-grupo { display: flex; flex-direction: column; gap: 0.15rem; }
-/* O título do grupo precisa se distinguir do nome da aba à primeira vista:
-   caixa alta espaçada, negrito e o bege da marca, contra o cinza das abas, e
-   um fio acima de cada grupo seguinte. Só com tamanho menor, como antes, sumia. */
-.nav-grupo + .nav-grupo { border-top: 1px solid var(--border); padding-top: 0.9rem; }
-.nav-rotulo { color: var(--bege); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0 0.6rem 0.4rem; }
-.nav a { color: var(--muted); text-decoration: none; padding: 0.5rem 0.6rem; border-radius: 0.5rem; font-size: 0.92rem; }
-.nav a:hover { color: var(--fg); background: var(--card); }
-.nav a.ativo { color: var(--fg); background: var(--card-2); font-weight: 700; }
-/* Largura máxima: num monitor largo, tabela e número esticados de ponta a ponta
-   perdem a leitura. */
-.conteudo { padding: 1.4rem 1.8rem 3rem; min-width: 0; max-width: 1480px; }
-.topo { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; justify-content: space-between; margin-bottom: 1.4rem; }
-.topo h1 { font-size: 1.25rem; }
-.topo .sub { color: var(--muted); font-size: 0.84rem; }
+.marca-logo { display: block; width: 160px; height: auto; }
+.marca small { display: block; color: var(--taupe); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.45rem; }
+.nav { display: flex; flex-direction: column; gap: 1rem; }
+.nav-grupo { display: flex; flex-direction: column; gap: 0.1rem; }
+.nav-grupo + .nav-grupo { border-top: 1px solid rgba(245,240,235,0.14); padding-top: 0.9rem; }
+.nav-rotulo { color: var(--taupe); font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; padding: 0 0.55rem 0.45rem; }
+.nav a { color: rgba(245,240,235,0.72); text-decoration: none; padding: 0.42rem 0.55rem; border-radius: 3px; font-size: 0.9rem; display: block; }
+.nav a:hover { color: var(--bege); background: rgba(245,240,235,0.06); }
+.nav a.ativo { color: var(--carvao); background: var(--bege); font-weight: 700; }
+
+/* ---------- Conteúdo e topo da aba ---------- */
+.conteudo { padding: 1.6rem 2rem 3rem; min-width: 0; max-width: 1440px; }
+.topo { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; justify-content: space-between; padding-bottom: 1rem; border-bottom: 2px solid var(--fio-forte); margin-bottom: 1.6rem; }
+.topo h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
+.topo .sub { color: var(--apagado); font-size: 0.82rem; margin-top: 0.3rem; }
+.status { color: var(--apagado); font-size: 0.82rem; }
 .filtros { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-select, input[type="date"], input[type="text"], input[type="password"], input[type="email"] {
-  background: var(--card); color: var(--fg); border: 1px solid var(--border);
-  border-radius: 0.5rem; padding: 0.45rem 0.6rem; font: inherit; font-size: 0.86rem;
+
+/* ---------- Campos e botões: mesma altura, canto de 2px, contorno na tinta ---------- */
+select, input[type="date"], input[type="text"], input[type="password"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="search"], textarea {
+  background: var(--etiqueta); color: var(--tinta); border: 1px solid var(--fio-forte);
+  border-radius: 2px; padding: 0.45rem 0.7rem; font: inherit; font-size: 0.86rem; line-height: 1.3;
 }
-.btn { background: var(--fg); color: var(--bg); border: 0; border-radius: 0.5rem; padding: 0.5rem 0.9rem; font: inherit; font-weight: 700; cursor: pointer; font-size: 0.86rem; }
-.btn.sec { background: var(--card-2); color: var(--fg); border: 1px solid var(--border); font-weight: 400; }
-/* Hierarquia: branco só para a ação principal da tela (Salvar, Buscar); o resto
-   é .sec; o que apaga ou encerra é .perigo e passa por confirmação na linha. */
-.btn.perigo { background: transparent; color: var(--down); border: 1px solid var(--border); font-weight: 400; }
-.btn.perigo:hover { border-color: var(--down); }
-.btn.sec:hover { border-color: var(--muted); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+textarea { resize: vertical; }
+/* Seta própria do select, não a do navegador. */
+select { appearance: none; padding-right: 2rem; background-image: linear-gradient(45deg, transparent 50%, var(--tinta) 50%), linear-gradient(135deg, var(--tinta) 50%, transparent 50%); background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%; background-size: 5px 5px; background-repeat: no-repeat; }
+input::placeholder, textarea::placeholder { color: var(--apagado); }
+.btn { background: var(--tinta); color: var(--papel); border: 1px solid var(--tinta); border-radius: 2px; padding: 0.45rem 0.9rem; font: inherit; font-weight: 700; cursor: pointer; font-size: 0.86rem; line-height: 1.3; }
+.btn.sec { background: var(--etiqueta); color: var(--tinta); font-weight: 400; }
+.btn.sec:hover { background: var(--papel-escuro); }
+/* Hierarquia: tinta só para a ação principal da tela; o resto é .sec; o que
+   apaga ou encerra é .perigo e passa por confirmação na linha. */
+.btn.perigo { background: transparent; color: var(--queda); border-color: var(--queda); font-weight: 400; }
+.btn.perigo:hover { background: rgba(210,74,63,0.06); }
+.btn:disabled { background: var(--papel-escuro); color: var(--apagado); border-color: var(--fio); cursor: not-allowed; }
 a.btn { display: inline-block; text-decoration: none; }
-:focus-visible { outline: 2px solid var(--bege); outline-offset: 2px; }
 .confirma { display: inline-flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 0.84rem; }
-.grid-kpi { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 0.7rem; margin-bottom: 1rem; }
-.grid-heroi { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
-.kpi { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 0.9rem; min-width: 0; }
-.kpi .rotulo { color: var(--muted); font-size: 0.76rem; margin-bottom: 0.25rem; }
-.kpi .valor { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; overflow-wrap: break-word; }
-.kpi.heroi { padding: 1.1rem 1.2rem; }
-.kpi.heroi .rotulo { font-size: 0.84rem; }
-.kpi.heroi .valor { font-size: 2rem; }
-/* Manchete da Visão geral: o resumo do período em uma frase, antes dos números. */
-.manchete { font-size: 1.15rem; line-height: 1.4; color: var(--muted); margin: 0 0 1.1rem; max-width: 70ch; }
-.manchete strong { color: var(--fg); }
-.semdado { color: var(--muted); }
-.kpi .semdado { font-size: 1rem; font-weight: 400; }
-.delta { font-size: 0.76rem; font-variant-numeric: tabular-nums; margin-top: 0.15rem; display: inline-block; }
-.delta.up { color: var(--up); } .delta.down { color: var(--down); } .delta.neutro { color: var(--muted); }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; margin-bottom: 1rem; }
-.card h2 { font-size: 0.95rem; margin-bottom: 0.7rem; }
-.card h2 small { color: var(--muted); font-weight: 400; font-size: 0.78rem; }
-.duas-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
-/* min-width 0: sem isso uma tabela larga estica a coluna da grade além da tela. */
+
+/* ---------- Etiqueta: cada número é uma etiqueta de papel com furo e ilhós ---------- */
+.grid-etiquetas, .grid-kpi, .grid-heroi { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem; margin-bottom: 1.6rem; }
+.etiqueta, .kpi { position: relative; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px 2px 3px 3px; padding: 2rem 1.1rem 1rem; min-width: 0; box-shadow: 0 1px 0 rgba(22,21,19,0.06), 0 6px 14px -10px rgba(22,21,19,0.25); }
+.etiqueta::before { content: ""; position: absolute; top: 0.7rem; left: 50%; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--papel); box-shadow: inset 0 0 0 2px var(--fio-forte); }
+.etiqueta .ref, .kpi .rotulo { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--apagado); }
+.etiqueta .valor, .kpi .valor { font-size: 2.2rem; font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 0.25rem 0 0.5rem; overflow-wrap: anywhere; }
+.etiqueta.heroi .valor { font-size: 2.9rem; }
+.etiqueta .rodape { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; border-top: 1px dashed var(--fio); padding-top: 0.55rem; min-height: 1.9rem; }
+.etiqueta .nota { font-size: 0.72rem; color: var(--apagado); margin-left: auto; text-align: right; }
+.semdado { color: var(--apagado); }
+.etiqueta .valor .semdado, .kpi .valor .semdado { font-weight: 400; }
+/* Carimbo: moldura fina na cor do estado, levemente inclinado; o neutro fica
+   reto e tracejado, porque não julga. Sinal ▲ ▼ sempre junto da cor. */
+.carimbo, .delta { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; padding: 0.15rem 0.45rem; border: 1.5px solid currentColor; border-radius: 2px; font-variant-numeric: tabular-nums; transform: rotate(-2deg); white-space: nowrap; }
+.carimbo.alta, .delta.up { color: var(--alta); }
+.carimbo.queda, .delta.down { color: var(--queda); }
+.carimbo.neutro, .delta.neutro { color: var(--apagado); transform: none; border-style: dashed; }
+
+/* ---------- Manchete ---------- */
+.manchete { font-size: 1.45rem; line-height: 1.3; max-width: 40ch; text-wrap: balance; margin-bottom: 1.4rem; color: var(--tinta-2); }
+.manchete strong { color: var(--tinta); }
+
+/* ---------- Régua de metas: fita métrica entre dois fios ---------- */
+.metas { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.9rem 2rem; padding: 1rem 0 1.2rem; border-top: 1px solid var(--fio); border-bottom: 1px solid var(--fio); margin-bottom: 1.6rem; }
+.metas-cabeca { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; align-items: baseline; justify-content: space-between; }
+.metas-cabeca h2 { font-size: 0.95rem; font-weight: 700; }
+.metas-cabeca .mini { font-variant-numeric: tabular-nums; }
+.metas-cabeca a { color: var(--tinta); font-size: 0.78rem; }
+.meta h3 { font-size: 0.8rem; font-weight: 700; display: flex; justify-content: space-between; gap: 1rem; }
+.meta h3 span { color: var(--apagado); font-weight: 400; font-variant-numeric: tabular-nums; }
+.regua { position: relative; height: 14px; margin: 0.5rem 0 0.35rem; background: repeating-linear-gradient(90deg, var(--fio) 0 1px, transparent 1px 10%); border-bottom: 1px solid var(--fio-forte); }
+.regua i { position: absolute; left: 0; top: 3px; bottom: 0; background: var(--tinta); }
+.regua b { position: absolute; top: -2px; bottom: -3px; width: 2px; background: var(--queda); }
+.meta .mini { font-size: 0.74rem; color: var(--apagado); display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.metas-nota, .metas-vazio { grid-column: 1 / -1; font-size: 0.78rem; color: var(--apagado); }
+.metas-vazio a { color: var(--tinta); }
+
+/* ---------- Bloco de conteúdo: só um fio superior forte, sem caixa ---------- */
+.bloco, .card { margin-bottom: 1.8rem; min-width: 0; }
+.bloco h2, .card h2 { font-size: 0.95rem; font-weight: 700; border-top: 2px solid var(--fio-forte); padding-top: 0.6rem; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.bloco h2 small, .card h2 small { font-weight: 400; color: var(--apagado); font-size: 0.76rem; }
+.duas { display: grid; grid-template-columns: 3fr 2fr; gap: 2rem; align-items: start; }
+.duas > * { min-width: 0; }
+.duas-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
 .duas-colunas > * { min-width: 0; }
-@media (max-width: 980px) {
-  .duas-colunas { grid-template-columns: 1fr; }
-  /* minmax(0, …): sem isso a faixa de abas estica a coluna até caber inteira. */
-  .layout { grid-template-columns: minmax(0, 1fr); }
-  /* Marca numa linha e abas embaixo, na largura toda: lado a lado, a marca
-     espremia a faixa e só cabiam duas abas e meia num celular. */
-  .sidebar { position: static; height: auto; gap: 0.7rem; padding: 0.9rem 0.9rem 0.6rem; border-right: 0; border-bottom: 1px solid var(--border); overflow: visible; }
-  .nav, .nav-grupo { flex-direction: row; }
-  .nav { gap: 0.15rem; overflow-x: auto; scrollbar-width: none; }
-  .nav-rotulo { display: none; }
-  /* Sem os rótulos, um fio separa os grupos na faixa horizontal. */
-  .nav-grupo + .nav-grupo { border-top: 0; padding-top: 0; border-left: 1px solid var(--border); padding-left: 0.3rem; margin-left: 0.3rem; }
-  .nav a { white-space: nowrap; }
-}
+
+/* ---------- Tabela como grade de tamanhos ---------- */
 .tabela-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
-th, td { text-align: left; padding: 0.45rem 0.55rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
-th { color: var(--muted); font-weight: 400; font-size: 0.74rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { text-align: left; white-space: nowrap; }
+th { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); font-weight: 700; padding: 0.4rem 0.6rem 0.5rem 0; border-bottom: 1px solid var(--fio-forte); }
+td { padding: 0.55rem 0.6rem 0.55rem 0; border-bottom: 1px solid var(--fio); font-variant-numeric: tabular-nums; }
+th.num, td.num { text-align: right; }
 th.ordenavel { cursor: pointer; user-select: none; }
-th.ordenavel:hover { color: var(--fg); }
-tbody tr.clicavel:focus-visible td { background: var(--card-2); }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-tbody tr:last-child td { border-bottom: none; }
+th.ordenavel:hover, th[aria-sort] { color: var(--tinta); }
+tbody tr:hover td { background: rgba(22,21,19,0.03); }
 tbody tr.clicavel { cursor: pointer; }
-tbody tr.clicavel:hover td { background: var(--card-2); }
-td .mini, .mini { color: var(--muted); font-size: 0.72rem; }
-.ok { color: var(--up); } .falha { color: var(--down); }
-/* Desfecho "desconhecido" do Argo (o banco caiu entre o agente agir e
-   confirmar): não é sucesso nem falha comum, é "vá olhar a conta" — por isso
-   não usa nem .ok nem .falha, e leva um selo além da cor para não depender só
-   de contraste de cor. */
-.alerta-desconhecido { color: var(--warn); font-weight: 700; }
+tbody tr.clicavel:focus-visible td { background: rgba(22,21,19,0.06); }
+td.lp, td.nome, td b { font-weight: 700; }
+td .mini, .mini { color: var(--apagado); font-size: 0.72rem; }
+.proporcao { display: inline-block; height: 6px; background: var(--tinta); vertical-align: middle; margin-right: 0.5rem; border-radius: 1px; }
+.ok { color: var(--alta); } .falha { color: var(--queda); }
+/* Desfecho "desconhecido" do Argo: não é sucesso nem falha comum, é "vá olhar a
+   conta"; leva um selo além da cor. */
+.alerta-desconhecido { color: var(--alerta); font-weight: 700; }
 .alerta-desconhecido::before { content: "⚠ "; }
-.aviso { color: var(--muted); font-size: 0.84rem; padding: 1rem; text-align: center; }
-/* .aviso.explica: explicação permanente (cinza). O âmbar de .alerta fica só para
-   o que pede ação — usado como explicação, ele deixava de chamar atenção. */
-.aviso.explica { text-align: left; background: var(--card-2); border-radius: var(--radius); padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; }
-.selo { display: inline-block; margin-left: 0.3rem; padding: 0 0.45rem; border: 1px solid var(--border); border-radius: 999px; color: var(--info); font-size: 0.72rem; }
+.paginacao { display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; margin-top: 0.7rem; }
+
+/* ---------- Avisos e selos ---------- */
+.aviso { color: var(--apagado); font-size: 0.84rem; padding: 1rem 0; text-align: left; }
+/* .explica: explicação permanente, em papel mais escuro. O âmbar de .alerta
+   fica só para o que pede ação. */
+.aviso.explica { background: var(--papel-escuro); color: var(--tinta-2); padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; border-radius: 2px; }
+.aviso.alerta { color: #8a5a12; border-left: 1px solid var(--alerta); padding: 0.4rem 0 0.4rem 0.9rem; margin-bottom: 0.8rem; }
+.aviso.falha, .erro-carga p { color: var(--queda); }
+.selo { display: inline-block; margin-left: 0.3rem; padding: 0 0.45rem; border: 1px solid var(--fio); border-radius: 999px; color: #234f82; font-size: 0.72rem; white-space: nowrap; }
+.selo.ar { color: var(--alta); }
+.selo.pago, .selo.parcial { color: var(--alerta); }
 .nota-estado { margin-top: 0.3rem; }
-.nota-estado.ok { color: var(--up); }
-/* Carregando: os números da consulta anterior esmaecem até a nova resposta
-   chegar, para ninguém ler o período velho achando que é o novo. */
-.status { color: var(--muted); font-size: 0.85rem; }
-.secao .grid-kpi, .secao .grid-heroi, .secao .grafico, .secao .tabela-wrap { transition: opacity 0.15s ease-out; }
-.secao[aria-busy="true"] .grid-kpi, .secao[aria-busy="true"] .grid-heroi,
-.secao[aria-busy="true"] .grafico, .secao[aria-busy="true"] .tabela-wrap { opacity: 0.35; }
+.nota-estado.ok { color: var(--alta); }
+
+/* ---------- Estados: carregando, falhou ---------- */
+.secao { display: none; } .secao.ativa { display: block; }
+/* Esqueleto em fio piscando devagar no lugar dos números: nunca os números do
+   período anterior enquanto a nova resposta não chega. */
+@keyframes esq-piscar { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.esq { display: block; background: var(--fio); border-radius: 2px; animation: esq-piscar 2.2s ease-in-out infinite; }
+.esq-linha { height: 0.8em; margin: 0.45em 0; }
+.etiqueta.esq-etiqueta { min-height: 8.6rem; }
+.etiqueta.esq-etiqueta .ref { width: 40%; height: 0.66rem; }
+.etiqueta.esq-etiqueta .valor { width: 65%; height: 2.2rem; margin: 0.45rem 0 0.6rem; }
+.etiqueta.heroi.esq-etiqueta .valor { height: 2.9rem; }
+.esq-grafico { height: 240px; }
+.esq-tabela .esq-linha:first-child { height: 0.66rem; margin-bottom: 0.9em; }
+.esq-manchete { width: min(34ch, 100%); height: 1.45rem; margin-bottom: 1.4rem; }
+.esq-meta { height: 14px; margin: 0.5rem 0 0.35rem; }
 /* Falhou: o conteúdo velho some e fica só o aviso com a saída. */
 .secao.falhou > :not(.erro-carga) { display: none; }
-.erro-carga { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; justify-content: space-between; text-align: left; margin-bottom: 1rem; }
-.erro-carga p { color: var(--down); }
-/* .aviso simples é estado vazio (apagado, centralizado); .alerta é aviso
-   acionável do /api/cpl — precisa parecer alerta, não placeholder. */
-.aviso.alerta { color: var(--warn); text-align: left; background: var(--card-2); border-radius: var(--radius); padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; }
-/* Funil de micro-conversões: os degraus de uma LP, abertos ao clicar na linha
-   da tabela Conversão por LP. A barra é proporcional ao PRIMEIRO degrau, então
-   o afunilamento é visível de relance — sem eixo, sem legenda. */
-.funil-lp { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
-.funil-lp h3 { font-size: 0.84rem; font-weight: 400; color: var(--muted); margin: 0 0 0.5rem; }
-.funil-lp h3 code { color: var(--fg); }
-.funil-tabela td { border-bottom: none; padding: 0.3rem 0.55rem; }
+.erro-carga { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; justify-content: space-between; text-align: left; padding: 1rem 0; border-top: 2px solid var(--queda); margin-bottom: 1rem; }
+
+/* ---------- Funil de micro-conversões (aba Leads) ---------- */
+.funil-lp { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--fio); }
+.funil-lp h3 { font-size: 0.84rem; font-weight: 400; color: var(--apagado); margin: 0 0 0.5rem; }
+.funil-lp h3 code { color: var(--tinta); font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; }
+.funil-tabela td { border-bottom: none; padding: 0.3rem 0.55rem 0.3rem 0; }
 .funil-tabela td.funil-barra { width: 45%; padding-left: 0.9rem; }
-.funil-barra span { display: block; height: 9px; border-radius: 3px; background: var(--info); opacity: 0.55; }
-/* A maior queda é o degrau onde mais gente desiste — é a única informação
-   acionável do funil, então é a única destacada. */
-.funil-queda td { color: var(--down); font-weight: 700; }
-.funil-queda .funil-barra span { background: var(--down); opacity: 0.75; }
-.funil-aviso { color: var(--muted); }
-.funil-nota { color: var(--muted); font-size: 0.72rem; margin: 0.6rem 0 0; }
-.secao { display: none; } .secao.ativa { display: block; }
+.funil-barra span { display: block; height: 6px; border-radius: 1px; background: var(--tinta); }
+.funil-queda td { color: var(--queda); font-weight: 700; }
+.funil-queda .funil-barra span { background: var(--queda); }
+.funil-aviso { color: var(--apagado); }
+.funil-nota { color: var(--apagado); font-size: 0.72rem; margin: 0.6rem 0 0; }
+
+/* ---------- Gráfico de linha ---------- */
 .grafico { position: relative; }
-.grafico svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
-.grafico .eixo { stroke: var(--border); stroke-width: 1; }
-.grafico .rot-eixo { fill: var(--muted); font-size: 10px; font-family: var(--font-sans); }
-.grafico .linha { fill: none; stroke: var(--serie); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.grafico svg { display: block; width: 100%; height: auto; touch-action: pan-y; overflow: visible; }
+.grafico .eixo { stroke: var(--fio); stroke-width: 1; }
+.grafico .rot-eixo { fill: var(--apagado); font-size: 11px; font-family: var(--font-sans); }
+.grafico .linha { fill: none; stroke: var(--tinta); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .grafico .area { fill: var(--serie-area); }
-.grafico .cursor { stroke: var(--muted); stroke-dasharray: 3 3; stroke-width: 1; }
-.grafico circle { fill: var(--serie); }
-/* segunda linha (sem área — sobrepor duas áreas preenchidas vira borrão) e legenda,
-   usadas só quando grafico() recebe o 4º parâmetro opcional com serie2 */
-.grafico .linha2 { fill: none; stroke: var(--serie2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.grafico circle.p2 { fill: var(--serie2); }
-.legenda { display: flex; gap: 1rem; margin-bottom: 0.4rem; font-size: 0.78rem; color: var(--muted); }
+.grafico .cursor { stroke: var(--apagado); stroke-dasharray: 3 3; stroke-width: 1; }
+.grafico circle { fill: var(--tinta); }
+.grafico .ponta { fill: var(--tinta); }
+.grafico .ponta-halo { fill: var(--tinta); opacity: 0.16; }
+.grafico .ponta-valor { fill: var(--tinta); font-size: 12px; font-weight: 700; font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
+/* segunda linha (sem área) e legenda, só quando grafico() recebe serie2 */
+.grafico .linha2 { fill: none; stroke: var(--queda); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.grafico circle.p2 { fill: var(--queda); }
+.grafico .marca { fill: var(--info); stroke: var(--etiqueta); stroke-width: 2; }
+.grafico .barra { fill: var(--tinta); }
+.grafico .barra.neg { fill: var(--queda); }
+.grafico .barra.apagada { opacity: 0.45; }
+.legenda { display: flex; gap: 1rem; margin-bottom: 0.4rem; font-size: 0.78rem; color: var(--apagado); }
 .legenda span::before { content: '●'; margin-right: 0.3rem; }
-.legenda .s1::before { color: var(--serie); }
-.legenda .s2::before { color: var(--serie2); }
-.tooltip { position: absolute; pointer-events: none; background: var(--card-2); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.4rem 0.6rem; font-size: 0.78rem; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); display: none; z-index: 5; }
+.legenda .s1::before { color: var(--tinta); }
+.legenda .s2::before { color: var(--queda); }
+.tooltip { position: absolute; pointer-events: none; background: var(--etiqueta); color: var(--tinta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.4rem 0.6rem; font-size: 0.78rem; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); display: none; z-index: 5; box-shadow: 0 1px 0 rgba(22,21,19,0.06), 0 6px 14px -10px rgba(22,21,19,0.35); }
 .tooltip b { display: block; font-variant-numeric: tabular-nums; }
+
+/* ---------- Chips e pílulas ---------- */
 .chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
-.chip { background: var(--fg); color: var(--bg); border: 0; border-radius: 999px; padding: 0.25rem 0.7rem; font: inherit; font-size: 0.75rem; cursor: pointer; }
+.chip { background: var(--tinta); color: var(--papel); border: 0; border-radius: 999px; padding: 0.25rem 0.7rem; font: inherit; font-size: 0.75rem; cursor: pointer; }
 .abas { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
-.abas button { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 0.3rem 0.75rem; font: inherit; font-size: 0.78rem; cursor: pointer; }
-.abas button.ativo { background: var(--card-2); color: var(--fg); font-weight: 700; }
-.gate { display: grid; place-items: center; min-height: 100vh; }
-.gate form { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; width: min(340px, 90vw); display: grid; gap: 0.8rem; }
-.modal-fundo { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: grid; place-items: center; z-index: 50; padding: 1rem; }
-.modal { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); width: min(760px, 96vw); max-height: 85vh; overflow-y: auto; }
-.modal header { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); }
-.modal header small { display: block; color: var(--muted); font-size: 0.75rem; }
+.abas button, .tipo-pill { background: transparent; color: var(--apagado); border: 1px solid var(--fio); border-radius: 999px; padding: 0.3rem 0.75rem; font: inherit; font-size: 0.78rem; cursor: pointer; }
+.abas button:hover, .tipo-pill:hover { color: var(--tinta); border-color: var(--tinta); }
+.abas button.ativo, .tipo-pill[aria-pressed="true"] { background: var(--tinta); color: var(--papel); border-color: var(--tinta); font-weight: 700; }
+
+/* ---------- Tela de acesso ---------- */
+.gate { display: grid; place-items: center; min-height: 100vh; padding: 1rem; }
+.gate form { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px 2px 3px 3px; width: min(360px, 100%); display: grid; gap: 0.8rem; padding: 0 1.6rem 1.6rem; box-shadow: 0 1px 0 rgba(22,21,19,0.06), 0 6px 14px -10px rgba(22,21,19,0.25); }
+/* O logo é branco: mora numa faixa carvão no alto da etiqueta, como na barra lateral. */
+.gate .gate-marca { background: var(--carvao); margin: 0 -1.6rem 0.6rem; padding: 1.3rem 1.6rem 1.1rem; display: grid; gap: 0.4rem; }
+.gate .gate-marca img { display: block; width: 170px; height: auto; }
+.gate .gate-marca small { color: var(--taupe); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.gate .mini.falha { color: var(--queda); }
+
+/* ---------- Modal ---------- */
+.modal-fundo { position: fixed; inset: 0; background: rgba(22,21,19,0.4); display: grid; place-items: center; z-index: 50; padding: 1rem; }
+.modal { background: var(--etiqueta); border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); border-radius: 2px; width: min(760px, 96vw); max-height: 85vh; overflow-y: auto; }
+.modal header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--fio); position: sticky; top: 0; background: var(--etiqueta); }
+.modal header small { display: block; color: var(--apagado); font-size: 0.75rem; }
 .modal .corpo { padding: 1.1rem; display: grid; gap: 1rem; }
-.modal .fechar { background: none; border: 0; color: var(--muted); font-size: 1.5rem; cursor: pointer; line-height: 1; }
-pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.7rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+.modal .fechar { background: none; border: 0; color: var(--apagado); font-size: 1.5rem; cursor: pointer; line-height: 1; }
+.modal .fechar:hover { color: var(--tinta); }
+pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; background: var(--papel); border: 1px solid var(--fio); border-radius: 2px; padding: 0.7rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
 .tl { display: grid; gap: 0.6rem; }
 .tl-item { position: relative; padding-left: 1.1rem; }
-.tl-dot { position: absolute; left: 0; top: 0.35rem; width: 9px; height: 9px; border-radius: 50%; }
-/* ============================================================================
-   Acabamento "Painel refinado" (16/09/2026). Mesma identidade — carvão, Satoshi,
-   bege —, com mais presença: faixa-herói na Visão geral, números principais em
-   bege, cards com degradê de tom, rótulos em caixa alta espaçada e gráfico com
-   área em degradê. Fica numa camada só para ser fácil de ler e de desfazer.
-   ============================================================================ */
-body { background: radial-gradient(1100px 520px at 28% -8%, rgba(245,240,235,0.05), transparent 70%) no-repeat, var(--bg); }
-.topo { margin-bottom: 1.6rem; }
-.topo h1 { font-size: 1.6rem; letter-spacing: -0.01em; }
-.nav a { transition: color 0.15s ease-out, background-color 0.15s ease-out; }
-/* Tom quente dos rótulos (taupe da rampa do bege): o cinza frio deixava o painel
-   neutro demais; o taupe amarra rótulos, cabeçalhos e títulos ao bege da marca. */
-:root { --taupe: #b8ada1; }
-.nav a.ativo { color: var(--bege); }
-.nav a.ativo::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--bege); margin-right: 0.55rem; vertical-align: middle; }
+.tl-dot { position: absolute; left: 0; top: 0.35rem; width: 9px; height: 9px; border-radius: 50%; background: var(--tinta); }
 
-.kpi, .card { background: linear-gradient(180deg, #292929 0%, var(--card) 55%); transition: border-color 0.2s ease-out; }
-.kpi:hover { border-color: #4f4a4b; }
+/* ---------- Faixa de estado (Saúde, Argo) ---------- */
+.faixa-estado { display: flex; gap: 0.9rem; align-items: center; border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); border-radius: 2px; padding: 1rem 1.2rem; margin-bottom: 1.1rem; background: var(--etiqueta); }
+.faixa-estado .selo-estado { font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; padding: 0.3rem 0.65rem; border-radius: 2px; border: 1.5px solid currentColor; white-space: nowrap; }
+.faixa-estado.saudavel .selo-estado { color: var(--alta); }
+.faixa-estado.atencao .selo-estado { color: var(--alerta); }
+.faixa-estado.incidente { border-top-color: var(--queda); }
+.faixa-estado.incidente .selo-estado { color: var(--queda); }
+.faixa-estado p { margin: 0; }
+.saude-filtros { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; }
+.saude-acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+
+/* ---------- Movimento: só o que a spec permite; nada para quem pediu menos ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .etiqueta, .kpi { transition: transform 180ms ease-out, box-shadow 180ms ease-out; }
+  .etiqueta:hover, .kpi:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(22,21,19,0.06), 0 12px 22px -12px rgba(22,21,19,0.35); }
+  tbody tr td { transition: background-color 0.15s ease-out; }
+  .nav a, .btn { transition: color 0.15s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+/* ---------- Abaixo de 900px: barra lateral vira faixa horizontal rolável, colunas viram uma ---------- */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { position: static; height: auto; flex-direction: row; align-items: center; gap: 1rem; padding: 0.8rem 1rem; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  .marca { padding: 0; flex: none; }
+  .marca-logo { width: 120px; } .marca small { display: none; }
+  .nav { flex-direction: row; gap: 0.3rem; }
+  .nav-grupo { flex-direction: row; }
+  .nav-grupo + .nav-grupo { border-top: 0; padding-top: 0; border-left: 1px solid rgba(245,240,235,0.14); padding-left: 0.5rem; margin-left: 0.2rem; }
+  .nav-rotulo { display: none; }
+  .nav a { white-space: nowrap; font-size: 0.82rem; }
+  .conteudo { padding: 1.2rem 1rem 3rem; }
+  .duas, .duas-colunas { grid-template-columns: 1fr; }
+  .manchete { font-size: 1.2rem; }
+  .etiqueta.heroi .valor { font-size: 2.4rem; }
+  .topo { align-items: flex-start; }
+}
 
 /* ---------- aba Disparos (spec 2026-09-18) ---------- */
 /* Compor e ver o que vai sair, lado a lado. Abaixo de 980px vira uma coluna,
@@ -273,57 +356,6 @@ body { background: radial-gradient(1100px 520px at 28% -8%, rgba(245,240,235,0.0
 .item { background: var(--card-2); border-radius: 0.4rem; padding: 0.3rem 0.4rem; margin-top: 0.35rem; font-size: 0.74rem; }
 .item .h { font-variant-numeric: tabular-nums; color: var(--muted); }
 .item.falhou { border-left: 2px solid var(--down); }
-.kpi .rotulo { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--taupe); }
-.kpi .valor { font-size: 1.55rem; margin-top: 0.2rem; letter-spacing: -0.01em; }
-.kpi .delta { margin-top: 0.3rem; }
-.grid-kpi { gap: 0.8rem; margin-bottom: 1.1rem; }
-.card { padding: 1.3rem 1.4rem; margin-bottom: 1.1rem; }
-.card h2 { font-size: 1.02rem; margin-bottom: 1rem; }
-
-th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--taupe); }
-th, td { padding: 0.62rem 0.6rem; }
-tbody tr td { transition: background-color 0.15s ease-out; }
-tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
-
-/* Faixa-herói: a manchete e os três números que respondem "como estamos". */
-.faixa-heroi {
-  background: radial-gradient(760px 320px at 0% 0%, rgba(245,240,235,0.12), transparent 62%), linear-gradient(180deg, #2c2b2a 0%, var(--card) 100%);
-  border: 1px solid var(--border); border-radius: 1rem; padding: 1.7rem 1.8rem 1.5rem; margin-bottom: 1.1rem;
-}
-.faixa-heroi .manchete { font-size: 1.32rem; margin-bottom: 1.5rem; }
-.faixa-heroi .grid-heroi { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0; }
-.faixa-heroi .kpi.heroi { background: none; border: 0; border-left: 1px solid var(--border); border-radius: 0; padding: 0.1rem 1.7rem; }
-.faixa-heroi .kpi.heroi:first-child { border-left: 0; padding-left: 0; }
-.faixa-heroi .kpi.heroi .rotulo { font-size: 0.72rem; }
-.faixa-heroi .kpi.heroi .valor { font-size: 3.4rem; line-height: 1.05; color: var(--bege); letter-spacing: -0.025em; margin: 0.45rem 0 0.35rem; }
-.faixa-heroi .kpi.heroi .delta { font-size: 0.86rem; }
-
-.grafico .linha { stroke-width: 2.5; }
-.grafico .ponta { fill: var(--bege); }
-.grafico .ponta-halo { fill: var(--bege); opacity: 0.16; }
-.tooltip { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4); }
-.btn { transition: background-color 0.15s ease-out, border-color 0.15s ease-out, opacity 0.15s ease-out; }
-
-@media (max-width: 980px) {
-  .faixa-heroi { padding: 1.3rem 1.2rem; }
-  .faixa-heroi .manchete { font-size: 1.12rem; margin-bottom: 1rem; }
-  .faixa-heroi .grid-heroi { grid-template-columns: 1fr; }
-  .faixa-heroi .kpi.heroi, .faixa-heroi .kpi.heroi:first-child { border-left: 0; padding: 0.9rem 0; }
-  .faixa-heroi .kpi.heroi + .kpi.heroi { border-top: 1px solid var(--border); }
-  .faixa-heroi .kpi.heroi .valor { font-size: 2.5rem; }
-}
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
-/* ---------- Saúde do Meta (spec-capi-reenvio-monitoramento.md) ---------- */
-.faixa-estado { display: flex; gap: 0.9rem; align-items: center; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1.1rem; background: var(--card); }
-.faixa-estado .selo-estado { font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; padding: 0.3rem 0.65rem; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
-.faixa-estado.saudavel .selo-estado { color: var(--up); }
-.faixa-estado.atencao .selo-estado { color: var(--warn); }
-.faixa-estado.incidente { border-color: var(--down); }
-.faixa-estado.incidente .selo-estado { color: var(--down); }
-.faixa-estado p { margin: 0; }
-.saude-filtros { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; }
-.paginacao { display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; margin-top: 0.7rem; }
-.saude-acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 
 /* ---------- Argo ----------
    Três perguntas, nesta ordem: em que estado ele está (faixa), o que ele pode
@@ -701,7 +733,8 @@ td.pago, th.pago { color: var(--warn); }
 
 <div class="gate" id="gate" hidden>
   <form id="gate-form">
-    <strong>Atacado Exponencial · Tracking</strong>
+    <div class="gate-marca"><img src="/dash/logo-atacado-exponencial.png" alt="Atacado Exponencial" width="957" height="261"><small>Tracking interno</small></div>
+    <strong>Chave de acesso</strong>
     <span class="mini">Digite a chave de acesso do painel.</span>
     <input type="password" id="gate-key" placeholder="Chave de acesso" aria-label="Chave de acesso" autocomplete="off">
     <button class="btn" type="submit">Abrir painel</button>
@@ -767,15 +800,16 @@ td.pago, th.pago { color: var(--warn); }
     </div>
 
     <section class="secao" id="secao-visao">
-      <div class="faixa-heroi">
-        <p class="manchete" id="visao-manchete"></p>
-        <div class="grid-heroi" id="visao-herois"></div>
-      </div>
+      <p class="manchete" id="visao-manchete" data-esqueleto="manchete"></p>
+      <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:3:heroi"></div>
       <!-- Metas (issue 332): sempre o mês corrente até ontem, não segue o filtro. -->
-      <div id="visao-metas"></div>
-      <div class="grid-kpi" id="visao-kpis"></div>
-      <div class="card"><h2>Leads por dia <small id="visao-serie-nota"></small></h2><div class="grafico" id="visao-grafico"></div></div>
-      <div class="card"><h2>Conversão por LP <small>resumo</small></h2><div class="tabela-wrap" id="visao-lps"></div></div>
+      <div class="metas" id="visao-metas" data-esqueleto="metas"></div>
+      <div class="grid-etiquetas" id="visao-kpis" data-esqueleto="etiquetas:4"></div>
+      <div class="duas">
+        <div class="bloco"><h2>Leads por dia <small id="visao-serie-nota"></small></h2><div class="grafico" id="visao-grafico" data-esqueleto="grafico"></div></div>
+        <div class="bloco"><h2>Leads por funil <small>no período · vs. o anterior</small></h2><div class="tabela-wrap" id="visao-funis" data-esqueleto="tabela"></div></div>
+      </div>
+      <div class="bloco"><h2>Conversão por LP <small>resumo · seis primeiras páginas</small></h2><div class="tabela-wrap" id="visao-lps" data-esqueleto="tabela"></div></div>
     </section>
 
     <section class="secao" id="secao-leads">
@@ -1378,15 +1412,41 @@ let funilQ = '';
 function deltaChip(pct, invertido = false, neutro = false) {
   if (pct === null || pct === undefined || !isFinite(pct)) return '';
   const up = pct >= 0, bom = invertido ? !up : up;
-  const cls = pct === 0 || neutro ? 'neutro' : (bom ? 'up' : 'down');
-  return `<span class="delta ${cls}">${pct === 0 ? '•' : (up ? '▲' : '▼')} ${fmtNum(Math.abs(pct), 1)}%</span>`;
+  const cls = pct === 0 || neutro ? 'neutro' : (bom ? 'alta' : 'queda');
+  return `<span class="carimbo ${cls}">${pct === 0 ? '=' : (up ? '▲' : '▼')} ${fmtNum(Math.abs(pct), 1)}%</span>`;
 }
-const tile = (k, heroi = false) => `
-  <div class="kpi${heroi ? ' heroi' : ''}">
-    <div class="rotulo">${esc(k.rotulo)}</div>
+// Etiqueta pendurada: rótulo "REF.", valor grande, rodapé tracejado com o
+// carimbo de delta à esquerda e a nota à direita. Sem delta nem nota, o rodapé
+// não aparece (uma linha tracejada vazia parecia etiqueta em branco).
+const tile = (k, heroi = false) => {
+  const carimbo = k.delta !== undefined ? deltaChip(k.delta, k.invertido, k.neutro) : '';
+  const rodape = carimbo || k.nota ? `<div class="rodape">${carimbo}<span class="nota">${k.nota || ''}</span></div>` : '';
+  return `
+  <div class="etiqueta${heroi ? ' heroi' : ''}">
+    <div class="ref">${esc(k.rotulo)}</div>
     <div class="valor"${k.conta && k.valor != null ? ` data-conta="${k.conta.v}" data-fmt="${k.conta.fmt}"` : ''}>${k.valor === null || k.valor === undefined ? '<span class="semdado">—</span>' : k.valor}</div>
-    ${k.delta !== undefined ? deltaChip(k.delta, k.invertido, k.neutro) : ''}${k.nota ? `<div class="mini">${k.nota}</div>` : ''}
+    ${rodape}
   </div>`;
+};
+
+// Esqueleto ao carregar: o contêiner com data-esqueleto recebe blocos em fio
+// piscando devagar até a resposta chegar. Formatos: "manchete", "etiquetas:N"
+// (ou "etiquetas:N:heroi"), "metas", "grafico", "tabela".
+function esqueleto(el) {
+  const [tipo, n, variante] = (el.dataset.esqueleto || '').split(':');
+  delete el._grafico; // um redesenho do ResizeObserver não pode trazer a série velha de volta
+  if (tipo === 'etiquetas') {
+    el.innerHTML = Array.from({ length: Number(n) || 3 }, () => `<div class="etiqueta esq-etiqueta${variante === 'heroi' ? ' heroi' : ''}" aria-hidden="true"><span class="esq ref"></span><span class="esq valor"></span></div>`).join('');
+  } else if (tipo === 'grafico') {
+    el.innerHTML = '<span class="esq esq-grafico" aria-hidden="true"></span>';
+  } else if (tipo === 'tabela') {
+    el.innerHTML = `<div class="esq-tabela" aria-hidden="true">${'<span class="esq esq-linha"></span>'.repeat(5)}</div>`;
+  } else if (tipo === 'metas') {
+    el.innerHTML = '<div class="meta" aria-hidden="true"><span class="esq esq-linha" style="width:40%"></span><span class="esq esq-meta"></span></div><div class="meta" aria-hidden="true"><span class="esq esq-linha" style="width:40%"></span><span class="esq esq-meta"></span></div>';
+  } else if (tipo === 'manchete') {
+    el.innerHTML = '<span class="esq esq-manchete" aria-hidden="true"></span>';
+  }
+}
 
 // Contagem dos números-herói: sobem do zero ao valor em 0,7s, desacelerando.
 // É o único movimento "de apresentação" do painel. Quem pediu menos movimento
@@ -1436,8 +1496,8 @@ function pedirConfirmacao(btn, pergunta, aoConfirmar, opcoes = [{ valor: true, r
   });
 }
 
-function tabela(el, colunas, linhas, aoClicar) {
-  if (!linhas.length) { el.innerHTML = '<div class="aviso">Sem dados no período.</div>'; return; }
+function tabela(el, colunas, linhas, aoClicar, vazio) {
+  if (!linhas.length) { el.innerHTML = `<div class="aviso">${esc(vazio || 'Sem dados no período.')}</div>`; return; }
   const ordem = { campo: null, asc: false };
   const desenhar = () => {
     let dados = linhas;
@@ -1531,11 +1591,12 @@ function grafico(el, serie, valorFmt, opcoes) {
   // no último valor — o "agora" da série. Com lacuna não há área: o fechamento
   // do polígono atravessaria os dias sem dado.
   const idGrad = 'grad-' + (++seqGrafico);
-  const area = serie2 || comLacuna ? '' : `<defs><linearGradient id="${idGrad}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f5f0eb" stop-opacity="0.30"/><stop offset="100%" stop-color="#f5f0eb" stop-opacity="0"/></linearGradient></defs><path class="area" style="fill:url(#${idGrad})" d="${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z"/>`;
+  const area = serie2 || comLacuna ? '' : `<defs><linearGradient id="${idGrad}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--tinta)" stop-opacity="0.16"/><stop offset="100%" style="stop-color:var(--tinta)" stop-opacity="0"/></linearGradient></defs><path class="area" style="fill:url(#${idGrad})" d="${linha}L${x(serie.length - 1).toFixed(1)},${m.t + ih}L${x(0).toFixed(1)},${m.t + ih}Z"/>`;
   let iUlt = serie.length - 1;
   while (iUlt > 0 && !temValor(serie[iUlt])) iUlt--;
   const ultimo = serie[iUlt];
-  const ponta = serie2 ? '' : `<circle class="ponta-halo" cx="${x(iUlt)}" cy="${y(ultimo.v)}" r="9"/><circle class="ponta" cx="${x(iUlt)}" cy="${y(ultimo.v)}" r="3.5"/>`;
+  // O último valor escrito acima da ponta: o "agora" da série, sem precisar do tooltip.
+  const ponta = serie2 ? '' : `<circle class="ponta-halo" cx="${x(iUlt)}" cy="${y(ultimo.v)}" r="9"/><circle class="ponta" cx="${x(iUlt)}" cy="${y(ultimo.v)}" r="3.5"/><text class="ponta-valor" x="${x(iUlt)}" y="${(y(ultimo.v) - 14).toFixed(1)}" text-anchor="middle">${esc(valorFmt(ultimo.v, true))}</text>`;
   const linha2 = serie2 ? `<path class="linha2" d="${caminho(serie2)}"/>` : '';
   // `opcoes.marcas`: índices de dias a marcar no pé do gráfico (dia com publicação).
   const marcas = (opcoes && opcoes.marcas || []).map((i) => `<circle class="marca" cx="${x(i)}" cy="${m.t + ih}" r="4"/>`).join('');
@@ -1686,24 +1747,48 @@ function metasVazioHtml() {
 }
 
 // Visão geral: compacto, um indicador por meta, clicável para o detalhe.
+// Uma régua por funil com meta: preenchido na tinta até o feito, traço coral
+// na projeção, legenda com o percentual e o CPL. A aritmética (pct, projeção,
+// situação) vem pronta de /api/metas/acompanhamento; aqui só se desenha.
+function metasReguaHtml(f) {
+  const leads = (f.indicadores || []).find((i) => i.chave === 'leads_novos');
+  const cpl = (f.indicadores || []).find((i) => i.chave === 'cpl');
+  const cplTxt = cpl && cpl.meta ? `CPL ${cpl.realizado === null || cpl.realizado === undefined ? '—' : esc(String(cpl.realizado))} (meta ${esc(String(cpl.meta))})` : '';
+  if (f.crm_ok === false) {
+    return `<div class="meta"><h3>${esc(f.nome)}</h3><p class="mini"><span>não foi possível ler os leads agora</span></p></div>`;
+  }
+  if (!leads || leads.meta === null || leads.meta === undefined) {
+    // Funil só com meta de custo: sem régua, só a leitura do CPL.
+    return `<div class="meta"><h3>${esc(f.nome)}</h3><p class="mini"><span>${cplTxt || 'sem meta de leads'}</span></p></div>`;
+  }
+  const pct = Math.max(0, Math.min(100, Number(leads.pct) || 0));
+  const proj = typeof leads.projecao === 'number' && leads.meta > 0 ? Math.max(0, Math.min(100, (leads.projecao / leads.meta) * 100)) : null;
+  const feito = leads.realizado === null || leads.realizado === undefined ? '—' : fmtInt(leads.realizado);
+  const legenda = leads.atingida ? 'meta atingida' : `${fmtPct(leads.pct ?? 0, 0)} da meta, até ontem`;
+  const projTxt = leads.atingida ? '' : typeof leads.projecao === 'number' ? `projeção ${fmtInt(leads.projecao)}` : '';
+  return `<div class="meta"><h3>${esc(f.nome)} <span>${feito} de ${fmtInt(leads.meta)} leads</span></h3>
+    <div class="regua" role="img" aria-label="${esc(legenda)}${projTxt ? ' · ' + esc(projTxt) : ''}"><i style="width:${pct}%"></i>${proj === null ? '' : `<b style="left:${proj.toFixed(1)}%" title="projeção"></b>`}</div>
+    <p class="mini"><span>${legenda}</span><span>${[projTxt, cplTxt].filter(Boolean).join(' · ')}</span></p></div>`;
+}
+
+// Visão geral: régua de metas do mês corrente, com atalho para o detalhe na aba Leads.
 async function desenharMetasCompacto() {
   const el = $('#visao-metas');
   const d = await carregarMetasAcompanhamento();
   if (!d || d.falhou) {
-    el.innerHTML = '<div class="card metas-card"><p class="aviso explica">Não foi possível ler as metas agora.</p></div>';
+    el.innerHTML = '<p class="aviso explica metas-nota">Não foi possível ler as metas agora.</p>';
     return;
   }
   const nota = $('#preset').value !== 'mes'
     ? '<p class="metas-nota">As metas mostram sempre o mês corrente, qualquer que seja o filtro de datas.</p>' : '';
+  const faltam = d.dias_restantes === 1 ? 'falta 1 dia' : `faltam ${d.dias_restantes} dias`;
+  const ate = d.dados_ate ? `dados até ${esc(argoDataCurta(d.dados_ate + 'T12:00:00'))} (ontem) · ${faltam}` : 'ainda sem dia fechado no mês';
+  const cabeca = `<div class="metas-cabeca"><h2>Metas de ${esc(d.mes_rotulo || d.mes)}</h2><span class="mini">${ate} · <a href="#leads" data-ir-secao="leads">ver o detalhe</a></span></div>`;
   if (!d.funis || !d.funis.length) {
-    el.innerHTML = `<div class="card metas-card">${metasTopoHtml(d)}${metasVazioHtml()}</div>`;
+    el.innerHTML = `${cabeca}${metasVazioHtml()}`;
     return;
   }
-  el.innerHTML = `<div class="card metas-card metas-compacto" role="link" tabindex="0" data-ir-secao="leads" title="Ver o detalhe na aba Leads">
-    ${metasTopoHtml(d)}${nota}
-    ${d.funis.map((f) => `<div class="metas-funil"><div class="metas-funil-nome">${esc(f.nome)}</div>
-      <div class="metas-linha">${f.indicadores.map((i) => metasIndicadorHtml(i, f.crm_ok, false)).join('')}</div></div>`).join('')}
-  </div>`;
+  el.innerHTML = `${cabeca}${d.funis.map(metasReguaHtml).join('')}${nota}`;
 }
 
 // Aba Leads: detalhe com barra, projeção, "precisa de N por dia" e avisos.
@@ -1938,12 +2023,27 @@ R.visao = async () => {
   $('#visao-serie-nota').textContent = (leadsA.leads || []).length >= 500 ? 'amostra dos 500 leads mais recentes' : '';
   grafico($('#visao-grafico'), serie, (v, eixo) => eixo ? fmtInt(v) : fmtInt(v) + ' leads');
 
+  // Leads por funil: os mesmos funnelCounts de agora e do período anterior,
+  // um funil por linha, barra proporcional ao maior e carimbo do delta.
+  const contagem = (fc) => (fc || []).filter((c) => !fSel || (c.funnel || '') === fSel);
+  const anterior = Object.fromEntries(contagem(leadsB.funnelCounts).map((c) => [c.funnel || '', Number(c.count || 0)]));
+  const porFunil = contagem(leadsA.funnelCounts).map((c) => {
+    const atual = Number(c.count || 0), ant = anterior[c.funnel || ''];
+    return { funil: c.funnel || '(sem funil)', atual, delta: ant ? delta(atual, ant) : null };
+  }).sort((a, b) => b.atual - a.atual);
+  const maiorFunil = Math.max(1, ...porFunil.map((r) => r.atual));
+  tabela($('#visao-funis'), [
+    { titulo: 'Funil', campo: 'funil', render: (r) => `<b>${esc(r.funil)}</b>` },
+    { titulo: 'Leads', num: true, campo: 'atual', render: (r) => `<span class="proporcao" style="width:${Math.round((r.atual / maiorFunil) * 60)}px" aria-hidden="true"></span>${fmtInt(r.atual)}` },
+    { titulo: 'vs. anterior', num: true, campo: 'delta', render: (r) => r.delta === null ? '<span class="carimbo neutro">novo</span>' : deltaChip(r.delta) },
+  ], porFunil, undefined, 'Nenhum lead no período. Aqui aparece um funil por linha, com a comparação ao período anterior.');
+
   tabela($('#visao-lps'), [
     { titulo: 'LP', campo: 'lp', render: (r) => esc(r.lp) },
     { titulo: 'Visitantes', num: true, campo: 'visitors', render: (r) => fmtInt(r.visitors) },
     { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
     { titulo: 'Conversão', num: true, campo: 'rate', render: (r) => fmtPct(r.rate * 100, 1) },
-  ], (convA.rows || []).slice(0, 6));
+  ], (convA.rows || []).slice(0, 6), undefined, 'Nenhuma visita no período. Aqui aparecem as seis páginas com mais visitantes e a conversão de cada uma.');
 };
 
 R.leads = async () => {
@@ -5516,6 +5616,7 @@ async function render() {
   // Uma aba abandonada no meio do carregamento não pode ficar esmaecida para sempre.
   document.querySelectorAll('.secao[aria-busy]').forEach((s) => s.removeAttribute('aria-busy'));
   el.setAttribute('aria-busy', 'true');
+  el.querySelectorAll('[data-esqueleto]').forEach(esqueleto);
   $('#status').textContent = '· atualizando…';
   try {
     await R[secao]();
@@ -5525,7 +5626,7 @@ async function render() {
     if (minha !== renderAtual) return;
     $('#status').textContent = '';
     el.classList.add('falhou');
-    el.insertAdjacentHTML('afterbegin', `<div class="card aviso erro-carga" role="alert">
+    el.insertAdjacentHTML('afterbegin', `<div class="aviso erro-carga" role="alert">
       <p>${esc((e && e.mensagemUsuario) || 'Não foi possível carregar os dados desta aba.')} Os números anteriores foram escondidos para não serem lidos como atuais.</p>
       <button class="btn sec" type="button" data-tentar>Tentar de novo</button></div>`);
     el.querySelector('[data-tentar]').onclick = () => render();
