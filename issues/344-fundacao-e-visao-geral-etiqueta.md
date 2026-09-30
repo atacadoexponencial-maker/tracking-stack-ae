@@ -119,7 +119,7 @@ Nenhuma. Satoshi já está hospedada em `public/fonts/`.
 - [x] Conferir na preview (com respostas simuladas, sem a chave): Visão geral desktop e celular (< 900px), Tab em todos os controles, hover, reduced motion no DevTools, "Personalizado…" mostra datas, tooltip, ordenação, esqueleto ao trocar funil/período, "—" no ROAS
 - [ ] Conferir que os números batem com produção para o mesmo preset e funil (Leads, Conversão geral, CPL, Novos visitantes, Investimento, Receita, ROAS, Conversão por LP)
 - [x] Abrir as outras 18 abas na preview: todas carregam sem erro de JS (visual ainda misto é esperado)
-- [ ] Anotar na issue o link da preview e o que ficou para as issues seguintes
+- [x] Anotar na issue o link da preview e o que ficou para as issues seguintes
 
 ## Resultado (30/09/2026)
 
