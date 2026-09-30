@@ -121,6 +121,8 @@ a.btn { display: inline-block; text-decoration: none; }
 .bloco, .card { margin-bottom: 1.8rem; min-width: 0; }
 .bloco h2, .card h2 { font-size: 0.95rem; font-weight: 700; border-top: 2px solid var(--fio-forte); padding-top: 0.6rem; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
 .bloco h2 small, .card h2 small { font-weight: 400; color: var(--apagado); font-size: 0.76rem; }
+/* O primeiro bloco da aba encosta no fio forte do topo: sem segundo fio colado. */
+.secao > .bloco:first-child > h2 { border-top: 0; padding-top: 0; }
 .duas { display: grid; grid-template-columns: 3fr 2fr; gap: 2rem; align-items: start; }
 .duas > * { min-width: 0; }
 .duas-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
