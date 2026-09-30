@@ -98,25 +98,32 @@ Nenhuma. Satoshi já está hospedada em `public/fonts/`.
 
 ## Checklist
 
-- [ ] Criar o branch `design/dash-etiqueta` a partir de `main` e commitar nele `PRODUCT.md`, o brief, `spec.md`, a spec arquivada e as issues 344–355
-- [ ] CSS: `:root` com os tokens novos + apelidos temporários; `color-scheme: light`; `body` papel/tinta 14px
-- [ ] CSS: barra lateral carvão + bege (grupos, rótulo taupe, item ativo bege sólido com texto carvão, foco bege); "TRACKING INTERNO" no HTML
-- [ ] CSS: topo (título 1.6rem, sub apagado, fio forte 2px), campos (`select` com seta própria, `input`, `textarea`, canto 2px) e botões (primário/secundário/perigo/desabilitado na mesma altura)
-- [ ] CSS: `.etiqueta` (+`.heroi`, furo/ilhós, `.ref`, `.valor` tabular, `.rodape` tracejado, `.nota`, hover 2px) e `.carimbo` (alta/queda/neutro)
-- [ ] CSS: `.bloco` com `h2` de fio forte + `small` apagado; `.duas` 3fr/2fr; `.grid-etiquetas`
-- [ ] CSS: tabela-grade (`th` caixa alta com fio forte, `td` fio fino, hover 3%, `td.lp`/primeira coluna negrito, `.num` à direita, `th.ordenavel` com seta) e `.barra`
-- [ ] CSS: `.metas`/`.meta`/`.regua` (marcas a cada 10%, preenchido tinta, marca coral) e `.metas-nota`
-- [ ] CSS: `.esqueleto` + `@keyframes`; `.aviso`, `.aviso.explica`, `.aviso.alerta`, `.erro-carga`, `.semdado`, estado vazio
-- [ ] CSS: gráfico (linha tinta, área degradê da tinta 16%→0, grade fio, rótulos 11px apagados, ponta com halo, `.ponta-valor`, cursor tracejado, `.linha2` coral, `.legenda`) e `.tooltip` como etiqueta pequena
-- [ ] CSS: `.chips/.chip`, `.abas`/`.tipo-pill`, `.selo` (+`ar`/`pago`/`parcial`), `.modal*` (véu tinta 40%, fio forte no topo), `pre`, `.tl*`, `.confirma`, `.faixa-estado`, `.gate` com faixa carvão e logo
-- [ ] CSS: apagar a camada "Painel refinado" e `.faixa-heroi*`; `@media (max-width: 900px)` para layout/sidebar/heróis/`.duas`; `prefers-reduced-motion` também zera `animation`; `overflow-x: hidden` só onde a spec pede (tabela dentro do bloco), `body` nunca rola de lado
-- [ ] HTML: `#gate` novo; `#secao-visao` reescrita com manchete, heróis, metas, KPIs, `.duas` (gráfico + `#visao-funis`) e Conversão por LP, todos com `data-esqueleto`
-- [ ] JS: `tile()` → etiqueta; `deltaChip()` → carimbo (▲ ▼, "=" no zero, neutro tracejado)
-- [ ] JS: `esqueleto(el)` e chamada em `render()`; remover a dependência do `opacity 0.35`
-- [ ] JS: `desenharMetasCompacto()` em régua (pct, projeção, atingida, crm_ok, sem meta, nota do preset)
-- [ ] JS: bloco "Leads por funil" em `R.visao` a partir de `funnelCounts` A × B (barra proporcional, carimbo, vazio que ensina)
-- [ ] JS: `grafico()` com valor escrito acima da ponta e degradê por token; `tabela()` com `vazio` opcional
-- [ ] Conferir na preview: Visão geral desktop e celular (< 900px), Tab em todos os controles, hover, reduced motion no DevTools, "Personalizado…" mostra datas, tooltip, ordenação, esqueleto ao trocar funil/período, "—" no ROAS
+- [x] Criar o branch `design/dash-etiqueta` a partir de `main` e commitar nele `PRODUCT.md`, o brief, `spec.md`, a spec arquivada e as issues 344–355
+- [x] CSS: `:root` com os tokens novos + apelidos temporários; `color-scheme: light`; `body` papel/tinta 14px
+- [x] CSS: barra lateral carvão + bege (grupos, rótulo taupe, item ativo bege sólido com texto carvão, foco bege); "TRACKING INTERNO" no HTML
+- [x] CSS: topo (título 1.6rem, sub apagado, fio forte 2px), campos (`select` com seta própria, `input`, `textarea`, canto 2px) e botões (primário/secundário/perigo/desabilitado na mesma altura)
+- [x] CSS: `.etiqueta` (+`.heroi`, furo/ilhós, `.ref`, `.valor` tabular, `.rodape` tracejado, `.nota`, hover 2px) e `.carimbo` (alta/queda/neutro)
+- [x] CSS: `.bloco` com `h2` de fio forte + `small` apagado; `.duas` 3fr/2fr; `.grid-etiquetas`
+- [x] CSS: tabela-grade (`th` caixa alta com fio forte, `td` fio fino, hover 3%, `td.lp`/primeira coluna negrito, `.num` à direita, `th.ordenavel` com seta) e `.barra`
+- [x] CSS: `.metas`/`.meta`/`.regua` (marcas a cada 10%, preenchido tinta, marca coral) e `.metas-nota`
+- [x] CSS: `.esqueleto` + `@keyframes`; `.aviso`, `.aviso.explica`, `.aviso.alerta`, `.erro-carga`, `.semdado`, estado vazio
+- [x] CSS: gráfico (linha tinta, área degradê da tinta 16%→0, grade fio, rótulos 11px apagados, ponta com halo, `.ponta-valor`, cursor tracejado, `.linha2` coral, `.legenda`) e `.tooltip` como etiqueta pequena
+- [x] CSS: `.chips/.chip`, `.abas`/`.tipo-pill`, `.selo` (+`ar`/`pago`/`parcial`), `.modal*` (véu tinta 40%, fio forte no topo), `pre`, `.tl*`, `.confirma`, `.faixa-estado`, `.gate` com faixa carvão e logo
+- [x] CSS: apagar a camada "Painel refinado" e `.faixa-heroi*`; `@media (max-width: 900px)` para layout/sidebar/heróis/`.duas`; `prefers-reduced-motion` também zera `animation`; `overflow-x: hidden` só onde a spec pede (tabela dentro do bloco), `body` nunca rola de lado
+- [x] HTML: `#gate` novo; `#secao-visao` reescrita com manchete, heróis, metas, KPIs, `.duas` (gráfico + `#visao-funis`) e Conversão por LP, todos com `data-esqueleto`
+- [x] JS: `tile()` → etiqueta; `deltaChip()` → carimbo (▲ ▼, "=" no zero, neutro tracejado)
+- [x] JS: `esqueleto(el)` e chamada em `render()`; remover a dependência do `opacity 0.35`
+- [x] JS: `desenharMetasCompacto()` em régua (pct, projeção, atingida, crm_ok, sem meta, nota do preset)
+- [x] JS: bloco "Leads por funil" em `R.visao` a partir de `funnelCounts` A × B (barra proporcional, carimbo, vazio que ensina)
+- [x] JS: `grafico()` com valor escrito acima da ponta e degradê por token; `tabela()` com `vazio` opcional
+- [x] Conferir na preview (com respostas simuladas, sem a chave): Visão geral desktop e celular (< 900px), Tab em todos os controles, hover, reduced motion no DevTools, "Personalizado…" mostra datas, tooltip, ordenação, esqueleto ao trocar funil/período, "—" no ROAS
 - [ ] Conferir que os números batem com produção para o mesmo preset e funil (Leads, Conversão geral, CPL, Novos visitantes, Investimento, Receita, ROAS, Conversão por LP)
-- [ ] Abrir as outras 18 abas na preview: todas carregam sem erro de JS (visual ainda misto é esperado)
+- [x] Abrir as outras 18 abas na preview: todas carregam sem erro de JS (visual ainda misto é esperado)
 - [ ] Anotar na issue o link da preview e o que ficou para as issues seguintes
+
+## Resultado (30/09/2026)
+
+- Branch `design/dash-etiqueta`, preview em https://design-dash-etiqueta.tracking-ae.pages.dev/dash/ (commits 7229e6c, c1f0821, 7010d0d).
+- Verificado por mim na preview, com respostas de API simuladas (não tenho a chave do dash e não devo digitá-la): tela de acesso, barra lateral, manchete, etiquetas-herói com carimbo, régua de metas (89% com projeção; 105% "meta atingida"), quatro etiquetas (ROAS "—" com nota), gráfico com valor na ponta e tooltip, "Leads por funil" com barra e carimbo, "Conversão por LP" ordenável, esqueleto ao trocar período, "Personalizado…" mostra as datas, celular a 390px (faixa horizontal, uma coluna, sem rolagem lateral), 18 abas abrem sem erro de JS.
+- **Falta ela conferir na preview com a chave real:** números iguais aos de produção para o mesmo filtro; foco por Tab; "reduzir movimento".
+- Fora do escopo (issues seguintes): visual das outras 18 abas ainda mistura o CSS antigo (apelidos dos tokens); a spec supôs clique na linha de "Conversão por LP" que nunca existiu, segue sem clique.
