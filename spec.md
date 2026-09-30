@@ -1,204 +1,353 @@
-# Spec: Grupo da live semanal → ManyChat automático
+# Spec: Redesign do dash na direção "Etiqueta"
 
-> **Cortes aprovados pela usuária em 17/09, antes da implementação.** Saíram do
-> escopo, para a entrega ser pequena: (1) a **tabela de registro** e a migration
-> `0043` — a proteção contra mensagem repetida é o `meta.changes` do `INSERT OR
-> IGNORE`, e "quem recebeu" é respondido pela tag de controle dentro do próprio
-> ManyChat; (2) a **lista fixa de telefones da equipe** — só entradas novas
-> disparam, então quem já está no grupo (inclusive os admins) não recebe nada;
-> ficou só a regra de pular quem entra já com `admin` preenchido; (3) o **teto
-> de 30 participantes por evento**. O módulo 4 abaixo está mantido como registro
-> do que foi desenhado, mas **não foi implementado**.
+> Decisões da usuária em 30/09/2026: direção **A "Etiqueta"** escolhida entre três
+> mockups (https://claude.ai/artifact/D53wRnsubqBz7quVzJDueM); alcance **só o dash**
+> (painel de clientes e site ficam como estão); migração **tudo de uma vez, por
+> entregas**: o dash só vai ao ar claro quando as 19 abas estiverem prontas, nada
+> de aba clara convivendo com aba escura em produção.
+>
+> Contrato de direção (tese, mundo próprio, primeira dobra): `.impeccable/surfaces/public-dash-index-html.md`.
+> Verdade do produto: `PRODUCT.md`. Quando entrar no ar, mover esta spec para `docs/specs-arquivadas/`.
 
 ## Visão Geral
 
-**O que faz.** Quando alguém **entra** no grupo de WhatsApp da live semanal, essa pessoa passa a existir no ManyChat automaticamente: é inscrita pelo telefone, recebe a tag `grupo-live-semanal` e recebe, pelo WhatsApp, a mensagem de boas-vindas do fluxo "Boas-vindas Live Semanal". Quando alguém **sai** do grupo, o contato dela no ManyChat ganha a tag `saiu-grupo-live` — sem mensagem nenhuma.
+O dash de tracking (`public/dash/index.html`) é o painel interno que a Marcelle abre todo dia para decidir investimento, cobrar a equipe e conferir integrações. O visual atual (carvão, cards de grafite, bege nos gráficos) foi julgado fraco. Este projeto troca o mundo visual inteiro pela direção "Etiqueta": o painel lido como um **catálogo de atacado**. Papel claro levemente quente como fundo, tinta preta, fios finos entre linhas e um fio forte acima de cada bloco. Cada número vive numa **etiqueta pendurada** (cartão branco com furo e ilhós no topo, sombra curta). A tabela é uma **grade de tamanhos** (cabeçalho em caixa alta espaçada, linhas separadas por fio). O delta contra o período anterior é um **carimbo** (moldura fina, levemente inclinado, verde para alta, coral para queda, cinza tracejado para neutro). A **barra lateral fica carvão com texto bege**, a assinatura da marca dentro do papel; o item ativo inverte (bege com texto carvão).
 
-**Por que agora.** Hoje a entrada no grupo já é gravada no D1 (`whatsapp_group_events`, alimentada por `POST /api/webhooks/whatsapp-grupo`) e já vira conversão `EntrouGrupo` no Meta, mas a pessoa **não vira contato**. Em 09/09/2026 a base do grupo foi levada ao ManyChat **à mão** (tag `grupolive-manual`, 176 de 193 pessoas, 6 admins excluídos manualmente) — trabalho que se repete toda semana e que não escala. Esta feature substitui o trabalho manual do ciclo em diante.
+O que **não muda**: nenhum dado, cálculo, chamada ao backend, filtro, texto ou fluxo. Todas as 19 abas continuam fazendo exatamente o que fazem. Muda só o que se vê. Fica de fora: painel de clientes (`painel/`), site e LPs, tela de acesso além do necessário para ficar coerente.
 
-**Quem usa.** Ninguém opera nada: é automação de servidor pendurada num webhook que já existe. Quem observa é quem mantém o tracking (logs do Pages + resposta do endpoint) e quem dispara campanhas no ManyChat (as tags são o filtro).
-
-**Escopo — o que está DECIDIDO e não se discute aqui:**
-
-1. **Só o grupo `120363427499061913@g.us`** (label `Lives Semanais` em `whatsapp_groups_tracked`). Os outros grupos monitorados (Workshops) e os ~119 grupos de terceiros continuam exatamente como estão: gravados no D1, nada de ManyChat.
-2. **Entrou** → inscrever no ManyChat pelo telefone; aplicar a tag `grupo-live-semanal` (id **96802043**); disparar o fluxo `content20260917172557_668685` ("Boas-vindas Live Semanal"); **só depois de o fluxo ser aceito**, aplicar a tag de controle `boas-vindas-enviada-live` (id **96802947**). Se a pessoa estiver com a tag `saiu-grupo-live`, essa tag é **removida** (caso "voltou").
-3. **Saiu** → achar o inscrito pelo telefone, **manter** `grupo-live-semanal` e aplicar `saiu-grupo-live` (id **96802046**). Sem fluxo, sem mensagem, sem criar contato novo.
-4. **Só daqui para frente.** Nada retroativo: nenhum evento já gravado é reprocessado, não existe backfill. A tag `grupolive-manual` (id **96185696**) fica **intocada** — não é lida, não é aplicada, não é removida.
-5. **Sem telefone** (participante que chega só com `@lid`) → não inscreve, não tagueia; só registra no log.
-6. **Best-effort absoluto.** Falha no ManyChat **nunca** pode quebrar a gravação no D1 nem a resposta 200 ao n8n.
-7. **Nenhum evento dispara o fluxo duas vezes.** Reentrega do n8n é inofensiva.
-
-**Princípios que valem para a feature inteira:**
-
-- **O D1 primeiro, o ManyChat depois.** A gravação do evento acontece e a resposta 200 sai antes de qualquer chamada ao ManyChat. A ponte roda fora do caminho da resposta (`waitUntil`), como já fazem as três pontes da Greenn.
-- **Reuso, não reinvenção.** A ponte usa `inscreverComTag` de `functions/api/_manychat.js` (que já faz criar → preencher `phone` → taguear → disparar fluxo → tag de controle, exatamente a sequência pedida) e `telefoneDoJid` de `functions/api/_grupo-conversao.js`. O que falta hoje naquele helper — achar alguém sem criar, e **remover** uma tag — entra lá, não em cópia nova.
-- **Nada de dado pessoal no log.** Telefone só **mascarado** (últimos 4 dígitos). Nome de participante, JID inteiro e payload cru nunca vão para o log — regra que o endpoint já segue.
-- **Identidade estável.** Nenhuma mudança aqui altera `whatsapp_group_events`, `day_local`, a dedup existente ou a conversão `EntrouGrupo`. A feature só **lê** o que o webhook acabou de gravar.
-
-**Limites conhecidos da API do ManyChat que a feature precisa respeitar** (comprovados contra a conta real e documentados em `functions/api/_manychat.js`):
-
-- O telefone vai em **dígitos com DDI e sem `+`** (`5511987654321`) — o formato do `normalizePhone`/`padronizarTelefone` do projeto.
-- `createSubscriber` **falha** quando o WhatsApp já existe ("This WhatsApp ID already exists") e **não** devolve o id do existente.
-- `findBySystemField` só aceita **`phone` ou `email`**; `whatsapp_phone` é recusado. Quem nasceu só com WhatsApp e sem o campo `phone` preenchido é **inencontrável** pela API — por isso a criação preenche `phone` logo em seguida.
-- `findBySystemField` responde `success` com `data: []` quando não acha.
-- Tag aplicada **pela API não aciona automação** no ManyChat — por isso o fluxo é disparado explicitamente (`sendFlow`), e não esperado do gatilho "Tag aplicada".
-- `sendFlow` pode responder **200 com `status: "error"` no corpo** — o corpo precisa ser conferido.
-- A API é chamada **um contato por vez**; não há operação em lote. Um único evento da Evolution pode trazer vários participantes.
-
----
+Regras transversais que valem em todos os módulos:
+- Cor semântica só para estado: verde (alta, ok), coral (queda, falha), âmbar (aviso acionável), azul (informação). Nunca decoração.
+- Alta e queda sempre levam sinal (▲ ▼) além da cor.
+- Todo número comparável usa algarismos tabulares e alinha à direita em tabela.
+- Sem cantos grandes, sem gradiente, sem vidro, sem sombra além da sombra curta da etiqueta.
+- Foco de teclado visível em todo controle, no tom da tinta.
+- Quem pede menos movimento não recebe animação nenhuma.
+- Abaixo de 900px a barra lateral vira faixa horizontal rolável, colunas viram uma, tabelas rolam dentro do próprio contêiner e a página nunca rola de lado.
 
 ## Páginas / Módulos
 
-### 1. Gatilho no webhook dos grupos (`functions/api/webhooks/whatsapp-grupo.js`)
+### Módulo 0: Fundação visual (tokens e componentes)
 
-**Descrição:** O endpoint que já recebe e grava entradas/saídas passa a decidir, **depois de gravar**, se chama a ponte do ManyChat. É a única alteração no arquivo existente: nada do que ele faz hoje (auth, classificação, registro de horário, `whatsapp_groups_seen`, `INSERT OR IGNORE` em `whatsapp_group_events`, resposta) muda de comportamento.
+**Descrição:** o sistema que todas as abas herdam. Nada aqui é visível sozinho; ele entra junto com a Visão geral na primeira entrega e sustenta as demais.
 
 **Componentes:**
-
-- **Filtro de grupo:** compara o `group_jid` do evento com o JID da live semanal (`120363427499061913@g.us`), constante nomeada no módulo 2.
-- **Detector de linha nova:** lê, do resultado do `batch` do D1, o `meta.changes` de **cada** `INSERT OR IGNORE` — os resultados voltam na mesma ordem em que os comandos foram enfileirados, então cada linha de `evento.linhas` sabe se entrou agora (`changes = 1`) ou se era reentrega (`changes = 0`).
-- **Despacho da ponte:** uma chamada `waitUntil` própria para a ponte do ManyChat, separada do `waitUntil` que já registra horário.
-- **Contadores da resposta:** quantas linhas novas, quantas foram encaminhadas à ponte, quantas sem telefone, quantas puladas por serem da equipe.
+- Paleta: papel (fundo), etiqueta (branco quente), tinta, tinta secundária, apagado, fio, fio forte, carvão, bege, taupe, alta, queda, informação, alerta.
+- Tipografia: Satoshi 400 e 700, escala fixa (título de aba 1.6rem, manchete 1.45rem, valor de etiqueta-herói 2.9rem, valor de etiqueta 2.2rem, corpo 14px, tabela 0.86rem, rótulo 0.66rem em caixa alta com espaçamento 0.14em).
+- Barra lateral: carvão, logo branco, "TRACKING INTERNO" em taupe, quatro grupos (Resultados, Operação, Diagnóstico, Marketing) com rótulo em taupe caixa alta e fio translúcido entre grupos; item em bege translúcido, hover mais claro, ativo bege sólido com texto carvão em negrito.
+- Topo da aba: título grande à esquerda com subtítulo apagado (período, comparação, "atualizado há X"), filtros à direita; fio forte de 2px embaixo separando do conteúdo.
+- Campos de formulário (select, input de texto, data, senha, e-mail, textarea): fundo etiqueta, contorno na tinta, canto de 2px; select com seta própria desenhada, não a do navegador.
+- Botões: primário tinta com texto papel; secundário etiqueta com contorno tinta; perigo com contorno coral e texto coral; desabilitado apagado. Mesma altura dos campos.
+- Etiqueta (KPI): cartão branco com furo e ilhós centralizado no topo, rótulo "REF." em caixa alta apagada, valor grande, rodapé com fio tracejado contendo carimbo de delta à esquerda e nota à direita. Variante herói com valor maior. Hover sobe 2px e alonga a sombra. Valor sem dado mostra "—" com a nota do motivo.
+- Carimbo: moldura de 1.5px na cor do estado, texto em negrito espaçado, inclinado 2 graus; neutro sem inclinação e tracejado.
+- Bloco de conteúdo: título de 0.95rem com fio forte de 2px em cima e complemento apagado à direita; sem caixa, sem fundo.
+- Tabela-grade: cabeçalho caixa alta apagada com fio forte embaixo, linhas com fio fino, hover em tinta a 3%, primeira coluna em negrito quando é o nome do item, colunas numéricas à direita; cabeçalho ordenável mostra a seta de ordenação.
+- Barra horizontal de proporção dentro de célula (leads por funil, funil de micro-conversões): traço na tinta, altura 6px.
+- Régua de metas: trilho com marcas a cada 10%, preenchido na tinta até o feito, traço coral marcando a projeção, legenda apagada embaixo.
+- Chips de filtro aplicado: pílula tinta com texto papel; pílula de aba (tab-pill) contorno fio com texto apagado, ativa tinta com texto papel.
+- Avisos: `explica` em papel mais escuro com texto secundário; `alerta` com fio âmbar à esquerda de 1px e texto âmbar escuro; `falha` com texto coral.
+- Selos em linha (ex.: "form Meta", estado de integração): pílula com contorno fio e texto azul escuro; variantes `ar`, `pago`, `parcial`.
+- Modal: véu de tinta a 40%, caixa em etiqueta com fio forte no topo, título, botão fechar, corpo rolável.
+- Tooltip do gráfico: etiqueta pequena com sombra curta, texto tinta.
+- Gráfico de linha: linha na tinta, área em degradê da tinta a 16% até zero, grade em fio, rótulos apagados de 11px, ponto com halo no último valor e o valor escrito acima, cursor tracejado; segunda série em coral sem área; barras (funil, evolução) na tinta com variante apagada e negativa em coral.
+- Estados: carregando (esqueleto em fio piscando devagar), vazio (frase que ensina o que apareceria ali), erro (aviso falha com o motivo e botão de tentar de novo), aba que falhou inteira mantém o topo e mostra o erro no lugar do conteúdo.
+- Tela de acesso: papel, etiqueta centralizada com logo, campo de chave, botão primário, erro em coral.
+- Marca "Dados de exemplo": não existe em produção; era só dos mockups.
 
 **Comportamentos:**
+- A usuária vê o foco do teclado em qualquer controle ao navegar com Tab.
+- A usuária passa o mouse numa etiqueta e ela sobe levemente.
+- A usuária passa o mouse numa linha de tabela e a linha escurece de leve.
+- A usuária com "reduzir movimento" ativo não vê nenhuma transição.
+- A usuária abre o dash no celular e vê a barra lateral como faixa horizontal rolável com os grupos separados por fio vertical.
+- A usuária redimensiona a janela e nada rola de lado; tabelas largas rolam dentro do bloco.
+- A usuária abre uma aba enquanto carrega e vê esqueletos no lugar dos números, nunca os números do período anterior.
+- A usuária vê "—" e o motivo quando um número não tem base para ser calculado.
 
-- **Evento de grupo que não é a live semanal:** grava como hoje e responde como hoje; a ponte do ManyChat **não é chamada** e nada aparece no log sobre ManyChat.
-- **Evento da live semanal com linhas novas:** grava, responde 200 e **só então** chama a ponte, uma vez, com a lista das linhas novas (ação, JID do participante, instante do evento).
-- **Reentrega do mesmo evento pelo n8n:** o `INSERT OR IGNORE` não insere nada (`changes = 0` em todas as linhas), a ponte **não é chamada** e a resposta diz `manychat: 'reentrega'`. É este o mecanismo que garante "o fluxo nunca é disparado duas vezes para o mesmo evento".
-- **Evento misto (algumas linhas novas, outras já existentes):** só as linhas novas vão para a ponte.
-- **Ação `removido`:** tratada como saída para efeito do ManyChat — a pessoa não está mais no grupo, e o contato precisa refletir isso. (Continua gravada como `removido` no D1; a distinção "saiu × removido" não muda no banco.)
-- **Falha ao ler `meta.changes`** (resposta do D1 em formato inesperado): a ponte **não** é chamada e o log registra `manychat: 'sem_confirmacao_de_linha_nova'`. Preferir não mandar a arriscar mensagem duplicada.
-- **Falha na gravação do D1:** o comportamento atual manda — a ponte nunca chega a ser chamada.
-- **A ponte demora, falha ou lança exceção:** a resposta 200 já saiu; nada disso altera status, corpo ou latência da resposta ao n8n.
+### Módulo 1: Visão geral
 
----
-
-### 2. Ponte grupo da live → ManyChat (arquivo novo: `functions/api/_grupo-live-manychat.js`)
-
-**Descrição:** Módulo novo, com prefixo `_` (o Pages não o transforma em rota), no mesmo lugar dos outros helpers de integração (`_manychat.js`, `_clickup.js`, `_grupo-conversao.js`). Concentra **toda** a regra desta feature: os identificadores da live semanal, quem é pulado, a ordem das chamadas ao ManyChat e o registro do resultado. Nunca lança: quem chama está num caminho best-effort.
+**Descrição:** primeira aba, responde "como estamos" num olhar. É a entrega que valida a direção.
 
 **Componentes:**
-
-- **Identificadores da live semanal** (constantes nomeadas e comentadas, no topo do arquivo, com a data em que foram criadas na conta e como descobrir as novas — `GET /fb/page/getTags` e `GET /fb/page/getFlows`):
-  - grupo: `120363427499061913@g.us`;
-  - tag de pertencimento: `grupo-live-semanal` = **96802043**;
-  - fluxo de boas-vindas: `content20260917172557_668685`;
-  - tag de controle: `boas-vindas-enviada-live` = **96802947**;
-  - tag de saída: `saiu-grupo-live` = **96802046**;
-  - tag **intocável**: `grupolive-manual` = **96185696** — citada só para deixar registrado que não é lida nem escrita.
-- **Lista de exclusão da equipe:** telefones (dígitos com DDI) das pessoas da casa que administram o grupo — os **6 admins** que foram excluídos à mão na importação de 09/09/2026. Mora neste arquivo, comentada com a origem, porque o payload **não** permite deduzir isso (ver Decisões, item 2).
-- **Extração do telefone:** `telefoneDoJid` (de `_grupo-conversao.js`) para tirar o número do JID, seguido de `padronizarTelefone`/`comNonoDigito` (regra única de telefone da casa, `spec-protecoes-integracoes.md`) para chegar ao formato que o ManyChat aceita.
-- **Mascaramento para log:** função que devolve só os 4 últimos dígitos (`•••••7857`).
-- **Teto de lote:** número máximo de participantes tratados num mesmo evento (padrão **30**). Acima disso os excedentes só aparecem no log.
-- **Registro do desfecho:** grava o resultado de cada tentativa na tabela do módulo 4.
-
-**Comportamentos (entrada):**
-
-- **Entrou, com telefone, não é da equipe, ainda não registrada:** inscreve no ManyChat pelo telefone, aplica `grupo-live-semanal`, dispara o fluxo de boas-vindas e, **só se o fluxo for aceito**, aplica `boas-vindas-enviada-live`. Desfecho `inscrito`.
-- **Entrou e o WhatsApp já existe na conta** (pessoa que já era contato, inclusive quem tem `grupolive-manual`): o contato existente é procurado pelo `phone`; achado, recebe a tag, o fluxo e a tag de controle no contato que já existe — nenhum contato duplicado é criado. Desfecho `ja_existia_tagueado`.
-- **Entrou, o WhatsApp já existe, mas o contato é inencontrável** (nasceu só com WhatsApp, `phone` vazio): nada é aplicado, e o log registra `ja_existia` com o telefone mascarado — é a única forma de saber que isso aconteceu, em vez de a pessoa sumir calada.
-- **Entrou e a pessoa está com `saiu-grupo-live` ("voltou"):** a tag de saída é **removida** do contato. A remoção acontece no mesmo tratamento da entrada, depois de a tag de pertencimento ter sido aplicada; falhar na remoção **não** cancela nem repete o fluxo — só vira log.
-- **Entrou sem telefone (`@lid` puro):** não inscreve, não tagueia, não dispara fluxo. Registra no log com ação, grupo e o motivo `sem_telefone`, e conta no contador da resposta.
-- **Entrou e é da equipe:** pulado por inteiro, com log `equipe`. Nenhuma chamada ao ManyChat é feita.
-- **Participante que chega com o campo `admin` preenchido** (`admin`/`superadmin`): também pulado, mesmo motivo `equipe`. É barato e correto, embora raro numa adição.
-- **Tag aplicada mas fluxo recusado:** a pessoa fica com `grupo-live-semanal` e **sem** `boas-vindas-enviada-live`. Desfecho `fluxo_falhou`, com o começo da resposta do ManyChat no log. Não há retentativa automática — a tag de controle ausente é o que permite reenviar à mão depois.
-- **Fluxo aceito mas tag de controle recusada:** a mensagem foi entregue; desfecho `controle_falhou`, registrado no log. Não se reenvia o fluxo por causa disso.
-
-**Comportamentos (saída):**
-
-- **Saiu (ou foi removido), com telefone, não é da equipe:** procura o inscrito pelo `phone`; achado, aplica `saiu-grupo-live` e **não mexe** em `grupo-live-semanal` nem em `boas-vindas-enviada-live`. Nenhum fluxo é disparado. Desfecho `saida_tagueada`.
-- **Saiu e a pessoa não existe no ManyChat** (nunca foi inscrita, ou é inencontrável pela API): **não cria contato nenhum**. Desfecho `saida_sem_inscrito`, no log com telefone mascarado.
-- **Saiu sem telefone (`@lid` puro):** só log, motivo `sem_telefone`.
-- **Saiu e é da equipe:** pulado, log `equipe`.
-
-**Comportamentos (gerais e de erro):**
-
-- **`MANYCHAT_API` ausente ou vazia:** a ponte desiste de imediato, com um único log `sem_config`, sem tentar nenhuma chamada.
-- **Vários participantes no mesmo evento:** tratados **um a um, em sequência** (a API não tem operação em lote e o disparo em série evita estourar a taxa da conta). O resultado de cada um é independente: o erro de um não interrompe os demais.
-- **Evento com mais participantes que o teto de lote:** os primeiros 30 são tratados normalmente; os excedentes ficam registrados no log como `lote_grande_nao_processado`, com a contagem — sinal de que houve importação em massa no grupo e de que aquilo precisa de decisão humana, não de 200 mensagens automáticas.
-- **Erro de rede ou 5xx do ManyChat:** desfecho `erro`, com o motivo e os primeiros 200 caracteres da resposta no log. Sem retentativa automática, sem fila.
-- **Exceção inesperada em qualquer ponto:** capturada dentro da ponte; a ponte termina em silêncio no que diz respeito ao chamador e ruidosa no log.
-- **A ponte nunca escreve em `whatsapp_group_events`** nem em `whatsapp_group_conversions`: as duas tabelas seguem sendo assunto do webhook e do sync `EntrouGrupo`.
-
----
-
-### 3. Novas capacidades no helper do ManyChat (`functions/api/_manychat.js`)
-
-**Descrição:** O helper já cobre "inscrever + taguear + fluxo + tag de controle" (é exatamente o caminho da entrada). Faltam duas operações que a saída e o caso "voltou" exigem. Elas entram **aqui**, com os mesmos contratos do arquivo (nunca lançam, devolvem motivo legível), e passam a estar disponíveis para outras pontes.
-
-**Componentes:**
-
-- **Busca pública de inscrito:** o `buscarInscrito` que hoje é interno passa a ser exportado (ou ganha uma função irmã com nome próprio), para achar alguém pelo `phone` **sem criar contato**.
-- **Remoção de tag:** operação que remove uma tag de um contato existente (`/fb/subscriber/removeTag`, mesmo par `subscriber_id` + `tag_id` do `addTag`).
-- **Aplicação de tag em contato existente:** taguear alguém já encontrado, sem passar pelo caminho de criação.
+- Manchete: frase do período em 1.45rem, tinta secundária com os números em tinta.
+- Três etiquetas-herói: Leads, Conversão geral, CPL (com nota "todos os canais"), com carimbo de delta.
+- Régua de metas do mês corrente (uma por funil com meta), entre dois fios, com feito, percentual e projeção; segue a regra de hoje de não obedecer ao filtro de período.
+- Quatro etiquetas: Novos visitantes, Investimento Meta (delta neutro), Receita, ROAS.
+- Duas colunas (3/5 e 2/5): bloco "Leads por dia" com o gráfico de linha; bloco "Leads por funil" em tabela-grade com barra de proporção e carimbo.
+- Bloco "Conversão por LP" em tabela-grade com as seis primeiras páginas.
 
 **Comportamentos:**
+- A usuária troca o funil no filtro e todos os blocos recarregam com esqueleto.
+- A usuária troca o período e a manchete reescreve a frase com o novo "quando".
+- A usuária escolhe "Personalizado…" e os dois campos de data aparecem ao lado do select.
+- A usuária passa o mouse no gráfico e vê o cursor tracejado com o tooltip do dia.
+- A usuária clica no cabeçalho de uma coluna da tabela e ordena por ela.
+- A usuária clica numa linha de "Conversão por LP" e vai para a aba Leads com aquela LP aberta (comportamento atual preservado).
+- A usuária vê "—" no ROAS quando não há venda atribuída, com a nota do motivo.
 
-- **Buscar por telefone que existe:** devolve o id do inscrito.
-- **Buscar por telefone que não existe** (resposta `success` com `data: []`): devolve vazio — ausência, não erro.
-- **Buscar com a API fora do ar:** devolve vazio e o chamador trata como "não achei"; nunca lança.
-- **Remover tag de quem tem a tag:** o ManyChat aceita e a operação devolve sucesso.
-- **Remover tag de quem não tem a tag:** tratado como sucesso silencioso — o estado desejado ("sem a tag") é o que importa.
-- **Remover tag com id inválido ou API recusando:** devolve a descrição da falha para o chamador logar; não lança.
-- **Nada do comportamento atual de `inscreverComTag` muda** — a ponte da Greenn continua funcionando igual, com os mesmos desfechos (`inscrito`, `ja_existia_tagueado`, `ja_existia`, `sem_config`, `sem_telefone`, `erro`).
-- **O texto de consentimento gravado na criação** deixa de ser fixo em "compra do Workshop Black Exponencial" quando quem chama é o grupo da live: cada ponte informa o seu (aqui, entrada no grupo da live semanal). É o registro de origem do opt-in.
+### Módulo 2: Leads
 
----
-
-### 4. Registro dos envios (tabela nova, migration `0043`)
-
-**Descrição:** Uma tabela pequena que guarda **o que a ponte fez** para cada linha tratada. Não é a dedup principal (essa é o `meta.changes` do módulo 1) — é a segunda trava e, principalmente, a memória: sem ela, "esta pessoa recebeu boas-vindas?" só é respondível abrindo o ManyChat contato por contato.
+**Descrição:** detalhe dos leads do período: metas com projeção, CRM, origens, estágio, funis, materiais, conversão por LP com funil de micro-conversões e a lista dos leads recentes com detalhe em modal.
 
 **Componentes:**
-
-- **Uma linha por tentativa**, com: grupo, telefone padronizado, ação (`entrou`/`saiu`), instante do evento (`occurred_at`, o mesmo gravado em `whatsapp_group_events`), desfecho, detalhe curto do erro (sem dado pessoal), id do inscrito no ManyChat quando houver, e o horário da tentativa.
-- **Chave natural única:** grupo + telefone + ação + instante do evento. É a mesma chave de dedup de `whatsapp_group_events` (que também já arredonda o instante ao minuto), então uma reentrega que escapasse do `meta.changes` ainda colidiria aqui.
-- **Índice por telefone**, para responder "o que já aconteceu com esta pessoa" sem varrer a tabela (a casa já estourou o limite de leitura do D1 duas vezes por varredura).
+- Bloco de metas detalhado: uma régua por funil, indicador dentro/perto/fora em carimbo, histórico em `details` com marcador próprio.
+- Bloco CRM: pílulas de aba (novos × retornando), chips de filtro, etiquetas de contagem; sub-blocos "Por origem" e "Estágio atual no CRM" em tabela-grade.
+- Leads por funil e Materiais mais baixados: etiquetas em grade.
+- Conversão por LP: tabela-grade; ao clicar numa linha abre abaixo o funil de micro-conversões por página (título com o caminho em mono, tabela com barra de proporção, maior queda destacada em coral, aviso e nota).
+- Leads recentes: tabela-grade com selos ("form Meta"), status de envio Meta/GA4 (✓ apagado, ✕ coral), paginação em botões secundários.
+- Modal de detalhe do lead: cabeçalho com nome e origem, corpo com os campos e a jornada do lead (linha do tempo).
 
 **Comportamentos:**
+- A usuária alterna entre novos e retornando nas pílulas do CRM.
+- A usuária clica num chip para remover um filtro aplicado.
+- A usuária clica numa linha de conversão e o funil daquela página abre embaixo; clica de novo e fecha.
+- A usuária clica num lead e o modal abre com foco preso dentro; Esc ou o botão fecha.
+- A usuária pagina a lista de leads recentes.
+- A usuária abre o histórico de metas e vê as alterações anteriores.
 
-- **Antes de chamar o ManyChat**, a ponte confere se já existe registro para aquela chave natural; se existir, **não chama nada** e encerra com `ja_registrado`.
-- **Depois de cada tentativa**, grava o desfecho — inclusive os desfechos ruins (`sem_telefone`, `equipe`, `ja_existia`, `fluxo_falhou`, `erro`). O que não foi feito é tão importante quanto o que foi.
-- **Falha ao gravar o registro:** vira log e nada mais; a mensagem já foi enviada e não se desfaz.
-- **Falha ao consultar o registro:** a ponte **não** prossegue para o disparo da entrada (o risco é mensagem duplicada) e registra `sem_confirmacao_de_registro`; para a **saída**, prossegue (aplicar duas vezes a mesma tag é inofensivo).
-- **A tabela não é lida por nenhuma tela do dash** nesta entrega. É consulta de diagnóstico.
-- **A migration não mexe em nenhuma tabela existente** — só cria a nova. (Lembrete da casa: `d1 migrations apply --remote` não roda neste projeto; a migration é aplicada pelo caminho já usado nas últimas.)
+### Módulo 3: Vendas
 
----
-
-### 5. Observabilidade
-
-**Descrição:** O que fica visível sem abrir o ManyChat: o corpo da resposta do webhook (que o n8n guarda na execução) e os `console.error` dos logs do Pages. Nenhuma tela nova.
+**Descrição:** receita por dia, produtos e compras registradas.
 
 **Componentes:**
-
-- **Resposta do endpoint** (a de hoje, acrescida dos contadores da ponte).
-- **Linhas de log**, todas prefixadas `grupo-live-manychat —`, para serem filtráveis nos logs do Pages.
+- Etiquetas de receita bruta, líquida e quantidade.
+- Bloco "Receita por dia" com gráfico de linha.
+- Blocos "Produtos" e "Compras registradas" em tabela-grade.
+- Modal de detalhe da compra.
 
 **Comportamentos:**
+- A usuária clica numa compra e vê o detalhe no modal.
+- A usuária ordena a tabela de produtos por qualquer coluna.
 
-- **Resposta em evento gravado da live semanal:** mantém `ok`, `status`, `linhas` e `sem_telefone` como hoje, e acrescenta: `linhas_novas` (quantas entraram agora), `manychat` (`'despachado'`, `'reentrega'`, `'nao_e_o_grupo'`, `'sem_config'` ou `'sem_confirmacao_de_linha_nova'`), `equipe` (quantas foram puladas). Os contadores descrevem o **despacho**, não o resultado — a ponte roda depois da resposta, e prometer resultado ali seria mentira.
-- **Resposta em qualquer outro grupo:** idêntica à de hoje, com `manychat: 'nao_e_o_grupo'`.
-- **Log por desfecho não-feliz:** uma linha com grupo, ação, telefone **mascarado**, desfecho e detalhe curto. `sem_telefone`, `equipe`, `ja_existia`, `saida_sem_inscrito`, `fluxo_falhou`, `controle_falhou`, `erro`, `lote_grande_nao_processado` e `sem_config` todos aparecem.
-- **Log do caminho feliz:** uma linha de resumo por evento (quantos inscritos, quantos já existiam, quantas saídas tagueadas, quantos pulados) — resumo, não uma linha por pessoa, para o log não virar lista de telefones.
-- **Nunca no log:** telefone inteiro, JID inteiro, nome do participante, payload cru, valor de segredo.
+### Módulo 4: Greenn
 
----
+**Descrição:** receita e ROAS do produto pago, com campanhas e vendas; não segue o filtro de datas (regra atual).
 
-## Decisões tomadas (os quatro pontos em aberto)
+**Componentes:**
+- Aviso `explica` sobre o período fixo; aviso `alerta` quando o sync falhou.
+- Etiquetas de receita, vendas, investimento e ROAS.
+- Blocos "Campanhas" e "Vendas" em tabela-grade, com selo `pago`/`parcial`.
 
-1. **Como evitar disparo duplicado em reentrega.** Sim, dá para saber se a linha é nova: o `batch` do D1 devolve um resultado por comando, na ordem em que foram enfileirados, e o `meta.changes` de cada `INSERT OR IGNORE` diz se aquela linha entrou (`1`) ou foi ignorada (`0`) — é o mesmo mecanismo que a ponte da Greenn já usa (`gravou?.meta?.changes ? ... : null`). Esse é o **gate principal**, e ele é gratuito. Ele funciona porque `occurred_at` é arredondado ao minuto desde a revisão de 13/09, então a reentrega do n8n colide de propósito. Ainda assim a feature cria a **tabela de registro** do módulo 4: o `meta.changes` protege contra reentrega, mas não responde "quem já recebeu boas-vindas" nem protege um reprocessamento manual futuro. Consequência aceita de propósito: quem **sai e volta em outro minuto** gera linha nova e **recebe boas-vindas de novo** — isso é reentrada de verdade, não reentrega, e é o comportamento pedido (a regra "voltou" existe justamente para esse caso).
-2. **Equipe/admins de fora.** Ficam de fora, por **lista fixa de telefones** no arquivo novo, semeada com os 6 admins excluídos à mão em 09/09. **Não** dá para deduzir isso do que existe hoje: o campo `admin` do participante vem `null` justamente para quem está entrando (ninguém entra já admin), `whatsapp_group_events` não guarda papel, `actor_jid` identifica quem **adicionou**, não quem entrou, e não existe no projeto nenhuma lista de telefones da equipe para reusar (a exclusão de equipe dos Workshops é por `google_user_id`, e a da Greenn é por endereço de e-mail — nenhuma serve aqui). Inventar heurística arriscaria pular lead real, que é o erro caro. Como rede extra e de graça, o participante que chegar com `admin` preenchido também é pulado.
-3. **Observabilidade.** Módulo 5: a resposta ganha `linhas_novas`, `manychat` e `equipe` (descrevendo o **despacho**, já que a ponte roda depois da resposta); o log ganha uma linha por desfecho não-feliz e um resumo por evento, sempre com telefone mascarado nos 4 últimos dígitos e sem nome, JID inteiro ou payload.
-4. **Arquivos.** Um arquivo novo: **`functions/api/_grupo-live-manychat.js`** (ponte + constantes + lista da equipe), no padrão `_nome.js` de `functions/api/`. Além dele: alterações pontuais em `functions/api/webhooks/whatsapp-grupo.js` (gatilho) e em `functions/api/_manychat.js` (buscar sem criar, remover tag, taguear existente), e a migration nova `migrations/0043_manychat_grupo_live.sql`.
+**Comportamentos:**
+- A usuária ordena campanhas por retorno.
+- A usuária clica numa venda e vê o detalhe.
 
----
+### Módulo 5: Atribuição
 
-## Fora de escopo (explicitamente)
+**Descrição:** quebra dos leads por UTM.
 
-- Backfill ou reprocessamento de qualquer entrada anterior ao deploy.
-- Grupo de Workshops e qualquer outro grupo monitorado.
-- Tela, aba ou relatório no dashboard sobre estes envios.
-- Retentativa automática, fila ou cron de recuperação de falhas do ManyChat.
-- Qualquer alteração na conversão `EntrouGrupo`, na aba Grupos ou na tag `grupolive-manual`.
-- Mensagem de despedida para quem sai.
+**Componentes:**
+- Pílulas de dimensão (source, medium, campaign, content) e chips.
+- Bloco "Quebra por UTM" em tabela-grade com barra de proporção.
+
+**Comportamentos:**
+- A usuária troca a dimensão nas pílulas e a tabela recarrega.
+- A usuária clica num valor e ele vira chip de filtro.
+
+### Módulo 6: Meta Ads
+
+**Descrição:** CPL por funil, por canal, cruzamento e campanhas sincronizadas.
+
+**Componentes:**
+- Aviso `explica` (denominador inclui todos os canais).
+- Etiquetas de investimento, leads pagos, CPL pago.
+- Blocos "CPL por funil", "CPL por canal", "Funil × canal", "Campanhas" em tabela-grade; nota de sync no complemento do título.
+
+**Comportamentos:**
+- A usuária ordena qualquer tabela por coluna.
+- A usuária vê o aviso de sync atrasado em âmbar quando a última sincronização passou do prazo.
+
+### Módulo 7: Email
+
+**Descrição:** campanhas de e-mail do GoHighLevel.
+
+**Componentes:**
+- Etiquetas de envios, entregas e taxa.
+- Bloco "Campanhas de email" em tabela-grade, nota de sync no título.
+
+**Comportamentos:**
+- A usuária ordena as campanhas por envio ou entrega.
+
+### Módulo 8: Workshops
+
+**Descrição:** lista de workshops, detalhe com presença e presentes.
+
+**Componentes:**
+- Bloco "Workshops" em tabela-grade com taxa de presença em carimbo.
+- Bloco "Detalhe" (aparece ao escolher um) com etiquetas de inscritos, presentes e taxa; sub-bloco "Presentes" em tabela.
+
+**Comportamentos:**
+- A usuária clica num workshop e o bloco de detalhe aparece abaixo com o título dele.
+- A usuária fecha o detalhe pelo botão secundário.
+
+### Módulo 9: Grupos
+
+**Descrição:** conexão do WhatsApp, grupos monitorados, conversão no Meta e eventos de entrada/saída.
+
+**Componentes:**
+- Bloco "Conexão do WhatsApp" com etiqueta de estado (selo ok/falha) e nota.
+- Bloco "Grupos monitorados": lista de grupos com chave liga/desliga (trilho no estilo da tinta), busca, aviso quando nenhum é monitorado.
+- Bloco "Conversão no Meta" com etiquetas de enviados, aceitos e falhas.
+- Bloco "Eventos recentes" em tabela-grade (entrou/saiu com sinal, não só cor).
+
+**Comportamentos:**
+- A usuária liga ou desliga o monitoramento de um grupo pela chave.
+- A usuária busca um grupo pelo nome na lista.
+- A usuária vê o estado da conexão como selo colorido com texto.
+
+### Módulo 10: Disparos
+
+**Descrição:** compor um disparo com mídia, ver a semana agendada e o que já foi.
+
+**Componentes:**
+- Bloco "Compor": campos (grupo, texto, horário), área de soltar arquivo com contorno tracejado que acende na tinta ao arrastar por cima, prévia em balão de WhatsApp (balão em etiqueta com hora), botões primário e secundário.
+- Bloco "Semana": grade de sete dias, dia de hoje marcado com fio forte, itens agendados como etiquetas pequenas; item que falhou em coral.
+- Bloco "Já foram": tabela-grade com estado.
+
+**Comportamentos:**
+- A usuária arrasta um arquivo para a área e vê a borda acender.
+- A usuária vê a prévia do texto em balão antes de agendar.
+- A usuária clica num dia da semana e vê os itens daquele dia.
+- A usuária cancela um disparo agendado com confirmação na própria linha (sem diálogo do navegador).
+
+### Módulo 11: Links
+
+**Descrição:** redirecionador com destinos agendados.
+
+**Componentes:**
+- Bloco "No ar agora" com etiquetas por link (destino atual, desde quando).
+- Bloco "Destinos" em tabela-grade com selo `ar` no vigente.
+- Bloco "Novo destino"/"Editar destino": formulário em campos alinhados, botões primário, secundário e perigo.
+
+**Comportamentos:**
+- A usuária cria um destino e ele aparece na tabela sem recarregar.
+- A usuária edita um destino e o título do bloco muda para "Editar destino".
+- A usuária apaga um destino com confirmação na própria linha.
+
+### Módulo 12: Bloqueios
+
+**Descrição:** leads bloqueados como falsos e devolução ao CRM.
+
+**Componentes:**
+- Bloco "Leads bloqueados" em tabela-grade com motivo em selo e botão secundário "Devolver ao CRM".
+
+**Comportamentos:**
+- A usuária devolve um lead ao CRM e a linha some com aviso de sucesso.
+- A usuária vê o estado vazio ensinando o que aparece ali.
+
+### Módulo 13: Funis do relatório
+
+**Descrição:** cadastro dos funis e das metas mensais.
+
+**Componentes:**
+- Bloco "Funis cadastrados" em tabela-grade com chave de ativo e ordem.
+- Bloco "Novo funil"/"Editar funil" em formulário.
+- Bloco "Metas mensais": um formulário por funil, campos com erro em coral abaixo, funil bloqueado apagado, avisos e histórico.
+
+**Comportamentos:**
+- A usuária cadastra um funil e ele entra na lista.
+- A usuária salva a meta de um funil e vê a confirmação.
+- A usuária tenta salvar meta inválida e vê o erro embaixo do campo.
+
+### Módulo 14: Testes A/B
+
+**Descrição:** testes de páginas em andamento e cadastro de novo teste.
+
+**Componentes:**
+- Bloco "Testes em andamento": um sub-bloco por teste com tabela de variantes (visitas, formulários, leads, conversão) e veredito em carimbo.
+- Bloco "Novo teste" em formulário.
+
+**Comportamentos:**
+- A usuária cadastra um teste com as duas páginas.
+- A usuária encerra um teste escolhendo a vencedora na própria linha (sem prompt do navegador).
+
+### Módulo 15: Jornada
+
+**Descrição:** busca da jornada de um lead.
+
+**Componentes:**
+- Bloco "Buscar jornada de um lead" com campo e botão primário.
+- Resultado: etiqueta do lead e linha do tempo vertical (ponto na tinta, fio, hora apagada, evento).
+
+**Comportamentos:**
+- A usuária busca por e-mail ou telefone e vê a linha do tempo.
+- A usuária vê o estado vazio quando nada foi encontrado.
+
+### Módulo 16: Eventos
+
+**Descrição:** saúde da captura e eventos recentes.
+
+**Componentes:**
+- Bloco "Saúde da captura" em etiquetas.
+- Bloco "Eventos recentes" em tabela-grade com payload em mono num `details`.
+
+**Comportamentos:**
+- A usuária abre o payload de um evento.
+- A usuária filtra por tipo de evento nas pílulas.
+
+### Módulo 17: Saúde das integrações
+
+**Descrição:** aceitação do Meta, reenvios, credenciais e alertas.
+
+**Componentes:**
+- Faixa de estado no topo (saudável, atenção, incidente) como etiqueta larga com selo de estado e frase.
+- Blocos "Aceitação por tipo de evento", "Pendentes de reenvio", "Falhas definitivas", "Credenciais", "Horário das integrações", "Últimas rodadas de reenvio", "Alertas enviados" em tabela-grade.
+- Bloco "Evolução diária" com gráfico de duas séries e legenda.
+- Bloco "Captura de identificadores de clique" em etiquetas.
+- Filtros e ações (reenviar agora) em botões.
+
+**Comportamentos:**
+- A usuária vê a faixa de estado mudar de cor e texto conforme a saúde.
+- A usuária dispara um reenvio manual e vê a rodada entrar na tabela.
+- A usuária passa o mouse na evolução e vê as duas séries no tooltip.
+
+### Módulo 18: Argo
+
+**Descrição:** o operador de conta: placar, propostas, regras, rodadas e histórico.
+
+**Componentes:**
+- Faixa de estado do Argo (ativo, observando, parado) com selo e chamada.
+- Vistas em pílulas (propostas, regras, histórico) com contador.
+- Placar: grupos de etiquetas por período com aviso.
+- Propostas: cartões-etiqueta com alvo, ação, motivo (cortado com "ver tudo"), prazo, botões aprovar/rejeitar com confirmação em linha, campo "por quê" ao rejeitar.
+- Regras: linhas com chave liga/desliga, entrada numérica com unidade, seletor segmentado (observar/executar), erro em coral.
+- Rodadas: lista em `details` com ações, resultado em selo (ok, falha, info, desconhecido), tabela antes × depois, veredito em carimbo.
+- Histórico em cartões.
+
+**Comportamentos:**
+- A usuária aprova ou rejeita uma proposta com confirmação na própria linha.
+- A usuária liga ou desliga uma regra e vê o estado salvo.
+- A usuária alterna entre observar e executar no seletor segmentado.
+- A usuária abre uma rodada e vê antes × depois.
+- A usuária filtra propostas por tipo nas pílulas.
+
+### Módulo 19: Instagram
+
+**Descrição:** métricas do perfil, posts, reels, stories e público.
+
+**Componentes:**
+- Cabeça com vistas em pílulas, filtros de período e nota da última coleta com selo ok.
+- Etiquetas de seguidores com variação e trio de números.
+- Bloco "Evolução diária" com gráfico.
+- Bloco "Desempenho por formato": cartões-etiqueta por formato, líder marcado com fio forte.
+- Bloco "Ranking de posts e reels" em tabela-grade com miniatura.
+- Bloco "Stories do período": grade de miniaturas com dados embaixo.
+- Bloco "Quando os seguidores estão online": mapa de calor em células na tinta com legenda.
+- Demografia: barras horizontais (idade, gênero, cidades, países) na tinta.
+
+**Comportamentos:**
+- A usuária troca a vista (perfil, conteúdo, público) nas pílulas.
+- A usuária passa o mouse numa célula do mapa de calor e vê o valor.
+- A usuária clica numa miniatura e abre o post no Instagram em outra aba.
+
+### Módulo 20: Documentação e encerramento
+
+**Descrição:** o que fecha o projeto depois que a última aba está pronta.
+
+**Componentes:**
+- `DESIGN.md` reescrito a partir do que foi construído (tokens, componentes, regras nomeadas), com a regra "Noite Sempre" substituída pela regra do papel e a nota de que painel e site continuam no mundo escuro até nova decisão.
+- Revisão de acabamento nas 19 abas, desktop e celular, antes de ir ao ar.
+- Esta spec movida para `docs/specs-arquivadas/`.
+
+**Comportamentos:**
+- A usuária abre qualquer aba no ar e vê o mesmo vocabulário de componentes que viu na Visão geral.
+- A usuária lê o `DESIGN.md` e encontra exatamente o que está no ar, sem regra antiga.
