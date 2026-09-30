@@ -86,10 +86,10 @@ Nenhuma tabela nova.
 
 ## Checklist
 
-- [ ] Branch `central-marketing`
-- [ ] `tests/ig-painel.test.js` e `_ig-painel.js` até passar
-- [ ] `_marketing-db.js` e as 5 rotas
-- [ ] Tela no `index.html` (menu, casca, cabeçalho, 4 sub-abas, estados)
-- [ ] `MARKETING_RO_DATABASE_URL` em prévia e produção
-- [ ] Push do branch, conferir a prévia no computador e no celular
-- [ ] Ok da usuária na prévia → merge na `main`
+- [x] Branch `central-marketing`
+- [x] `tests/ig-painel.test.js` e `_ig-painel.js` até passar
+- [x] `_marketing-db.js` e as 5 rotas
+- [x] Tela no `index.html` (menu, casca, cabeçalho, 4 sub-abas, estados)
+- [x] `MARKETING_RO_DATABASE_URL` em prévia e produção
+- [x] Push do branch; prévia conferida pela usuária
+- [x] Ok da usuária na prévia (30/09) → merge na `main`
