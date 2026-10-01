@@ -2823,10 +2823,12 @@ $('#cat-monitorados').onclick = (ev) => {
   }
 };
 
-$('#cat-lista').onclick = (ev) => {
+// addEventListener, e não onclick: a tabela() instala o próprio el.onclick
+// (ordenar colunas) a cada desenho, e apagaria este clique.
+$('#cat-lista').addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-monitorar]');
   if (b) catAcao({ group_jid: b.dataset.monitorar, acao: 'monitorar' }, b);
-};
+});
 
 // ---------- Disparos (spec 2026-09-18) ----------
 // Toda a validação é do backend: a tela só mostra o erro que volta. O upload é
