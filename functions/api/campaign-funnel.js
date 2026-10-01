@@ -7,7 +7,7 @@
 import { resolverFunilAuto, listarFunisConhecidos, FUNIL_SEM_CLASSIFICACAO } from './_funil-campanha.js';
 import { CANAL_AQUISICAO } from './_canal.js';
 import { ymdBrt } from './_data-brt.js';
-import { respostaJson, respostaEmCache } from './_cache.js';
+import { respostaJson } from './_cache.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -23,12 +23,11 @@ export async function onRequestGet(context) {
   const sinceDate = ymdBrt(since);
   const untilDate = ymdBrt(until);
 
-  // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
-  // O POST (override manual) não passa por aqui: um override novo muda a
-  // resposta do GET, e o cache por URL vale por até 1h — é o preço aceito; o
-  // front pode refazer a chamada com outro parâmetro para forçar a leitura.
-  const emCache = await respostaEmCache(request, { until });
-  if (emCache) return emCache;
+  // SEM cache de período fechado (_cache.js), ao contrário dos outros GETs do
+  // dash: o POST abaixo muda esta resposta, e com o cache a escolha de funil
+  // gravava mas a tabela redesenhava com a cópia antiga por até 1h — parecia
+  // que o seletor não salvava (01/10/2026). A consulta é pequena (ad_spend do
+  // período agrupado por campanha + o mapa), não pesa na cota do D1.
 
   const [campanhas, overrides, funis] = await Promise.all([
     env.DB.prepare(`
@@ -57,7 +56,7 @@ export async function onRequestGet(context) {
     };
   });
 
-  return respostaJson(request, { rows, funis: [...funis, CANAL_AQUISICAO] }, { until, context });
+  return respostaJson(request, { rows, funis: [...funis, CANAL_AQUISICAO] });
 }
 
 export async function onRequestPost(context) {

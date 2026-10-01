@@ -1330,6 +1330,8 @@ const cacheRespostas = new Map();
 const periodoFechado = (p) => { const m = /[?&]to=(\d+)/.exec(p); return !!m && Number(m[1]) < meiaNoiteHojeBrt(); };
 // Descarta o que foi guardado para um prefixo de rota — usado depois de um POST
 // que muda a resposta de um GET já cacheado (ex.: funil de campanha → /api/cpl).
+// Muda a cada funil de campanha salvo; entra na URL do /api/cpl (ver R.metaads).
+let versaoMapaFunil = 0;
 const esquecerCache = (prefixo) => { for (const u of [...cacheRespostas.keys()]) if (u.startsWith(prefixo)) cacheRespostas.delete(u); };
 const fetchJson = (p) => {
   const url = p + (p.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key);
@@ -2219,7 +2221,7 @@ R.metaads = async () => {
     fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
     fetchJson(`/api/ad-spend?${q(p.de, p.ate)}`),
-    fetchJson(`/api/cpl?${q(p.de, p.ate)}`).catch(() => null),
+    fetchJson(`/api/cpl?${q(p.de, p.ate)}${versaoMapaFunil ? '&mapa=' + versaoMapaFunil : ''}`).catch(() => null),
     fetchJson(`/api/campaign-funnel?${q(p.de, p.ate)}`).catch(() => null),
   ]);
   // O CPL desta aba é o do canal pago, calculado no backend (/api/cpl,
@@ -2315,6 +2317,10 @@ R.metaads = async () => {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       // O mapa campanha→funil muda o CPL por funil e a tabela de campanhas;
       // o que estava guardado em memória para o período fechado já não vale.
+      // Esquecer o Map não basta: o /api/cpl de período fechado também fica
+      // guardado no navegador e na Cloudflare por até 1h (_cache.js). Mudar a
+      // URL com `&mapa=` fura as duas camadas; o backend ignora o parâmetro.
+      versaoMapaFunil = Date.now();
       esquecerCache('/api/cpl?'); esquecerCache('/api/campaign-funnel?');
       await R.metaads();   // redesenha com o CPL já recalculado
     } catch {
