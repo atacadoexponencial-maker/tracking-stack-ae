@@ -155,19 +155,33 @@ export async function onRequest(context) {
     console.error('AB: falha ao ler testes ativos:', e.message);
   }
 
-  if (abTeste) {
-    // O cookie vem ANTES do sorteio: quem já foi exposto continua onde estava,
-    // mesmo que os pesos mudem no meio do teste. Trocar alguém de variante em
-    // andamento creditaria a conversão à página errada.
-    const salva = lerCookieAb(cookies['_krob_ab'] || '')[abTeste.slug];
-    abVariante = salva === 'a' || salva === 'b' ? salva : escolherVariante(abTeste, sessionId);
-  }
-
   // --- Capture request metadata ---
   const clientIp = request.headers.get('cf-connecting-ip') || '';
   const userAgent = request.headers.get('user-agent') || '';
   const referrer = request.headers.get('referer') || '';
   const now = Math.floor(Date.now() / 1000);
+
+  // Julgado aqui, antes do sorteio, porque o teste A/B depende dele (ver
+  // abaixo). O motivo de cada corte está no bloco que grava a sessão.
+  const botPorUa = detectBot(userAgent);
+  const bot = botPorUa.isBot ? botPorUa : detectBotPorIp(clientIp);
+
+  if (abTeste) {
+    if (bot.isBot) {
+      // Robô sempre recebe A. A variante B costuma carregar `noindex` (foi
+      // feita para morar num path próprio); servida na URL da A, ela dizia ao
+      // Googlebot para tirar a página original da busca. Medido em 01/10/2026:
+      // 1 de 6 acessos com UA do Googlebot em /workshop-gratuito caiu na B.
+      // Não mexe na estatística: bot já não grava exposição nem sessão.
+      abVariante = 'a';
+    } else {
+      // O cookie vem ANTES do sorteio: quem já foi exposto continua onde estava,
+      // mesmo que os pesos mudem no meio do teste. Trocar alguém de variante em
+      // andamento creditaria a conversão à página errada.
+      const salva = lerCookieAb(cookies['_krob_ab'] || '')[abTeste.slug];
+      abVariante = salva === 'a' || salva === 'b' ? salva : escolherVariante(abTeste, sessionId);
+    }
+  }
 
   // --- Serve the page FIRST, then write to D1 in background ---
   let response;
@@ -267,9 +281,8 @@ export async function onRequest(context) {
   // julgava o UA na gravação do event_log, mas o middleware só olhava IP —
   // crawler de preview (WhatsApp, facebookexternalhit) e scanner que se
   // identifica entravam em `sessions` como visita. Mesma ordem do tracker: UA
-  // primeiro, para o motivo registrado ser o mais específico.
-  const botPorUa = detectBot(userAgent);
-  const bot = botPorUa.isBot ? botPorUa : detectBotPorIp(clientIp);
+  // primeiro, para o motivo registrado ser o mais específico. (`bot` é
+  // calculado lá em cima, antes do sorteio do teste A/B.)
   if (bot.isBot) {
     console.log('Sessão não gravada —', bot.botReason, '|', url.pathname);
   }
