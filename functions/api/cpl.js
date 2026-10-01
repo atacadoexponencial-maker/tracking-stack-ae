@@ -46,7 +46,13 @@ export async function onRequestGet(context) {
         s.utm_source,
         s.utm_campaign,
         e.material,
-        e.origin
+        e.origin,
+        -- Card que a ponte CRIOU para este lead (lead novo); NULL = já tinha
+        -- card (retorno) ou não passou pela ponte. Busca pelo índice
+        -- idx_lead_dispatch_event, uma linha por lead do período.
+        (SELECT d.task_id FROM lead_dispatch d
+          WHERE d.event_id = e.event_id AND d.resultado = 'criado' AND d.task_id IS NOT NULL
+          LIMIT 1) AS task_novo
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
       WHERE e.event_name = 'Lead'

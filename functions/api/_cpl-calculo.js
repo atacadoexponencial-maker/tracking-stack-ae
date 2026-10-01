@@ -43,6 +43,12 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
   const leadsPorFunil = new Map();
   const leadsPorCanal = new Map();
   const leadsCruzado = new Map();
+  // Lead NOVO = a ponte criou o card no ClickUp para este evento
+  // (lead_dispatch.resultado = 'criado'; cpl.js traz o task_id em `task_novo`).
+  // Quem já tinha card e voltou é lead, mas não é novo. Conta por PESSOA (Set
+  // de task_id), igual ao "Novos no CRM" do /api/crm-funnel.
+  const novosPorFunil = new Map();
+  const novosTotal = new Set();
 
   for (const l of leads) {
     const funil = (l.funnel == null ? '' : String(l.funnel)).trim() || FUNIL_SEM_CLASSIFICACAO;
@@ -52,6 +58,12 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
     leadsPorCanal.set(canal, (leadsPorCanal.get(canal) || 0) + 1);
     const chave = funil + '||' + canal;
     leadsCruzado.set(chave, (leadsCruzado.get(chave) || 0) + 1);
+
+    if (l.task_novo) {
+      if (!novosPorFunil.has(funil)) novosPorFunil.set(funil, new Set());
+      novosPorFunil.get(funil).add(String(l.task_novo));
+      novosTotal.add(String(l.task_novo));
+    }
   }
 
   // 3. Montagem das linhas.
@@ -62,11 +74,14 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
     .map((funnel) => {
       const centavos = gastoPorFunil.get(funnel) || 0;
       const qtd = leadsPorFunil.get(funnel) || 0;
+      const novos = novosPorFunil.has(funnel) ? novosPorFunil.get(funnel).size : 0;
       return {
         funnel,
         spend: centavos / 100,
         leads: qtd,
         cpl: cpl(centavos, qtd),
+        leads_novos: novos,
+        cpl_novos: cpl(centavos, novos),
         share: totalCentavos > 0 ? (centavos / totalCentavos) * 100 : 0,
       };
     })
@@ -134,6 +149,7 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
     cruzado,
     total_investimento: totalCentavos / 100,
     total_leads: leads.length,
+    total_leads_novos: novosTotal.size,
   };
 }
 

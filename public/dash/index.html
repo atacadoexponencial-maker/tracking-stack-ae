@@ -779,7 +779,9 @@ td.pago, th.pago { color: var(--alerta); }
 
     <section class="secao" id="secao-visao">
       <p class="manchete" id="visao-manchete" data-esqueleto="manchete"></p>
-      <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:3:heroi"></div>
+      <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:5:heroi"></div>
+      <!-- Painel por funil: os mesmos números do geral, um bloco por funil. Some com o filtro de funil ativo. -->
+      <div id="visao-por-funil"></div>
       <!-- Metas (issue 332): sempre o mês corrente até ontem, não segue o filtro. -->
       <div class="metas" id="visao-metas" data-esqueleto="metas"></div>
       <div class="grid-etiquetas" id="visao-kpis" data-esqueleto="etiquetas:4"></div>
@@ -1938,25 +1940,68 @@ document.addEventListener('click', async (ev) => {
   }
 });
 
+// Painel por funil da Visão geral: os números do painel geral, um bloco por
+// funil. Tudo vem pronto do backend — leads, leads novos, investimento e os
+// dois CPLs de /api/cpl (`por_funil`), conversão de /api/conversion
+// (`by=funnel`); aqui só se escolhe o que mostrar e se desenha.
+// Fica de fora o `aquisicao` (impulsionamento): não gera lead direto, o CPL
+// dele seria sempre vazio. "sem-funil" vai por último e só se tiver número.
+function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
+  const alvo = $('#visao-por-funil');
+  if (fSel) { alvo.innerHTML = ''; return; }
+  if (!cplA) { alvo.innerHTML = '<div class="aviso">Painel por funil indisponível agora (investimento por funil não respondeu).</div>'; return; }
+  const porChave = (lista) => new Map((lista || []).map((r) => [r.funnel, r]));
+  const antes = porChave(cplB && cplB.por_funil);
+  const convAgora = porChave(convA && convA.por_funil), convAntes = porChave(convB && convB.por_funil);
+  const linhas = (cplA.por_funil || [])
+    .filter((r) => r.funnel !== 'aquisicao' && (r.leads > 0 || r.spend > 0))
+    .sort((a, b) => (a.funnel === 'sem-funil') - (b.funnel === 'sem-funil') || b.leads - a.leads || b.spend - a.spend);
+  if (!linhas.length) { alvo.innerHTML = ''; return; }
+  const d = (a, b) => a !== null && a !== undefined && b ? delta(a, b) : undefined;
+  alvo.innerHTML = linhas.map((r) => {
+    const ant = antes.get(r.funnel) || {};
+    const cA = convAgora.get(r.funnel), cB = convAntes.get(r.funnel);
+    const txA = cA && cA.visitors ? cA.rate * 100 : null, txB = cB && cB.visitors ? cB.rate * 100 : null;
+    const nome = r.funnel === 'sem-funil' ? 'Sem funil' : r.funnel;
+    const semGasto = r.spend > 0 ? 'nenhum lead novo' : 'sem investimento';
+    return `<div class="bloco"><h2>${esc(nome)} <small>${r.spend > 0 ? money(r.spend) + ' investidos' : 'sem investimento no período'}</small></h2>
+      <div class="grid-etiquetas">${[
+        { rotulo: 'Leads', valor: fmtInt(r.leads), delta: d(r.leads, ant.leads) },
+        { rotulo: 'Leads novos', valor: fmtInt(r.leads_novos), delta: d(r.leads_novos, ant.leads_novos) },
+        { rotulo: 'Conversão', valor: txA === null ? null : fmtPct(txA, 2), delta: d(txA, txB), nota: txA === null ? (cA ? 'sem visitas no período' : 'sem página de captação') : '' },
+        { rotulo: 'CPL', valor: r.cpl === null ? null : money(r.cpl), delta: d(r.cpl, ant.cpl), invertido: true, nota: r.cpl === null ? (r.spend > 0 ? 'nenhum lead' : 'sem investimento') : '' },
+        { rotulo: 'CPL lead novo', valor: r.cpl_novos === null ? null : money(r.cpl_novos), delta: d(r.cpl_novos, ant.cpl_novos), invertido: true, nota: r.cpl_novos === null ? semGasto : '' },
+      ].map((k) => tile(k)).join('')}</div></div>`;
+  }).join('');
+}
+
 R.visao = async () => {
   const p = intervalo();
   // Metas: carga própria, fora do Promise.all — falha nela não derruba a aba.
   carregarMetasAcompanhamento(true);
   desenharMetasCompacto();
-  const [leadsA, leadsB, convA, convB, atrA, atrB, revA, revB] = await Promise.all([
+  const fSel = $('#funil').value;
+  // Sem filtro de funil, a conversão vem também separada por funil (`by=funnel`)
+  // para o painel por funil, na mesma consulta. Com filtro, o painel some.
+  const porFunilQ = fSel ? '' : '&by=funnel';
+  const mapaQ = versaoMapaFunil ? '&mapa=' + versaoMapaFunil : '';
+  const [leadsA, leadsB, convA, convB, atrA, atrB, revA, revB, cplA_, cplB_] = await Promise.all([
     fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&limit=500`),
     // Do período anterior só entram os totais para o delta — sem linhas, sem
     // funil por página (revisão de 13/09/2026).
     fetchJson(`/api/leads?${q(p.antDe, p.antAte)}${funilQ}&only=funnelCounts`),
-    fetchJson(`/api/conversion?${q(p.de, p.ate)}${funilQ}`),
-    fetchJson(`/api/conversion?${q(p.antDe, p.antAte)}${funilQ}&only=totals`),
+    fetchJson(`/api/conversion?${q(p.de, p.ate)}${funilQ}${porFunilQ}`),
+    fetchJson(`/api/conversion?${q(p.antDe, p.antAte)}${funilQ}&only=totals${porFunilQ}`),
     fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
     fetchJson(`/api/revenue?${q(p.de, p.ate)}`),
     fetchJson(`/api/revenue?${q(p.antDe, p.antAte)}`),
+    // Investimento por funil e leads novos (card criado no CRM). Falha aqui
+    // não derruba a aba: os números que dependem dele ficam "—".
+    fetchJson(`/api/cpl?${q(p.de, p.ate)}${mapaQ}`).catch(() => null),
+    fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}`).catch(() => null),
   ]);
   // funnelCounts sempre traz TODOS os funis; com filtro ativo, usa só o dele.
-  const fSel = $('#funil').value;
   const soma = (fc) => (fc || [])
     .filter((c) => !fSel || (c.funnel || '') === fSel)
     .reduce((s, c) => s + Number(c.count || 0), 0);
@@ -1965,8 +2010,23 @@ R.visao = async () => {
   // convB veio com `only=totals`: { visitors, leads, rate } já somados no backend.
   const cA = somaConv(convA.rows), cB = { v: Number(convB.visitors || 0), l: Number(convB.leads || 0) };
   const txA = cA.v ? (cA.l / cA.v) * 100 : null, txB = cB.v ? Number(convB.rate || 0) * 100 : null;
-  const cplA = totalLeads && atrA.meta_spend > 0 ? atrA.meta_spend / totalLeads : null;
-  const cplB = totalLeadsAnt && atrB.meta_spend > 0 ? atrB.meta_spend / totalLeadsAnt : null;
+  // Investimento do recorte: sem filtro, todo o gasto do Meta; com filtro, só
+  // o das campanhas daquele funil (mapa da aba Campanhas, via /api/cpl). Antes
+  // o filtrado dividia o gasto de TODAS as campanhas pelos leads de um funil.
+  const linhaCpl = (cpl) => ((cpl && cpl.por_funil) || []).find((r) => r.funnel === fSel);
+  const gastoDe = (atr, cpl) => {
+    if (!fSel) return atr.meta_spend > 0 ? atr.meta_spend : null;
+    if (!cpl) return null;
+    const l = linhaCpl(cpl);
+    return l && l.spend > 0 ? l.spend : null;
+  };
+  const novosDe = (cpl) => !cpl ? null : (fSel ? ((linhaCpl(cpl) || {}).leads_novos || 0) : (cpl.total_leads_novos || 0));
+  const gastoA = gastoDe(atrA, cplA_), gastoB = gastoDe(atrB, cplB_);
+  const novosA = novosDe(cplA_), novosB = novosDe(cplB_);
+  const cplA = totalLeads && gastoA ? gastoA / totalLeads : null;
+  const cplB = totalLeadsAnt && gastoB ? gastoB / totalLeadsAnt : null;
+  const cplNovoA = novosA && gastoA ? gastoA / novosA : null;
+  const cplNovoB = novosB && gastoB ? gastoB / novosB : null;
 
   // Manchete: só reescreve em frase os números já calculados acima.
   const dLeads = delta(totalLeads, totalLeadsAnt);
@@ -1977,14 +2037,20 @@ R.visao = async () => {
     + (dLeads !== null && isFinite(dLeads) ? `, ${dLeads === 0 ? 'o mesmo que' : `${fmtNum(Math.abs(dLeads), 0)}% ${dLeads > 0 ? 'a mais que' : 'a menos que'}`} no período anterior` : '')
     + (cplA !== null ? `, com CPL de <strong>${money(cplA)}</strong>` : '') + '.';
 
+  const semGasto = fSel ? 'sem investimento no funil' : 'precisa do sync de investimento';
   $('#visao-herois').innerHTML = [
     { rotulo: 'Leads', valor: fmtInt(totalLeads), conta: { v: totalLeads, fmt: 'int' }, delta: delta(totalLeads, totalLeadsAnt) },
+    // Lead novo = a ponte criou o card no CRM (quem já tinha card e voltou não conta).
+    { rotulo: 'Leads novos', valor: novosA === null ? null : fmtInt(novosA), conta: { v: novosA, fmt: 'int' }, delta: novosA !== null && novosB ? delta(novosA, novosB) : undefined, nota: 'card novo no CRM' },
     { rotulo: 'Conversão geral', valor: txA === null ? null : fmtPct(txA, 2), conta: { v: txA, fmt: 'pct2' }, delta: txA !== null && txB !== null ? delta(txA, txB) : undefined },
     // Este CPL divide o gasto do Meta por TODOS os leads (orgânico incluso);
     // o da aba Meta Ads é só do canal pago — por isso o subtítulo.
-    { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), conta: { v: cplA, fmt: 'money' }, delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, invertido: true, nota: cplA === null ? 'precisa do sync de investimento' : 'todos os canais' },
+    { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), conta: { v: cplA, fmt: 'money' }, delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, invertido: true, nota: cplA === null ? semGasto : 'todos os canais' },
+    { rotulo: 'CPL lead novo', valor: cplNovoA === null ? null : money(cplNovoA), conta: { v: cplNovoA, fmt: 'money' }, delta: cplNovoA !== null && cplNovoB !== null ? delta(cplNovoA, cplNovoB) : undefined, invertido: true, nota: cplNovoA === null ? (gastoA ? 'nenhum lead novo' : semGasto) : '' },
   ].map((k) => tile(k, true)).join('');
   contarNumeros($('#visao-herois'));
+
+  desenharPainelPorFunil({ fSel, cplA: cplA_, cplB: cplB_, convA, convB });
 
   $('#visao-kpis').innerHTML = [
     // `visitors` de /api/conversion conta sessões pela PRIMEIRA visita (first-touch

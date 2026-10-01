@@ -114,6 +114,30 @@ test('lead sem funil cai em sem-funil em vez de sumir', () => {
   assert.equal(r.total_leads, 1);
 });
 
+test('leads novos por funil contam pessoas com card criado, e o CPL novo divide o gasto por elas', () => {
+  const r = calcularCpl(cenario({
+    leads: [
+      { funnel: 'sessao-estrategica', task_novo: 'T1' },
+      { funnel: 'sessao-estrategica', task_novo: 'T1' }, // mesma pessoa preencheu de novo
+      { funnel: 'sessao-estrategica', task_novo: null }, // já tinha card: retorno
+      { funnel: 'aplicacao-mentoria', task_novo: 'T2' },
+    ],
+  }));
+  const se = linha(r.por_funil, 'funnel', 'sessao-estrategica');
+  assert.equal(se.leads, 3);
+  assert.equal(se.leads_novos, 1);
+  assert.equal(se.cpl_novos, 2000);
+  assert.equal(linha(r.por_funil, 'funnel', 'aplicacao-mentoria').leads_novos, 1);
+  assert.equal(r.total_leads_novos, 2);
+});
+
+test('funil com gasto e nenhum lead novo devolve cpl_novos null', () => {
+  const r = calcularCpl(cenario({ leads: [{ funnel: 'sessao-estrategica', task_novo: null }] }));
+  const se = linha(r.por_funil, 'funnel', 'sessao-estrategica');
+  assert.equal(se.leads_novos, 0);
+  assert.equal(se.cpl_novos, null);
+});
+
 test('entradas vazias nao quebram', () => {
   const r = calcularCpl({ leads: [], gastos: [], overrides: [], funisConhecidos: [] });
   assert.deepEqual(r.por_funil, []);

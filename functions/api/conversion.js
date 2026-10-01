@@ -17,6 +17,7 @@
 import { clausulasBotSql, clausulasBotIpSql } from '../_bots.js';
 import { montarFunil } from './_funil-etapas.js';
 import { respostaJson, respostaEmCache } from './_cache.js';
+import { funilDaPagina } from './_funil-paginas.js';
 
 // Início da coleta dos degraus novos (CTAClick/FormStep): o funil de
 // micro-conversões entrou no ar em 31/08/2026 (spec 2026-08-31). Era lido do
@@ -38,6 +39,10 @@ export async function onRequestGet(context) {
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
   const { since, until } = resolvePeriod(url, days);
   const soTotais = url.searchParams.get('only') === 'totals';
+  // `&by=funnel` (painel por funil da Visão geral, 01/10/2026): devolve também
+  // `por_funil`, na MESMA consulta — o GROUP BY ganha o funil do lead da sessão
+  // (`lead_funil`). Uma consulta por funil custaria N varreduras.
+  const porFunil = url.searchParams.get('by') === 'funnel';
 
   // Período fechado já respondido antes? Sai sem tocar no D1 (ver _cache.js).
   const emCache = await respostaEmCache(request, { until });
@@ -49,12 +54,18 @@ export async function onRequestGet(context) {
   const EFFECTIVE_FUNNEL = "COALESCE(NULLIF(e.funnel, ''), s.funnel)";
   const funnel = (url.searchParams.get('funnel') || '').trim();
 
-  // Com &funnel=, filtra numerador E denominador com semânticas diferentes:
-  // - numerador (CASE no SELECT): funil efetivo do lead;
-  // - denominador (WHERE): funil first-touch da sessão — visitante que não
-  //   converteu não tem funil de evento.
+  // Com &funnel= (e no &by=funnel), numerador e denominador têm fontes
+  // diferentes:
+  // - numerador: funil efetivo do LEAD (o que o formulário declarou);
+  // - denominador: funil da PÁGINA de entrada (_funil-paginas.js), aplicado em
+  //   JS depois da normalização do path. Visitante que não converteu não tem
+  //   funil de evento, e `sessions.funnel` é vazio em 99% das sessões — era o
+  //   denominador até 01/10/2026 e a conversão filtrada saía absurda.
   const numeratorFunnelClause = funnel ? `AND ${EFFECTIVE_FUNNEL} = ?` : '';
-  const denominatorFunnelClause = funnel ? 'AND s.funnel = ?' : '';
+  const doFunil = (lp) => {
+    if (!funnel) return true;
+    return funilDaPagina(lp) === funnel; // '(sem página)' não tem funil: sai
+  };
 
   // Exclusão de bot: lista única em functions/_bots.js, a mesma que o
   // tracker.js usa na escrita.
@@ -70,8 +81,8 @@ export async function onRequestGet(context) {
   const botClauses = clausulasBotSql('s') + '\n' + clausulasBotIpSql('s');
 
   // Ordem dos binds é posicional na ordem do texto SQL: o funil efetivo do
-  // CASE (SELECT) vem ANTES de since/until; o s.funnel = ? vem por último.
-  const binds = funnel ? [funnel, since, until, funnel] : [since, until];
+  // CASE (SELECT) vem ANTES de since/until.
+  const binds = funnel ? [funnel, since, until] : [since, until];
 
   try {
     // Query única: denominador (visitors), numerador (leads) e os degraus
@@ -94,12 +105,21 @@ export async function onRequestGet(context) {
     //
     // Os degraus (cliques/form_starts) eram uma segunda varredura das mesmas
     // sessões, com o mesmo recorte — foram fundidos aqui para não pagar duas
-    // vezes. Eles usam o funil do DENOMINADOR (`s.funnel`, first-touch da
-    // sessão) e não o funil efetivo do evento: `CTAClick` e `FormStart` não
-    // carregam `lead_data`, então filtrar pelo funil do evento zeraria todos.
+    // vezes. Eles usam o funil do DENOMINADOR (a página de entrada, doFunil) e
+    // não o funil efetivo do evento: `CTAClick` e `FormStart` não carregam
+    // `lead_data`, então filtrar pelo funil do evento zeraria todos.
+    //
+    // `lead_funil` (só no &by=funnel): funil efetivo do lead da sessão, NULL
+    // para quem não converteu. Sessão com lead em dois funis cai no do primeiro
+    // lead — raro, e sem isso seria uma coluna por funil.
     const grouped = await env.DB.prepare(`
       SELECT
         s.landing_url,
+        ${porFunil ? `(SELECT ${EFFECTIVE_FUNNEL} FROM event_log e
+          WHERE e.session_id = s.session_id
+            AND e.event_name = 'Lead'
+            AND e.is_bot = 0 AND e.is_junk = 0
+          ORDER BY e.id LIMIT 1) AS lead_funil,` : ''}
         COUNT(*) AS visitors,
         SUM(CASE WHEN EXISTS (
           SELECT 1 FROM event_log e
@@ -124,8 +144,7 @@ export async function onRequestGet(context) {
       WHERE s.created_at >= ? AND s.created_at <= ?
         AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
         ${botClauses}
-        ${denominatorFunnelClause}
-      GROUP BY s.landing_url
+      GROUP BY s.landing_url${porFunil ? ', lead_funil' : ''}
     `).bind(...binds).all();
 
     // Re-agregação em JS: grupos crus distintos (querystring, barra final)
@@ -134,9 +153,22 @@ export async function onRequestGet(context) {
     // crus são disjuntos — somar não conta ninguém duas vezes.
     const byPath = new Map();
     const degrausPorPath = new Map();
+    const funis = new Map();
     for (const row of grouped.results || []) {
       const lp = normalizePath(row.landing_url);
-      if (!isKnownPage(lp)) continue;
+      if (!isKnownPage(lp) || !doFunil(lp)) continue;
+      if (porFunil) {
+        // Denominador: todas as visitas das páginas do funil. Numerador: as
+        // que viraram lead DAQUELE funil. Página fora de _funil-paginas.js não
+        // entra em funil nenhum.
+        const f = funilDaPagina(lp);
+        if (f) {
+          const accF = funis.get(f) || { visitors: 0, leads: 0 };
+          accF.visitors += row.visitors;
+          if (row.lead_funil === f) accF.leads += row.visitors;
+          funis.set(f, accF);
+        }
+      }
       const acc = byPath.get(lp) || { visitors: 0, leads: 0 };
       acc.visitors += row.visitors;
       acc.leads += row.leads;
@@ -162,6 +194,7 @@ export async function onRequestGet(context) {
         visitors,
         leads,
         rate: visitors > 0 ? leads / visitors : 0,
+        ...(porFunil ? { por_funil: listaPorFunil(funis) } : {}),
       }, { until, context });
     }
 
@@ -169,14 +202,14 @@ export async function onRequestGet(context) {
     //
     // Mesmo recorte de sessões da consulta acima (mesma janela, mesmos filtros
     // de bot e de funil), para os números do funil baterem com a linha que ele
-    // expande. Usa `s.funnel` (first-touch da sessão) pelo mesmo motivo dos
-    // demais degraus: `FormStep` não carrega `lead_data`.
+    // expande. O funil entra pela página de entrada (doFunil, em JS), como no
+    // denominador acima.
     //
     // Esta consulta é barata (157 linhas lidas, medido em 2026-09-04) e não
     // precisou mudar: como o JOIN filtra por `event_name = 'FormStep'`, o
     // otimizador já entra pela tabela pequena (`event_log`) por conta própria,
     // em vez de varrer as sessões da janela.
-    const bindsSessao = funnel ? [since, until, funnel] : [since, until];
+    const bindsSessao = [since, until];
 
     const etapasQuery = await env.DB.prepare(`
       SELECT
@@ -193,7 +226,6 @@ export async function onRequestGet(context) {
       WHERE s.created_at >= ? AND s.created_at <= ?
         AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
         ${botClauses}
-        ${denominatorFunnelClause}
       GROUP BY s.landing_url, e.step
     `).bind(...bindsSessao).all();
 
@@ -203,7 +235,7 @@ export async function onRequestGet(context) {
     // porque vêm da mesma consulta.)
     for (const row of etapasQuery.results || []) {
       const lp = normalizePath(row.landing_url);
-      if (!isKnownPage(lp)) continue;
+      if (!isKnownPage(lp) || !doFunil(lp)) continue;
       const acc = degrausPorPath.get(lp) || { cliques: 0, formStarts: 0, etapas: new Map() };
       acc.etapas.set(row.step, (acc.etapas.get(row.step) || 0) + row.sessoes);
       degrausPorPath.set(lp, acc);
@@ -234,10 +266,27 @@ export async function onRequestGet(context) {
     // empate por lp alfabético.
     rows.sort((a, b) => b.visitors - a.visitors || a.lp.localeCompare(b.lp));
 
-    return respostaJson(request, { days, funnel: funnel || null, rows }, { until, context });
+    return respostaJson(request, {
+      days,
+      funnel: funnel || null,
+      rows,
+      ...(porFunil ? { por_funil: listaPorFunil(funis) } : {}),
+    }, { until, context });
   } catch (err) {
     return json({ error: err.message }, 500);
   }
+}
+
+// `por_funil` do `&by=funnel`: um item por funil da sessão, com a taxa pronta.
+function listaPorFunil(funis) {
+  return [...funis]
+    .map(([funnel, v]) => ({
+      funnel,
+      visitors: v.visitors,
+      leads: v.leads,
+      rate: v.visitors > 0 ? v.leads / v.visitors : 0,
+    }))
+    .sort((a, b) => b.visitors - a.visitors);
 }
 
 // Whitelist de paths que são página real do site: rotas Astro atuais
