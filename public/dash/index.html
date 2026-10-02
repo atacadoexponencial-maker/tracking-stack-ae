@@ -44,6 +44,15 @@ body { font-family: var(--font-sans); background: var(--papel); color: var(--tin
 .marca-logo { display: block; width: 160px; height: auto; }
 .marca small { display: block; color: var(--taupe); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.45rem; }
 .nav { display: flex; flex-direction: column; gap: 1rem; }
+/* SONDA (02/10): seletor de apps. */
+.apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25rem; padding: 0.3rem; background: rgba(245,240,235,0.06); border-radius: 4px; }
+.apps a { display: grid; justify-items: center; gap: 0.3rem; padding: 0.55rem 0.2rem 0.45rem; border-radius: 3px; color: rgba(245,240,235,0.62); text-decoration: none; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.02em; }
+.apps a:hover { color: var(--bege); background: rgba(245,240,235,0.08); }
+.apps a[aria-current="true"] { background: var(--bege); color: var(--carvao); }
+.apps svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav-grupo[hidden] { display: none; }
+.nav-rotulo--sub { padding-top: 0.9rem; }
+body[data-app="agenda"] #secao-agenda > .ig-vistas { display: none; }
 .nav-grupo { display: flex; flex-direction: column; gap: 0.1rem; }
 .nav-grupo + .nav-grupo { border-top: 1px solid rgba(245,240,235,0.14); padding-top: 0.9rem; }
 .nav-rotulo { color: var(--taupe); font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; padding: 0 0.55rem 0.45rem; }
@@ -280,6 +289,8 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
   .nav-grupo { flex-direction: row; }
   .nav-grupo + .nav-grupo { border-top: 0; padding-top: 0; border-left: 1px solid rgba(245,240,235,0.14); padding-left: 0.5rem; margin-left: 0.2rem; }
   .nav-rotulo { display: none; }
+  .apps { flex: none; grid-template-columns: repeat(4, auto); }
+  .apps span { display: none; }
   .nav a { white-space: nowrap; font-size: 0.82rem; }
   .conteudo { padding: 1.2rem 1rem 3rem; }
   .duas, .duas-colunas { grid-template-columns: 1fr; }
@@ -837,8 +848,23 @@ td.pago, th.pago { color: var(--alerta); }
 <div class="layout" id="app" hidden>
   <aside class="sidebar">
     <div class="marca"><img class="marca-logo" src="/dash/logo-atacado-exponencial.png" alt="Atacado Exponencial" width="957" height="261"><small>Tracking interno</small></div>
+    <!-- SONDA (02/10): ecossistema de apps. Cada app mostra só o próprio menu. -->
+    <nav class="apps" id="apps" aria-label="Apps">
+      <a href="#visao" data-app-ir="numeros"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Números</span></a>
+      <a href="#agenda?v=agendamentos" data-app-ir="agenda"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Agenda</span></a>
+      <a href="#disparos" data-app-ir="operacao"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg><span>Operação</span></a>
+      <a href="#instagram" data-app-ir="marketing"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg><span>Marketing</span></a>
+    </nav>
     <nav class="nav" id="nav" aria-label="Seções do painel">
-      <div class="nav-grupo" role="group" aria-labelledby="nav-resultados">
+      <div class="nav-grupo" role="group" aria-labelledby="nav-agenda-app" data-app="agenda">
+        <span class="nav-rotulo" id="nav-agenda-app">Agenda</span>
+        <a href="#agenda?v=agendamentos" data-agenda-nav="agendamentos">Agendamentos</a>
+        <span class="nav-rotulo nav-rotulo--sub">Configuração</span>
+        <a href="#agenda?v=tipos" data-agenda-nav="tipos">Tipos de reunião</a>
+        <a href="#agenda?v=grades" data-agenda-nav="grades">Grades de horário</a>
+        <a href="#agenda?v=agendas" data-agenda-nav="agendas">Agendas conectadas</a>
+      </div>
+      <div class="nav-grupo" role="group" aria-labelledby="nav-resultados" data-app="numeros">
         <span class="nav-rotulo" id="nav-resultados">Resultados</span>
         <a href="#visao" data-secao="visao">Visão geral</a>
         <a href="#leads" data-secao="leads">Leads</a>
@@ -850,23 +876,22 @@ td.pago, th.pago { color: var(--alerta); }
         <a href="#workshops" data-secao="workshops">Workshops</a>
         <a href="#grupos" data-secao="grupos">Grupos</a>
       </div>
-      <div class="nav-grupo" role="group" aria-labelledby="nav-operacao">
+      <div class="nav-grupo" role="group" aria-labelledby="nav-operacao" data-app="operacao">
         <span class="nav-rotulo" id="nav-operacao">Operação</span>
         <a href="#disparos" data-secao="disparos">Disparos</a>
         <a href="#links" data-secao="links">Links</a>
         <a href="#bloqueios" data-secao="bloqueios">Bloqueios</a>
         <a href="#funis-relatorio" data-secao="funis-relatorio">Funis do relatório</a>
         <a href="#ab" data-secao="ab">Testes A/B</a>
-        <a href="#agenda" data-secao="agenda">Agenda</a>
       </div>
-      <div class="nav-grupo" role="group" aria-labelledby="nav-diagnostico">
+      <div class="nav-grupo" role="group" aria-labelledby="nav-diagnostico" data-app="numeros">
         <span class="nav-rotulo" id="nav-diagnostico">Diagnóstico</span>
         <a href="#jornada" data-secao="jornada">Jornada</a>
         <a href="#eventos" data-secao="eventos">Eventos</a>
         <a href="#saude-meta" data-secao="saude-meta">Saúde das integrações</a>
         <a href="#argo" data-secao="argo">Argo</a>
       </div>
-      <div class="nav-grupo" role="group" aria-labelledby="nav-marketing">
+      <div class="nav-grupo" role="group" aria-labelledby="nav-marketing" data-app="marketing">
         <span class="nav-rotulo" id="nav-marketing">Marketing</span>
         <a href="#instagram" data-secao="instagram">Instagram</a>
       </div>
@@ -5891,6 +5916,21 @@ function lerUrl() {
   funilQ = funil ? '&funnel=' + encodeURIComponent(funil) : '';
 }
 
+// SONDA (02/10): o app aberto sai da aba. Cada app mostra só os grupos dele.
+const APP_DA_SECAO = { agenda: 'agenda', disparos: 'operacao', links: 'operacao', bloqueios: 'operacao', 'funis-relatorio': 'operacao', ab: 'operacao', instagram: 'marketing' };
+function aplicarApp() {
+  const app = APP_DA_SECAO[secao] || 'numeros';
+  document.body.dataset.app = app;
+  document.querySelectorAll('#nav .nav-grupo').forEach((g) => { g.hidden = g.dataset.app !== app; });
+  document.querySelectorAll('#apps [data-app-ir]').forEach((a) => a.setAttribute('aria-current', String(a.dataset.appIr === app)));
+  const vista = window.AgendaDash ? window.AgendaDash.vista : 'agendamentos';
+  document.querySelectorAll('[data-agenda-nav]').forEach((a) => {
+    const ativo = app === 'agenda' && a.dataset.agendaNav === vista;
+    a.classList.toggle('ativo', ativo);
+    if (ativo) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+}
+
 async function render() {
   $('#titulo').textContent = TITULOS[secao];
   aplicarFiltrosDaAba();
@@ -5901,6 +5941,7 @@ async function render() {
     a.classList.toggle('ativo', ativo);
     if (ativo) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
+  aplicarApp();
   const el = $('#secao-' + secao);
   // Só a chamada mais recente mexe no estado: trocar de período duas vezes
   // seguidas não pode deixar a primeira resposta apagar o "atualizando…".
