@@ -226,7 +226,15 @@
       ctx.$('#data-de').hidden = true;
       ctx.$('#data-ate').hidden = true;
       ctx.$('#subtitulo').textContent = nota;
+      return;
     }
+    // Volta a mostrar o período (outra vista pode ter trocado o subtítulo).
+    const custom = ctx.$('#preset').value === 'custom';
+    ctx.$('#data-de').hidden = !custom;
+    ctx.$('#data-ate').hidden = !custom;
+    const p = ctx.intervalo();
+    const d = (t) => new Date(t * 1000).toLocaleDateString('pt-BR', { timeZone: FUSO });
+    ctx.$('#subtitulo').textContent = `reuniões com data entre ${d(p.de)} e ${d(p.ate)}`;
   }
 
   // ---------------------------------------------------------------------------
