@@ -208,6 +208,10 @@
   // ---------------------------------------------------------------------------
   async function render(c) {
     ctx = c;
+    // Trocar de vista fecha a gaveta que ficou aberta (com edição não salva,
+    // ela pergunta antes de fechar).
+    const g = document.getElementById('ag-gaveta');
+    if (g && g.open) { if (g.pedirFechar) g.pedirFechar(); else g.close(); }
     const sec = ctx.$('#secao-agenda');
     sec.querySelectorAll('[data-agenda-vista]').forEach((b) => {
       b.setAttribute('aria-pressed', String(b.dataset.agendaVista === api.vista));
