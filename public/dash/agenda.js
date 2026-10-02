@@ -757,6 +757,9 @@
     const faixas = JSON.parse(JSON.stringify((gr && gr.faixas) || {}));
     const datas = JSON.parse(JSON.stringify((gr && gr.datas) || {}));
     let nomeAtual = (gr && gr.nome) || '';
+    // Dia cujas faixas estão sendo copiadas: a escolha dos dias de destino
+    // abre logo abaixo dele (antes abria no fim da lista, fora da tela).
+    let copiandoDe = null;
     const g = abrirGaveta();
     g.innerHTML = `<form class="ag-gaveta__form" id="ag-gf" novalidate>
       <header class="ag-gaveta__topo">
@@ -783,10 +786,11 @@
           ${DIAS.map(([k, nome]) => `<div class="ag-dia"><b>${nome}</b><div class="ag-faixas">
             ${(faixas[k] || []).length ? faixasHtml(faixas[k], 'd' + k) : '<span class="mini">Indisponível</span>'}
             <button class="btn sec" type="button" data-add="d${k}">Adicionar faixa</button>
-            ${(faixas[k] || []).length ? `<button class="btn sec" type="button" data-copiar="${k}">Copiar para outros dias</button>` : ''}
-          </div></div>`).join('')}
+            ${(faixas[k] || []).length ? `<button class="btn sec" type="button" data-copiar="${k}" aria-expanded="${copiandoDe === k}">Copiar para outros dias</button>` : ''}
+          </div></div>${copiandoDe === k ? `<div class="ag-campo ag-copiar" id="ag-copiar"><span class="ag-campo__rotulo">Copiar as faixas de ${nome} para</span><div class="ag-acoes">
+            ${DIAS.filter((x) => x[0] !== k).map(([k2, n2]) => `<label class="marca"><input type="checkbox" value="${k2}"> ${n2}</label>`).join('')}</div>
+            <div class="ag-acoes"><button class="btn" type="button" id="ag-copiar-ok">Copiar</button><button class="btn sec" type="button" id="ag-copiar-nao">Cancelar</button></div></div>` : ''}`).join('')}
         </div>
-        <div id="ag-copiar"></div>
         <div class="ag-campo"><span class="ag-campo__rotulo">Datas especiais (feriado, viagem, horário diferente)</span>
           ${Object.keys(datas).sort().map((ymd) => `<div class="ag-dia"><b>${ymd.split('-').reverse().join('/')}</b><div class="ag-faixas">
             ${datas[ymd].length ? faixasHtml(datas[ymd], 'x' + ymd) : '<span class="carimbo queda">Bloqueada</span>'}
@@ -823,16 +827,21 @@
         return;
       }
       if (b.dataset.copiar) {
-        const de = b.dataset.copiar;
-        ctx.$('#ag-copiar').innerHTML = `<div class="ag-campo ag-copiar"><span class="ag-campo__rotulo">Copiar as faixas de ${DIAS.find((x) => x[0] === de)[1]} para</span><div class="ag-acoes">
-          ${DIAS.filter((x) => x[0] !== de).map(([k, n]) => `<label class="marca"><input type="checkbox" value="${k}"> ${n}</label>`).join('')}
-          <button class="btn sec" type="button" id="ag-copiar-ok">Copiar</button></div></div>`;
-        ctx.$('#ag-copiar-ok').onclick = () => {
-          const alvos = [...ctx.$('#ag-copiar').querySelectorAll('input:checked')];
-          alvos.forEach((cb) => { faixas[cb.value] = faixas[de].map((f) => [...f]); });
-          desenhar();
-          if (alvos.length) avisar(`Faixas copiadas para ${alvos.length} dia(s).`);
-        };
+        copiandoDe = copiandoDe === b.dataset.copiar ? null : b.dataset.copiar;
+        desenhar();
+        const painel = ctx.$('#ag-copiar');
+        if (painel) { painel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); painel.querySelector('input').focus(); }
+        return;
+      }
+      if (b.id === 'ag-copiar-nao') { copiandoDe = null; return desenhar(); }
+      if (b.id === 'ag-copiar-ok') {
+        const de = copiandoDe;
+        const alvos = [...ctx.$('#ag-copiar').querySelectorAll('input:checked')];
+        if (!alvos.length) { avisar('Marque pelo menos um dia.', 'erro'); return; }
+        alvos.forEach((cb) => { faixas[cb.value] = faixas[de].map((f) => [...f]); });
+        copiandoDe = null;
+        desenhar();
+        avisar(`Faixas copiadas para ${alvos.length} dia(s). Salve para valer.`);
       }
     };
     protegerSaida(g, form, () => JSON.stringify([nomeAtual, faixas, datas]));
