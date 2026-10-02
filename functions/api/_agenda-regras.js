@@ -153,6 +153,7 @@ export function validarTipo(entrada, contexto) {
       perguntas_json: JSON.stringify(perguntas), titulo_modelo: titulo.slice(0, 200),
       comercial, funil, pagina_pos: paginaPos || null,
       contato_alternativo: String(e.contato_alternativo || '').trim().slice(0, 200) || null,
+      descricao: String(e.descricao || '').trim().slice(0, 2000) || null,
     },
   };
 }

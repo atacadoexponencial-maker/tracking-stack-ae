@@ -20,6 +20,7 @@ function d1(db) {
 function banco() {
   const db = new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../migrations/0047_agenda.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0048_agenda_descricao.sql', import.meta.url), 'utf8'));
   db.exec(`INSERT INTO agenda_grades (id, nome, criado_em, atualizado_em) VALUES (1, 'g', 1, 1);
     INSERT INTO agenda_tipos (slug, nome, duracao_min, destino_cal, grade_id, comercial, funil, ativo, criado_em, atualizado_em)
     VALUES ('consultoria-individual', 'Consultoria', 45, 'c', 1, 1, 'sessao-estrategica', 1, 1, 1);`);

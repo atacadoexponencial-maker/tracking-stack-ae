@@ -257,7 +257,7 @@
       conflito_cals: opcoes.agendas.filter((a) => a.conflito).map((a) => a.id), grade_id: (opcoes.grades[0] || {}).id,
       folga_antes_min: 0, folga_depois_min: 0, antecedencia_min: 240, janela_dias: 30, limite_dia: '', intervalo_min: 45,
       perguntas: [], titulo_modelo: '{nome} e Atacado Exponencial', comercial: true, funil: 'sessao-estrategica',
-      pagina_pos: '', contato_alternativo: '',
+      pagina_pos: '', contato_alternativo: '', descricao: '',
     };
     let perguntas = (v.perguntas || []).map((p) => ({ ...p }));
     const opt = (lista, sel) => lista.map(([val, rot]) => `<option value="${ctx.esc(val)}"${String(val) === String(sel) ? ' selected' : ''}>${ctx.esc(rot)}</option>`).join('');
@@ -294,6 +294,8 @@
           <label>Título do evento na agenda <input type="text" name="titulo_modelo" value="${ctx.esc(v.titulo_modelo)}"></label>
           <label>Página depois de confirmar <input type="text" name="pagina_pos" value="${ctx.esc(v.pagina_pos || '')}" placeholder="vazio = confirmação da própria agenda"></label>
         </div>
+        <label>Descrição (aparece ao lado do calendário, para o lead saber o que está agendando)
+          <textarea name="descricao" rows="5" maxlength="2000" placeholder="Ex.: 45 minutos com o time para entender o momento da sua marca e montar o plano de crescimento no atacado.">${ctx.esc(v.descricao || '')}</textarea></label>
         <label>Contato para quando a agenda estiver pausada ou for em cima da hora <input type="text" name="contato_alternativo" value="${ctx.esc(v.contato_alternativo || '')}" placeholder="ex.: WhatsApp (11) 99999-9999"></label>
         <fieldset><legend>Perguntas extras</legend><div id="ag-perg"></div>
           <div><button class="btn sec" type="button" id="ag-perg-add">Adicionar pergunta</button></div></fieldset>
@@ -355,7 +357,7 @@
         folga_depois_min: f.get('folga_depois_min'), limite_dia: f.get('limite_dia'), destino_cal: f.get('destino_cal'),
         grade_id: f.get('grade_id'), conflito_cals: f.getAll('conflito'), comercial: comercialCb.checked,
         funil: comercialCb.checked ? f.get('funil') : '', titulo_modelo: f.get('titulo_modelo'),
-        pagina_pos: f.get('pagina_pos'), contato_alternativo: f.get('contato_alternativo'), perguntas,
+        pagina_pos: f.get('pagina_pos'), contato_alternativo: f.get('contato_alternativo'), descricao: f.get('descricao'), perguntas,
       };
       try { await ctx.postJson('/api/agenda/tipos', corpo); await tipos(); }
       catch (e) { ctx.$('#ag-tf-erro').innerHTML = erroHtml(e); }

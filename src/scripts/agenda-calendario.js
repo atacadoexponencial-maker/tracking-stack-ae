@@ -49,18 +49,20 @@ export function montarCalendario(raiz, { dias, aoEscolher }) {
   let diaEscolhido = null;
 
   raiz.innerHTML = `
-    <div class="cal">
-      <div class="cal__mes">
-        <button type="button" class="cal__nav" data-nav="-1" aria-label="Mês anterior">‹</button>
-        <strong class="cal__titulo" aria-live="polite"></strong>
-        <button type="button" class="cal__nav" data-nav="1" aria-label="Próximo mês">›</button>
+    <div class="cal-wrap"><div class="cal">
+      <div class="cal__esq">
+        <div class="cal__mes">
+          <button type="button" class="cal__nav" data-nav="-1" aria-label="Mês anterior">‹</button>
+          <strong class="cal__titulo" aria-live="polite"></strong>
+          <button type="button" class="cal__nav" data-nav="1" aria-label="Próximo mês">›</button>
+        </div>
+        <div class="cal__grade" role="grid"></div>
+        <label class="cal__fuso">Fuso horário
+          <select>${FUSOS.map(([f, n]) => `<option value="${f}">${n}</option>`).join('')}</select>
+        </label>
       </div>
-      <div class="cal__grade" role="grid"></div>
-      <label class="cal__fuso">Fuso horário
-        <select>${FUSOS.map(([f, n]) => `<option value="${f}">${n}</option>`).join('')}</select>
-      </label>
       <div class="cal__horarios" aria-live="polite"></div>
-    </div>`;
+    </div></div>`;
   const sel = raiz.querySelector('select');
   sel.value = fuso;
 
@@ -150,8 +152,14 @@ export function montarCalendario(raiz, { dias, aoEscolher }) {
   };
 }
 
+// Largura decide o desenho (container query, não a tela): na página de
+// agendar o calendário divide o painel com o texto do evento; na de remarcar
+// ocupa um cartão estreito. Largo: calendário à esquerda e horários em coluna
+// à direita, tudo numa tela. Estreito: horários embaixo, em grade.
 export const ESTILO_CALENDARIO = `
-.cal { display: grid; gap: 1rem; }
+.cal-wrap { container-type: inline-size; }
+.cal { display: grid; gap: 1.25rem; }
+.cal__esq { display: grid; gap: .9rem; align-content: start; }
 .cal__mes { display: flex; align-items: center; justify-content: space-between; }
 .cal__titulo { font-size: 1.05rem; }
 .cal__titulo::first-letter { text-transform: uppercase; }
@@ -159,7 +167,7 @@ export const ESTILO_CALENDARIO = `
 .cal__nav:disabled { opacity: .3; cursor: default; }
 .cal__grade { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; text-align: center; }
 .cal__sem { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(30,30,30,.55); padding-bottom: .2rem; }
-.cal__dia { aspect-ratio: 1; border: none; border-radius: 9999px; background: none; font: inherit; color: rgba(30,30,30,.35); }
+.cal__dia { aspect-ratio: 1; max-height: 2.9rem; width: 100%; justify-self: center; border: none; border-radius: 9999px; background: none; font: inherit; color: rgba(30,30,30,.35); }
 .cal__dia--livre { background: rgba(30,30,30,.08); color: #1e1e1e; font-weight: 700; cursor: pointer; }
 .cal__dia--livre:hover { background: rgba(30,30,30,.16); }
 .cal__dia--ativo, .cal__dia--ativo:hover { background: #1e1e1e; color: #fff; }
@@ -171,4 +179,9 @@ export const ESTILO_CALENDARIO = `
 .cal__hora { padding: .75rem .5rem; border-radius: .6rem; border: 1px solid #1e1e1e; background: #fff; color: #1e1e1e; font: inherit; font-weight: 700; cursor: pointer; }
 .cal__hora:hover { background: #1e1e1e; color: #fff; }
 .cal__vazio { margin: 0; color: rgba(30,30,30,.7); }
+@container (min-width: 34rem) {
+  .cal { grid-template-columns: minmax(0, 1fr) 10.5rem; gap: 1.75rem; }
+  .cal__horarios { border-left: 1px solid rgba(30,30,30,.1); padding-left: 1.5rem; max-height: 27rem; overflow-y: auto; }
+  .cal__lista { grid-template-columns: 1fr; }
+}
 `;

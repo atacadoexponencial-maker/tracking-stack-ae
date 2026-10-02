@@ -27,6 +27,7 @@ export async function onRequestGet({ request, env }) {
   const base = {
     nome: tipo.nome, duracao_min: tipo.duracao_min, comercial: tipo.comercial,
     contato: tipo.contato_alternativo || '',
+    descricao: tipo.descricao || '',
   };
   if (!tipo.ativo) return json({ ...base, estado: 'pausado' });
 

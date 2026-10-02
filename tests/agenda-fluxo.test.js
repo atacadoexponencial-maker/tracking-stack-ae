@@ -96,6 +96,7 @@ beforeEach(() => {
   db = new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../migrations/0001_create_tables.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0047_agenda.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0048_agenda_descricao.sql', import.meta.url), 'utf8'));
   // As colunas de UTM da sessão entraram fora das migrations (conferido no D1 remoto).
   for (const c of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'funnel']) db.exec(`ALTER TABLE sessions ADD COLUMN ${c} TEXT`);
   env = { DB: d1(db), DASH_KEY: 'k', SYNC_SECRET: 's', GOOGLE_AGENDA_SA_JSON: SA };
