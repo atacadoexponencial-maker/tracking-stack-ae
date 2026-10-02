@@ -163,7 +163,7 @@
   /** Gaveta de leitura/ação (sem formulário). Devolve a gaveta. */
   function gavetaSimples({ titulo, sub = '', corpo, rodape = '' }) {
     const g = abrirGaveta();
-    g.innerHTML = `<div class="ag-gaveta__form">
+    g.innerHTML = `<div class="ag-gaveta__form ag-gaveta__form--simples">
       <header class="ag-gaveta__topo">
         <div><h2>${titulo}</h2>${sub ? `<p class="mini">${sub}</p>` : ''}</div>
         <button class="ag-gaveta__fechar" type="button" data-fechar aria-label="Fechar">${ICONE.fechar}</button>
@@ -249,6 +249,9 @@
     const qs = new URLSearchParams({ vista: vistaReunioes, from: p.de, to: p.ate });
     if (filtroReuniao.tipo) qs.set('tipo', filtroReuniao.tipo);
     if (vistaReunioes === 'todas' && filtroReuniao.situacao) qs.set('situacao', filtroReuniao.situacao);
+    // `_`: o dash guarda respostas de período fechado (to anterior a hoje), e
+    // esta lista muda a cada presença, cancelamento ou remarcação.
+    qs.set('_', Date.now());
     const d = await ctx.fetchJson('/api/agenda/reunioes?' + qs);
     filtroDeDatas(vistaReunioes === 'todas', {
       hoje: 'reuniões de hoje · horário de Brasília',
