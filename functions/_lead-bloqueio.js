@@ -43,16 +43,34 @@ const REGRAS_IP = [
   },
 ];
 
+// Funis MORTOS: a LP saiu do ar, então nenhum formulário de verdade declara
+// mais esse funil — quem declara é script postando direto no /tracker.
+//
+// lives-semanais-* — LPs redirecionadas para /workshop-gratuito em 02/10/2026
+// (as lives acabaram). O bot da lives-v1 trocou o e-mail para
+// nome.sobrenome + 10 dígitos e o IP para servidores europeus fora do bloco
+// acima: 3 leads falsos passaram entre 01 e 02/10 e criaram card. Mesmo com a
+// página fora do ar ele seguiu postando no /tracker (eventos "Paulo", sem
+// sessão). Julga o funil DECLARADO pelo formulário, nunca o da sessão: quem
+// conheceu a live em agosto e se inscreve hoje no workshop tem a sessão
+// marcada "lives", mas o form declara "workshop".
+const REGRAS_FUNIL = [
+  {
+    motivo: 'Funil desativado (lives-semanais saiu do ar em 02/10/2026)',
+    casa: (funil) => funil.startsWith('lives-semanais'),
+  },
+];
+
 
 /**
  * Devolve o motivo do bloqueio, ou string vazia se o lead está liberado.
  * String em vez de booleano porque o motivo é gravado junto do lead barrado —
  * sem ele, a aba Bloqueios mostraria uma lista de e-mails sem explicação.
  *
- * O `ip` é opcional: quem só tem o e-mail em mãos continua chamando com um
- * argumento e recebe apenas o veredito das regras de e-mail.
+ * O `ip` e o `funil` são opcionais: quem só tem o e-mail em mãos continua
+ * chamando com um argumento e recebe apenas o veredito das regras de e-mail.
  */
-export function motivoBloqueio(email, ip) {
+export function motivoBloqueio(email, ip, funil) {
   const e = (email || '').toLowerCase().trim();
   if (e) {
     for (const regra of REGRAS_EMAIL) {
@@ -63,6 +81,13 @@ export function motivoBloqueio(email, ip) {
   if (p64) {
     for (const regra of REGRAS_IP) {
       if (p64 === regra.prefixo64) return regra.motivo;
+    }
+  }
+  // String(): o funil vem do corpo do POST público e pode não ser texto.
+  const f = String(funil || '').toLowerCase().trim();
+  if (f) {
+    for (const regra of REGRAS_FUNIL) {
+      if (regra.casa(f)) return regra.motivo;
     }
   }
   return '';

@@ -131,7 +131,7 @@ export async function onRequestPost(context) {
     // a decisão precisa acontecer antes do primeiro fan-out (Meta/GA4, logo
     // abaixo) — um bloqueio que só chega depois do envio não bloqueia nada.
     const rawEmail = userData.em || '';
-    const motivoDoBloqueio = motivoBloqueio(rawEmail, clientIp);
+    const motivoDoBloqueio = motivoBloqueio(rawEmail, clientIp, body.lead_data && body.lead_data.funnel);
     const bloqueado = motivoDoBloqueio !== '';
 
     // --- Fan out to ad platforms (skipped for bot UAs) ---

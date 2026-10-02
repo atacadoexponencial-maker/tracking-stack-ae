@@ -125,3 +125,16 @@ test('chamada só com e-mail continua funcionando', () => {
   assert.ok(motivoBloqueio('leadflow123@gmail.com'));
   assert.equal(motivoBloqueio('ana444@gmail.com'), '');
 });
+
+// Funil morto: a LP saiu do ar, então só script declara esse funil.
+test('bloqueia lead que declara funil de live semanal', () => {
+  for (const funil of ['lives-semanais-v1', 'lives-semanais-v2', 'LIVES-SEMANAIS-V1', ' lives-semanais-v1 ']) {
+    assert.ok(motivoBloqueio('leonardo.teixeira9150758377@gmail.com', '193.239.176.111', funil), `deveria bloquear: ${funil}`);
+  }
+});
+
+test('não bloqueia funis vivos nem funil ausente ou estranho', () => {
+  for (const funil of ['workshop', 'sessao-estrategica', 'iscas-manychat', '', null, undefined, 123, {}]) {
+    assert.equal(motivoBloqueio('gente@gmail.com', '191.241.93.158', funil), '', `não deveria bloquear: ${String(funil)}`);
+  }
+});
