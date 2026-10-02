@@ -22,6 +22,45 @@
   const diaLongo = (ymd) => new Date(ymd + 'T12:00:00Z').toLocaleDateString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: '2-digit' });
 
   let ctx = null;
+
+  const ENGRENAGEM = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>';
+
+  function fecharMenus() {
+    document.querySelectorAll('.ag-menu__lista').forEach((m) => { m.hidden = true; });
+    document.querySelectorAll('[data-t-menu]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+  }
+  function alternarMenu(botao) {
+    const lista = botao.nextElementSibling;
+    const abrir = lista.hidden;
+    fecharMenus();
+    if (!abrir) return;
+    lista.hidden = false;
+    botao.setAttribute('aria-expanded', 'true');
+    // Posição fixa na tela: a tabela rola na horizontal (overflow), e um menu
+    // absoluto dentro dela seria cortado. Perto do fim da tela, abre para cima.
+    const r = botao.getBoundingClientRect();
+    const acima = window.innerHeight - r.bottom < lista.offsetHeight + 16;
+    lista.style.top = (acima ? r.top - lista.offsetHeight - 4 : r.bottom + 4) + 'px';
+    lista.style.left = Math.max(8, r.right - lista.offsetWidth) + 'px';
+    lista.querySelector('button').focus();
+  }
+  document.addEventListener('click', (ev) => { if (!ev.target.closest('.ag-menu')) fecharMenus(); });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') fecharMenus(); });
+  window.addEventListener('scroll', fecharMenus, true);
+
+  function abrirGaveta() {
+    let g = document.getElementById('ag-gaveta');
+    if (!g) {
+      g = document.createElement('dialog');
+      g.id = 'ag-gaveta';
+      g.className = 'ag-gaveta';
+      // Clique no fundo escurecido (fora do painel) fecha.
+      g.addEventListener('click', (ev) => { if (ev.target === g) g.close(); });
+      document.body.appendChild(g);
+    }
+    if (!g.open) g.showModal();
+    return g;
+  }
   let filtroTipos = 'ativos';
   let filtroReuniao = { tipo: '', situacao: '' };
 
@@ -206,14 +245,17 @@
       { titulo: 'Link', campo: 'slug', render: (t) => `<span class="mini">/agendar/${ctx.esc(t.slug)}</span>${t.comercial ? '<br><span class="mini">abre depois do formulário da LP</span>' : ''}` },
       { titulo: 'Situação', campo: 'ativo', render: (t) => t.ativo ? '<span class="carimbo alta">Ativo</span>' : '<span class="carimbo neutro">Pausado</span>' },
       { titulo: 'Futuras', num: true, campo: 'futuros', render: (t) => ctx.fmtInt(t.futuros) },
-      { titulo: '', campo: 'id', render: (t) => `<div class="ag-acoes">
-          <button class="btn sec" type="button" data-t-editar="${t.id}">editar</button>
-          <button class="btn sec" type="button" data-t-horarios="${t.id}">ver horários livres</button>
-          <button class="btn sec" type="button" data-t-previa="${t.id}">pré-visualizar</button>
-          ${t.comercial ? '' : `<button class="btn sec" type="button" data-t-copiar="${site}/agendar/${ctx.esc(t.slug)}">copiar link</button>`}
-          <button class="btn sec" type="button" data-t-duplicar="${t.id}">duplicar</button>
-          <button class="btn sec" type="button" data-t-${t.ativo ? 'pausar' : 'reativar'}="${t.id}">${t.ativo ? 'pausar' : 'reativar'}</button>
-          <button class="btn perigo" type="button" data-t-excluir="${t.id}">excluir</button></div>` },
+      { titulo: '', campo: 'id', render: (t) => `<div class="ag-menu">
+          <button class="ag-engrenagem" type="button" data-t-menu="${t.id}" aria-haspopup="menu" aria-expanded="false" aria-label="Opções de ${ctx.esc(t.nome)}">${ENGRENAGEM}</button>
+          <div class="ag-menu__lista" role="menu" hidden>
+            <button type="button" role="menuitem" data-t-editar="${t.id}">Editar</button>
+            <button type="button" role="menuitem" data-t-horarios="${t.id}">Ver horários livres</button>
+            <button type="button" role="menuitem" data-t-previa="${t.id}">Pré-visualizar</button>
+            ${t.comercial ? '' : `<button type="button" role="menuitem" data-t-copiar="${site}/agendar/${ctx.esc(t.slug)}">Copiar link</button>`}
+            <button type="button" role="menuitem" data-t-duplicar="${t.id}">Duplicar</button>
+            <button type="button" role="menuitem" data-t-${t.ativo ? 'pausar' : 'reativar'}="${t.id}">${t.ativo ? 'Pausar' : 'Reativar'}</button>
+            <button type="button" role="menuitem" class="perigo" data-t-excluir="${t.id}">Excluir</button>
+          </div></div>` },
     ], lista, undefined, filtroTipos === 'ativos' ? 'Nenhum tipo ativo. Crie um tipo de reunião ou veja os pausados no filtro.' : 'Nenhum tipo nesta situação.');
 
     const erro = (e) => { ctx.$('#ag-tipo-form').innerHTML = erroHtml(e); };
@@ -221,11 +263,14 @@
       const alvo = ev.target.closest('button');
       if (!alvo) return;
       const ds = alvo.dataset;
+      if (ds.tMenu) return alternarMenu(alvo);
+      // Excluir pede confirmação dentro do próprio menu; as demais fecham o menu.
+      if (!ds.tExcluir && alvo.closest('.ag-menu__lista')) fecharMenus();
       const id = Number(ds.tEditar || ds.tHorarios || ds.tPrevia || ds.tDuplicar || ds.tPausar || ds.tReativar || ds.tExcluir);
       const tipo = d.tipos.find((t) => t.id === id);
       try {
         if (ds.tEditar) return formTipo(tipo, d.opcoes);
-        if (ds.tCopiar) { await navigator.clipboard.writeText(ds.tCopiar).catch(() => {}); alvo.textContent = 'copiado!'; return; }
+        if (ds.tCopiar) { await navigator.clipboard.writeText(ds.tCopiar).catch(() => {}); return; }
         if (ds.tPrevia) { const r = await ctx.postJson('/api/agenda/tipos', { acao: 'previa', id }); window.open(r.url, '_blank', 'noopener'); return; }
         if (ds.tHorarios) {
           const caixa = ctx.$('#ag-tipo-form');
@@ -261,50 +306,76 @@
     };
     let perguntas = (v.perguntas || []).map((p) => ({ ...p }));
     const opt = (lista, sel) => lista.map(([val, rot]) => `<option value="${ctx.esc(val)}"${String(val) === String(sel) ? ' selected' : ''}>${ctx.esc(rot)}</option>`).join('');
-    const caixa = ctx.$('#ag-tipo-form');
-    caixa.innerHTML = `<div class="bloco"><h2>${novo ? 'Novo tipo de reunião' : 'Editar ' + ctx.esc(v.nome)} <small>mudanças valem para agendamentos novos</small></h2>
-      <form class="ag-form" id="ag-tf">
-        <div class="linha">
+    // Gaveta lateral (<dialog> nativo: Esc fecha, o foco fica dentro). Os
+    // campos são divididos em abas curtas; todos pertencem ao mesmo formulário,
+    // então salvar leva tudo, qualquer que seja a aba aberta.
+    const gaveta = abrirGaveta();
+    gaveta.innerHTML = `<form class="ag-gaveta__form" id="ag-tf" novalidate>
+      <header class="ag-gaveta__topo">
+        <div><h2>${novo ? 'Novo tipo de reunião' : ctx.esc(v.nome)}</h2>
+          <p class="mini">${novo ? 'Preencha o básico; o resto já vem com um padrão.' : 'Mudanças valem para agendamentos novos.'}</p></div>
+        <button class="ag-gaveta__fechar" type="button" data-fechar aria-label="Fechar">×</button>
+      </header>
+      <nav class="ag-abas" role="tablist">
+        <button type="button" role="tab" data-aba="basico" aria-selected="true">Básico</button>
+        <button type="button" role="tab" data-aba="horarios" aria-selected="false">Horários</button>
+        <button type="button" role="tab" data-aba="comercial" aria-selected="false">Comercial</button>
+        <button type="button" role="tab" data-aba="perguntas" aria-selected="false">Perguntas</button>
+      </nav>
+      <div class="ag-gaveta__corpo ag-form">
+        <section data-painel="basico">
           <label>Nome <input type="text" name="nome" value="${ctx.esc(v.nome)}" required></label>
-          <label>Endereço do link <input type="text" name="slug" value="${ctx.esc(v.slug)}" placeholder="consultoria-individual" required></label>
-        </div>
-        <div class="linha">
+          <label>Endereço do link <span class="mini">/agendar/…</span><input type="text" name="slug" value="${ctx.esc(v.slug)}" placeholder="consultoria-individual" required></label>
           <label>Duração (min) <input type="number" name="duracao_min" value="${v.duracao_min}" min="5"></label>
-          <label>Horários começam a cada (min) <input type="number" name="intervalo_min" value="${v.intervalo_min}" min="5"></label>
-          <label>Antecedência mínima (min) <input type="number" name="antecedencia_min" value="${v.antecedencia_min}" min="0"></label>
-          <label>Até quantos dias à frente <input type="number" name="janela_dias" value="${v.janela_dias}" min="1"></label>
-        </div>
-        <div class="linha">
-          <label>Folga antes (min) <input type="number" name="folga_antes_min" value="${v.folga_antes_min}" min="0"></label>
-          <label>Folga depois (min) <input type="number" name="folga_depois_min" value="${v.folga_depois_min}" min="0"></label>
-          <label>Limite de reuniões por dia <input type="number" name="limite_dia" value="${v.limite_dia ?? ''}" min="1" placeholder="sem limite"></label>
-        </div>
-        <div class="linha">
-          <label>Agenda de destino (onde a reunião é criada) <select name="destino_cal">${opt(opcoes.agendas.map((a) => [a.id, `${a.nome} (${a.conta})`]), v.destino_cal)}</select></label>
+          <label>Descrição <span class="mini">aparece ao lado do calendário</span>
+            <textarea name="descricao" rows="7" maxlength="2000" placeholder="O que a pessoa está agendando, quanto tempo dura, o que vai receber.">${ctx.esc(v.descricao || '')}</textarea></label>
+        </section>
+        <section data-painel="horarios" hidden>
           <label>Grade de disponibilidade <select name="grade_id">${opt(opcoes.grades.map((g) => [g.id, `${g.nome}: ${g.resumo}`]), v.grade_id)}</select></label>
-        </div>
-        <fieldset><legend>Agendas que bloqueiam horário (conflito)</legend>
-          ${opcoes.agendas.map((a) => `<label class="marca"><input type="checkbox" name="conflito" value="${ctx.esc(a.id)}"${v.conflito_cals.includes(a.id) ? ' checked' : ''}> ${ctx.esc(a.nome)} <span class="mini">${ctx.esc(a.conta)}</span></label>`).join('')}
-        </fieldset>
-        <fieldset><legend>Comercial</legend>
-          <label class="marca"><input type="checkbox" name="comercial"${v.comercial ? ' checked' : ''}> Reunião comercial (abre só depois do formulário da LP, conta em Reuniões agendadas, vai para o card do CRM e manda a conversão)</label>
+          <div class="linha">
+            <label>Começam a cada (min) <input type="number" name="intervalo_min" value="${v.intervalo_min}" min="5"></label>
+            <label>Antecedência mínima (min) <input type="number" name="antecedencia_min" value="${v.antecedencia_min}" min="0"></label>
+          </div>
+          <div class="linha">
+            <label>Até quantos dias à frente <input type="number" name="janela_dias" value="${v.janela_dias}" min="1"></label>
+            <label>Limite por dia <input type="number" name="limite_dia" value="${v.limite_dia ?? ''}" min="1" placeholder="sem limite"></label>
+          </div>
+          <div class="linha">
+            <label>Folga antes (min) <input type="number" name="folga_antes_min" value="${v.folga_antes_min}" min="0"></label>
+            <label>Folga depois (min) <input type="number" name="folga_depois_min" value="${v.folga_depois_min}" min="0"></label>
+          </div>
+          <label>Agenda onde a reunião é criada <select name="destino_cal">${opt(opcoes.agendas.map((a) => [a.id, `${a.nome} (${a.conta})`]), v.destino_cal)}</select></label>
+          <fieldset><legend>Agendas que bloqueiam horário</legend>
+            ${opcoes.agendas.map((a) => `<label class="marca"><input type="checkbox" name="conflito" value="${ctx.esc(a.id)}"${v.conflito_cals.includes(a.id) ? ' checked' : ''}> ${ctx.esc(a.nome)}</label>`).join('')}
+          </fieldset>
+        </section>
+        <section data-painel="comercial" hidden>
+          <label class="marca"><input type="checkbox" name="comercial"${v.comercial ? ' checked' : ''}> Reunião comercial</label>
+          <p class="mini" style="margin:-0.3rem 0 0">Abre só depois do formulário da LP, conta em Reuniões agendadas, vai para o card do CRM e manda a conversão.</p>
           <label>Funil <select name="funil">${opt(opcoes.funis.map((f) => [f, f]), v.funil || '')}</select></label>
-        </fieldset>
-        <div class="linha">
           <label>Título do evento na agenda <input type="text" name="titulo_modelo" value="${ctx.esc(v.titulo_modelo)}"></label>
           <label>Página depois de confirmar <input type="text" name="pagina_pos" value="${ctx.esc(v.pagina_pos || '')}" placeholder="vazio = confirmação da própria agenda"></label>
-        </div>
-        <label>Descrição (aparece ao lado do calendário, para o lead saber o que está agendando)
-          <textarea name="descricao" rows="5" maxlength="2000" placeholder="Ex.: 45 minutos com o time para entender o momento da sua marca e montar o plano de crescimento no atacado.">${ctx.esc(v.descricao || '')}</textarea></label>
-        <label>Contato para quando a agenda estiver pausada ou for em cima da hora <input type="text" name="contato_alternativo" value="${ctx.esc(v.contato_alternativo || '')}" placeholder="ex.: WhatsApp (11) 99999-9999"></label>
-        <fieldset><legend>Perguntas extras</legend><div id="ag-perg"></div>
-          <div><button class="btn sec" type="button" id="ag-perg-add">Adicionar pergunta</button></div></fieldset>
+          <label>Contato para agenda pausada ou em cima da hora <input type="text" name="contato_alternativo" value="${ctx.esc(v.contato_alternativo || '')}" placeholder="ex.: WhatsApp (11) 99999-9999"></label>
+        </section>
+        <section data-painel="perguntas" hidden>
+          <div id="ag-perg"></div>
+          <div><button class="btn sec" type="button" id="ag-perg-add">Adicionar pergunta</button></div>
+        </section>
+      </div>
+      <footer class="ag-gaveta__rodape">
         <div id="ag-tf-erro"></div>
         <div class="ag-acoes"><button class="btn" type="submit">${novo ? 'Criar tipo' : 'Salvar'}</button>
-          <button class="btn sec" type="button" id="ag-tf-cancelar">Cancelar</button></div>
-      </form></div>`;
-    caixa.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          <button class="btn sec" type="button" data-fechar>Cancelar</button></div>
+      </footer>
+    </form>`;
     const form = ctx.$('#ag-tf');
+    form.querySelector('.ag-abas').onclick = (ev) => {
+      const b = ev.target.closest('[data-aba]');
+      if (!b) return;
+      form.querySelectorAll('[data-aba]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      form.querySelectorAll('[data-painel]').forEach((x) => { x.hidden = x.dataset.painel !== b.dataset.aba; });
+    };
+    form.querySelectorAll('[data-fechar]').forEach((b) => { b.onclick = () => gaveta.close(); });
     const funilSel = form.querySelector('[name="funil"]');
     const comercialCb = form.querySelector('[name="comercial"]');
     const ajustarFunil = () => { funilSel.closest('label').hidden = !comercialCb.checked; };
@@ -345,7 +416,6 @@
       if (b.dataset.desce !== undefined) [perguntas[i + 1], perguntas[i]] = [perguntas[i], perguntas[i + 1]];
       desenharPerguntas();
     };
-    ctx.$('#ag-tf-cancelar').onclick = () => { caixa.innerHTML = ''; };
     form.onsubmit = async (ev) => {
       ev.preventDefault();
       lerPerguntas();
@@ -359,7 +429,15 @@
         funil: comercialCb.checked ? f.get('funil') : '', titulo_modelo: f.get('titulo_modelo'),
         pagina_pos: f.get('pagina_pos'), contato_alternativo: f.get('contato_alternativo'), descricao: f.get('descricao'), perguntas,
       };
-      try { await ctx.postJson('/api/agenda/tipos', corpo); await tipos(); }
+      // Campo obrigatório vazio numa aba escondida: o navegador não mostraria o
+      // aviso. Volta para a aba dele antes de enviar.
+      const invalido = form.querySelector(':invalid');
+      if (invalido) {
+        form.querySelector(`[data-aba="${invalido.closest('[data-painel]').dataset.painel}"]`).click();
+        invalido.reportValidity();
+        return;
+      }
+      try { await ctx.postJson('/api/agenda/tipos', corpo); gaveta.close(); await tipos(); }
       catch (e) { ctx.$('#ag-tf-erro').innerHTML = erroHtml(e); }
     };
   }
