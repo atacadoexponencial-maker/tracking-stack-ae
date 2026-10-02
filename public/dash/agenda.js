@@ -378,7 +378,7 @@
       const resto = opcoes.agendas.filter((a) => !conflitos.includes(a.id));
       ctx.$('#ag-conflitos').innerHTML = conflitos.map((id) => `<span class="ag-etiqueta">${ctx.esc(nomeAgenda(id))}
           <button type="button" data-tirar="${ctx.esc(id)}" aria-label="Tirar ${ctx.esc(nomeAgenda(id))}">×</button></span>`).join('')
-        + (conflitos.length ? '' : '<span class="mini">Nenhuma: só a própria agenda da reunião não bloqueia nada.</span>')
+        + (conflitos.length ? '' : '<span class="mini">Nenhuma além da agenda onde a reunião é criada, que sempre bloqueia.</span>')
         + (resto.length ? `<select data-adicionar aria-label="Adicionar agenda que bloqueia horário"><option value="">+ Adicionar agenda…</option>
             ${resto.map((a) => `<option value="${ctx.esc(a.id)}">${ctx.esc(a.nome)}</option>`).join('')}</select>` : '');
     };
