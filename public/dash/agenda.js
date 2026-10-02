@@ -48,7 +48,71 @@
     vista: 'agendamentos',
     lerVista(v) { api.vista = VISTAS.includes(v) ? v : 'agendamentos'; },
     render,
+    funilVisao,
   };
+
+  // ---------------------------------------------------------------------------
+  // Funil da agenda na Visão geral (spec-conversao-agenda.md, módulo 2)
+  // ---------------------------------------------------------------------------
+  const tempoLegivel = (seg) => {
+    if (seg === null || seg === undefined) return null;
+    if (seg < 3600) return `${Math.max(1, Math.round(seg / 60))} min`;
+    if (seg < 86400) return `${Math.round(seg / 3600)} h`;
+    return `${(seg / 86400).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias`;
+  };
+
+  async function funilVisao(c, alvo, { de, ate, funil }) {
+    if (!alvo) return;
+    alvo.innerHTML = '<div class="bloco"><h2>Agenda: do lead à reunião</h2><div class="aviso">Carregando…</div></div>';
+    let d;
+    try {
+      d = await c.fetchJson(`/api/agenda/funil?from=${de}&to=${ate}${funil ? '&funnel=' + encodeURIComponent(funil) : ''}&_=${Date.now()}`);
+    } catch {
+      alvo.innerHTML = '<div class="bloco"><h2>Agenda: do lead à reunião</h2><div class="aviso">Funil da agenda indisponível agora.</div></div>';
+      return;
+    }
+    const a = d.atual, b = d.anterior;
+    const cab = `<h2>Agenda: do lead à reunião <small>reuniões comerciais · cada pessoa conta pela data do formulário</small></h2>`;
+    if (!a.leads) {
+      alvo.innerHTML = `<div class="bloco">${cab}<div class="aviso">Nenhum lead foi mandado para a agenda própria neste período${funil ? ' neste funil' : ''}. O funil aparece aqui quando os formulários passarem a levar para a agenda.</div></div>`;
+      return;
+    }
+    const dlt = (x, y) => (b && y ? c.delta(x, y) : undefined);
+    const semAnterior = b ? '' : 'sem dado no período anterior';
+    const tiles = [
+      { rotulo: 'Leads mandados para a agenda', valor: c.fmtInt(a.leads), delta: b ? dlt(a.leads, b.leads) : undefined, nota: semAnterior },
+      { rotulo: 'Agendaram', valor: c.fmtInt(a.agendou), delta: b ? dlt(a.agendou, b.agendou) : undefined, nota: a.leads ? `${c.fmtPct((a.agendou / a.leads) * 100, 0)} dos leads` : '' },
+      { rotulo: 'Compareceram', valor: c.fmtInt(a.compareceu), delta: b ? dlt(a.compareceu, b.compareceu) : undefined, nota: `${c.fmtInt(a.cancelou)} cancelaram · ${c.fmtInt(a.faltou)} faltaram` },
+      { rotulo: 'Lead até reunião realizada', valor: a.taxa_lead_reuniao === null ? null : c.fmtPct(a.taxa_lead_reuniao * 100, 1), delta: b && b.taxa_lead_reuniao ? dlt(a.taxa_lead_reuniao, b.taxa_lead_reuniao) : undefined },
+      { rotulo: 'Tempo até agendar', valor: tempoLegivel(a.mediana_segundos_ate_agendar), nota: 'mediana, do formulário à confirmação' },
+    ];
+    const topo = a.etapas[0].qtd || 1;
+    const linhasFunil = a.etapas.map((e) => `<tr${e.maiorPerda ? ' class="funil-queda"' : ''}>
+        <td>${c.esc(e.rotulo)}${e.maiorPerda ? ' <span class="mini">(maior perda)</span>' : ''}</td>
+        <td class="num">${c.fmtInt(e.qtd)}</td>
+        <td class="num"${e.passagem !== null ? ` title="${e.perdidos} pararam aqui"` : ''}>${e.passagem === null ? '' : c.fmtPct(e.passagem * 100, 0)}${e.perdidos ? ` <span class="mini">(${e.perdidos} pararam)</span>` : ''}</td>
+        <td class="funil-barra"><span style="width:${Math.max((e.qtd / topo) * 100, 0.5)}%"></span></td></tr>`).join('');
+    alvo.innerHTML = `<div class="bloco">${cab}
+      <div class="grid-etiquetas" id="ag-vg-tiles"></div>
+      <table class="funil-tabela" aria-label="Funil da agenda"><tbody>${linhasFunil}</tbody></table>
+      ${funil ? '' : '<h3 class="ag-h3">Por funil</h3><div class="tabela-wrap" id="ag-vg-funil"></div>'}
+      <h3 class="ag-h3">Por origem</h3><div class="tabela-wrap" id="ag-vg-origem"></div>
+      <h3 class="ag-h3">Por tipo de reunião</h3><div class="tabela-wrap" id="ag-vg-tipo"></div>
+    </div>`;
+    alvo.querySelector('#ag-vg-tiles').innerHTML = tiles.map((k) => c.tile(k)).join('');
+    const colunas = (titulo) => [
+      { titulo, campo: 'nome', render: (r) => `<b>${c.esc(r.nome)}</b>` },
+      { titulo: 'Leads', num: true, campo: 'leads', render: (r) => c.fmtInt(r.leads) },
+      { titulo: 'Abriram', num: true, campo: 'abriu', render: (r) => c.fmtInt(r.abriu) },
+      { titulo: 'Escolheram', num: true, campo: 'escolheu', render: (r) => c.fmtInt(r.escolheu) },
+      { titulo: 'Agendaram', num: true, campo: 'agendou', render: (r) => c.fmtInt(r.agendou) },
+      { titulo: 'Compareceram', num: true, campo: 'compareceu', render: (r) => c.fmtInt(r.compareceu) },
+      { titulo: 'Lead até reunião', num: true, campo: 'taxa_lead_reuniao', render: (r) => r.taxa_lead_reuniao === null ? '' : c.fmtPct(r.taxa_lead_reuniao * 100, 1) },
+    ];
+    if (!funil) c.tabela(alvo.querySelector('#ag-vg-funil'), colunas('Funil'), a.por_funil);
+    c.tabela(alvo.querySelector('#ag-vg-origem'), colunas('Origem'), a.por_origem);
+    c.tabela(alvo.querySelector('#ag-vg-tipo'), colunas('Tipo'), a.por_tipo);
+  }
   window.AgendaDash = api;
 
   function el() { return ctx.$('#agenda-conteudo'); }
@@ -351,6 +415,7 @@
         ${r.meet_link ? `<dt>Meet</dt><dd><a href="${ctx.esc(r.meet_link)}" target="_blank" rel="noopener">${ctx.esc(r.meet_link.replace('https://', ''))}</a></dd>` : ''}
         ${r.comercial ? `<dt>Funil</dt><dd>${ctx.esc(r.funil || '')}</dd><dt>Origem</dt><dd>${origem}</dd>
           <dt>CRM</dt><dd>${r.crm_link ? `<a href="${ctx.esc(r.crm_link)}" target="_blank" rel="noopener">Abrir card no ClickUp</a>` : ctx.esc(CRM[r.crm_situacao] || r.crm_situacao || 'Registrando…')}</dd>` : '<dt>Tipo</dt><dd>Não comercial (fora do CRM e das conversões)</dd>'}
+        ${r.comercial && r.conversao_realizada ? `<dt>Conversão</dt><dd>${ctx.esc({ enviada: 'Reunião realizada enviada ao Meta e ao GA4.', fora_do_prazo: 'Não enviada: presença marcada mais de 7 dias depois (o Meta recusa).' }[r.conversao_realizada] || 'Falha no envio: ' + r.conversao_realizada)}</dd>` : ''}
         ${r.motivo_cancel ? `<dt>Motivo</dt><dd>${ctx.esc(r.motivo_cancel)}</dd>` : ''}
       </dl>
       ${r.respostas.length ? `<h3 class="ag-h3">Respostas</h3><dl class="ag-dl">${r.respostas.map((x) => `<dt>${ctx.esc(x.pergunta)}</dt><dd>${x.resposta ? ctx.esc(x.resposta) : '<span class="mini">sem resposta</span>'}</dd>`).join('')}</dl>` : ''}

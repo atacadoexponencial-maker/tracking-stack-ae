@@ -14,7 +14,7 @@
 import { numerosDoPeriodo, SITUACOES, VISTAS_REUNIOES, recorteDaVista } from '../_agenda-regras.js';
 import { ymdBrt, inicioDoDiaBrt } from '../_data-brt.js';
 import {
-  lerReuniao, lerTipo, cancelar, remarcar, registrarNoCrm, textoCrm, historico, agora,
+  lerReuniao, lerTipo, cancelar, remarcar, registrarNoCrm, textoCrm, historico, agora, enviarRealizada,
 } from '../_agenda.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
@@ -90,7 +90,7 @@ export async function onRequestGet({ request, env }) {
   });
 }
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   if (!autorizado(new URL(request.url), env)) return json({ error: 'Unauthorized' }, 401);
   const corpo = await request.json().catch(() => ({}));
   const reuniao = await lerReuniao(env, { id: String(corpo.id || '') });
@@ -119,6 +119,7 @@ export async function onRequestPost({ request, env }) {
       .bind(corpo.situacao, agora(), reuniao.id).run();
     await historico(env, reuniao.id, 'presenca', `marcada à mão: ${corpo.situacao}`, 'equipe');
     if (corpo.situacao !== 'sem_info') await registrarNoCrm(env, reuniao, textoCrm(corpo.situacao, tipo, reuniao, '(corrigido pela equipe)'));
+    if (corpo.situacao === 'realizada') await enviarRealizada(env, reuniao, waitUntil || (() => {}));
     return json({ ok: true });
   }
 

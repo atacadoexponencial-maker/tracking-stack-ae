@@ -114,6 +114,18 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   let tipo: any = null;
   let cal: any = null;
 
+  // Etapas do funil da agenda (spec-conversao-agenda.md): só com convite, só
+  // tipo comercial. Quem decide se conta (teste, robô, repetido) é o servidor.
+  const etapasEnviadas = new Set<string>();
+  function registrarEtapa(etapa: 'abriu' | 'escolheu') {
+    if (!convite || !tipo || !tipo.comercial || etapasEnviadas.has(etapa)) return;
+    etapasEnviadas.add(etapa);
+    fetch('/api/agenda/publico/etapa', {
+      method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ c: convite, etapa }),
+    }).catch(() => { /* medição nunca atrapalha o agendamento */ });
+  }
+
   function indisponivel(texto: string) {
     $('#ag-carregando').hidden = true;
     $('#ag-app').hidden = true;
@@ -204,11 +216,13 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
     catch (e: any) { return indisponivel(e.message); }
     $('#ag-carregando').hidden = true;
     $('#ag-app').hidden = false;
+    registrarEtapa('abriu');
     cal = montarCalendario($('#ag-calendario'), {
       dias,
       aoEscolher(t: number, fuso: string) {
         escolhido = t;
         fusoEscolhido = fuso;
+        registrarEtapa('escolheu');
         // O fuso aparece junto: quem trocou de fuso confirma no horário dele.
         const texto = `${dataLonga(t, fuso)}, às ${horaNoFuso(t, fuso)} (${cal.nomeDoFuso()})`;
         const ocupado = document.getElementById('ag-aviso-ocupado');

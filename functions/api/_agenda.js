@@ -374,3 +374,52 @@ export async function enviarSchedule(context, reuniao, eventId) {
   await env.DB.prepare('UPDATE agenda_reunioes SET conversao_situacao = ? WHERE id = ?').bind(situacao, reuniao.id).run();
   return situacao;
 }
+
+// ---------------------------------------------------------------------------
+// Conversão "reunião realizada" (spec-conversao-agenda.md, módulo 3)
+// ---------------------------------------------------------------------------
+
+// O Meta recusa conversão com mais de 7 dias.
+export const PRAZO_CONVERSAO_REALIZADA = 7 * 86400;
+
+/**
+ * Manda a conversão "ReuniaoRealizada" pelo /tracker (pixel atual, GA4, fila
+ * de reenvio), uma vez só por reunião. Sem o navegador do lead, a identidade
+ * vem da sessão dele (cookies _fbp/_fbc gravados no sessions) e do IP que
+ * agendou. Correção posterior (realizada → faltou) não desfaz: o Meta não
+ * aceita, e o histórico registra a correção.
+ */
+export async function enviarRealizada(env, reuniao, waitUntil = () => {}) {
+  if (!reuniao.comercial || reuniao.is_teste) return null;
+  const atual = await env.DB.prepare('SELECT conversao_realizada FROM agenda_reunioes WHERE id = ?').bind(reuniao.id).first();
+  if (atual && atual.conversao_realizada) return atual.conversao_realizada;
+  const gravar = (situacao) => env.DB.prepare('UPDATE agenda_reunioes SET conversao_realizada = ? WHERE id = ?')
+    .bind(situacao, reuniao.id).run().then(() => situacao);
+  if (agora() - reuniao.fim > PRAZO_CONVERSAO_REALIZADA) return gravar('fora_do_prazo');
+
+  const sessao = reuniao.session_id
+    ? await env.DB.prepare('SELECT user_agent FROM sessions WHERE session_id = ?').bind(reuniao.session_id).first()
+    : null;
+  const headers = new Headers({ 'content-type': 'application/json' });
+  if (reuniao.session_id) headers.set('cookie', `_krob_sid=${reuniao.session_id}`);
+  if (sessao && sessao.user_agent) headers.set('user-agent', sessao.user_agent);
+  if (reuniao.ip) headers.set('cf-connecting-ip', reuniao.ip);
+  const corpo = {
+    event_name: 'ReuniaoRealizada',
+    event_id: `realizada-${reuniao.id}`,
+    event_time: agora(),
+    event_source_url: `${SITE}/reuniao`,
+    user_data: { em: reuniao.email, ph: reuniao.telefone, fn: reuniao.nome },
+    lead_data: { funnel: reuniao.funil || '' },
+  };
+  try {
+    const r = await tracker({
+      request: new Request(`${SITE}/tracker`, { method: 'POST', headers, body: JSON.stringify(corpo) }),
+      env,
+      waitUntil,
+    });
+    return gravar(r.ok ? 'enviada' : 'erro: HTTP ' + r.status);
+  } catch (e) {
+    return gravar('erro: ' + e.message);
+  }
+}

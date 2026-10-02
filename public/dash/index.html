@@ -897,6 +897,8 @@ td.pago, th.pago { color: var(--alerta); }
       <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:5:heroi"></div>
       <!-- Painel por funil: os mesmos números do geral, um bloco por funil. Some com o filtro de funil ativo. -->
       <div id="visao-por-funil"></div>
+      <!-- Funil da agenda (spec-conversao-agenda.md): desenhado por public/dash/agenda.js. -->
+      <div id="visao-agenda"></div>
       <!-- Metas (issue 332): sempre o mês corrente até ontem, não segue o filtro. -->
       <div class="metas" id="visao-metas" data-esqueleto="metas"></div>
       <div class="grid-etiquetas" id="visao-kpis" data-esqueleto="etiquetas:4"></div>
@@ -2074,7 +2076,20 @@ document.addEventListener('click', async (ev) => {
 // (`by=funnel`); aqui só se escolhe o que mostrar e se desenha.
 // Fica de fora o `aquisicao` (impulsionamento): não gera lead direto, o CPL
 // dele seria sempre vazio. "sem-funil" vai por último e só se tiver número.
-function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB, reuA, reuB }) {
+// Os quatro números de reunião (spec-conversao-agenda.md, módulo 4).
+// `a`/`b`: { agendadas, realizadas, custo_agendada, custo_realizada, spend } ou null.
+function tilesReunioes(a, b, notaCusto) {
+  const d = (x, y) => (x !== null && x !== undefined && y ? delta(x, y) : undefined);
+  const semCusto = (r, qtd) => (!r ? 'agenda não respondeu' : r.spend > 0 ? (qtd ? '' : 'nenhuma reunião') : 'sem investimento');
+  return [
+    { rotulo: 'Reuniões agendadas', valor: a ? fmtInt(a.agendadas) : null, delta: a && b ? d(a.agendadas, b.agendadas) : undefined, nota: a ? 'pela data em que agendou' : 'agenda não respondeu' },
+    { rotulo: 'Reuniões realizadas', valor: a ? fmtInt(a.realizadas) : null, delta: a && b ? d(a.realizadas, b.realizadas) : undefined, nota: a ? 'pela data da reunião' : 'agenda não respondeu' },
+    { rotulo: 'Custo por reunião agendada', valor: a && a.custo_agendada !== null ? money(a.custo_agendada) : null, delta: a && b ? d(a.custo_agendada, b.custo_agendada) : undefined, invertido: true, nota: a && a.custo_agendada !== null ? notaCusto : semCusto(a, a && a.agendadas) },
+    { rotulo: 'Custo por reunião realizada', valor: a && a.custo_realizada !== null ? money(a.custo_realizada) : null, delta: a && b ? d(a.custo_realizada, b.custo_realizada) : undefined, invertido: true, nota: a && a.custo_realizada !== null ? notaCusto : semCusto(a, a && a.realizadas) },
+  ];
+}
+
+function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
   const alvo = $('#visao-por-funil');
   if (fSel) { alvo.innerHTML = ''; return; }
   if (!cplA) { alvo.innerHTML = '<div class="aviso">Painel por funil indisponível agora (investimento por funil não respondeu).</div>'; return; }
@@ -2099,7 +2114,10 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB, reuA, reuB }) 
         { rotulo: 'Conversão', valor: txA === null ? null : fmtPct(txA, 2), delta: d(txA, txB), nota: txA === null ? (cA ? 'sem visitas no período' : 'sem página de captação') : '' },
         { rotulo: 'CPL', valor: r.cpl === null ? null : money(r.cpl), delta: d(r.cpl, ant.cpl), invertido: true, nota: r.cpl === null ? (r.spend > 0 ? 'nenhum lead' : 'sem investimento') : '' },
         { rotulo: 'CPL lead novo', valor: r.cpl_novos === null ? null : money(r.cpl_novos), delta: d(r.cpl_novos, ant.cpl_novos), invertido: true, nota: r.cpl_novos === null ? semGasto : '' },
-        { rotulo: 'Reuniões agendadas', valor: reuA ? fmtInt(reuA.por_funil[r.funnel] || 0) : null, delta: reuA && reuB ? d(reuA.por_funil[r.funnel] || 0, reuB.por_funil[r.funnel] || 0) : undefined, nota: reuA ? 'agenda própria' : 'agenda não respondeu' },
+        // Só nos funis que agendam reunião (têm tipo comercial ou reunião no período).
+        ...(cplA.reunioes && cplA.reunioes.por_funil[r.funnel]
+          ? tilesReunioes(cplA.reunioes.por_funil[r.funnel], cplB && cplB.reunioes ? cplB.reunioes.por_funil[r.funnel] : null, 'investimento do funil')
+          : []),
       ].map((k) => tile(k)).join('')}</div></div>`;
   }).join('');
 }
@@ -2130,13 +2148,13 @@ R.visao = async () => {
     fetchJson(`/api/cpl?${q(p.de, p.ate)}${mapaQ}`).catch(() => null),
     fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}`).catch(() => null),
   ]);
-  // Reuniões agendadas pela agenda própria (spec-agenda-propria.md): carga
-  // própria, fora do Promise.all — falha nela só deixa o número em "—".
-  const [reuA, reuB] = await Promise.all([
-    fetchJson(`/api/agenda/reunioes?por=funil&${q(p.de, p.ate)}`).catch(() => null),
-    fetchJson(`/api/agenda/reunioes?por=funil&${q(p.antDe, p.antAte)}`).catch(() => null),
-  ]);
-  const reunioesDe = (r) => !r ? null : (fSel ? (r.por_funil[fSel] || 0) : r.total);
+  // Reuniões e custo por reunião (spec-conversao-agenda.md, módulo 4): vêm
+  // prontos do /api/cpl, com o mesmo investimento por funil do CPL.
+  const reunioesDe = (cpl) => {
+    const r = cpl && cpl.reunioes;
+    if (!r) return null;
+    return fSel ? (r.por_funil[fSel] || { agendadas: 0, realizadas: 0, custo_agendada: null, custo_realizada: null, spend: 0 }) : r.total;
+  };
   // funnelCounts sempre traz TODOS os funis; com filtro ativo, usa só o dele.
   const soma = (fc) => (fc || [])
     .filter((c) => !fSel || (c.funnel || '') === fSel)
@@ -2186,12 +2204,14 @@ R.visao = async () => {
   ].map((k) => tile(k, true)).join('');
   contarNumeros($('#visao-herois'));
 
-  desenharPainelPorFunil({ fSel, cplA: cplA_, cplB: cplB_, convA, convB, reuA, reuB });
+  desenharPainelPorFunil({ fSel, cplA: cplA_, cplB: cplB_, convA, convB });
+  // Funil da agenda: carga própria, falha nele não derruba a Visão geral.
+  window.AgendaDash.funilVisao(R.agendaCtx(), $('#visao-agenda'), { de: p.de, ate: p.ate, funil: fSel });
 
-  const reunioesA = reunioesDe(reuA), reunioesB = reunioesDe(reuB);
+  const reA = reunioesDe(cplA_), reB = reunioesDe(cplB_);
   $('#visao-kpis').innerHTML = [
     // Agendar não é lead (decisão de 02/10): conta à parte, pela agenda própria.
-    { rotulo: 'Reuniões agendadas', valor: reunioesA === null ? null : fmtInt(reunioesA), delta: reunioesA !== null && reunioesB ? delta(reunioesA, reunioesB) : undefined, nota: reunioesA === null ? 'agenda não respondeu' : 'agenda própria' },
+    ...tilesReunioes(reA, reB, fSel ? 'do funil' : 'só funis que agendam reunião'),
     // `visitors` de /api/conversion conta sessões pela PRIMEIRA visita (first-touch
     // no upsert de sessions): quem chegou antes do período não entra aqui.
     { rotulo: 'Novos visitantes', valor: fmtInt(cA.v), delta: delta(cA.v, cB.v), nota: 'coorte pela 1ª visita' },
@@ -5712,6 +5732,10 @@ R.instagram = async () => {
 
 // ---------- Agenda (public/dash/agenda.js) ----------
 // A aba vive em arquivo próprio; aqui só a ponte com o que o dash já tem.
+R.agendaCtx = () => ({
+  $, esc, fmtInt, fmtPct, money, fetchJson, tabela, tile, pedirConfirmacao, intervalo, delta, deltaChip,
+  key: () => key,
+});
 R.agenda = () => window.AgendaDash.render({
   $, esc, fmtInt, fmtPct, fetchJson, tabela, tile, pedirConfirmacao, intervalo,
   key: () => key,

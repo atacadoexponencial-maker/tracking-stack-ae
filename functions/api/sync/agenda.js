@@ -14,7 +14,7 @@
 import { listarAgendas, lerEvento, participantesDoMeet, codigoDoMeet } from '../_google-agenda.js';
 import { situacaoPelaPresenca } from '../_agenda-regras.js';
 import {
-  contasDasAgendas, lerTipo, historico, registrarNoCrm, textoCrm, agora,
+  contasDasAgendas, lerTipo, historico, registrarNoCrm, textoCrm, agora, enviarRealizada,
 } from '../_agenda.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
@@ -25,7 +25,7 @@ const TETO_PRESENCA = 15;
 const ESPERA_PRESENCA = 30 * 60;
 const DESISTE_PRESENCA = 24 * 3600;
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   const sent = request.headers.get('x-sync-secret') || '';
   if (!env.SYNC_SECRET || sent !== env.SYNC_SECRET) return json({ error: 'Unauthorized' }, 401);
   if (!env.DB) return json({ error: 'DB unavailable' }, 500);
@@ -114,6 +114,7 @@ export async function onRequestPost({ request, env }) {
       await historico(env, r.id, 'presenca', `pelo Meet: ${situacao}`, 'sistema');
       const tipo = await tipoDe(r.tipo_id);
       if (tipo && situacao !== 'sem_info') await registrarNoCrm(env, r, textoCrm(situacao, tipo, r));
+      if (situacao === 'realizada') await enviarRealizada(env, r, waitUntil || (() => {}));
       resumo.presenca[situacao] = (resumo.presenca[situacao] || 0) + 1;
     } catch (e) {
       resumo.erros.push(`presença ${r.id}: ${e.message}`);

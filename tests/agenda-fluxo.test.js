@@ -17,6 +17,8 @@ import * as pubHorarios from '../functions/api/agenda/publico/horarios.js';
 import * as pubConfirmar from '../functions/api/agenda/publico/confirmar.js';
 import * as pubReuniao from '../functions/api/agenda/publico/reuniao.js';
 import * as syncAgenda from '../functions/api/sync/agenda.js';
+import * as pubEtapa from '../functions/api/agenda/publico/etapa.js';
+import * as funilApi from '../functions/api/agenda/funil.js';
 import { criarConvite, tipoDoFunil } from '../functions/api/_agenda-convite.js';
 
 function d1(db) {
@@ -97,6 +99,7 @@ beforeEach(() => {
   db.exec(readFileSync(new URL('../migrations/0001_create_tables.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0047_agenda.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0048_agenda_descricao.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0049_agenda_etapas.sql', import.meta.url), 'utf8'));
   // As colunas de UTM da sessão entraram fora das migrations (conferido no D1 remoto).
   for (const c of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'funnel']) db.exec(`ALTER TABLE sessions ADD COLUMN ${c} TEXT`);
   env = { DB: d1(db), DASH_KEY: 'k', SYNC_SECRET: 's', GOOGLE_AGENDA_SA_JSON: SA };
@@ -113,7 +116,7 @@ const publico = (mod, { qs = '', corpo } = {}) => {
   ctx.request = corpo
     ? new Request(`https://x/api${qs}`, { method: 'POST', body: JSON.stringify(corpo), headers: { 'user-agent': 'Mozilla/5.0 Chrome/120', 'cf-connecting-ip': '200.1.1.1' } })
     : new Request(`https://x/api${qs}`);
-  return (corpo ? mod.onRequestPost(ctx) : mod.onRequestGet(ctx)).then(async (r) => ({ status: r.status, corpo: await r.json() }));
+  return (corpo ? mod.onRequestPost(ctx) : mod.onRequestGet(ctx)).then(async (r) => { const txt = await r.text(); return { status: r.status, corpo: txt ? JSON.parse(txt) : null }; });
 };
 let pendentes = [];
 
@@ -264,4 +267,42 @@ test('sync: evento apagado no Google vira cancelada; presença pelo Meet', async
   assert.equal(pend.corpo.contagens.pendentes, 0);
   assert.equal(lista.corpo.numeros.agendados, 2);
   assert.equal(lista.corpo.numeros.taxa_comparecimento, 1);
+});
+
+test('reunião realizada vira conversão uma vez só, e fora do prazo não envia', async () => {
+  await configurar();
+  const t = await tipoDoFunil(env, 'sessao-estrategica');
+  const c = await criarConvite(env, t, { eventId: 'lead-9', nome: 'Rita Lead', email: 'rita@empresa.com', telefone: '5511987654321', funil: 'sessao-estrategica' });
+  const h = await publico(pubHorarios, { qs: `?slug=consultoria-individual&c=${c}` });
+  const dia = Object.keys(h.corpo.dias)[1];
+  pendentes = [];
+  const ok = await publico(pubConfirmar, { corpo: { slug: 'consultoria-individual', c, inicio: h.corpo.dias[dia][0], nome: 'Rita Lead', email: 'rita@empresa.com', telefone: '11987654321', respostas: ['A'] } });
+  assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+  await Promise.all(pendentes);
+  const r = db.prepare('SELECT id FROM agenda_reunioes').get();
+  const agora = Math.floor(Date.now() / 1000);
+  db.prepare('UPDATE agenda_reunioes SET inicio = ?, fim = ? WHERE id = ?').run(agora - 5400, agora - 2700, r.id);
+  const marcar = (situacao) => dash(reunioes, { acao: 'presenca', id: r.id, situacao });
+  assert.equal((await marcar('realizada')).status, 200);
+  assert.equal(db.prepare('SELECT conversao_realizada AS c FROM agenda_reunioes').get().c, 'enviada');
+  await marcar('faltou');
+  await marcar('realizada');
+  assert.equal(db.prepare('SELECT conversao_realizada AS c FROM agenda_reunioes').get().c, 'enviada');
+  // Outra reunião, realizada há mais de 7 dias: não envia.
+  db.prepare("UPDATE agenda_reunioes SET conversao_realizada = NULL, situacao = 'marcada', inicio = ?, fim = ? WHERE id = ?").run(agora - 9 * 86400, agora - 9 * 86400 + 2700, r.id);
+  await marcar('realizada');
+  assert.equal(db.prepare('SELECT conversao_realizada AS c FROM agenda_reunioes').get().c, 'fora_do_prazo');
+});
+
+test('etapas da agenda: uma vez por convite, sem teste, e entram no funil', async () => {
+  await configurar();
+  const t = await tipoDoFunil(env, 'sessao-estrategica');
+  const c = await criarConvite(env, t, { nome: 'Lia Lead', email: 'lia@empresa.com', telefone: '11987654321', funil: 'sessao-estrategica' });
+  const teste = await criarConvite(env, t, { nome: 'Teste', email: 'teste@seteads.com', telefone: '11999999999', funil: 'sessao-estrategica' });
+  for (const corpo of [{ c, etapa: 'abriu' }, { c, etapa: 'abriu' }, { c, etapa: 'escolheu' }, { c: teste, etapa: 'abriu' }]) {
+    assert.equal((await publico(pubEtapa, { corpo })).status, 204);
+  }
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM agenda_etapas').get().n, 2);
+  const f = await dash(funilApi, null, `&from=0&to=${Math.floor(Date.now() / 1000) + 10}`);
+  assert.deepEqual([f.corpo.atual.leads, f.corpo.atual.abriu, f.corpo.atual.escolheu, f.corpo.atual.agendou], [1, 1, 1, 0]);
 });
