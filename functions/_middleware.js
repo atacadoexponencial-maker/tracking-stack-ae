@@ -297,16 +297,29 @@ export async function onRequest(context) {
       (async () => {
         try {
           if (env.DB) {
-            // FIRST-TOUCH nas UTMs e no funil: só preenche o que ainda está
-            // vazio na sessão (a Conversão por LP conta coorte pela 1ª visita).
-            // fbclid/gclid/msclkid/fbc são a EXCEÇÃO e ficam em last-touch:
-            // o Meta casa a conversão pelo clique mais recente, e o tracker
-            // prefere sessions.fbc ao cookie — congelar o 1º clique mandaria
-            // ao CAPI um fbc velho para quem voltou por anúncio novo. A cláusula WHERE do DO UPDATE faz o
-            // conflito virar no-op quando não há nada novo a gravar — um
-            // pageview de quem já tem tudo preenchido (a maioria) não gera
-            // escrita no D1. `updated_at` deixa de ser "última visita" e passa
-            // a ser "última vez que ganhou atribuição"; ninguém lia a coluna.
+            // LAST-TOUCH nas UTMs (desde 02/10/2026): quem volta com UTM na URL
+            // troca as CINCO juntas pelas novas — em bloco, para nunca misturar
+            // a campanha nova com o conteúdo da antiga. Quem volta SEM UTM
+            // (direto, link sem parâmetro) mantém a última origem conhecida,
+            // como o "último clique não direto" do GA. Motivo: a sessão é o
+            // navegador (cookie de 400 dias), não uma visita — com first-touch,
+            // quem clicou num anúncio em junho e virou lead por outro em outubro
+            // entrava no CRM e no dash com a campanha de junho (33 de 196 leads
+            // em 30 dias, medido em 02/10). Efeito aceito: o dash lê as UTMs da
+            // sessão na hora da consulta, então um lead que depois clica em outro
+            // anúncio "muda de campanha" no dash (o card do ClickUp não muda).
+            // A correção disso é guardar a campanha junto do lead — fica para a
+            // spec do histórico de pontos de contato.
+            //
+            // Funil e landing_url continuam FIRST-TOUCH: a Conversão por LP e o
+            // teste A/B contam a pessoa pela página em que ela entrou.
+            // fbclid/gclid/msclkid/fbc são last-touch: o Meta casa a conversão
+            // pelo clique mais recente, e o tracker prefere sessions.fbc ao
+            // cookie. A cláusula WHERE do DO UPDATE faz o conflito virar no-op
+            // quando não há nada novo a gravar — um pageview de quem já tem tudo
+            // preenchido (a maioria) não gera escrita no D1. `updated_at` é a
+            // "última vez que ganhou atribuição"; ninguém lia a coluna.
+            const chegouComUtm = `(excluded.utm_source != '' OR excluded.utm_medium != '' OR excluded.utm_campaign != '' OR excluded.utm_content != '' OR excluded.utm_term != '')`;
             await env.DB.prepare(`
               INSERT INTO sessions (session_id, external_id, fbclid, gclid, msclkid, fbc, fbp, ip_address, user_agent, referrer, landing_url, utm_source, utm_medium, utm_campaign, utm_content, utm_term, funnel, created_at, updated_at)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -315,22 +328,23 @@ export async function onRequest(context) {
                 gclid = CASE WHEN excluded.gclid != '' THEN excluded.gclid ELSE sessions.gclid END,
                 msclkid = CASE WHEN excluded.msclkid != '' THEN excluded.msclkid ELSE sessions.msclkid END,
                 fbc = CASE WHEN excluded.fbc != '' THEN excluded.fbc ELSE sessions.fbc END,
-                utm_source = CASE WHEN COALESCE(sessions.utm_source, '') = '' THEN excluded.utm_source ELSE sessions.utm_source END,
-                utm_medium = CASE WHEN COALESCE(sessions.utm_medium, '') = '' THEN excluded.utm_medium ELSE sessions.utm_medium END,
-                utm_campaign = CASE WHEN COALESCE(sessions.utm_campaign, '') = '' THEN excluded.utm_campaign ELSE sessions.utm_campaign END,
-                utm_content = CASE WHEN COALESCE(sessions.utm_content, '') = '' THEN excluded.utm_content ELSE sessions.utm_content END,
-                utm_term = CASE WHEN COALESCE(sessions.utm_term, '') = '' THEN excluded.utm_term ELSE sessions.utm_term END,
+                utm_source = CASE WHEN ${chegouComUtm} THEN excluded.utm_source ELSE sessions.utm_source END,
+                utm_medium = CASE WHEN ${chegouComUtm} THEN excluded.utm_medium ELSE sessions.utm_medium END,
+                utm_campaign = CASE WHEN ${chegouComUtm} THEN excluded.utm_campaign ELSE sessions.utm_campaign END,
+                utm_content = CASE WHEN ${chegouComUtm} THEN excluded.utm_content ELSE sessions.utm_content END,
+                utm_term = CASE WHEN ${chegouComUtm} THEN excluded.utm_term ELSE sessions.utm_term END,
                 funnel = CASE WHEN COALESCE(sessions.funnel, '') = '' THEN excluded.funnel ELSE sessions.funnel END,
                 updated_at = excluded.updated_at
               WHERE (excluded.fbclid != '' AND excluded.fbclid != COALESCE(sessions.fbclid, ''))
                  OR (excluded.gclid != '' AND excluded.gclid != COALESCE(sessions.gclid, ''))
                  OR (excluded.msclkid != '' AND excluded.msclkid != COALESCE(sessions.msclkid, ''))
                  OR (excluded.fbc != '' AND excluded.fbc != COALESCE(sessions.fbc, ''))
-                 OR (excluded.utm_source != '' AND COALESCE(sessions.utm_source, '') = '')
-                 OR (excluded.utm_medium != '' AND COALESCE(sessions.utm_medium, '') = '')
-                 OR (excluded.utm_campaign != '' AND COALESCE(sessions.utm_campaign, '') = '')
-                 OR (excluded.utm_content != '' AND COALESCE(sessions.utm_content, '') = '')
-                 OR (excluded.utm_term != '' AND COALESCE(sessions.utm_term, '') = '')
+                 OR (${chegouComUtm} AND (
+                      excluded.utm_source != COALESCE(sessions.utm_source, '')
+                   OR excluded.utm_medium != COALESCE(sessions.utm_medium, '')
+                   OR excluded.utm_campaign != COALESCE(sessions.utm_campaign, '')
+                   OR excluded.utm_content != COALESCE(sessions.utm_content, '')
+                   OR excluded.utm_term != COALESCE(sessions.utm_term, '')))
                  OR (excluded.funnel != '' AND COALESCE(sessions.funnel, '') = '')
             `).bind(sessionId, externalId, fbclid, gclid, msclkid, fbc, fbp, clientIp, userAgent, referrer, url.toString(), utmSource, utmMedium, utmCampaign, utmContent, utmTerm, funnel, now, now).run();
 
