@@ -14,3 +14,8 @@ tabelas por funil, por origem e por tipo, o tempo até agendar e os estados de
 
 Na prévia, a usuária vê o bloco na Visão geral com e sem filtro de funil, com
 período sem dado e período vazio, e aprova o desenho.
+
+
+## Implementação (02/10/2026)
+
+Feito na branch `agenda-propria` (commit "conversao da agenda"). Conferido na prévia pela Visão geral. Falta a conferência da usuária; nada vai para a `main` até ela liberar a agenda.

@@ -20,3 +20,8 @@ reunião mostra a situação do envio.
 
 - Depois do primeiro envio real, a equipe cria a conversão personalizada no Meta.
 - Só vale de verdade quando a agenda for ativada nas LPs (issue 364).
+
+
+## Implementação (02/10/2026)
+
+Feito na branch `agenda-propria` (commit "conversao da agenda"). Conferido na prévia pela Visão geral. Falta a conferência da usuária; nada vai para a `main` até ela liberar a agenda.

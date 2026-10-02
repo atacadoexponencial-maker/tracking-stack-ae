@@ -17,3 +17,8 @@ período e o filtro de funil do topo.
 Depois de um lead de teste na prévia abrir a agenda, escolher um horário e
 confirmar, a Visão geral mostra 1 em cada etapa até "Agendou", e mudar o
 período ou o funil no topo muda o bloco junto.
+
+
+## Implementação (02/10/2026)
+
+Feito na branch `agenda-propria` (commit "conversao da agenda"). Conferido na prévia pela Visão geral. Falta a conferência da usuária; nada vai para a `main` até ela liberar a agenda.

@@ -14,3 +14,8 @@ reunião, ordenáveis, e o tempo mediano entre o formulário e a confirmação.
 Com agendamentos de teste vindos de UTMs diferentes, cada tabela mostra a
 linha certa com as 5 etapas, a ordenação funciona e o tempo até agendar
 aparece.
+
+
+## Implementação (02/10/2026)
+
+Feito na branch `agenda-propria` (commit "conversao da agenda"). Conferido na prévia pela Visão geral. Falta a conferência da usuária; nada vai para a `main` até ela liberar a agenda.
