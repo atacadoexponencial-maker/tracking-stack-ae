@@ -63,6 +63,10 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
         <div class="ag__principal">
           <div id="ag-passo-horario">
             <h2 class="ag__subtitulo">Escolha o dia e o horário</h2>
+            <p class="ag__ultimos" id="ag-ultimos" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              Últimos horários disponíveis
+            </p>
             <div id="ag-calendario"></div>
           </div>
 
@@ -123,6 +127,7 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
     const r = await fetch('/api/agenda/publico/horarios?' + qs);
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Não foi possível carregar os horários.');
+    $('#ag-ultimos').hidden = !d.ultimos;
     return d.dias || {};
   }
 
@@ -320,6 +325,13 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   /* O aviso de cookies fica preso no rodapé do celular: espaço para o fim da página não ficar embaixo dele. */
   @media (max-width: 899px) { .ag { padding-bottom: 9rem; } }
   .ag__subtitulo { margin: 0 0 1.1rem; font-size: 1.1rem; }
+  .ag__ultimos {
+    display: inline-flex; align-items: center; gap: 0.45rem; margin: -0.4rem 0 1rem;
+    padding: 0.4rem 0.8rem; border-radius: 9999px; background: #dff3e6; color: #1b6b3c;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .ag__ultimos[hidden] { display: none; }
+  .ag__ultimos svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   @media (min-width: 900px) {
     .ag__painel { grid-template-columns: 18rem minmax(0, 1fr); min-height: 30rem; }

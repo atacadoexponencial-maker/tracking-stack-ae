@@ -119,7 +119,9 @@ export function montarCalendario(raiz, { dias, aoEscolher }) {
     if (!diaEscolhido || !porDia[diaEscolhido]) { el.innerHTML = ''; return; }
     const [y, m, d] = diaEscolhido.split('-').map(Number);
     const titulo = new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' });
+    const qtd = porDia[diaEscolhido].length;
     el.innerHTML = `<p class="cal__dia-titulo">${titulo}</p>
+      ${qtd <= 2 ? `<p class="cal__restam">Só ${qtd === 1 ? 'resta 1 horário' : 'restam 2 horários'} neste dia</p>` : ''}
       <div class="cal__lista">${porDia[diaEscolhido].map((t) => `<button type="button" class="cal__hora" data-hora="${t}">${horaNoFuso(t, fuso)}</button>`).join('')}</div>`;
   }
 
@@ -183,6 +185,7 @@ export const ESTILO_CALENDARIO = `
 .cal__fuso { display: grid; gap: .3rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(30,30,30,.6); }
 .cal__fuso select { font: inherit; text-transform: none; letter-spacing: 0; font-size: .95rem; padding: .6rem .8rem; border-radius: .6rem; border: 1px solid rgba(30,30,30,.2); background: #fff; color: #1e1e1e; }
 .cal__dia-titulo { margin: 0 0 .6rem; font-weight: 700; }
+.cal__restam { margin: -.3rem 0 .7rem; font-size: .82rem; font-weight: 700; color: #1b6b3c; }
 .cal__dia-titulo::first-letter { text-transform: uppercase; }
 .cal__lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); gap: .5rem; }
 .cal__hora { padding: .6rem .5rem; border-radius: .6rem; border: 1px solid #1e1e1e; background: #fff; color: #1e1e1e; font: inherit; font-weight: 700; cursor: pointer; }

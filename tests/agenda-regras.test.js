@@ -103,3 +103,10 @@ test('em cima da hora, números e título', () => {
   assert.equal(n.taxa_comparecimento, 0.5);
   assert.equal(tituloDoEvento('{nome} e AE', 'Ana'), 'Ana e AE');
 });
+
+test('aviso de últimos horários só com poucos horários reais', async () => {
+  const { poucosHorarios } = await import('../functions/api/_agenda-regras.js');
+  assert.equal(poucosHorarios({}), false);
+  assert.equal(poucosHorarios({ a: [1, 2], b: [3] }), true);
+  assert.equal(poucosHorarios({ a: [1, 2, 3], b: [4, 5, 6] }), false);
+});

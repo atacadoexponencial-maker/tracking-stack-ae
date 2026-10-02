@@ -6,6 +6,15 @@
 
 import { ymdBrt, inicioDoDiaBrt } from './_data-brt.js';
 
+// Aviso de escassez na página pública (pedido de 02/10): com poucos horários
+// livres na janela inteira, a página avisa "Últimos horários disponíveis".
+// Só aparece quando é verdade: vem da disponibilidade real.
+export const LIMITE_ULTIMOS_HORARIOS = 5;
+export function poucosHorarios(dias) {
+  const total = Object.values(dias || {}).reduce((s, l) => s + l.length, 0);
+  return total > 0 && total <= LIMITE_ULTIMOS_HORARIOS;
+}
+
 export const SITUACOES = ['marcada', 'remarcada', 'cancelada', 'realizada', 'faltou', 'sem_info'];
 // Reunião que ainda vai acontecer (ou aconteceu sem leitura de presença ainda).
 export const SITUACOES_ATIVAS = ['marcada', 'remarcada'];

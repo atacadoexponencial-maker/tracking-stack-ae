@@ -6,6 +6,7 @@
 // convite do formulário (ou o token de quem já marcou).
 import { lerTipo, lerReuniao, calcularHorarios } from '../../_agenda.js';
 import { lerConvite } from '../../_agenda-convite.js';
+import { poucosHorarios } from '../../_agenda-regras.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status, headers: { 'Cache-Control': 'no-store' } });
 const ymd = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : null);
@@ -29,5 +30,5 @@ export async function onRequestGet({ request, env }) {
   }
   const r = await calcularHorarios(env, tipo, { de: ymd(p.get('de')), ate: ymd(p.get('ate')), ignorar });
   if (r.erro) return json({ error: 'Não foi possível carregar os horários agora. Tente de novo em instantes.' }, 503);
-  return json({ dias: r.dias });
+  return json({ dias: r.dias, ultimos: poucosHorarios(r.dias) });
 }
