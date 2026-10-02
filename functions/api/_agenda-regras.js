@@ -303,3 +303,27 @@ export function numerosDoPeriodo(reunioes) {
   n.taxa_comparecimento = conhecidas ? n.realizadas / conhecidas : null;
   return n;
 }
+
+// ---------------------------------------------------------------------------
+// Vistas da lista de agendamentos (crítica de UX de 02/10: a lista servia
+// à consulta, não à operação do dia)
+// ---------------------------------------------------------------------------
+
+export const VISTAS_REUNIOES = ['hoje', 'proximas', 'pendentes', 'todas'];
+
+/**
+ * Recorte SQL de cada vista (alias `r` = agenda_reunioes).
+ *   hoje      → reuniões de hoje (Brasília), em ordem de horário, inclusive canceladas
+ *   proximas  → ainda vão acontecer e continuam marcadas, mais perto primeiro
+ *   pendentes → já terminaram e ninguém leu a presença ainda, mais recentes primeiro
+ *   todas     → o período do filtro do topo, mais recentes primeiro
+ */
+export function recorteDaVista(vista, { agora, hoje0, de, ate }) {
+  const ativas = "r.situacao IN ('marcada','remarcada')";
+  switch (vista) {
+    case 'proximas': return { where: [`r.inicio > ?`, ativas], binds: [agora], ordem: 'r.inicio ASC' };
+    case 'pendentes': return { where: [`r.fim < ?`, ativas], binds: [agora], ordem: 'r.inicio DESC' };
+    case 'todas': return { where: ['r.inicio >= ?', 'r.inicio < ?'], binds: [de, ate], ordem: 'r.inicio DESC' };
+    default: return { where: ['r.inicio >= ?', 'r.inicio < ?'], binds: [hoje0, hoje0 + 86400], ordem: 'r.inicio ASC' };
+  }
+}

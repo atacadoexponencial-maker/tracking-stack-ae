@@ -52,9 +52,9 @@ export function montarCalendario(raiz, { dias, aoEscolher }) {
     <div class="cal-wrap"><div class="cal">
       <div class="cal__esq">
         <div class="cal__mes">
-          <button type="button" class="cal__nav" data-nav="-1" aria-label="Mês anterior">‹</button>
+          <button type="button" class="cal__nav" data-nav="-1" aria-label="Mês anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
           <strong class="cal__titulo" aria-live="polite"></strong>
-          <button type="button" class="cal__nav" data-nav="1" aria-label="Próximo mês">›</button>
+          <button type="button" class="cal__nav" data-nav="1" aria-label="Próximo mês"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
         </div>
         <div class="cal__grade" role="grid"></div>
         <label class="cal__fuso">Fuso horário
@@ -132,7 +132,14 @@ export function montarCalendario(raiz, { dias, aoEscolher }) {
       return desenharMes();
     }
     const dia = ev.target.closest('[data-dia]');
-    if (dia && !dia.disabled) { diaEscolhido = dia.dataset.dia; return desenharMes(); }
+    if (dia && !dia.disabled) {
+      diaEscolhido = dia.dataset.dia;
+      desenharMes();
+      // Calendário estreito (celular): os horários ficam abaixo; desce até eles.
+      const lista = raiz.querySelector('.cal__horarios');
+      if (raiz.querySelector('.cal').offsetWidth < 544 && lista) lista.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
     const hora = ev.target.closest('[data-hora]');
     if (hora) aoEscolher(Number(hora.dataset.hora), fuso);
   });
@@ -149,6 +156,7 @@ export function montarCalendario(raiz, { dias, aoEscolher }) {
   return {
     definirDias(novos) { ultimo = novos; agrupar(novos); desenharMes(); },
     fuso: () => fuso,
+    nomeDoFuso: () => (FUSOS.find(([f]) => f === fuso) || [fuso, fuso])[1],
   };
 }
 
@@ -163,7 +171,8 @@ export const ESTILO_CALENDARIO = `
 .cal__mes { display: flex; align-items: center; justify-content: space-between; }
 .cal__titulo { font-size: 1.05rem; }
 .cal__titulo::first-letter { text-transform: uppercase; }
-.cal__nav { width: 2.5rem; height: 2.5rem; border-radius: 9999px; border: 1px solid rgba(30,30,30,.2); background: none; font-size: 1.3rem; cursor: pointer; color: inherit; }
+.cal__nav { width: 2.5rem; height: 2.5rem; display: inline-grid; place-items: center; border-radius: 9999px; border: 1px solid rgba(30,30,30,.2); background: none; cursor: pointer; color: inherit; }
+.cal__nav svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .cal__nav:disabled { opacity: .3; cursor: default; }
 .cal__grade { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; text-align: center; }
 .cal__sem { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(30,30,30,.55); padding-bottom: .2rem; }

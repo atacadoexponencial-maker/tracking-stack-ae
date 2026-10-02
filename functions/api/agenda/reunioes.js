@@ -11,7 +11,8 @@
 //                                      { acao: 'presenca', id, situacao: 'realizada'|'faltou'|'sem_info' }
 //
 // Spec spec-agenda-propria.md, módulos 5 e 8 (issues 361 e 362).
-import { numerosDoPeriodo, SITUACOES } from '../_agenda-regras.js';
+import { numerosDoPeriodo, SITUACOES, VISTAS_REUNIOES, recorteDaVista } from '../_agenda-regras.js';
+import { ymdBrt, inicioDoDiaBrt } from '../_data-brt.js';
 import {
   lerReuniao, lerTipo, cancelar, remarcar, registrarNoCrm, textoCrm, historico, agora,
 } from '../_agenda.js';
@@ -34,8 +35,11 @@ export async function onRequestGet({ request, env }) {
     if (!r) return json({ error: 'Reunião não encontrada.' }, 404);
     const tipo = await lerTipo(env, { id: r.tipo_id });
     const hist = (await env.DB.prepare('SELECT acao, detalhe, por, criado_em FROM agenda_historico WHERE reuniao_id = ? ORDER BY criado_em, id').bind(r.id).all()).results || [];
-    const { token_gestao, ip, ...publico } = r;
-    return json({ reuniao: { ...publico, tipo_nome: tipo?.nome, crm_link: linkCrm(r.crm_situacao) }, historico: hist });
+    const sessao = r.session_id
+      ? await env.DB.prepare('SELECT utm_source, utm_medium, utm_campaign FROM sessions WHERE session_id = ?').bind(r.session_id).first()
+      : null;
+    const { token_gestao, ip, session_id, ...publico } = r;
+    return json({ reuniao: { ...publico, tipo_nome: tipo?.nome, crm_link: linkCrm(r.crm_situacao), origem: sessao || null }, historico: hist });
   }
 
   const de = Number(p.get('from')) || agora() - 30 * 86400;
@@ -50,24 +54,38 @@ export async function onRequestGet({ request, env }) {
     return json({ total: rs.reduce((s, x) => s + x.n, 0), por_funil });
   }
 
-  const filtros = ['r.inicio >= ?', 'r.inicio < ?'];
-  const binds = [de, ate];
+  // Vista: hoje (padrão), proximas, pendentes (aguardando presença) ou todas
+  // (o período do topo). As contagens das três primeiras vão para as pílulas.
+  const t = agora();
+  const hoje0 = inicioDoDiaBrt(ymdBrt(t));
+  const vista = VISTAS_REUNIOES.includes(p.get('vista')) ? p.get('vista') : 'hoje';
+  const recorte = recorteDaVista(vista, { agora: t, hoje0, de, ate: Number(p.get('to')) || t });
+  const filtros = [...recorte.where];
+  const binds = [...recorte.binds];
   if (p.get('tipo')) { filtros.push('r.tipo_id = ?'); binds.push(Number(p.get('tipo'))); }
-  if (SITUACOES.includes(p.get('situacao'))) { filtros.push('r.situacao = ?'); binds.push(p.get('situacao')); }
+  if (vista === 'todas' && SITUACOES.includes(p.get('situacao'))) { filtros.push('r.situacao = ?'); binds.push(p.get('situacao')); }
   const rows = (await env.DB.prepare(
     `SELECT r.id, r.inicio, r.fim, r.nome, r.email, r.telefone, r.situacao, r.funil, r.comercial, r.is_teste,
-            r.meet_link, r.crm_situacao, r.presenca_origem, r.session_id, t.nome AS tipo_nome, t.id AS tipo_id,
-            s.utm_source, s.utm_medium, s.utm_campaign
+            r.meet_link, r.presenca_origem, t.nome AS tipo_nome, t.id AS tipo_id
        FROM agenda_reunioes r
        JOIN agenda_tipos t ON t.id = r.tipo_id
-       LEFT JOIN sessions s ON s.session_id = r.session_id
       WHERE ${filtros.join(' AND ')}
-      ORDER BY r.inicio`,
+      ORDER BY ${recorte.ordem}
+      LIMIT 500`,
   ).bind(...binds).all()).results || [];
+  const c = await env.DB.prepare(
+    `SELECT
+       SUM(CASE WHEN inicio >= ?1 AND inicio < ?2 THEN 1 ELSE 0 END) AS hoje,
+       SUM(CASE WHEN inicio > ?3 AND situacao IN ('marcada','remarcada') THEN 1 ELSE 0 END) AS proximas,
+       SUM(CASE WHEN fim < ?3 AND situacao IN ('marcada','remarcada') THEN 1 ELSE 0 END) AS pendentes
+     FROM agenda_reunioes`,
+  ).bind(hoje0, hoje0 + 86400, t).first();
   const tipos = (await env.DB.prepare('SELECT id, nome, ativo FROM agenda_tipos ORDER BY nome').all()).results || [];
   return json({
-    rows: rows.map(({ session_id, ...r }) => ({ ...r, crm_link: linkCrm(r.crm_situacao) })),
-    numeros: numerosDoPeriodo(rows),
+    vista,
+    rows: rows.map((r) => ({ ...r, aguardando_presenca: ['marcada', 'remarcada'].includes(r.situacao) && r.fim < t })),
+    contagens: { hoje: c?.hoje || 0, proximas: c?.proximas || 0, pendentes: c?.pendentes || 0 },
+    numeros: vista === 'todas' ? numerosDoPeriodo(rows) : null,
     tipos,
   });
 }

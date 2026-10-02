@@ -627,6 +627,56 @@ input[type="time"] { font: inherit; padding: 0.35rem 0.45rem; border: 1px solid 
 .ag-gaveta__corpo input:not([type="checkbox"]), .ag-gaveta__corpo select, .ag-gaveta__corpo textarea { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
 .ag-gaveta__corpo select { text-overflow: ellipsis; }
 .ag-gaveta__corpo label.marca { overflow-wrap: anywhere; }
+/* Navegação da Agenda (crítica de UX de 02/10) */
+.ag-subvistas { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 1rem; }
+.ag-subvista { font: inherit; font-size: 0.86rem; padding: 0.35rem 0.8rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); color: var(--tinta-2); cursor: pointer; display: inline-flex; align-items: center; gap: 0.45rem; }
+.ag-subvista:hover { border-color: var(--tinta-2); color: var(--tinta); }
+.ag-subvista[aria-pressed="true"] { background: var(--tinta); border-color: var(--tinta); color: var(--papel); font-weight: 700; }
+.ag-cont { font-size: 0.74rem; font-variant-numeric: tabular-nums; min-width: 1.4em; text-align: center; padding: 0 0.35rem; border-radius: 999px; background: var(--papel-escuro); color: var(--tinta); font-weight: 700; }
+.ag-subvista[aria-pressed="true"] .ag-cont { background: var(--papel); color: var(--tinta); }
+.ag-cont.alerta { background: var(--alerta); color: #fff; }
+.ag-subvistas select { margin-left: auto; }
+.ag-subvistas select + select { margin-left: 0; }
+.ag-link-linha { background: none; border: none; padding: 0; font: inherit; font-weight: 700; color: var(--tinta); cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: var(--fio); text-underline-offset: 3px; }
+.ag-link-linha:hover { text-decoration-color: var(--tinta); }
+.ag-acoes--linha { justify-content: flex-end; flex-wrap: nowrap; }
+.ag-icone { width: 1.9rem; height: 1.9rem; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--tinta-2); cursor: pointer; padding: 0; }
+.ag-icone:hover:not(:disabled) { border-color: var(--fio); background: var(--etiqueta); color: var(--tinta); }
+.ag-icone:disabled { opacity: 0.35; cursor: default; }
+.ag-icone svg, .ag-gaveta__fechar svg, .ag-etiqueta button svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ag-gaveta__fechar { display: inline-grid; place-items: center; width: 2rem; height: 2rem; }
+.ag-etiqueta button { display: inline-grid; place-items: center; }
+.ag-etiqueta button svg { width: 0.85rem; height: 0.85rem; }
+.ag-copiavel { display: inline-flex; align-items: center; gap: 0.25rem; }
+.ag-dl { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 0.45rem 0.9rem; margin: 0.4rem 0 0; font-size: 0.88rem; }
+.ag-dl dt { color: var(--apagado); font-size: 0.8rem; padding-top: 0.05rem; }
+.ag-dl dd { margin: 0; overflow-wrap: anywhere; }
+.ag-dl a { color: var(--tinta); text-underline-offset: 3px; }
+.ag-h3 { font-size: 0.86rem; font-weight: 700; margin: 1.2rem 0 0.3rem; padding-top: 0.6rem; border-top: 1px solid var(--fio); }
+ol.ag-hist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; font-size: 0.86rem; }
+.ag-slots { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.ag-slot { font: inherit; font-size: 0.86rem; font-variant-numeric: tabular-nums; padding: 0.4rem 0.7rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); color: var(--tinta); cursor: pointer; }
+.ag-slot:hover { border-color: var(--tinta); }
+.ag-slot[aria-pressed="true"] { background: var(--tinta); border-color: var(--tinta); color: var(--papel); font-weight: 700; }
+.ag-slot--leitura { cursor: default; }
+.ag-slot--leitura:hover { border-color: var(--fio); }
+.ag-dia-livre { display: grid; gap: 0.4rem; padding: 0.7rem 0; border-bottom: 1px solid var(--fio); }
+.ag-dia-livre b { font-size: 0.86rem; }
+.ag-dia-livre b::first-letter { text-transform: uppercase; }
+.ag-mais { border-top: 1px solid var(--fio); padding-top: 0.6rem; }
+.ag-mais summary { cursor: pointer; font-size: 0.86rem; color: var(--tinta-2); margin-bottom: 0.6rem; }
+.ag-mais[open] summary { color: var(--tinta); font-weight: 700; }
+.ag-mais .linha + .linha { margin-top: 0.75rem; }
+.ag-pergunta { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem; padding: 0.7rem 0; border-bottom: 1px solid var(--fio); }
+.ag-pergunta__ordem { display: grid; gap: 0.2rem; align-content: start; }
+.ag-pergunta__campos { display: grid; gap: 0.45rem; min-width: 0; }
+.ag-copiar { background: var(--papel-escuro); padding: 0.6rem 0.8rem; border-radius: 2px; }
+.ag-gaveta__corpo .ag-dia { grid-template-columns: 5.2rem minmax(0, 1fr); }
+.ag-faixa input[type="time"] { width: auto; }
+.ag-toast { position: fixed; left: 50%; bottom: 1.4rem; transform: translate(-50%, 0.6rem); opacity: 0; pointer-events: none; z-index: 100; max-width: min(34rem, calc(100vw - 2rem)); background: var(--tinta); color: var(--papel); padding: 0.65rem 1rem; border-radius: 2px; font-size: 0.88rem; box-shadow: 0 6px 18px rgba(22,21,19,0.18); transition: opacity 0.18s ease-out, transform 0.18s ease-out; }
+.ag-toast.visivel { opacity: 1; transform: translate(-50%, 0); }
+.ag-toast[data-tipo="erro"] { background: var(--queda); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .ag-toast { transition: none; } }
 .ag-campo { display: grid; gap: 0.35rem; min-width: 0; }
 .ag-campo__rotulo { font-size: 0.8rem; color: var(--tinta-2); }
 .ag-etiquetas { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; min-width: 0; }
@@ -634,7 +684,7 @@ input[type="time"] { font: inherit; padding: 0.35rem 0.45rem; border: 1px solid 
 .ag-etiqueta button { background: none; border: none; cursor: pointer; font-size: 1rem; line-height: 1; color: var(--tinta-2); padding: 0 0.2rem; }
 .ag-etiqueta button:hover { color: var(--queda); }
 .ag-etiquetas select { width: auto !important; flex: 1 1 12rem; }
-.ag-sair { background: var(--papel-escuro); border-left: 2px solid var(--alerta); padding: 0.6rem 0.8rem; display: grid; gap: 0.5rem; }
+.ag-sair { background: var(--papel-escuro); border: 1px solid var(--alerta); border-radius: 2px; padding: 0.6rem 0.8rem; display: grid; gap: 0.5rem; }
 .ag-sair[hidden] { display: none; }
 .ag-sair p { margin: 0; font-size: 0.86rem; }
 .ag-gaveta__rodape { border-top: 1px solid var(--fio); padding: 0.8rem 1.25rem; background: var(--etiqueta); display: grid; gap: 0.5rem; }

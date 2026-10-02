@@ -204,7 +204,10 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
       aoEscolher(t: number, fuso: string) {
         escolhido = t;
         fusoEscolhido = fuso;
-        const texto = `${dataLonga(t, fuso)}, às ${horaNoFuso(t, fuso)}`;
+        // O fuso aparece junto: quem trocou de fuso confirma no horário dele.
+        const texto = `${dataLonga(t, fuso)}, às ${horaNoFuso(t, fuso)} (${cal.nomeDoFuso()})`;
+        const ocupado = document.getElementById('ag-aviso-ocupado');
+        if (ocupado) ocupado.remove();
         $('#ag-escolhido').textContent = texto;
         $('#ag-info-quando-texto').textContent = texto;
         $('#ag-info-quando').hidden = false;
@@ -255,12 +258,14 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
       // Alguém pegou o horário: volta para a escolha com os dados preservados.
       try { cal.definirDias(await horarios()); } catch { /* mantém os horários que já estavam */ }
       mostrarPasso('horario');
+      document.getElementById('ag-aviso-ocupado')?.remove();
       const aviso = document.createElement('p');
+      aviso.id = 'ag-aviso-ocupado';
+      aviso.setAttribute('role', 'alert');
       aviso.className = 'ag__falha';
       aviso.textContent = 'O horário que você escolheu acabou de ser ocupado. Escolha outro.';
       $('#ag-passo-horario').prepend(aviso);
       $('#ag-info-quando').hidden = true;
-      setTimeout(() => aviso.remove(), 8000);
     }
     if (d.codigo === 'sem_convite') indisponivel(d.error);
   });
@@ -312,6 +317,8 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
     .ag__descricao.recolhida { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   }
   @media (min-width: 900px) { .ag__ler-mais { display: none; } }
+  /* O aviso de cookies fica preso no rodapé do celular: espaço para o fim da página não ficar embaixo dele. */
+  @media (max-width: 899px) { .ag { padding-bottom: 9rem; } }
   .ag__subtitulo { margin: 0 0 1.1rem; font-size: 1.1rem; }
 
   @media (min-width: 900px) {

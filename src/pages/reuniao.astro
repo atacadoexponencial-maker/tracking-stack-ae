@@ -54,6 +54,10 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
         <div id="re-remarcar" class="re__cartao" hidden>
           <h2 class="re__subtitulo">Escolha o novo horário</h2>
           <div id="re-calendario"></div>
+          <div class="re__confirma" id="re-confirma" hidden>
+            <p id="re-confirma-texto"></p>
+            <button type="button" class="btn-cta re__cta" id="re-confirma-ok">Remarcar</button>
+          </div>
           <button type="button" class="re__link" id="re-fechar-remarcar">Manter o horário atual</button>
         </div>
 
@@ -85,6 +89,7 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   const fuso = fusoDoNavegador();
   let estado: any = null;
   let cal: any = null;
+  let novoInicio: number | null = null;
 
   const gcal = (d: any) => {
     const f = (t: number) => new Date(t * 1000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -163,6 +168,9 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   $('#re-btn-remarcar').addEventListener('click', async () => {
     $('#re-cancelar').hidden = true;
     $('#re-remarcar').hidden = false;
+    $('#re-confirma').hidden = true;
+    novoInicio = null;
+    $('#re-remarcar').scrollIntoView({ behavior: 'smooth', block: 'start' });
     const raiz = $('#re-calendario');
     raiz.textContent = 'Carregando horários…';
     const r = await fetch('/api/agenda/publico/horarios?g=' + encodeURIComponent(token)).catch(() => null);
@@ -170,20 +178,37 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
     if (!r || !r.ok) { raiz.textContent = d.error || 'Não foi possível carregar os horários.'; return; }
     cal = montarCalendario(raiz, {
       dias: d.dias || {},
-      async aoEscolher(t: number) {
+      // Tocar no horário só escolhe; quem remarca é o botão de confirmação.
+      aoEscolher(t: number, fusoEscolhido: string) {
         if (t === estado.inicio) return;
-        raiz.style.opacity = '0.5';
-        const ok = await enviar({ acao: 'remarcar', inicio: t });
-        raiz.style.opacity = '';
-        if (!ok) {
-          const r2 = await fetch('/api/agenda/publico/horarios?g=' + encodeURIComponent(token)).catch(() => null);
-          if (r2 && r2.ok) cal.definirDias((await r2.json()).dias || {});
-        }
+        novoInicio = t;
+        $('#re-confirma-texto').textContent = `Novo horário: ${dataLonga(t, fusoEscolhido)}, às ${horaNoFuso(t, fusoEscolhido)}.`;
+        $('#re-confirma').hidden = false;
+        $('#re-confirma').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       },
     });
   });
+  $('#re-confirma-ok').addEventListener('click', async (ev) => {
+    const b = ev.currentTarget as HTMLButtonElement;
+    if (!novoInicio) return;
+    b.disabled = true;
+    b.textContent = 'Remarcando…';
+    const ok = await enviar({ acao: 'remarcar', inicio: novoInicio });
+    b.disabled = false;
+    b.textContent = 'Remarcar';
+    if (!ok) {
+      $('#re-confirma').hidden = true;
+      novoInicio = null;
+      const r2 = await fetch('/api/agenda/publico/horarios?g=' + encodeURIComponent(token)).catch(() => null);
+      if (r2 && r2.ok) cal.definirDias((await r2.json()).dias || {});
+    }
+  });
   $('#re-fechar-remarcar').addEventListener('click', () => { $('#re-remarcar').hidden = true; });
-  $('#re-btn-cancelar').addEventListener('click', () => { $('#re-remarcar').hidden = true; $('#re-cancelar').hidden = false; });
+  $('#re-btn-cancelar').addEventListener('click', () => {
+    $('#re-remarcar').hidden = true;
+    $('#re-cancelar').hidden = false;
+    $('#re-cancelar').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
   $('#re-fechar-cancelar').addEventListener('click', () => { $('#re-cancelar').hidden = true; });
   $('#re-confirmar-cancelar').addEventListener('click', async (ev) => {
     const b = ev.currentTarget as HTMLButtonElement;
@@ -249,6 +274,10 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   .re__campo textarea { font: inherit; font-weight: 400; padding: 0.75rem; border-radius: 0.6rem; border: 1px solid rgba(30, 30, 30, 0.25); }
   .re__opcional { font-weight: 400; color: rgba(30, 30, 30, 0.55); }
   .re__link { margin-top: 0.9rem; background: none; border: none; padding: 0; font: inherit; color: rgba(30, 30, 30, 0.7); text-decoration: underline; cursor: pointer; }
+  .re__confirma { margin-top: 1.25rem; padding: 1rem; border-radius: 0.75rem; background: hsl(var(--light-bg)); display: grid; gap: 0.75rem; }
+  .re__confirma[hidden] { display: none; }
+  .re__confirma p { margin: 0; font-weight: 700; }
+  .re__confirma p::first-letter { text-transform: uppercase; }
   .re__falha { background: rgba(220, 38, 38, 0.08); color: #9b1c1c; border-radius: 0.6rem; padding: 0.75rem 1rem; font-size: 0.9rem; }
   @media (max-width: 380px) { .re__linha { flex-direction: column; } }
 </style>

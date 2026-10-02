@@ -259,7 +259,9 @@ test('sync: evento apagado no Google vira cancelada; presença pelo Meet', async
   const sit = db.prepare('SELECT situacao FROM agenda_reunioes ORDER BY inicio').all().map((x) => x.situacao);
   assert.deepEqual(sit.sort(), ['cancelada', 'realizada']);
 
-  const lista = await dash(reunioes, null, `&from=0&to=${Math.floor(Date.now() / 1000) + 30 * 86400}`);
+  const lista = await dash(reunioes, null, `&vista=todas&from=0&to=${Math.floor(Date.now() / 1000) + 30 * 86400}`);
+  const pend = await dash(reunioes, null, `&vista=pendentes`);
+  assert.equal(pend.corpo.contagens.pendentes, 0);
   assert.equal(lista.corpo.numeros.agendados, 2);
   assert.equal(lista.corpo.numeros.taxa_comparecimento, 1);
 });
