@@ -895,6 +895,8 @@ td.pago, th.pago { color: var(--alerta); }
     <section class="secao" id="secao-visao">
       <p class="manchete" id="visao-manchete" data-esqueleto="manchete"></p>
       <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:9:heroi"></div>
+      <!-- Taxas de passagem (pedido de 02/10): Lead → MQL → RA → RR e no-show. Carga própria. -->
+      <div class="bloco" id="visao-taxas"></div>
       <!-- Painel por funil: os mesmos números do geral, um bloco por funil. Some com o filtro de funil ativo. -->
       <div id="visao-por-funil"></div>
       <!-- Funil da agenda (spec-conversao-agenda.md): desenhado por public/dash/agenda.js. -->
@@ -2076,6 +2078,42 @@ document.addEventListener('click', async (ev) => {
 // (`by=funnel`); aqui só se escolhe o que mostrar e se desenha.
 // Fica de fora o `aquisicao` (impulsionamento): não gera lead direto, o CPL
 // dele seria sempre vazio. "sem-funil" vai por último e só se tiver número.
+// Taxas de passagem (pedido de 02/10). `a`/`b`: saída de calcularTaxas ou null.
+// No-show é taxa ruim: sobe = alerta (invertido), como o CPL.
+function tilesTaxas(a, b, crmLido) {
+  const pct = (v) => (v === null || v === undefined ? null : fmtPct(v * 100, 1));
+  const d = (x, y) => (x !== null && x !== undefined && y ? delta(x, y) : undefined);
+  const semCrm = crmLido === false ? 'CRM não lido agora' : '';
+  return [
+    { rotulo: 'Lead → MQL', valor: pct(a && a.lead_mql), delta: a && b ? d(a.lead_mql, b.lead_mql) : undefined, nota: a && a.lead_mql !== null ? `${fmtInt(a.mqls)} MQLs de ${fmtInt(a.leads_novos)} leads novos` : (semCrm || 'nenhum lead novo') },
+    { rotulo: 'MQL → RA', valor: pct(a && a.mql_ra), delta: a && b ? d(a.mql_ra, b.mql_ra) : undefined, nota: a && a.mql_ra !== null ? `${fmtInt(a.agendadas)} reuniões de ${fmtInt(a.mqls)} MQLs` : (semCrm || 'nenhum MQL') },
+    { rotulo: 'RA → RR', valor: pct(a && a.ra_rr), delta: a && b ? d(a.ra_rr, b.ra_rr) : undefined, nota: a && a.ra_rr !== null ? `${fmtInt(a.realizadas)} de ${fmtInt(a.ocorridas)} que já passaram` : 'nenhuma reunião passou da data' },
+    { rotulo: 'No-show', valor: pct(a && a.no_show), delta: a && b ? d(a.no_show, b.no_show) : undefined, invertido: true, nota: a && a.no_show !== null ? `${fmtInt(a.faltas)} faltas` : 'nenhuma presença lida' },
+  ];
+}
+
+async function desenharTaxas(p, fSel) {
+  const alvo = $('#visao-taxas');
+  alvo.innerHTML = '<h2>Taxas de passagem <small>carregando…</small></h2>';
+  let t;
+  try {
+    t = await fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&_=${Date.now()}`);
+  } catch {
+    alvo.innerHTML = '<h2>Taxas de passagem</h2><div class="aviso">Taxas indisponíveis agora.</div>';
+    return;
+  }
+  const doRecorte = (r) => (!r ? null : fSel ? (r.por_funil[fSel] || null) : r.total);
+  const a = doRecorte(t.atual), b = doRecorte(t.anterior);
+  alvo.innerHTML = `<h2>Taxas de passagem <small>${fSel ? 'do funil' : 'funis que agendam reunião'} · MQL pelo status atual no CRM</small></h2>
+    <div class="grid-etiquetas">${tilesTaxas(a, b, t.atual.crm_lido).map((k) => tile(k)).join('')}</div>`;
+  // As mesmas taxas dentro de cada funil do painel por funil.
+  document.querySelectorAll('[data-taxas-funil]').forEach((el) => {
+    const f = el.dataset.taxasFunil;
+    const fa = t.atual.por_funil[f], fb = t.anterior ? t.anterior.por_funil[f] : null;
+    el.innerHTML = fa ? tilesTaxas(fa, fb, t.atual.crm_lido).map((k) => tile(k)).join('') : '';
+  });
+}
+
 // Os quatro números de reunião (spec-conversao-agenda.md, módulo 4).
 // `a`/`b`: { agendadas, realizadas, custo_agendada, custo_realizada, spend } ou null.
 function tilesReunioes(a, b, notaCusto) {
@@ -2118,7 +2156,8 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
         ...(cplA.reunioes && cplA.reunioes.por_funil[r.funnel]
           ? tilesReunioes(cplA.reunioes.por_funil[r.funnel], cplB && cplB.reunioes ? cplB.reunioes.por_funil[r.funnel] : null, 'investimento do funil')
           : []),
-      ].map((k) => tile(k)).join('')}</div></div>`;
+      ].map((k) => tile(k)).join('')}</div>
+      ${cplA.reunioes && cplA.reunioes.por_funil[r.funnel] ? `<div class="grid-etiquetas" data-taxas-funil="${esc(r.funnel)}"></div>` : ''}</div>`;
   }).join('');
 }
 
@@ -2209,6 +2248,8 @@ R.visao = async () => {
   contarNumeros($('#visao-herois'));
 
   desenharPainelPorFunil({ fSel, cplA: cplA_, cplB: cplB_, convA, convB });
+  // Taxas de passagem: leem o CRM (lento); não seguram a Visão geral.
+  desenharTaxas(p, fSel);
   // Funil da agenda: carga própria, falha nele não derruba a Visão geral.
   window.AgendaDash.funilVisao(R.agendaCtx(), $('#visao-agenda'), { de: p.de, ate: p.ate, funil: fSel });
 

@@ -56,3 +56,20 @@ test('custo por reunião: granular por funil e total só dos funis com agenda', 
   assert.equal(r.total.spend, 1300);
   assert.equal(r.total.custo_agendada, 1300 / 3);
 });
+
+test('taxas de passagem: Lead → MQL → RA → RR e no-show', async () => {
+  const { taxasPorFunil, calcularTaxas } = await import('../functions/api/_agenda-funil.js');
+  const t = calcularTaxas({ leads_novos: 100, mqls: 40, agendadas: 10, ocorridas: 8, realizadas: 6, faltas: 2 });
+  assert.deepEqual([t.lead_mql, t.mql_ra, t.ra_rr, t.no_show], [0.4, 0.25, 0.75, 0.25]);
+  const r = taxasPorFunil({
+    crm: { 'sessao-estrategica': { leads_novos: 100, mqls: 40 }, workshop: { leads_novos: 100, mqls: 0 } },
+    agenda: { 'sessao-estrategica': { agendadas: 10, ocorridas: 8, realizadas: 6, faltas: 2 } },
+    funisComAgenda: ['sessao-estrategica'],
+  });
+  assert.equal(r.por_funil.workshop, undefined);
+  assert.equal(r.total.mql_ra, 0.25); // workshop não dilui MQL → RA
+  assert.equal(r.total.lead_mql, 0.2); // Lead → MQL olha todos os funis de lead
+  const semCrm = taxasPorFunil({ crm: null, agenda: { x: { agendadas: 1, ocorridas: 1, realizadas: 1, faltas: 0 } } });
+  assert.equal(semCrm.total.lead_mql, null);
+  assert.equal(semCrm.total.ra_rr, 1);
+});

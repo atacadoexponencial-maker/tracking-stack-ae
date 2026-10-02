@@ -160,3 +160,58 @@ export function custoPorReuniao({ porFunilCpl = [], agendadas = [], realizadas =
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Taxas de passagem (pedido de 02/10): Lead → MQL → RA → RR e no-show
+// ---------------------------------------------------------------------------
+
+const razao = (a, b) => (b > 0 && a !== null && a !== undefined ? a / b : null);
+
+/**
+ * Taxas de um recorte.
+ *   leads_novos / mqls: do relatório de marketing (CRM); null = CRM não lido
+ *   agendadas: reuniões agendadas no período (pela data em que agendou)
+ *   ocorridas: reuniões que já deveriam ter acontecido no período (passaram da
+ *              data e não foram canceladas): realizadas + faltas + sem presença
+ *   realizadas / faltas: entre as ocorridas
+ */
+export function calcularTaxas({ leads_novos = null, mqls = null, agendadas = 0, ocorridas = 0, realizadas = 0, faltas = 0 }) {
+  return {
+    leads_novos, mqls, agendadas, ocorridas, realizadas, faltas,
+    lead_mql: leads_novos === null || mqls === null ? null : razao(mqls, leads_novos),
+    mql_ra: mqls === null ? null : razao(agendadas, mqls),
+    ra_rr: razao(realizadas, ocorridas),
+    no_show: razao(faltas, realizadas + faltas),
+  };
+}
+
+/**
+ * Junta as métricas do CRM por funil (`crm`: { funil: { leads_novos, mqls } },
+ * ou null quando o CRM não foi lido) com as contagens da agenda por funil
+ * (`agenda`: { funil: { agendadas, ocorridas, realizadas, faltas } }).
+ * No total, Lead → MQL usa todos os funis de lead; as demais taxas usam só os
+ * funis que agendam reunião (`funisComAgenda`), para MQL de workshop não
+ * diluir MQL → RA.
+ */
+export function taxasPorFunil({ crm, agenda = {}, funisComAgenda = [] }) {
+  const comAgenda = new Set([...funisComAgenda, ...Object.keys(agenda)]);
+  const zero = { agendadas: 0, ocorridas: 0, realizadas: 0, faltas: 0 };
+  const por_funil = {};
+  for (const f of comAgenda) {
+    const c = crm ? (crm[f] || { leads_novos: 0, mqls: 0 }) : { leads_novos: null, mqls: null };
+    por_funil[f] = calcularTaxas({ ...c, ...(agenda[f] || zero) });
+  }
+  const soma = (lista, campo) => lista.reduce((s, x) => s + (x[campo] || 0), 0);
+  const ag = Object.values(agenda);
+  const crmTodos = crm ? Object.values(crm) : null;
+  const crmAgenda = crm ? [...comAgenda].map((f) => crm[f] || { leads_novos: 0, mqls: 0 }) : null;
+  const total = calcularTaxas({
+    leads_novos: crmAgenda ? soma(crmAgenda, 'leads_novos') : null,
+    mqls: crmAgenda ? soma(crmAgenda, 'mqls') : null,
+    agendadas: soma(ag, 'agendadas'), ocorridas: soma(ag, 'ocorridas'),
+    realizadas: soma(ag, 'realizadas'), faltas: soma(ag, 'faltas'),
+  });
+  // Lead → MQL do total olha todos os funis de lead, não só os que agendam.
+  total.lead_mql = crmTodos ? razao(soma(crmTodos, 'mqls'), soma(crmTodos, 'leads_novos')) : null;
+  return { por_funil, total };
+}
