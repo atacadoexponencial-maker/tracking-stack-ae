@@ -57,6 +57,7 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
             </li>
           </ul>
           <p class="ag__descricao" id="ag-descricao" hidden></p>
+          <button type="button" class="ag__link ag__ler-mais" id="ag-ler-mais" hidden>Ler mais</button>
         </aside>
 
         <div class="ag__principal">
@@ -167,7 +168,16 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
     if (tipo.estado === 'pausado') return indisponivel(tipo.contato ? `Esta agenda não está recebendo novos agendamentos agora. Fale com a gente: ${tipo.contato}` : '');
 
     $('#ag-nome').textContent = tipo.nome;
-    if (tipo.descricao) { $('#ag-descricao').textContent = tipo.descricao; $('#ag-descricao').hidden = false; }
+    if (tipo.descricao) {
+      const d = $('#ag-descricao');
+      d.textContent = tipo.descricao;
+      d.hidden = false;
+      // No celular o texto começa recolhido, para o calendário aparecer logo.
+      d.classList.add('recolhida');
+      const mais = $('#ag-ler-mais');
+      mais.hidden = !(d.scrollHeight > d.clientHeight + 2);
+      mais.onclick = () => { d.classList.remove('recolhida'); mais.hidden = true; };
+    }
     $('#ag-duracao').textContent = tipo.duracao_min;
     if (tipo.lead) {
       campo('nome').value = tipo.lead.nome || '';
@@ -297,6 +307,11 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   .ag__meta-quando span::first-letter { text-transform: uppercase; }
   .ag__descricao { margin: 0.25rem 0 0; white-space: pre-line; line-height: 1.55; color: rgba(30, 30, 30, 0.8); font-size: 0.95rem; }
   .ag__principal { padding: 1.25rem; min-width: 0; }
+  .ag__ler-mais { align-self: flex-start; font-size: 0.9rem; }
+  @media (max-width: 899px) {
+    .ag__descricao.recolhida { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  }
+  @media (min-width: 900px) { .ag__ler-mais { display: none; } }
   .ag__subtitulo { margin: 0 0 1.1rem; font-size: 1.1rem; }
 
   @media (min-width: 900px) {
