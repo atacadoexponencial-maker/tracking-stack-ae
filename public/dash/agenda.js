@@ -54,8 +54,12 @@
       g = document.createElement('dialog');
       g.id = 'ag-gaveta';
       g.className = 'ag-gaveta';
-      // Clique no fundo escurecido (fora do painel) fecha.
-      g.addEventListener('click', (ev) => { if (ev.target === g) g.close(); });
+      const pedir = () => (g.pedirFechar ? g.pedirFechar() : g.close());
+      // Clique no fundo escurecido (fora do painel) e Esc pedem para fechar:
+      // com alteração não salva, o formulário pergunta antes.
+      g.addEventListener('click', (ev) => { if (ev.target === g) pedir(); });
+      g.addEventListener('cancel', (ev) => { ev.preventDefault(); pedir(); });
+      g.addEventListener('close', () => { g.pedirFechar = null; });
       document.body.appendChild(g);
     }
     if (!g.open) g.showModal();
@@ -366,6 +370,12 @@
       </div>
       <footer class="ag-gaveta__rodape">
         <div id="ag-tf-erro"></div>
+        <div class="ag-sair" id="ag-tf-sair" role="alertdialog" aria-labelledby="ag-tf-sair-txt" hidden>
+          <p id="ag-tf-sair-txt"><b>Você tem alterações não salvas.</b> O que quer fazer?</p>
+          <div class="ag-acoes"><button class="btn" type="button" data-sair="salvar">Salvar</button>
+            <button class="btn perigo" type="button" data-sair="descartar">Descartar</button>
+            <button class="btn sec" type="button" data-sair="voltar">Continuar editando</button></div>
+        </div>
         <div class="ag-acoes"><button class="btn" type="submit">${novo ? 'Criar tipo' : 'Salvar'}</button>
           <button class="btn sec" type="button" data-fechar>Cancelar</button></div>
       </footer>
@@ -401,7 +411,7 @@
       form.querySelectorAll('[data-aba]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
       form.querySelectorAll('[data-painel]').forEach((x) => { x.hidden = x.dataset.painel !== b.dataset.aba; });
     };
-    form.querySelectorAll('[data-fechar]').forEach((b) => { b.onclick = () => gaveta.close(); });
+    form.querySelectorAll('[data-fechar]').forEach((b) => { b.onclick = () => gaveta.pedirFechar(); });
     const funilSel = form.querySelector('[name="funil"]');
     const comercialCb = form.querySelector('[name="comercial"]');
     const ajustarFunil = () => { funilSel.closest('label').hidden = !comercialCb.checked; };
@@ -430,6 +440,25 @@
       });
     };
     desenharPerguntas();
+    const retrato = () => {
+      lerPerguntas();
+      const campos = [...new FormData(form)].map(([k, x]) => [k, String(x)]);
+      return JSON.stringify([campos, form.querySelector('[name="comercial"]').checked, perguntas, conflitos]);
+    };
+    const inicial = retrato();
+    const aviso = ctx.$('#ag-tf-sair');
+    gaveta.pedirFechar = () => {
+      if (retrato() === inicial) return gaveta.close();
+      aviso.hidden = false;
+      aviso.querySelector('[data-sair="salvar"]').focus();
+    };
+    aviso.onclick = (ev) => {
+      const b = ev.target.closest('[data-sair]');
+      if (!b) return;
+      aviso.hidden = true;
+      if (b.dataset.sair === 'descartar') gaveta.close();
+      if (b.dataset.sair === 'salvar') form.requestSubmit();
+    };
     ctx.$('#ag-perg-add').onclick = () => { lerPerguntas(); perguntas.push({ texto: '', tipo: 'texto', opcoes: [], obrigatoria: false }); desenharPerguntas(); };
     ctx.$('#ag-perg').onchange = (ev) => { if (ev.target.dataset.campo === 'tipo') { lerPerguntas(); desenharPerguntas(); } };
     ctx.$('#ag-perg').onclick = (ev) => {
