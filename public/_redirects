@@ -30,3 +30,13 @@
 # na página nova (mesmo funil "workshop" no ClickUp).
 /workshop-gratuito-atacado /workshop-gratuito 301
 /workshop-gratuito-atacado/ /workshop-gratuito 301
+
+# As LPs da live semanal saíram do ar em 02/10/2026: as lives acabaram e o
+# workshop quinzenal ocupou o lugar. Os arquivos .astro continuam no
+# repositório — 302 (temporário), não 301, para poderem voltar sem o navegador
+# ter guardado o desvio. A v1 também era a porta do bot de lead falso
+# (leads de 01/10 marcados como is_junk).
+/lives-semanais-v1 /workshop-gratuito 302
+/lives-semanais-v1/ /workshop-gratuito 302
+/lives-semanais-v2 /workshop-gratuito 302
+/lives-semanais-v2/ /workshop-gratuito 302
