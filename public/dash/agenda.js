@@ -305,6 +305,7 @@
       pagina_pos: '', contato_alternativo: '', descricao: '',
     };
     let perguntas = (v.perguntas || []).map((p) => ({ ...p }));
+    const conflitos = [...(v.conflito_cals || [])];
     const opt = (lista, sel) => lista.map(([val, rot]) => `<option value="${ctx.esc(val)}"${String(val) === String(sel) ? ' selected' : ''}>${ctx.esc(rot)}</option>`).join('');
     // Gaveta lateral (<dialog> nativo: Esc fecha, o foco fica dentro). Os
     // campos são divididos em abas curtas; todos pertencem ao mesmo formulário,
@@ -345,9 +346,10 @@
             <label>Folga depois (min) <input type="number" name="folga_depois_min" value="${v.folga_depois_min}" min="0"></label>
           </div>
           <label>Agenda onde a reunião é criada <select name="destino_cal">${opt(opcoes.agendas.map((a) => [a.id, `${a.nome} (${a.conta})`]), v.destino_cal)}</select></label>
-          <fieldset><legend>Agendas que bloqueiam horário</legend>
-            ${opcoes.agendas.map((a) => `<label class="marca"><input type="checkbox" name="conflito" value="${ctx.esc(a.id)}"${v.conflito_cals.includes(a.id) ? ' checked' : ''}> ${ctx.esc(a.nome)}</label>`).join('')}
-          </fieldset>
+          <div class="ag-campo">
+            <span class="ag-campo__rotulo">Agendas que bloqueiam horário</span>
+            <div class="ag-etiquetas" id="ag-conflitos"></div>
+          </div>
         </section>
         <section data-painel="comercial" hidden>
           <label class="marca"><input type="checkbox" name="comercial"${v.comercial ? ' checked' : ''}> Reunião comercial</label>
@@ -369,6 +371,30 @@
       </footer>
     </form>`;
     const form = ctx.$('#ag-tf');
+    // Agendas de conflito como etiquetas: as escolhidas aparecem com × e as
+    // demais ficam num menu. Lista de checkbox com 12 agendas era longa demais.
+    const nomeAgenda = (id) => (opcoes.agendas.find((a) => a.id === id) || { nome: id }).nome;
+    const desenharConflitos = () => {
+      const resto = opcoes.agendas.filter((a) => !conflitos.includes(a.id));
+      ctx.$('#ag-conflitos').innerHTML = conflitos.map((id) => `<span class="ag-etiqueta">${ctx.esc(nomeAgenda(id))}
+          <button type="button" data-tirar="${ctx.esc(id)}" aria-label="Tirar ${ctx.esc(nomeAgenda(id))}">×</button></span>`).join('')
+        + (conflitos.length ? '' : '<span class="mini">Nenhuma: só a própria agenda da reunião não bloqueia nada.</span>')
+        + (resto.length ? `<select data-adicionar aria-label="Adicionar agenda que bloqueia horário"><option value="">+ Adicionar agenda…</option>
+            ${resto.map((a) => `<option value="${ctx.esc(a.id)}">${ctx.esc(a.nome)}</option>`).join('')}</select>` : '');
+    };
+    desenharConflitos();
+    ctx.$('#ag-conflitos').onclick = (ev) => {
+      const b = ev.target.closest('[data-tirar]');
+      if (!b) return;
+      conflitos.splice(conflitos.indexOf(b.dataset.tirar), 1);
+      desenharConflitos();
+    };
+    ctx.$('#ag-conflitos').onchange = (ev) => {
+      if (!ev.target.matches('[data-adicionar]') || !ev.target.value) return;
+      conflitos.push(ev.target.value);
+      desenharConflitos();
+      ctx.$('#ag-conflitos [data-adicionar]')?.focus();
+    };
     form.querySelector('.ag-abas').onclick = (ev) => {
       const b = ev.target.closest('[data-aba]');
       if (!b) return;
@@ -425,7 +451,7 @@
         nome: f.get('nome'), slug: f.get('slug'), duracao_min: f.get('duracao_min'), intervalo_min: f.get('intervalo_min'),
         antecedencia_min: f.get('antecedencia_min'), janela_dias: f.get('janela_dias'), folga_antes_min: f.get('folga_antes_min'),
         folga_depois_min: f.get('folga_depois_min'), limite_dia: f.get('limite_dia'), destino_cal: f.get('destino_cal'),
-        grade_id: f.get('grade_id'), conflito_cals: f.getAll('conflito'), comercial: comercialCb.checked,
+        grade_id: f.get('grade_id'), conflito_cals: conflitos, comercial: comercialCb.checked,
         funil: comercialCb.checked ? f.get('funil') : '', titulo_modelo: f.get('titulo_modelo'),
         pagina_pos: f.get('pagina_pos'), contato_alternativo: f.get('contato_alternativo'), descricao: f.get('descricao'), perguntas,
       };
