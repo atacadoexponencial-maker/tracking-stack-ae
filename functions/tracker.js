@@ -549,7 +549,12 @@ async function trocarCalendlyPelaAgenda(env, body, destino, { sessionId, repetid
   try {
     const lead = body.lead_data || {};
     const funil = (lead.funnel || 'diagnostico').toLowerCase();
-    const tipo = await tipoDoFunil(env, funil);
+    // Funil sem tipo próprio que hoje cai no Calendly geral de consultoria
+    // (aplicação mentoria, calculadora, chat da home) usa o tipo da sessão
+    // estratégica, que é a mesma reunião. A reunião continua contada no funil
+    // do lead (vem do convite), não no do tipo.
+    const tipo = await tipoDoFunil(env, funil)
+      || (destino === env.LEAD_REDIRECT_CALENDLY ? await tipoDoFunil(env, 'sessao-estrategica') : null);
     if (!tipo) return destino;
     // Clique duplicado: reaproveita o convite que o primeiro envio criou.
     let token = repetido ? await conviteDoLead(env, body.event_id) : null;
