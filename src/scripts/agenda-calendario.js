@@ -169,28 +169,28 @@ export const ESTILO_CALENDARIO = `
 .cal { display: grid; gap: 1.25rem; }
 .cal__esq { display: grid; gap: .9rem; align-content: start; }
 .cal__mes { display: flex; align-items: center; justify-content: space-between; }
-.cal__titulo { font-size: 1.05rem; }
+.cal__titulo { font-size: 1rem; }
 .cal__titulo::first-letter { text-transform: uppercase; }
-.cal__nav { width: 2.5rem; height: 2.5rem; display: inline-grid; place-items: center; border-radius: 9999px; border: 1px solid rgba(30,30,30,.2); background: none; cursor: pointer; color: inherit; }
+.cal__nav { width: 2.2rem; height: 2.2rem; display: inline-grid; place-items: center; border-radius: 9999px; border: 1px solid rgba(30,30,30,.2); background: none; cursor: pointer; color: inherit; }
 .cal__nav svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .cal__nav:disabled { opacity: .3; cursor: default; }
-.cal__grade { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; text-align: center; }
-.cal__sem { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(30,30,30,.55); padding-bottom: .2rem; }
-.cal__dia { aspect-ratio: 1; max-height: 2.9rem; width: 100%; justify-self: center; border: none; border-radius: 9999px; background: none; font: inherit; color: rgba(30,30,30,.35); }
-.cal__dia--livre { background: rgba(30,30,30,.08); color: #1e1e1e; font-weight: 700; cursor: pointer; }
-.cal__dia--livre:hover { background: rgba(30,30,30,.16); }
-.cal__dia--ativo, .cal__dia--ativo:hover { background: #1e1e1e; color: #fff; }
+.cal__grade { display: grid; grid-template-columns: repeat(7, 2.5rem); gap: .3rem .35rem; justify-content: space-between; text-align: center; }
+.cal__sem { font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(30,30,30,.55); padding-bottom: .2rem; }
+.cal__dia { width: 2.5rem; height: 2.5rem; justify-self: center; border: none; border-radius: 9999px; background: none; font: inherit; font-size: .9rem; color: rgba(30,30,30,.32); }
+.cal__dia--livre { background: #dff3e6; color: #1b6b3c; font-weight: 700; cursor: pointer; }
+.cal__dia--livre:hover { background: #c4e9d1; }
+.cal__dia--ativo, .cal__dia--ativo:hover { background: #2f9a5d; color: #fff; }
 .cal__fuso { display: grid; gap: .3rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(30,30,30,.6); }
 .cal__fuso select { font: inherit; text-transform: none; letter-spacing: 0; font-size: .95rem; padding: .6rem .8rem; border-radius: .6rem; border: 1px solid rgba(30,30,30,.2); background: #fff; color: #1e1e1e; }
 .cal__dia-titulo { margin: 0 0 .6rem; font-weight: 700; }
 .cal__dia-titulo::first-letter { text-transform: uppercase; }
 .cal__lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); gap: .5rem; }
-.cal__hora { padding: .75rem .5rem; border-radius: .6rem; border: 1px solid #1e1e1e; background: #fff; color: #1e1e1e; font: inherit; font-weight: 700; cursor: pointer; }
+.cal__hora { padding: .6rem .5rem; border-radius: .6rem; border: 1px solid #1e1e1e; background: #fff; color: #1e1e1e; font: inherit; font-weight: 700; cursor: pointer; }
 .cal__hora:hover { background: #1e1e1e; color: #fff; }
 .cal__vazio { margin: 0; color: rgba(30,30,30,.7); }
 @container (min-width: 34rem) {
-  .cal { grid-template-columns: minmax(0, 1fr) 10.5rem; gap: 1.75rem; }
-  .cal__horarios { border-left: 1px solid rgba(30,30,30,.1); padding-left: 1.5rem; max-height: 27rem; overflow-y: auto; }
+  .cal { grid-template-columns: minmax(0, 21rem) 10rem; gap: 1.75rem; justify-content: start; }
+  .cal__horarios { border-left: 1px solid rgba(30,30,30,.1); padding-left: 1.5rem; max-height: 22rem; overflow-y: auto; }
   .cal__lista { grid-template-columns: 1fr; }
 }
 `;
