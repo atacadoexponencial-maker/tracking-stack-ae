@@ -153,7 +153,8 @@ export function montarCalendario(raiz, { dias, aoEscolher }) {
 export const ESTILO_CALENDARIO = `
 .cal { display: grid; gap: 1rem; }
 .cal__mes { display: flex; align-items: center; justify-content: space-between; }
-.cal__titulo { text-transform: capitalize; font-size: 1.05rem; }
+.cal__titulo { font-size: 1.05rem; }
+.cal__titulo::first-letter { text-transform: uppercase; }
 .cal__nav { width: 2.5rem; height: 2.5rem; border-radius: 9999px; border: 1px solid rgba(30,30,30,.2); background: none; font-size: 1.3rem; cursor: pointer; color: inherit; }
 .cal__nav:disabled { opacity: .3; cursor: default; }
 .cal__grade { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; text-align: center; }
@@ -164,7 +165,8 @@ export const ESTILO_CALENDARIO = `
 .cal__dia--ativo, .cal__dia--ativo:hover { background: #1e1e1e; color: #fff; }
 .cal__fuso { display: grid; gap: .3rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(30,30,30,.6); }
 .cal__fuso select { font: inherit; text-transform: none; letter-spacing: 0; font-size: .95rem; padding: .6rem .8rem; border-radius: .6rem; border: 1px solid rgba(30,30,30,.2); background: #fff; color: #1e1e1e; }
-.cal__dia-titulo { margin: 0 0 .6rem; font-weight: 700; text-transform: capitalize; }
+.cal__dia-titulo { margin: 0 0 .6rem; font-weight: 700; }
+.cal__dia-titulo::first-letter { text-transform: uppercase; }
 .cal__lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); gap: .5rem; }
 .cal__hora { padding: .75rem .5rem; border-radius: .6rem; border: 1px solid #1e1e1e; background: #fff; color: #1e1e1e; font: inherit; font-weight: 700; cursor: pointer; }
 .cal__hora:hover { background: #1e1e1e; color: #fff; }

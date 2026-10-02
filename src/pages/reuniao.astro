@@ -229,7 +229,8 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   }
   .re__quando--apagado { opacity: 0.55; }
   .re__quando-rotulo { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: hsl(var(--muted-foreground)); }
-  .re__quando-data { font-size: clamp(1.2rem, 4.5vw, 1.6rem); line-height: 1.15; text-transform: capitalize; }
+  .re__quando-data { font-size: clamp(1.2rem, 4.5vw, 1.6rem); line-height: 1.15; }
+  .re__quando-data::first-letter { text-transform: uppercase; }
   .re__quando-nota { font-size: 0.9rem; color: hsl(var(--muted-foreground)); }
   .re__acoes { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; text-align: center; }
   .re__acoes[hidden], .re__linha[hidden] { display: none; }
