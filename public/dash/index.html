@@ -894,7 +894,7 @@ td.pago, th.pago { color: var(--alerta); }
 
     <section class="secao" id="secao-visao">
       <p class="manchete" id="visao-manchete" data-esqueleto="manchete"></p>
-      <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:5:heroi"></div>
+      <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:9:heroi"></div>
       <!-- Painel por funil: os mesmos números do geral, um bloco por funil. Some com o filtro de funil ativo. -->
       <div id="visao-por-funil"></div>
       <!-- Funil da agenda (spec-conversao-agenda.md): desenhado por public/dash/agenda.js. -->
@@ -2192,6 +2192,7 @@ R.visao = async () => {
     + (cplA !== null ? `, com CPL de <strong>${money(cplA)}</strong>` : '') + '.';
 
   const semGasto = fSel ? 'sem investimento no funil' : 'precisa do sync de investimento';
+  const reA = reunioesDe(cplA_), reB = reunioesDe(cplB_);
   $('#visao-herois').innerHTML = [
     { rotulo: 'Leads', valor: fmtInt(totalLeads), conta: { v: totalLeads, fmt: 'int' }, delta: delta(totalLeads, totalLeadsAnt) },
     // Lead novo = a ponte criou o card no CRM (quem já tinha card e voltou não conta).
@@ -2201,6 +2202,9 @@ R.visao = async () => {
     // o da aba Meta Ads é só do canal pago — por isso o subtítulo.
     { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), conta: { v: cplA, fmt: 'money' }, delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, invertido: true, nota: cplA === null ? semGasto : 'todos os canais' },
     { rotulo: 'CPL lead novo', valor: cplNovoA === null ? null : money(cplNovoA), conta: { v: cplNovoA, fmt: 'money' }, delta: cplNovoA !== null && cplNovoB !== null ? delta(cplNovoA, cplNovoB) : undefined, invertido: true, nota: cplNovoA === null ? (gastoA ? 'nenhum lead novo' : semGasto) : '' },
+    // Reuniões e custo por reunião (spec-conversao-agenda.md, módulo 4), na
+    // mesma linha do total de leads e do CPL: é a soma de todos os funis.
+    ...tilesReunioes(reA, reB, fSel ? 'investimento do funil' : 'só funis que agendam reunião'),
   ].map((k) => tile(k, true)).join('');
   contarNumeros($('#visao-herois'));
 
@@ -2208,10 +2212,7 @@ R.visao = async () => {
   // Funil da agenda: carga própria, falha nele não derruba a Visão geral.
   window.AgendaDash.funilVisao(R.agendaCtx(), $('#visao-agenda'), { de: p.de, ate: p.ate, funil: fSel });
 
-  const reA = reunioesDe(cplA_), reB = reunioesDe(cplB_);
   $('#visao-kpis').innerHTML = [
-    // Agendar não é lead (decisão de 02/10): conta à parte, pela agenda própria.
-    ...tilesReunioes(reA, reB, fSel ? 'do funil' : 'só funis que agendam reunião'),
     // `visitors` de /api/conversion conta sessões pela PRIMEIRA visita (first-touch
     // no upsert de sessions): quem chegou antes do período não entra aqui.
     { rotulo: 'Novos visitantes', valor: fmtInt(cA.v), delta: delta(cA.v, cB.v), nota: 'coorte pela 1ª visita' },
