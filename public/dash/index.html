@@ -2097,7 +2097,8 @@ async function desenharTaxas(p, fSel) {
   alvo.innerHTML = '<h2>Taxas de passagem <small>carregando…</small></h2>';
   let t;
   try {
-    t = await fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&_=${Date.now()}`);
+    // Sem cache-buster: período fechado vem do cache (o CRM é lido uma vez só).
+    t = await fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}`);
   } catch {
     alvo.innerHTML = '<h2>Taxas de passagem</h2><div class="aviso">Taxas indisponíveis agora.</div>';
     return;

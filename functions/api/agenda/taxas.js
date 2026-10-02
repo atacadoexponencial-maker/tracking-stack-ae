@@ -11,6 +11,7 @@ import { montarFeedback } from '../feedback-marketing.js';
 import { resolverPeriodo } from '../_feedback-marketing-periodo.js';
 import { taxasPorFunil } from '../_agenda-funil.js';
 import { ymdBrt } from '../_data-brt.js';
+import { respostaEmCache, respostaJson } from '../_cache.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') === env.DASH_KEY;
@@ -65,7 +66,8 @@ async function recorte(env, de, ate, agora, funisComAgenda) {
   return { ...taxasPorFunil({ crm, agenda, funisComAgenda }), crm_lido: crm !== null };
 }
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet(context) {
+  const { request, env } = context;
   const url = new URL(request.url);
   if (!autorizado(url, env)) return json({ error: 'Unauthorized' }, 401);
   const agora = Math.floor(Date.now() / 1000);
@@ -74,11 +76,16 @@ export async function onRequestGet({ request, env }) {
   const de = Number(p.get('from')) || ate - 30 * 86400;
   const antAte = Number(p.get('antTo')) || de - 1;
   const antDe = Number(p.get('antFrom')) || antAte - (ate - de);
+  // Período que já fechou não muda: o CRM é lido uma vez e a resposta fica
+  // guardada (mesmo cache dos outros endpoints com período, _cache.js). O
+  // período com hoje sempre lê na hora.
+  const emCache = await respostaEmCache(request, { until: ate });
+  if (emCache) return emCache;
   const tipos = (await env.DB.prepare('SELECT DISTINCT funil FROM agenda_tipos WHERE comercial = 1 AND funil IS NOT NULL').all()).results || [];
   const funisComAgenda = tipos.map((t) => t.funil);
   const [atual, anterior] = await Promise.all([
     recorte(env, de, ate, agora, funisComAgenda),
     recorte(env, antDe, antAte, agora, funisComAgenda),
   ]);
-  return json({ atual, anterior });
+  return respostaJson(request, { atual, anterior }, { until: ate, context });
 }
