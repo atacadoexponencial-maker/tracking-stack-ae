@@ -51,6 +51,9 @@ export const CATALOGO = [
   { nome: 'EVOLUTION_NUMERO_NOTIF', integracao: 'Evolution (em aposentadoria)', obrigatoria: false },
   { nome: 'EVOLUTION_APIKEY_ALERTA', integracao: 'Evolution (em aposentadoria)', obrigatoria: false },
   { nome: 'EVOLUTION_NUMERO_ALERTA', integracao: 'Evolution (em aposentadoria)', obrigatoria: false },
+  // Agenda própria (spec-agenda-propria.md): chave da conta de serviço do Google.
+  { nome: 'GOOGLE_AGENDA_SA_JSON', integracao: 'Agenda (Google)', obrigatoria: false },
+  { nome: 'AGENDA_ATIVA', integracao: 'Agenda (Google)', obrigatoria: false },
   { nome: 'SYNC_SECRET', integracao: 'Acesso interno', obrigatoria: true },
   { nome: 'DASH_KEY', integracao: 'Acesso interno', obrigatoria: true },
   { nome: 'FEEDBACK_MARKETING_KEY', integracao: 'Acesso interno', obrigatoria: true },

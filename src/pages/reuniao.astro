@@ -1,0 +1,253 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo-horizontal-preto.png';
+
+// Confirmação e gerenciamento da reunião (spec-agenda-propria.md, módulos 5 e 6).
+// Servida em /reuniao/<token> por functions/reuniao/[token].js. O token de
+// gestão é o único acesso: vem no fim da confirmação e na descrição do
+// convite do Google. Com ?novo=1, abre como "reunião confirmada".
+//
+// Só exibe e coleta: quem decide se ainda dá para mudar (antecedência mínima),
+// se o horário está livre e o que muda na agenda e no CRM é o servidor.
+---
+
+<BaseLayout
+  title="Sua reunião | Atacado Exponencial"
+  description="Veja, remarque ou cancele a sua reunião com o Atacado Exponencial."
+  showHeader={false}
+  showFooter={false}
+  noindex
+>
+  <section class="re">
+    <div class="container re__inner">
+      <Image src={logo} alt="Atacado Exponencial" width={939} height={253} loading="eager" class="re__logo" />
+
+      <div id="re-carregando" class="re__cartao re__centro">Carregando…</div>
+
+      <div id="re-app" hidden>
+        <div class="re__cab">
+          <span class="re__selo" id="re-selo"></span>
+          <h1 class="re__titulo" id="re-titulo"></h1>
+        </div>
+
+        <div class="re__quando" id="re-quando">
+          <span class="re__quando-rotulo" id="re-tipo"></span>
+          <strong class="re__quando-data" id="re-data"></strong>
+          <span class="re__quando-nota" id="re-hora"></span>
+        </div>
+
+        <div id="re-acoes-ativa" class="re__acoes" hidden>
+          <a class="btn-cta re__cta" id="re-meet" target="_blank" rel="noopener">Entrar no Google Meet</a>
+          <p class="re__nota">O convite com o link também foi para o seu e-mail.</p>
+          <div class="re__linha">
+            <a class="re__sec" id="re-google" target="_blank" rel="noopener">Adicionar ao Google Agenda</a>
+            <a class="re__sec" id="re-ics">Baixar para outra agenda</a>
+          </div>
+          <div class="re__linha" id="re-mudar">
+            <button type="button" class="re__sec" id="re-btn-remarcar">Remarcar</button>
+            <button type="button" class="re__sec re__perigo" id="re-btn-cancelar">Cancelar</button>
+          </div>
+          <p class="re__nota" id="re-em-cima" hidden></p>
+        </div>
+
+        <div id="re-remarcar" class="re__cartao" hidden>
+          <h2 class="re__subtitulo">Escolha o novo horário</h2>
+          <div id="re-calendario"></div>
+          <button type="button" class="re__link" id="re-fechar-remarcar">Manter o horário atual</button>
+        </div>
+
+        <div id="re-cancelar" class="re__cartao" hidden>
+          <h2 class="re__subtitulo">Cancelar a reunião?</h2>
+          <label class="re__campo">Quer contar o motivo? <span class="re__opcional">(opcional)</span>
+            <textarea id="re-motivo" rows="3"></textarea>
+          </label>
+          <button type="button" class="btn-cta re__cta re__cta--perigo" id="re-confirmar-cancelar">Cancelar reunião</button>
+          <button type="button" class="re__link" id="re-fechar-cancelar">Voltar</button>
+        </div>
+
+        <div id="re-falha" class="re__falha" role="alert" hidden></div>
+
+        <div id="re-acoes-fim" class="re__acoes" hidden>
+          <a class="btn-cta re__cta" id="re-agendar-de-novo">Agendar de novo</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { montarCalendario, dataLonga, horaNoFuso, fusoDoNavegador } from '../scripts/agenda-calendario.js';
+
+  const $ = (s: string) => document.querySelector(s) as HTMLElement;
+  const token = decodeURIComponent(location.pathname.replace(/^\/reuniao\/?/, '').replace(/\/$/, ''));
+  const novo = new URLSearchParams(location.search).get('novo') === '1';
+  const fuso = fusoDoNavegador();
+  let estado: any = null;
+  let cal: any = null;
+
+  const gcal = (d: any) => {
+    const f = (t: number) => new Date(t * 1000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const p = new URLSearchParams({ action: 'TEMPLATE', text: `${d.tipo.nome} | Atacado Exponencial`, dates: `${f(d.inicio)}/${f(d.fim)}`, details: d.meet ? `Google Meet: ${d.meet}` : '' });
+    return 'https://calendar.google.com/calendar/render?' + p;
+  };
+  const ics = (d: any) => {
+    const f = (t: number) => new Date(t * 1000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const corpo = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Atacado Exponencial//Agenda//PT', 'BEGIN:VEVENT',
+      `UID:${token}@atacadoexponencial.com`, `DTSTAMP:${f(Math.floor(Date.now() / 1000))}`, `DTSTART:${f(d.inicio)}`, `DTEND:${f(d.fim)}`,
+      `SUMMARY:${d.tipo.nome} | Atacado Exponencial`, `DESCRIPTION:${d.meet ? 'Google Meet: ' + d.meet : ''}`, `LOCATION:${d.meet || ''}`,
+      'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(corpo);
+  };
+
+  function desenhar(d: any) {
+    estado = d;
+    $('#re-carregando').hidden = true;
+    $('#re-app').hidden = false;
+    $('#re-remarcar').hidden = true;
+    $('#re-cancelar').hidden = true;
+    $('#re-tipo').textContent = d.tipo.nome;
+    $('#re-data').textContent = dataLonga(d.inicio, fuso);
+    $('#re-hora').textContent = `${horaNoFuso(d.inicio, fuso)} às ${horaNoFuso(d.fim, fuso)} · Google Meet`;
+    const ativa = d.situacao === 'marcada';
+    $('#re-acoes-ativa').hidden = !ativa;
+    $('#re-acoes-fim').hidden = ativa || !d.tipo.ativo;
+    $('#re-quando').classList.toggle('re__quando--apagado', !ativa);
+    if (d.situacao === 'cancelada') {
+      $('#re-selo').textContent = 'Reunião cancelada';
+      $('#re-titulo').textContent = 'Esta reunião foi cancelada.';
+    } else if (d.situacao === 'passou') {
+      $('#re-selo').textContent = 'Reunião encerrada';
+      $('#re-titulo').textContent = 'Esta reunião já aconteceu.';
+    } else {
+      $('#re-selo').textContent = novo ? 'Reunião confirmada' : 'Sua reunião';
+      $('#re-titulo').textContent = novo ? `Tudo certo, ${String(d.nome).split(' ')[0]}!` : 'Sua reunião está marcada.';
+    }
+    if (ativa) {
+      const meet = $('#re-meet') as HTMLAnchorElement;
+      meet.href = d.meet || '#';
+      meet.hidden = !d.meet;
+      ($('#re-google') as HTMLAnchorElement).href = gcal(d);
+      const a = $('#re-ics') as HTMLAnchorElement;
+      a.href = ics(d);
+      a.setAttribute('download', 'reuniao-atacado-exponencial.ics');
+      $('#re-mudar').hidden = !d.pode_mudar;
+      const emCima = $('#re-em-cima');
+      emCima.hidden = d.pode_mudar;
+      emCima.textContent = d.contato
+        ? `Está muito em cima da hora para mudar por aqui. Fale com a gente: ${d.contato}`
+        : 'Está muito em cima da hora para mudar por aqui. Responda o convite da reunião para falar com a gente.';
+    }
+    // Comercial volta pelo formulário (não há link direto de agendamento).
+    if (!ativa && d.tipo.ativo) ($('#re-agendar-de-novo') as HTMLAnchorElement).href = `/agendar/${d.tipo.slug}`;
+  }
+
+  function falha(msg: string) {
+    const el = $('#re-falha');
+    el.textContent = msg;
+    el.hidden = !msg;
+  }
+
+  async function enviar(corpo: Record<string, unknown>) {
+    falha('');
+    const r = await fetch('/api/agenda/publico/reuniao', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ g: token, ...corpo }),
+    }).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : { error: 'Sem conexão. Confira a internet e tente de novo.' };
+    if (r && r.ok) { history.replaceState(null, '', location.pathname); desenhar(d); window.scrollTo({ top: 0, behavior: 'smooth' }); return true; }
+    falha(d.error || 'Não foi possível concluir agora. Tente de novo.');
+    if (d.estado) desenhar(d.estado);
+    return false;
+  }
+
+  $('#re-btn-remarcar').addEventListener('click', async () => {
+    $('#re-cancelar').hidden = true;
+    $('#re-remarcar').hidden = false;
+    const raiz = $('#re-calendario');
+    raiz.textContent = 'Carregando horários…';
+    const r = await fetch('/api/agenda/publico/horarios?g=' + encodeURIComponent(token)).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : {};
+    if (!r || !r.ok) { raiz.textContent = d.error || 'Não foi possível carregar os horários.'; return; }
+    cal = montarCalendario(raiz, {
+      dias: d.dias || {},
+      async aoEscolher(t: number) {
+        if (t === estado.inicio) return;
+        raiz.style.opacity = '0.5';
+        const ok = await enviar({ acao: 'remarcar', inicio: t });
+        raiz.style.opacity = '';
+        if (!ok) {
+          const r2 = await fetch('/api/agenda/publico/horarios?g=' + encodeURIComponent(token)).catch(() => null);
+          if (r2 && r2.ok) cal.definirDias((await r2.json()).dias || {});
+        }
+      },
+    });
+  });
+  $('#re-fechar-remarcar').addEventListener('click', () => { $('#re-remarcar').hidden = true; });
+  $('#re-btn-cancelar').addEventListener('click', () => { $('#re-remarcar').hidden = true; $('#re-cancelar').hidden = false; });
+  $('#re-fechar-cancelar').addEventListener('click', () => { $('#re-cancelar').hidden = true; });
+  $('#re-confirmar-cancelar').addEventListener('click', async (ev) => {
+    const b = ev.currentTarget as HTMLButtonElement;
+    b.disabled = true;
+    await enviar({ acao: 'cancelar', motivo: ($('#re-motivo') as HTMLTextAreaElement).value });
+    b.disabled = false;
+  });
+
+  (async () => {
+    const r = await fetch('/api/agenda/publico/reuniao?g=' + encodeURIComponent(token)).catch(() => null);
+    if (!r || !r.ok) {
+      $('#re-carregando').textContent = r && r.status === 404
+        ? 'Não encontramos esta reunião. Confira o link do convite.'
+        : 'Não foi possível abrir a reunião agora. Tente de novo em instantes.';
+      return;
+    }
+    desenhar(await r.json());
+  })();
+</script>
+
+<style>
+  .re {
+    min-height: 100dvh;
+    background: hsl(var(--light-bg));
+    color: hsl(var(--light-fg));
+    padding-block: clamp(1.5rem, 5vh, 3rem);
+  }
+  .re__inner { max-width: 34rem; margin-inline: auto; display: flex; flex-direction: column; gap: 1.25rem; }
+  .re__logo { height: auto; width: clamp(9rem, 42vw, 12rem); align-self: center; }
+  #re-app { display: flex; flex-direction: column; gap: 1.1rem; }
+  #re-app[hidden] { display: none; }
+  .re__cab { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; text-align: center; }
+  .re__selo {
+    display: inline-block; border: 1px solid rgba(30, 30, 30, 0.2); border-radius: 9999px;
+    padding: 0.4rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.15em; color: rgba(30, 30, 30, 0.7);
+  }
+  .re__titulo { margin: 0; font-size: clamp(1.5rem, 5vw, 2.1rem); line-height: 1.1; }
+  .re__subtitulo { margin: 0 0 1rem; font-size: 1rem; }
+  .re__quando {
+    background: hsl(var(--background)); color: hsl(var(--foreground)); border-radius: 1rem;
+    padding: clamp(1rem, 3vh, 1.5rem); display: flex; flex-direction: column; gap: 0.35rem; text-align: center;
+  }
+  .re__quando--apagado { opacity: 0.55; }
+  .re__quando-rotulo { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: hsl(var(--muted-foreground)); }
+  .re__quando-data { font-size: clamp(1.2rem, 4.5vw, 1.6rem); line-height: 1.15; text-transform: capitalize; }
+  .re__quando-nota { font-size: 0.9rem; color: hsl(var(--muted-foreground)); }
+  .re__acoes { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; text-align: center; }
+  .re__acoes[hidden], .re__linha[hidden] { display: none; }
+  .re__cta { width: 100%; justify-content: center; }
+  .re__cta--perigo { background: #9b1c1c; color: #fff; margin-top: 0.5rem; }
+  .re__linha { display: flex; gap: 0.6rem; }
+  .re__sec {
+    flex: 1; padding: 0.8rem 0.75rem; border-radius: 9999px; border: 1px solid rgba(30, 30, 30, 0.25);
+    background: #fff; color: #1e1e1e; font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; text-align: center;
+  }
+  .re__perigo { color: #9b1c1c; }
+  .re__nota { margin: 0; font-size: 0.85rem; color: rgba(30, 30, 30, 0.7); }
+  .re__cartao { background: #fff; border-radius: 1rem; padding: clamp(1.1rem, 4vw, 1.75rem); }
+  .re__centro { text-align: center; }
+  .re__campo { display: grid; gap: 0.35rem; font-size: 0.85rem; font-weight: 700; }
+  .re__campo textarea { font: inherit; font-weight: 400; padding: 0.75rem; border-radius: 0.6rem; border: 1px solid rgba(30, 30, 30, 0.25); }
+  .re__opcional { font-weight: 400; color: rgba(30, 30, 30, 0.55); }
+  .re__link { margin-top: 0.9rem; background: none; border: none; padding: 0; font: inherit; color: rgba(30, 30, 30, 0.7); text-decoration: underline; cursor: pointer; }
+  .re__falha { background: rgba(220, 38, 38, 0.08); color: #9b1c1c; border-radius: 0.6rem; padding: 0.75rem 1rem; font-size: 0.9rem; }
+  @media (max-width: 380px) { .re__linha { flex-direction: column; } }
+</style>

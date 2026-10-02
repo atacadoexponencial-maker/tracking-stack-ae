@@ -27,7 +27,29 @@ export async function condicoesDasProtecoes(env, agora) {
     condicoes.push('horario_suspeito');
     itens.horario_suspeito = suspeitas.map((f) => `${f.rotulo}: ${f.diagnostico}`);
   }
+  // Agenda própria (spec-agenda-propria.md, módulo 1): agenda conectada cuja
+  // última leitura falhou. Sem ela a página de agendamento não oferece horário.
+  const agendas = await agendasComProblema(env);
+  if (agendas.length) {
+    condicoes.push('agenda_problema');
+    itens.agenda_problema = agendas;
+  }
   return { condicoes, itens, credenciais, fontes };
+}
+
+async function agendasComProblema(env) {
+  try {
+    const r = await env.DB.prepare(
+      `SELECT nome, conta_email, ultimo_erro FROM agenda_calendarios
+        WHERE ultimo_erro IS NOT NULL
+          AND id IN (SELECT destino_cal FROM agenda_tipos WHERE ativo = 1
+                     UNION SELECT value FROM agenda_tipos, json_each(agenda_tipos.conflito_cals_json) WHERE ativo = 1)`,
+    ).all();
+    return (r.results || []).map((a) => `${a.nome} (${a.conta_email}): ${a.ultimo_erro}`);
+  } catch {
+    // Tabela ainda não criada (migration 0047 não aplicada): não é alerta.
+    return [];
+  }
 }
 
 export async function verificarAlertas(env, agora = Math.floor(Date.now() / 1000), fetchImpl = fetch) {

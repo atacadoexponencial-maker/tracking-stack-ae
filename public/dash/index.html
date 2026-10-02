@@ -576,6 +576,24 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 /* Abas internas: Controle (o que ele pode fazer) e Propostas (o que ele
    pede). Trocar entre elas só esconde e mostra — a grade não é redesenhada,
    para não perder alteração ainda não salva. */
+/* Agenda (public/dash/agenda.js) */
+input[type="time"] { font: inherit; padding: 0.35rem 0.45rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); color: var(--tinta); }
+.ag-form { display: grid; gap: 0.75rem; max-width: 760px; }
+.ag-form .linha { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; }
+.ag-form label { display: grid; gap: 0.25rem; font-size: 0.8rem; color: var(--tinta-2); }
+.ag-form label.marca { display: flex; gap: 0.5rem; align-items: center; color: var(--tinta); font-size: 0.86rem; }
+.ag-form fieldset { border: 1px solid var(--fio); border-radius: 2px; padding: 0.7rem 0.9rem; display: grid; gap: 0.5rem; }
+.ag-form legend { font-size: 0.8rem; color: var(--tinta-2); padding: 0 0.3rem; }
+.ag-dia { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.6rem; align-items: start; padding: 0.45rem 0; border-bottom: 1px solid var(--fio); }
+.ag-dia:last-child { border-bottom: none; }
+.ag-faixas { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.ag-faixa { display: inline-flex; gap: 0.25rem; align-items: center; }
+.ag-acoes { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+.ag-saude-ok { color: var(--alta); }
+.ag-saude-erro { color: var(--queda); }
+.ag-hist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.35rem; font-size: 0.84rem; }
+.ag-slots { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.ag-slots .btn { font-weight: 400; }
 .argo-vistas, .ig-vistas { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.1rem; }
 .argo-vistas .tipo-pill, .ig-vistas .tipo-pill { font-size: 0.86rem; padding: 0.4rem 0.95rem; display: inline-flex; align-items: center; gap: 0.45rem; }
 .argo-contador { background: var(--tinta); color: var(--papel); font-weight: 700; font-size: 0.72rem; border-radius: 999px; padding: 0 0.45rem; min-width: 1.3rem; text-align: center; font-variant-numeric: tabular-nums; }
@@ -743,6 +761,7 @@ td.pago, th.pago { color: var(--alerta); }
         <a href="#bloqueios" data-secao="bloqueios">Bloqueios</a>
         <a href="#funis-relatorio" data-secao="funis-relatorio">Funis do relatório</a>
         <a href="#ab" data-secao="ab">Testes A/B</a>
+        <a href="#agenda" data-secao="agenda">Agenda</a>
       </div>
       <div class="nav-grupo" role="group" aria-labelledby="nav-diagnostico">
         <span class="nav-rotulo" id="nav-diagnostico">Diagnóstico</span>
@@ -1282,6 +1301,18 @@ td.pago, th.pago { color: var(--alerta); }
       </div>
     </section>
 
+    <!-- Agenda própria (spec-agenda-propria.md, issues 356–363). Desenhada por
+         public/dash/agenda.js; o backend (/api/agenda/*) decide tudo. -->
+    <section class="secao" id="secao-agenda">
+      <div class="ig-vistas" role="group" aria-label="Parte da aba Agenda">
+        <button type="button" class="tipo-pill" data-agenda-vista="agendamentos" aria-pressed="true">Agendamentos</button>
+        <button type="button" class="tipo-pill" data-agenda-vista="tipos" aria-pressed="false">Tipos de reunião</button>
+        <button type="button" class="tipo-pill" data-agenda-vista="grades" aria-pressed="false">Grades de horário</button>
+        <button type="button" class="tipo-pill" data-agenda-vista="agendas" aria-pressed="false">Agendas conectadas</button>
+      </div>
+      <div id="agenda-conteudo"></div>
+    </section>
+
     <section class="secao" id="secao-eventos">
       <div class="bloco"><h2>Saúde da captura <small>recuperação de rastreio</small></h2><div class="grid-etiquetas" id="ev-saude"></div></div>
       <div class="bloco"><h2>Eventos recentes</h2><div class="tabela-wrap" id="ev-tabela"></div></div>
@@ -1299,6 +1330,7 @@ td.pago, th.pago { color: var(--alerta); }
   </div>
 </div>
 
+<script src="/dash/agenda.js"></script>
 <script>
 (() => {
 'use strict';
@@ -1946,7 +1978,7 @@ document.addEventListener('click', async (ev) => {
 // (`by=funnel`); aqui só se escolhe o que mostrar e se desenha.
 // Fica de fora o `aquisicao` (impulsionamento): não gera lead direto, o CPL
 // dele seria sempre vazio. "sem-funil" vai por último e só se tiver número.
-function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
+function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB, reuA, reuB }) {
   const alvo = $('#visao-por-funil');
   if (fSel) { alvo.innerHTML = ''; return; }
   if (!cplA) { alvo.innerHTML = '<div class="aviso">Painel por funil indisponível agora (investimento por funil não respondeu).</div>'; return; }
@@ -1971,6 +2003,7 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
         { rotulo: 'Conversão', valor: txA === null ? null : fmtPct(txA, 2), delta: d(txA, txB), nota: txA === null ? (cA ? 'sem visitas no período' : 'sem página de captação') : '' },
         { rotulo: 'CPL', valor: r.cpl === null ? null : money(r.cpl), delta: d(r.cpl, ant.cpl), invertido: true, nota: r.cpl === null ? (r.spend > 0 ? 'nenhum lead' : 'sem investimento') : '' },
         { rotulo: 'CPL lead novo', valor: r.cpl_novos === null ? null : money(r.cpl_novos), delta: d(r.cpl_novos, ant.cpl_novos), invertido: true, nota: r.cpl_novos === null ? semGasto : '' },
+        { rotulo: 'Reuniões agendadas', valor: reuA ? fmtInt(reuA.por_funil[r.funnel] || 0) : null, delta: reuA && reuB ? d(reuA.por_funil[r.funnel] || 0, reuB.por_funil[r.funnel] || 0) : undefined, nota: reuA ? 'agenda própria' : 'agenda não respondeu' },
       ].map((k) => tile(k)).join('')}</div></div>`;
   }).join('');
 }
@@ -2001,6 +2034,13 @@ R.visao = async () => {
     fetchJson(`/api/cpl?${q(p.de, p.ate)}${mapaQ}`).catch(() => null),
     fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}`).catch(() => null),
   ]);
+  // Reuniões agendadas pela agenda própria (spec-agenda-propria.md): carga
+  // própria, fora do Promise.all — falha nela só deixa o número em "—".
+  const [reuA, reuB] = await Promise.all([
+    fetchJson(`/api/agenda/reunioes?por=funil&${q(p.de, p.ate)}`).catch(() => null),
+    fetchJson(`/api/agenda/reunioes?por=funil&${q(p.antDe, p.antAte)}`).catch(() => null),
+  ]);
+  const reunioesDe = (r) => !r ? null : (fSel ? (r.por_funil[fSel] || 0) : r.total);
   // funnelCounts sempre traz TODOS os funis; com filtro ativo, usa só o dele.
   const soma = (fc) => (fc || [])
     .filter((c) => !fSel || (c.funnel || '') === fSel)
@@ -2050,9 +2090,12 @@ R.visao = async () => {
   ].map((k) => tile(k, true)).join('');
   contarNumeros($('#visao-herois'));
 
-  desenharPainelPorFunil({ fSel, cplA: cplA_, cplB: cplB_, convA, convB });
+  desenharPainelPorFunil({ fSel, cplA: cplA_, cplB: cplB_, convA, convB, reuA, reuB });
 
+  const reunioesA = reunioesDe(reuA), reunioesB = reunioesDe(reuB);
   $('#visao-kpis').innerHTML = [
+    // Agendar não é lead (decisão de 02/10): conta à parte, pela agenda própria.
+    { rotulo: 'Reuniões agendadas', valor: reunioesA === null ? null : fmtInt(reunioesA), delta: reunioesA !== null && reunioesB ? delta(reunioesA, reunioesB) : undefined, nota: reunioesA === null ? 'agenda não respondeu' : 'agenda própria' },
     // `visitors` de /api/conversion conta sessões pela PRIMEIRA visita (first-touch
     // no upsert de sessions): quem chegou antes do período não entra aqui.
     { rotulo: 'Novos visitantes', valor: fmtInt(cA.v), delta: delta(cA.v, cB.v), nota: 'coorte pela 1ª visita' },
@@ -5571,8 +5614,25 @@ R.instagram = async () => {
   await Promise.all([cabecalho, vista]);
 };
 
+// ---------- Agenda (public/dash/agenda.js) ----------
+// A aba vive em arquivo próprio; aqui só a ponte com o que o dash já tem.
+R.agenda = () => window.AgendaDash.render({
+  $, esc, fmtInt, fmtPct, fetchJson, tabela, tile, pedirConfirmacao, intervalo,
+  key: () => key,
+  postJson: async (rota, corpo) => {
+    const r = await fetch(`${rota}?key=${encodeURIComponent(key)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(d.error || 'Não foi possível salvar. Tente de novo.'), { mensagemUsuario: d.error });
+    return d;
+  },
+  rerender: () => render(),
+  escreverUrl: () => escreverUrl(),
+});
+
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', argo: 'Argo', instagram: 'Instagram' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
@@ -5597,6 +5657,9 @@ const FILTROS = {
   argo: { nota: 'últimas rodadas · não usa o filtro de datas' },
   // Público é o retrato atual e avisa na própria sub-aba que não segue as datas.
   instagram: { periodo: true, compara: true },
+  // Só a vista Agendamentos usa o período; as outras são cadastro (agenda.js
+  // troca a nota do subtítulo conforme a vista).
+  agenda: { periodo: true },
 };
 let secao = 'visao';
 let renderAtual = 0;
@@ -5630,6 +5693,7 @@ function escreverUrl() {
   if ($('#funil').value) ps.set('f', $('#funil').value);
   if (secao === 'argo' && argoVista === 'propostas') ps.set('v', 'propostas');
   if (secao === 'instagram' && igVista !== 'crescimento') ps.set('v', igVista);
+  if (secao === 'agenda' && window.AgendaDash && window.AgendaDash.vista !== 'agendamentos') ps.set('v', window.AgendaDash.vista);
   const qs = ps.toString();
   history.replaceState(null, '', location.pathname + location.search + '#' + secao + (qs ? '?' + qs : ''));
 }
@@ -5642,6 +5706,7 @@ function lerUrl() {
   // A aba Instagram abre em Crescimento, a não ser que o link peça outra sub-aba.
   const vIg = new URLSearchParams(qs || '').get('v');
   igVista = IG_VISTAS.includes(vIg) ? vIg : 'crescimento';
+  if (window.AgendaDash) window.AgendaDash.lerVista(vIg);
   // Hash sem parâmetros (clique na navegação) mantém os filtros que já estão na tela.
   if (!qs) return;
   const ps = new URLSearchParams(qs);

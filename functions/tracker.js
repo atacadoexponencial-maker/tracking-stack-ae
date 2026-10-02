@@ -7,6 +7,7 @@ import { fbcValido } from './_fbc.js';
 import { normalizarSituacaoAviso } from './_aviso-cookies.js';
 import { padronizarTelefone } from './_telefone.js';
 import { enviarLeadAoManyChat } from './api/_lead-manychat.js';
+import { tipoDoFunil, criarConvite, conviteDoLead } from './api/_agenda-convite.js';
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -173,7 +174,8 @@ export async function onRequestPost(context) {
         console.error('Dedup lookup error:', e.message);
       }
       if (repetido) {
-        return new Response(JSON.stringify({ ok: true, dedup: true, redirect: resolverRedirectDoLead(body, env) }), {
+        const redirectDedup = await trocarCalendlyPelaAgenda(env, body, resolverRedirectDoLead(body, env), { sessionId, repetido: true });
+        return new Response(JSON.stringify({ ok: true, dedup: true, redirect: redirectDedup }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -448,7 +450,13 @@ export async function onRequestPost(context) {
     // Destinos por env (exceto as iscas). O front só executa o redirect.
     // A regra vive em resolverRedirectDoLead() porque a resposta de dedup (lá
     // em cima) precisa do mesmo destino: o clique duplicado também navega.
-    const leadRedirect = resolverRedirectDoLead(body, env);
+    // Agenda própria (spec-agenda-propria.md): onde o destino seria o Calendly,
+    // o lead vai para a página de agendamento com os dados já preenchidos.
+    // Só com AGENDA_ATIVA=1 — até a usuária liberar (issue 364), a produção
+    // continua no Calendly e só a prévia usa a agenda nova.
+    const leadRedirect = bloqueado
+      ? resolverRedirectDoLead(body, env)
+      : await trocarCalendlyPelaAgenda(env, body, resolverRedirectDoLead(body, env), { sessionId });
 
     return new Response(JSON.stringify({ ok: true, redirect: leadRedirect }), {
       status: 200,
@@ -530,6 +538,32 @@ function resolverRedirectDoLead(body, env) {
   return baixoTicket
     ? (env.LEAD_REDIRECT_WHATSAPP || '')
     : (env.LEAD_REDIRECT_CALENDLY || '');
+}
+
+// Troca o destino Calendly pela página da agenda própria quando há um tipo de
+// reunião comercial ativo para o funil do lead. Qualquer falha devolve o
+// destino original: o lead nunca fica sem para onde ir.
+async function trocarCalendlyPelaAgenda(env, body, destino, { sessionId, repetido = false }) {
+  if (env.AGENDA_ATIVA !== '1' || !env.DB) return destino;
+  if (!destino || !/calendly\.com/i.test(destino)) return destino;
+  try {
+    const lead = body.lead_data || {};
+    const funil = (lead.funnel || 'diagnostico').toLowerCase();
+    const tipo = await tipoDoFunil(env, funil);
+    if (!tipo) return destino;
+    // Clique duplicado: reaproveita o convite que o primeiro envio criou.
+    let token = repetido ? await conviteDoLead(env, body.event_id) : null;
+    if (!token) {
+      token = await criarConvite(env, tipo, {
+        eventId: body.event_id, sessionId,
+        nome: lead.nome, email: lead.email, telefone: lead.telefone, funil,
+      });
+    }
+    return `/agendar/${tipo.slug}?c=${encodeURIComponent(token)}`;
+  } catch (e) {
+    console.error('agenda: convite falhou, segue para o Calendly', e.message);
+    return destino;
+  }
 }
 
 async function sendToMeta({ body, clientIp, userAgent, fbp, fbc, hashedEm, hashedFn, hashedLn, hashedPh, hashedExternalId, sessionData, env, pixelId, accessToken }) {

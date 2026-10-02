@@ -1,0 +1,291 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo-horizontal-preto.png';
+
+// Página pública de agendamento (spec-agenda-propria.md, módulos 4 e 5).
+// Servida em /agendar/<tipo> por functions/agendar/[slug].js, que devolve
+// este HTML; o tipo sai do endereço.
+//
+// Só exibe e coleta. Horários livres, validação, conferência de conflito,
+// bloqueio de robô, criação da reunião, CRM e conversão moram no servidor
+// (/api/agenda/publico/*).
+//
+// Tipo comercial: só abre com o convite (?c=) que o /tracker cria quando o
+// lead envia o formulário da LP. Os dados dele chegam preenchidos; ele só
+// escolhe o horário e confirma. Sem convite, a página manda para a LP.
+---
+
+<BaseLayout
+  title="Agendar reunião | Atacado Exponencial"
+  description="Escolha o melhor dia e horário para a sua reunião com o Atacado Exponencial."
+  showHeader={false}
+  showFooter={false}
+  noindex
+>
+  <section class="ag">
+    <div class="container ag__inner">
+      <Image src={logo} alt="Atacado Exponencial" width={939} height={253} loading="eager" class="ag__logo" />
+
+      <div id="ag-carregando" class="ag__cartao ag__aviso">Carregando a agenda…</div>
+
+      <div id="ag-indisponivel" class="ag__cartao ag__aviso" hidden>
+        <h1 class="ag__titulo">Agenda indisponível</h1>
+        <p id="ag-indisponivel-texto">Esta agenda não está recebendo novos agendamentos agora.</p>
+      </div>
+
+      <div id="ag-app" hidden>
+        <header class="ag__cab">
+          <span class="ag__selo">Google Meet · <span id="ag-duracao"></span> min</span>
+          <h1 class="ag__titulo" id="ag-nome"></h1>
+        </header>
+
+        <div id="ag-passo-horario" class="ag__cartao">
+          <h2 class="ag__subtitulo">Escolha o dia e o horário</h2>
+          <div id="ag-calendario"></div>
+        </div>
+
+        <form id="ag-passo-dados" class="ag__cartao" hidden novalidate>
+          <button type="button" class="ag__voltar" id="ag-voltar">‹ Trocar horário</button>
+          <p class="ag__escolhido" id="ag-escolhido"></p>
+
+          <div id="ag-resumo" class="ag__resumo" hidden>
+            <p class="ag__rotulo">Seus dados</p>
+            <p><strong id="ag-r-nome"></strong></p>
+            <p id="ag-r-email"></p>
+            <p id="ag-r-telefone"></p>
+            <button type="button" class="ag__link" id="ag-corrigir">Corrigir meus dados</button>
+          </div>
+
+          <div id="ag-campos" class="ag__campos">
+            <label>Nome <input name="nome" autocomplete="name" required></label>
+            <span class="ag__erro" data-erro="nome"></span>
+            <label>E-mail <input name="email" type="email" autocomplete="email" required></label>
+            <span class="ag__erro" data-erro="email"></span>
+            <label>WhatsApp <input name="telefone" type="tel" autocomplete="tel" placeholder="(11) 98765-4321" required></label>
+            <span class="ag__erro" data-erro="telefone"></span>
+          </div>
+
+          <div id="ag-perguntas" class="ag__campos"></div>
+
+          <div id="ag-erro-geral" class="ag__falha" role="alert" hidden></div>
+          <button type="submit" class="btn-cta ag__cta" id="ag-confirmar">Confirmar reunião</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { montarCalendario, dataLonga, horaNoFuso } from '../scripts/agenda-calendario.js';
+
+  const $ = (s: string) => document.querySelector(s) as HTMLElement;
+  const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[c]);
+  const slug = decodeURIComponent(location.pathname.replace(/^\/agendar\/?/, '').replace(/\/$/, ''));
+  const convite = new URLSearchParams(location.search).get('c') || '';
+  let escolhido: number | null = null;
+  let fusoEscolhido = 'America/Sao_Paulo';
+  let tipo: any = null;
+  let cal: any = null;
+
+  function indisponivel(texto: string) {
+    $('#ag-carregando').hidden = true;
+    $('#ag-app').hidden = true;
+    $('#ag-indisponivel').hidden = false;
+    if (texto) $('#ag-indisponivel-texto').textContent = texto;
+  }
+
+  async function horarios() {
+    const qs = new URLSearchParams({ slug });
+    if (convite) qs.set('c', convite);
+    const r = await fetch('/api/agenda/publico/horarios?' + qs);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Não foi possível carregar os horários.');
+    return d.dias || {};
+  }
+
+  function mostrarPasso(passo: 'horario' | 'dados') {
+    $('#ag-passo-horario').hidden = passo !== 'horario';
+    $('#ag-passo-dados').hidden = passo !== 'dados';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function campo(nome: string) { return document.querySelector(`[name="${nome}"]`) as HTMLInputElement; }
+
+  function preencherResumo() {
+    $('#ag-r-nome').textContent = campo('nome').value;
+    $('#ag-r-email').textContent = campo('email').value;
+    $('#ag-r-telefone').textContent = campo('telefone').value;
+  }
+
+  function mostrarErros(campos: Record<string, string>) {
+    document.querySelectorAll('[data-erro]').forEach((e) => { (e as HTMLElement).textContent = ''; });
+    for (const [k, msg] of Object.entries(campos || {})) {
+      const el = document.querySelector(`[data-erro="${k}"]`);
+      if (el) el.textContent = msg;
+    }
+    // Erro num dado que veio do formulário: abre os campos para corrigir.
+    if (['nome', 'email', 'telefone'].some((k) => campos && campos[k])) {
+      $('#ag-resumo').hidden = true;
+      $('#ag-campos').hidden = false;
+    }
+  }
+
+  async function iniciar() {
+    if (!slug) return indisponivel('Endereço de agenda inválido.');
+    const qs = new URLSearchParams({ slug });
+    if (convite) qs.set('c', convite);
+    const r = await fetch('/api/agenda/publico/tipo?' + qs);
+    if (r.status === 404) return indisponivel('Esta agenda não existe.');
+    tipo = await r.json().catch(() => null);
+    if (!tipo) return indisponivel('Não foi possível abrir a agenda agora. Tente de novo em instantes.');
+    if (tipo.estado === 'sem_convite') { location.replace(tipo.destino + location.search.replace(/([?&])c=[^&]*&?/, '$1').replace(/[?&]$/, '')); return; }
+    if (tipo.estado === 'pausado') return indisponivel(tipo.contato ? `Esta agenda não está recebendo novos agendamentos agora. Fale com a gente: ${tipo.contato}` : '');
+
+    $('#ag-nome').textContent = tipo.nome;
+    $('#ag-duracao').textContent = tipo.duracao_min;
+    if (tipo.lead) {
+      campo('nome').value = tipo.lead.nome || '';
+      campo('email').value = tipo.lead.email || '';
+      campo('telefone').value = tipo.lead.telefone || '';
+      preencherResumo();
+      $('#ag-resumo').hidden = false;
+      $('#ag-campos').hidden = true;
+    }
+    $('#ag-perguntas').innerHTML = (tipo.perguntas || []).map((p: any, i: number) => `
+      <label>${esc(p.texto)}${p.obrigatoria ? '' : ' <span class="ag__opcional">(opcional)</span>'}
+        ${p.tipo === 'escolha'
+          ? `<select name="p${i}"><option value="">Escolha uma opção</option>${p.opcoes.map((o: string) => `<option>${esc(o)}</option>`).join('')}</select>`
+          : `<textarea name="p${i}" rows="3"></textarea>`}
+      </label><span class="ag__erro" data-erro="p${i}"></span>`).join('');
+
+    let dias;
+    try { dias = await horarios(); }
+    catch (e: any) { return indisponivel(e.message); }
+    $('#ag-carregando').hidden = true;
+    $('#ag-app').hidden = false;
+    cal = montarCalendario($('#ag-calendario'), {
+      dias,
+      aoEscolher(t: number, fuso: string) {
+        escolhido = t;
+        fusoEscolhido = fuso;
+        $('#ag-escolhido').textContent = `${dataLonga(t, fuso)}, às ${horaNoFuso(t, fuso)}`;
+        $('#ag-erro-geral').hidden = true;
+        mostrarPasso('dados');
+      },
+    });
+  }
+
+  $('#ag-voltar').addEventListener('click', () => mostrarPasso('horario'));
+  $('#ag-corrigir').addEventListener('click', () => { $('#ag-resumo').hidden = true; $('#ag-campos').hidden = false; });
+
+  $('#ag-passo-dados').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const botao = $('#ag-confirmar') as HTMLButtonElement;
+    botao.disabled = true;
+    botao.textContent = 'Confirmando…';
+    $('#ag-erro-geral').hidden = true;
+    const respostas = (tipo.perguntas || []).map((_: any, i: number) => (document.querySelector(`[name="p${i}"]`) as HTMLInputElement)?.value || '');
+    let r: Response, d: any;
+    try {
+      r = await fetch('/api/agenda/publico/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug, c: convite, inicio: escolhido, fuso: fusoEscolhido,
+          nome: campo('nome').value, email: campo('email').value, telefone: campo('telefone').value, respostas,
+        }),
+      });
+      d = await r.json().catch(() => ({}));
+    } catch {
+      r = new Response(null, { status: 599 });
+      d = { error: 'Sem conexão. Confira a internet e tente de novo.' };
+    }
+    if (r.ok) {
+      // Espelho do Schedule no pixel com o mesmo event_id do servidor (dedup).
+      try { if (d.schedule_event_id && typeof (window as any).fbq === 'function') (window as any).fbq('track', 'Schedule', {}, { eventID: d.schedule_event_id }); } catch { /* nunca bloqueia */ }
+      location.href = d.pagina_pos || `/reuniao/${encodeURIComponent(d.gestao)}?novo=1`;
+      return;
+    }
+    botao.disabled = false;
+    botao.textContent = 'Confirmar reunião';
+    if (d.campos) mostrarErros(d.campos);
+    const geral = $('#ag-erro-geral');
+    geral.textContent = d.error || 'Não foi possível confirmar agora. Tente de novo.';
+    geral.hidden = false;
+    if (d.codigo === 'horario_ocupado') {
+      // Alguém pegou o horário: volta para a escolha com os dados preservados.
+      try { cal.definirDias(await horarios()); } catch { /* mantém os horários que já estavam */ }
+      mostrarPasso('horario');
+      const aviso = document.createElement('p');
+      aviso.className = 'ag__falha';
+      aviso.textContent = 'O horário que você escolheu acabou de ser ocupado. Escolha outro.';
+      $('#ag-passo-horario').prepend(aviso);
+      setTimeout(() => aviso.remove(), 8000);
+    }
+    if (d.codigo === 'sem_convite') indisponivel(d.error);
+  });
+
+  iniciar();
+</script>
+
+<style>
+  .ag {
+    min-height: 100dvh;
+    background: hsl(var(--light-bg));
+    color: hsl(var(--light-fg));
+    padding-block: clamp(1.5rem, 5vh, 3rem);
+  }
+  .ag__inner {
+    max-width: 34rem;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .ag__logo { height: auto; width: clamp(9rem, 42vw, 12rem); align-self: center; }
+  .ag__cab { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; text-align: center; margin-bottom: 1.25rem; }
+  .ag__selo {
+    display: inline-block;
+    border: 1px solid rgba(30, 30, 30, 0.2);
+    border-radius: 9999px;
+    padding: 0.4rem 1rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(30, 30, 30, 0.7);
+  }
+  .ag__titulo { margin: 0; font-size: clamp(1.5rem, 5vw, 2.1rem); line-height: 1.1; }
+  .ag__subtitulo { margin: 0 0 1rem; font-size: 1rem; }
+  .ag__cartao {
+    background: #fff;
+    border-radius: 1rem;
+    padding: clamp(1.1rem, 4vw, 1.75rem);
+    box-shadow: 0 1px 2px rgba(30, 30, 30, 0.06);
+  }
+  .ag__aviso { text-align: center; }
+  .ag__voltar, .ag__link {
+    background: none; border: none; padding: 0; font: inherit; color: rgba(30, 30, 30, 0.7);
+    text-decoration: underline; cursor: pointer;
+  }
+  .ag__escolhido { margin: 0.75rem 0 1.25rem; font-size: 1.15rem; font-weight: 700; text-transform: capitalize; }
+  .ag__resumo { background: hsl(var(--light-bg)); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; }
+  .ag__resumo p { margin: 0 0 0.25rem; }
+  .ag__rotulo { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(30, 30, 30, 0.6); }
+  .ag__campos { display: grid; gap: 0.4rem; margin-bottom: 0.75rem; }
+  .ag__campos label { display: grid; gap: 0.3rem; font-size: 0.85rem; font-weight: 700; }
+  .ag__campos input, .ag__campos select, .ag__campos textarea {
+    font: inherit; font-weight: 400; font-size: 1rem; padding: 0.75rem 0.9rem;
+    border-radius: 0.6rem; border: 1px solid rgba(30, 30, 30, 0.25); background: #fff; color: #1e1e1e;
+  }
+  .ag__opcional { font-weight: 400; color: rgba(30, 30, 30, 0.55); }
+  .ag__erro { color: hsl(var(--destructive)); font-size: 0.8rem; min-height: 0; }
+  .ag__erro:empty { display: none; }
+  .ag__falha {
+    background: rgba(220, 38, 38, 0.08); color: #9b1c1c; border-radius: 0.6rem;
+    padding: 0.75rem 1rem; margin: 0 0 1rem; font-size: 0.9rem;
+  }
+  .ag__cta { width: 100%; justify-content: center; }
+  .ag__cta:disabled { opacity: 0.6; }
+</style>
