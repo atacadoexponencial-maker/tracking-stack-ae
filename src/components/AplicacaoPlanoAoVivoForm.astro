@@ -1,0 +1,391 @@
+---
+/**
+ * Cartão da aplicação para o plano de ação ao vivo (issues 370–372,
+ * spec-aplicacao-plano-ao-vivo.md).
+ *
+ * Folha de rosto + 4 etapas montadas a partir de src/data/aplicacao-plano-ao-vivo.js,
+ * agradecimento e aviso de encerradas. Visual copiado do AplicacaoForm (cartão,
+ * campos, nav) e da folha de rosto das iscas (/materiais/[slug]).
+ *
+ * Por que não reaproveita o AplicacaoForm: ele é amarrado ao /tracker (Lead,
+ * FormStart, FormStep, fbq, redirect) e serve à mentoria e às iscas, que estão
+ * no ar. Esta aplicação não vira lead: o envio vai só para
+ * /api/aplicacao-plano-ao-vivo, que grava na planilha. Se as aplicações estão
+ * abertas quem diz é o servidor (GET no mesmo endereço), nunca o relógio do
+ * aparelho.
+ */
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+import { PERGUNTAS, TEXTOS, TOTAL_ETAPAS, MAX_TEXTO, MAX_CAIXA } from '../data/aplicacao-plano-ao-vivo.js';
+
+const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((p) => p.etapa === i + 1));
+---
+
+<main class="section aplicacao">
+  <div class="container aplicacao__inner">
+    <Image src={logo} alt="Atacado Exponencial" height={72} class="aplicacao__logo" />
+
+    <form class="aplicacao__form" id="apv-form" novalidate>
+      <div class="aplicacao__etapa aplicacao__rosto" data-etapa="0">
+        <span class="rosto__badge">{TEXTOS.selo}</span>
+        <h1 class="rosto__titulo">{TEXTOS.titulo}</h1>
+        <p class="rosto__sub">{TEXTOS.subtitulo}</p>
+        <span class="rosto__pilula">{TEXTOS.pilula}</span>
+        <p class="rosto__abertura">{TEXTOS.abertura}</p>
+        <div id="apv-rosto-aberta">
+          <button type="button" class="btn-cta rosto__cta" id="apv-comecar" disabled>{TEXTOS.cta}</button>
+          <p class="rosto__nota">{TEXTOS.nota}</p>
+        </div>
+        <div id="apv-rosto-encerrada" class="rosto__encerrada" hidden>
+          <p class="rosto__encerrada-titulo">{TEXTOS.encerradas}</p>
+          <p class="rosto__nota">{TEXTOS.encerradasLembrete}</p>
+        </div>
+      </div>
+
+      <p class="aplicacao__card-titulo" id="apv-titulo" hidden>APLICAÇÃO <span class="aplicacao__card-etapa" id="apv-indicador">1 de {TOTAL_ETAPAS}</span></p>
+
+      {etapas.map((perguntas, i) => (
+        <div class="aplicacao__etapa" data-etapa={i + 1} hidden>
+          {perguntas.map((p) => (
+            p.tipo === 'uma' || p.tipo === 'varias' ? (
+              <fieldset class="aplicacao__field apv-grupo" data-campo={p.name} data-tipo={p.tipo}>
+                <legend>{p.rotulo} *</legend>
+                {p.dica && <p class="apv-dica">{p.dica}</p>}
+                <div class="apv-opcoes">
+                  {p.opcoes.map((o) => (
+                    <label class="apv-opcao">
+                      <input type={p.tipo === 'uma' ? 'radio' : 'checkbox'} name={p.name} value={o} />
+                      <span>{o}</span>
+                    </label>
+                  ))}
+                </div>
+                <small class="aplicacao__field-erro" hidden></small>
+              </fieldset>
+            ) : (
+              <label class="aplicacao__field" data-campo={p.name} data-tipo={p.tipo}>
+                <span>{p.rotulo} *</span>
+                {p.tipo === 'caixa'
+                  ? <textarea name={p.name} rows="4" maxlength={MAX_CAIXA} placeholder={p.placeholder}></textarea>
+                  : <input name={p.name} type={p.tipo === 'telefone' ? 'tel' : 'text'} maxlength={MAX_TEXTO} placeholder={p.placeholder} autocomplete={p.autocomplete} />}
+                <small class="aplicacao__field-erro" hidden></small>
+              </label>
+            )
+          ))}
+        </div>
+      ))}
+
+      <div class="aplicacao__etapa apv-obrigado" data-etapa="fim" hidden>
+        {TEXTOS.agradecimento.map((t, i) => <p class={i === 0 ? 'apv-obrigado__destaque' : i === TEXTOS.agradecimento.length - 1 ? 'apv-obrigado__assinatura' : ''}>{t}</p>)}
+      </div>
+
+      <p id="apv-erro" class="aplicacao__erro" role="alert" hidden></p>
+
+      <div class="aplicacao__nav" id="apv-nav" hidden>
+        <button type="button" id="apv-voltar" aria-label="Voltar" hidden>←</button>
+        <button type="button" id="apv-avancar" aria-label="Avançar">→</button>
+        <button type="submit" id="apv-enviar" class="btn-cta aplicacao__submit" hidden>ENVIAR APLICAÇÃO →</button>
+      </div>
+    </form>
+
+    <p class="aplicacao__privacidade">Suas respostas ficam só com a equipe e servem para escolher as marcas do plano ao vivo.</p>
+  </div>
+</main>
+
+<style>
+  .aplicacao { padding-block: 1.25rem 2rem; }
+  .aplicacao__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1rem; max-width: 32rem; margin-inline: auto; }
+  .aplicacao__logo { height: 1.5rem; width: auto; }
+
+  .aplicacao__form {
+    margin-top: 0.25rem; width: 100%; display: flex; flex-direction: column; gap: 1rem; text-align: left;
+    background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 1rem;
+    overflow: hidden; padding: 0;
+  }
+  .aplicacao__card-titulo {
+    padding: 1.25rem 1.25rem 0; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: hsl(var(--light-bg));
+    display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
+  }
+  .aplicacao__card-etapa { color: hsl(var(--muted-foreground)); }
+  .aplicacao__etapa { display: flex; flex-direction: column; gap: 1.25rem; padding: 0 1.25rem; }
+  .aplicacao__etapa[hidden],
+  .aplicacao__card-titulo[hidden],
+  .aplicacao__nav[hidden],
+  #apv-rosto-aberta[hidden],
+  .rosto__encerrada[hidden] { display: none; }
+
+  /* Folha de rosto: mesma linguagem das iscas, sem a capa. */
+  .aplicacao__rosto { padding: 1.75rem 1.25rem; align-items: center; text-align: center; gap: 0; }
+  .rosto__badge {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em;
+    color: #5dc986; background: rgba(93, 201, 134, 0.12);
+    border: 1px solid rgba(93, 201, 134, 0.45); border-radius: 999px;
+    padding: 0.4rem 0.95rem;
+  }
+  .rosto__titulo { margin: 1.25rem 0 0; font-size: 1.9rem; line-height: 1.1; font-weight: 700; color: hsl(var(--light-bg)); }
+  .rosto__sub { margin: 0.75rem 0 0; font-size: 1rem; line-height: 1.5; color: hsl(var(--card-foreground)); }
+  .rosto__pilula {
+    margin-top: 1.1rem; font-size: 0.85rem; font-weight: 700; color: hsl(var(--light-bg));
+    border: 1px solid hsl(var(--border)); border-radius: 999px; padding: 0.45rem 1rem;
+  }
+  .rosto__abertura {
+    margin: 1.5rem 0 0; width: 100%; text-align: left; font-size: 0.95rem; line-height: 1.5;
+    color: hsl(var(--muted-foreground)); border-top: 1px solid hsl(var(--border)); padding-top: 1.25rem;
+  }
+  #apv-rosto-aberta, .rosto__encerrada { width: 100%; }
+  .rosto__cta {
+    margin-top: 1.5rem; width: 100%; justify-content: center;
+    background: hsl(var(--light-bg)); color: #1e1e1e;
+    padding: 1.1rem 1rem; min-height: 3.25rem;
+  }
+  .rosto__cta:disabled { opacity: 0.6; cursor: default; }
+  .rosto__nota { margin: 0.75rem 0 0; font-size: 0.8rem; color: hsl(var(--muted-foreground)); text-align: center; }
+  .rosto__encerrada { margin-top: 1.5rem; }
+  .rosto__encerrada-titulo { margin: 0; font-size: 1.15rem; font-weight: 700; color: hsl(var(--light-bg)); text-align: center; }
+
+  .aplicacao__field { display: flex; flex-direction: column; gap: 0.5rem; border: 0; margin: 0; padding: 0; min-width: 0; }
+  .aplicacao__field > span,
+  .aplicacao__field > legend {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; line-height: 1.4;
+    color: hsl(var(--light-bg)); padding: 0; margin-bottom: 0.5rem;
+  }
+  .aplicacao__field > span { margin-bottom: 0; }
+  .aplicacao__field input[type='text'],
+  .aplicacao__field input[type='tel'],
+  .aplicacao__field textarea {
+    width: 100%; padding: 1rem 1.25rem; border: 1px solid hsl(var(--input)); border-radius: 0.75rem;
+    background: hsl(var(--card)); color: hsl(var(--card-foreground)); font-family: inherit; font-size: 1rem;
+  }
+  .aplicacao__field textarea { resize: vertical; line-height: 1.5; }
+  .aplicacao__field input::placeholder,
+  .aplicacao__field textarea::placeholder { color: hsl(var(--muted-foreground)); }
+  .aplicacao__field input:focus,
+  .aplicacao__field textarea:focus { outline: none; border-color: hsl(var(--ring)); }
+
+  .apv-dica { margin: -0.4rem 0 0.1rem; font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
+  .apv-opcoes { display: flex; flex-direction: column; gap: 0.5rem; }
+  .apv-opcao {
+    display: flex; align-items: center; gap: 0.75rem; cursor: pointer;
+    padding: 0.8rem 1rem; min-height: 44px;
+    border: 1px solid hsl(var(--input)); border-radius: 0.75rem;
+    font-size: 0.95rem; color: hsl(var(--card-foreground));
+  }
+  .apv-opcao input { width: 1.1rem; height: 1.1rem; margin: 0; flex: none; accent-color: #5dc986; }
+  .apv-opcao:has(input:checked) { border-color: #5dc986; background: rgba(93, 201, 134, 0.08); }
+  .apv-opcao:has(input:focus-visible) { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+  .apv-obrigado { padding: 1.75rem 1.25rem 2rem; gap: 1rem; }
+  .apv-obrigado p { margin: 0; font-size: 0.95rem; line-height: 1.55; color: hsl(var(--card-foreground)); }
+  .apv-obrigado .apv-obrigado__destaque { font-size: 1.15rem; font-weight: 700; color: hsl(var(--light-bg)); }
+  .apv-obrigado .apv-obrigado__assinatura { font-weight: 700; color: hsl(var(--light-bg)); }
+
+  .aplicacao__erro { color: hsl(var(--destructive)); font-size: 0.9rem; padding: 0 1.25rem; margin: 0; }
+  .aplicacao__erro[hidden] { display: none; }
+  .aplicacao__field-erro { color: hsl(var(--destructive)); font-size: 0.8rem; }
+
+  .aplicacao__nav {
+    display: flex; justify-content: space-between; align-items: center;
+    background: hsl(var(--primary-foreground)); padding: 0.75rem 1.25rem;
+  }
+  #apv-voltar[hidden],
+  #apv-avancar[hidden],
+  .aplicacao__submit[hidden] { display: none; }
+  #apv-voltar,
+  #apv-avancar {
+    background: none; border: none; cursor: pointer; color: hsl(var(--light-bg));
+    font-size: 1.5rem; line-height: 1; min-width: 44px; min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 0.5rem;
+  }
+  #apv-avancar,
+  .aplicacao__submit { margin-left: auto; }
+  .aplicacao__submit:disabled { opacity: 0.7; cursor: default; }
+  .aplicacao__privacidade { margin-top: 0.5rem; color: hsl(var(--muted-foreground)); font-size: 0.85rem; max-width: 28rem; }
+
+  @media (min-width: 640px) {
+    .aplicacao { padding-block: 2rem; }
+    .aplicacao__rosto { padding: 2.5rem 2.5rem 2rem; }
+    .rosto__titulo { font-size: 2.4rem; }
+  }
+</style>
+
+<script>
+  import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone } from '../scripts/lead-validacao';
+  import { PERGUNTAS, TOTAL_ETAPAS } from '../data/aplicacao-plano-ao-vivo.js';
+
+  const ENDPOINT = '/api/aplicacao-plano-ao-vivo';
+  const ERRO_ENVIO = 'Não conseguimos enviar agora. Confira a internet e toque em enviar de novo.';
+
+  type Pergunta = { name: string; etapa: number; tipo: string };
+
+  const form = document.getElementById('apv-form') as HTMLFormElement | null;
+
+  if (form) {
+    const comecarBtn = document.getElementById('apv-comecar') as HTMLButtonElement;
+    const rostoAberta = document.getElementById('apv-rosto-aberta') as HTMLElement;
+    const rostoEncerrada = document.getElementById('apv-rosto-encerrada') as HTMLElement;
+    const titulo = document.getElementById('apv-titulo') as HTMLElement;
+    const indicador = document.getElementById('apv-indicador') as HTMLElement;
+    const nav = document.getElementById('apv-nav') as HTMLElement;
+    const voltarBtn = document.getElementById('apv-voltar') as HTMLButtonElement;
+    const avancarBtn = document.getElementById('apv-avancar') as HTMLButtonElement;
+    const enviarBtn = document.getElementById('apv-enviar') as HTMLButtonElement;
+    const erroGeral = document.getElementById('apv-erro') as HTMLElement;
+    const etapaEls = form.querySelectorAll<HTMLElement>('.aplicacao__etapa[data-etapa]');
+    const textoEnviar = enviarBtn.textContent ?? '';
+
+    let etapaAtual: number | 'fim' = 0;
+    let enviando = false;
+
+    const caixaDoCampo = (name: string) => form.querySelector<HTMLElement>(`[data-campo="${name}"]`);
+
+    function valor(p: Pergunta): string | string[] {
+      if (p.tipo === 'uma') return form!.querySelector<HTMLInputElement>(`input[name="${p.name}"]:checked`)?.value ?? '';
+      if (p.tipo === 'varias') return Array.from(form!.querySelectorAll<HTMLInputElement>(`input[name="${p.name}"]:checked`)).map((i) => i.value);
+      return form!.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${p.name}"]`)?.value ?? '';
+    }
+
+    function mensagemDeErro(p: Pergunta): string | null {
+      const v = valor(p);
+      if (p.tipo === 'uma') return v ? null : 'Escolha uma opção.';
+      if (p.tipo === 'varias') return (v as string[]).length ? null : 'Marque pelo menos uma opção.';
+      const t = (v as string).trim();
+      if (p.tipo === 'telefone') return telefoneValido(t) ? null : TELEFONE_ERRO;
+      if (t.length < 2) return p.tipo === 'caixa' ? 'Conte um pouquinho pra gente.' : 'Preencha este campo.';
+      return null;
+    }
+
+    function mostrarErro(name: string, msg: string | null) {
+      const caixa = caixaDoCampo(name);
+      const err = caixa?.querySelector<HTMLElement>('.aplicacao__field-erro');
+      if (!caixa || !err) return;
+      err.textContent = msg ?? '';
+      err.hidden = !msg;
+      caixa.toggleAttribute('data-invalido', !!msg);
+      caixa.querySelectorAll('input, textarea').forEach((el) => {
+        if (msg) el.setAttribute('aria-invalid', 'true'); else el.removeAttribute('aria-invalid');
+      });
+    }
+
+    function focar(name: string) {
+      const el = caixaDoCampo(name)?.querySelector<HTMLElement>('input, textarea');
+      el?.focus();
+    }
+
+    // Valida os campos da etapa n; devolve o name do primeiro inválido (ou null).
+    function validarEtapa(n: number): string | null {
+      let primeiro: string | null = null;
+      for (const p of PERGUNTAS as Pergunta[]) {
+        if (p.etapa !== n) continue;
+        const msg = mensagemDeErro(p);
+        mostrarErro(p.name, msg);
+        if (msg && !primeiro) primeiro = p.name;
+      }
+      return primeiro;
+    }
+
+    function mostrarEtapa(n: number | 'fim') {
+      etapaEls.forEach((el) => { el.hidden = el.dataset.etapa !== String(n); });
+      const noForm = typeof n === 'number' && n >= 1;
+      titulo.hidden = !noForm;
+      nav.hidden = !noForm;
+      voltarBtn.hidden = !(noForm && (n as number) > 1);
+      avancarBtn.hidden = !(noForm && (n as number) < TOTAL_ETAPAS);
+      enviarBtn.hidden = n !== TOTAL_ETAPAS;
+      if (noForm) indicador.textContent = `${n} de ${TOTAL_ETAPAS}`;
+      erroGeral.hidden = true;
+      etapaAtual = n;
+      if (n !== 0 && form!.getBoundingClientRect().top < 0) form!.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function mostrarEncerradas() {
+      mostrarEtapa(0);
+      rostoAberta.hidden = true;
+      rostoEncerrada.hidden = false;
+    }
+
+    function avancar() {
+      if (typeof etapaAtual !== 'number' || etapaAtual < 1 || etapaAtual >= TOTAL_ETAPAS) return;
+      const invalido = validarEtapa(etapaAtual);
+      if (invalido) { focar(invalido); return; }
+      mostrarEtapa(etapaAtual + 1);
+    }
+
+    // Aberto ou encerrado: decide o servidor. Sem resposta, o botão libera
+    // (o servidor recusa o envio de qualquer jeito se já tiver encerrado).
+    fetch(ENDPOINT, { headers: { Accept: 'application/json' } })
+      .then((r) => r.json())
+      .then((j) => { if (j && j.aberta === false) mostrarEncerradas(); })
+      .catch(() => {})
+      .finally(() => { comecarBtn.disabled = false; });
+
+    comecarBtn.addEventListener('click', () => mostrarEtapa(1));
+    avancarBtn.addEventListener('click', avancar);
+    voltarBtn.addEventListener('click', () => { if (typeof etapaAtual === 'number' && etapaAtual > 1) mostrarEtapa(etapaAtual - 1); });
+
+    const telefoneEl = form.querySelector<HTMLInputElement>('input[name="telefone"]');
+    if (telefoneEl) aplicarMascaraTelefone(telefoneEl);
+
+    // O erro some assim que o campo fica válido (erro novo só ao avançar/enviar).
+    for (const p of PERGUNTAS as Pergunta[]) {
+      caixaDoCampo(p.name)?.addEventListener(p.tipo === 'uma' || p.tipo === 'varias' ? 'change' : 'input', () => {
+        if (caixaDoCampo(p.name)?.hasAttribute('data-invalido') && !mensagemDeErro(p)) mostrarErro(p.name, null);
+      });
+    }
+
+    function origem(): string {
+      const q = new URLSearchParams(window.location.search);
+      return ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
+        .filter((k) => q.get(k))
+        .map((k) => `${k}=${q.get(k)}`)
+        .join('; ');
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      // Enter num campo das etapas 1 a 3 chega aqui: vale como →.
+      if (typeof etapaAtual !== 'number' || etapaAtual < 1) return;
+      if (etapaAtual < TOTAL_ETAPAS) { avancar(); return; }
+      if (enviando) return;
+
+      for (let n = 1; n <= TOTAL_ETAPAS; n++) {
+        const invalido = validarEtapa(n);
+        if (invalido) { if (n !== etapaAtual) { mostrarEtapa(n); validarEtapa(n); } focar(invalido); return; }
+      }
+
+      const respostas: Record<string, string | string[]> = {};
+      for (const p of PERGUNTAS as Pergunta[]) respostas[p.name] = valor(p);
+
+      enviando = true;
+      enviarBtn.disabled = true;
+      enviarBtn.textContent = 'Enviando…';
+      erroGeral.hidden = true;
+      try {
+        const r = await fetch(ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ respostas, origem: origem() }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j.ok) { mostrarEtapa('fim'); return; }
+        if (j.encerrada) { mostrarEncerradas(); return; }
+        if (j.campo) {
+          const p = (PERGUNTAS as Pergunta[]).find((x) => x.name === j.campo);
+          if (p) {
+            mostrarEtapa(p.etapa);
+            mostrarErro(p.name, p.tipo === 'telefone' ? TELEFONE_ERRO : 'Confira esta resposta.');
+            focar(p.name);
+            return;
+          }
+        }
+        throw new Error('envio');
+      } catch {
+        erroGeral.textContent = ERRO_ENVIO;
+        erroGeral.hidden = false;
+      } finally {
+        enviando = false;
+        enviarBtn.disabled = false;
+        enviarBtn.textContent = textoEnviar;
+      }
+    });
+  }
+</script>

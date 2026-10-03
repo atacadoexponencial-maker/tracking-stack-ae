@@ -38,7 +38,12 @@ export async function onRequest(context) {
     // funil o que é uso de ferramenta. A página também não carrega pixel algum
     // (ver `src/layouts/PlannerLayout.astro`) — esta linha é a metade
     // server-side da mesma decisão.
-    && !url.pathname.startsWith('/planner-workshop-black');
+    && !url.pathname.startsWith('/planner-workshop-black')
+    // A aplicação do plano ao vivo (spec-aplicacao-plano-ao-vivo.md) não vira
+    // lead nem número no dash: as respostas vão só para uma planilha. A página
+    // não carrega pixel algum (ver `src/layouts/SemRastreioLayout.astro`) e
+    // esta linha impede que a visita vire sessão.
+    && !url.pathname.startsWith('/aplicacao-plano-ao-vivo');
 
   if (!isPageRequest) {
     return next();

@@ -1,0 +1,18 @@
+---
+/**
+ * Aplicação para o plano de ação ao vivo do workshop de 07/10/2026
+ * (spec-aplicacao-plano-ao-vivo.md, issues 370–372).
+ * Página fina: o cartão vive em AplicacaoPlanoAoVivoForm. Sem medição nenhuma
+ * (SemRastreioLayout + exclusão em functions/_middleware.js): a aplicação não
+ * vira lead nem número no dash, vai só para a planilha.
+ */
+import SemRastreioLayout from '../layouts/SemRastreioLayout.astro';
+import AplicacaoPlanoAoVivoForm from '../components/AplicacaoPlanoAoVivoForm.astro';
+---
+
+<SemRastreioLayout
+  title="Plano de ação ao vivo | Atacado Exponencial"
+  description="Aplique para concorrer a uma das 2 vagas do plano de ação ao vivo do Felipe, quarta, 07/10, às 19h."
+>
+  <AplicacaoPlanoAoVivoForm />
+</SemRastreioLayout>
