@@ -15,7 +15,7 @@
  * aparelho.
  */
 import { Image } from 'astro:assets';
-import logo from '../assets/brand/logo.png';
+import logo from '../assets/brand/logo-horizontal-preto.png';
 import { PERGUNTAS, TEXTOS, TOTAL_ETAPAS, MAX_TEXTO, MAX_CAIXA } from '../data/aplicacao-plano-ao-vivo.js';
 
 const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((p) => p.etapa === i + 1));
@@ -75,7 +75,18 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
       ))}
 
       <div class="aplicacao__etapa apv-obrigado" data-etapa="fim" hidden>
-        {TEXTOS.agradecimento.map((t, i) => <p class={i === 0 ? 'apv-obrigado__destaque' : i === TEXTOS.agradecimento.length - 1 ? 'apv-obrigado__assinatura' : ''}>{t}</p>)}
+        <span class="apv-obrigado__check" aria-hidden="true">✓</span>
+        <p class="apv-obrigado__titulo">{TEXTOS.obrigado.titulo}</p>
+        <div class="apv-obrigado__bloco">
+          <p class="apv-obrigado__rotulo">{TEXTOS.obrigado.escolhidaRotulo}</p>
+          <p>{TEXTOS.obrigado.escolhida}</p>
+        </div>
+        <div class="apv-obrigado__bloco">
+          <p class="apv-obrigado__rotulo">{TEXTOS.obrigado.naoEscolhidaRotulo}</p>
+          <p>{TEXTOS.obrigado.naoEscolhida}</p>
+        </div>
+        <span class="rosto__pilula apv-obrigado__data">{TEXTOS.obrigado.data}</span>
+        <p class="apv-obrigado__link">{TEXTOS.obrigado.link}</p>
       </div>
 
       <p id="apv-erro" class="aplicacao__erro" role="alert" hidden></p>
@@ -92,21 +103,31 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
 </main>
 
 <style>
-  .aplicacao { padding-block: 1.25rem 2rem; }
+  /* Página clara (pedido dela em 03/10): papel do site (#f5f0eb), cartão branco,
+     texto grafite. As cores são locais: o resto do site segue escuro. */
+  :global(body) { background: #f5f0eb; }
+  .aplicacao {
+    --apv-papel: #f5f0eb; --apv-cartao: #ffffff; --apv-texto: #1e1e1e; --apv-suave: #5c5650;
+    --apv-linha: rgba(30, 30, 30, 0.14); --apv-verde: #1f7a45; --apv-verde-fundo: rgba(31, 122, 69, 0.08);
+    --apv-erro: #b42318;
+    background: var(--apv-papel); color: var(--apv-texto);
+    min-height: 100dvh; padding-block: 1.25rem 2rem;
+  }
   .aplicacao__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1rem; max-width: 32rem; margin-inline: auto; }
-  .aplicacao__logo { height: 1.5rem; width: auto; }
+  .aplicacao__logo { height: 1.75rem; width: auto; }
 
   .aplicacao__form {
     margin-top: 0.25rem; width: 100%; display: flex; flex-direction: column; gap: 1rem; text-align: left;
-    background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 1rem;
+    background: var(--apv-cartao); border: 1px solid var(--apv-linha); border-radius: 1rem;
+    box-shadow: 0 1px 2px rgba(30, 30, 30, 0.04), 0 8px 24px rgba(30, 30, 30, 0.06);
     overflow: hidden; padding: 0;
   }
   .aplicacao__card-titulo {
-    padding: 1.25rem 1.25rem 0; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: hsl(var(--light-bg));
+    margin: 0; padding: 1.25rem 1.25rem 0; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--apv-suave);
     display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
   }
-  .aplicacao__card-etapa { color: hsl(var(--muted-foreground)); }
+  .aplicacao__card-etapa { color: var(--apv-suave); }
   .aplicacao__etapa { display: flex; flex-direction: column; gap: 1.25rem; padding: 0 1.25rem; }
   .aplicacao__etapa[hidden],
   .aplicacao__card-titulo[hidden],
@@ -118,93 +139,119 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
   .aplicacao__rosto { padding: 1.75rem 1.25rem; align-items: center; text-align: center; gap: 0; }
   .rosto__badge {
     font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em;
-    color: #5dc986; background: rgba(93, 201, 134, 0.12);
-    border: 1px solid rgba(93, 201, 134, 0.45); border-radius: 999px;
+    color: var(--apv-verde); background: var(--apv-verde-fundo);
+    border: 1px solid rgba(31, 122, 69, 0.35); border-radius: 999px;
     padding: 0.4rem 0.95rem;
   }
-  .rosto__titulo { margin: 1.25rem 0 0; font-size: 1.9rem; line-height: 1.1; font-weight: 700; color: hsl(var(--light-bg)); }
-  .rosto__sub { margin: 0.75rem 0 0; font-size: 1rem; line-height: 1.5; color: hsl(var(--card-foreground)); }
+  .rosto__titulo { margin: 1.25rem 0 0; font-size: 1.9rem; line-height: 1.1; font-weight: 700; color: var(--apv-texto); }
+  .rosto__sub { margin: 0.75rem 0 0; font-size: 1rem; line-height: 1.5; color: var(--apv-texto); }
   .rosto__pilula {
-    margin-top: 1.1rem; font-size: 0.85rem; font-weight: 700; color: hsl(var(--light-bg));
-    border: 1px solid hsl(var(--border)); border-radius: 999px; padding: 0.45rem 1rem;
+    margin-top: 1.1rem; font-size: 0.85rem; font-weight: 700; color: var(--apv-texto);
+    border: 1px solid var(--apv-linha); border-radius: 999px; padding: 0.45rem 1rem;
   }
   .rosto__abertura {
     margin: 1.5rem 0 0; width: 100%; text-align: left; font-size: 0.95rem; line-height: 1.5;
-    color: hsl(var(--muted-foreground)); border-top: 1px solid hsl(var(--border)); padding-top: 1.25rem;
+    color: var(--apv-suave); border-top: 1px solid var(--apv-linha); padding-top: 1.25rem;
   }
   #apv-rosto-aberta, .rosto__encerrada { width: 100%; }
   .rosto__cta {
     margin-top: 1.5rem; width: 100%; justify-content: center;
-    background: hsl(var(--light-bg)); color: #1e1e1e;
+    background: var(--apv-texto); color: #ffffff;
     padding: 1.1rem 1rem; min-height: 3.25rem;
   }
   .rosto__cta:disabled { opacity: 0.6; cursor: default; }
-  .rosto__nota { margin: 0.75rem 0 0; font-size: 0.8rem; color: hsl(var(--muted-foreground)); text-align: center; }
+  .rosto__nota { margin: 0.75rem 0 0; font-size: 0.8rem; color: var(--apv-suave); text-align: center; }
   .rosto__encerrada { margin-top: 1.5rem; }
-  .rosto__encerrada-titulo { margin: 0; font-size: 1.15rem; font-weight: 700; color: hsl(var(--light-bg)); text-align: center; }
+  .rosto__encerrada-titulo { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--apv-texto); text-align: center; }
 
   .aplicacao__field { display: flex; flex-direction: column; gap: 0.5rem; border: 0; margin: 0; padding: 0; min-width: 0; }
-  .aplicacao__field > span,
+  .aplicacao__field > span { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--apv-texto); }
+  /* Pergunta sozinha na tela: vira o título da tela. */
   .aplicacao__field > legend {
-    font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; line-height: 1.4;
-    color: hsl(var(--light-bg)); padding: 0; margin-bottom: 0.5rem;
+    font-size: 1.15rem; font-weight: 700; line-height: 1.35; color: var(--apv-texto);
+    padding: 0; margin-bottom: 0.75rem;
   }
-  .aplicacao__field > span { margin-bottom: 0; }
-  .aplicacao__field input[type='text'],
-  .aplicacao__field input[type='tel'],
+  .aplicacao__field[data-tipo="caixa"] > span { font-size: 1.15rem; line-height: 1.35; text-transform: none; letter-spacing: 0; }
+  .apv-grupo .apv-dica { margin: -0.5rem 0 0.25rem; }
+  .aplicacao__field input[type="text"],
+  .aplicacao__field input[type="tel"],
   .aplicacao__field textarea {
-    width: 100%; padding: 1rem 1.25rem; border: 1px solid hsl(var(--input)); border-radius: 0.75rem;
-    background: hsl(var(--card)); color: hsl(var(--card-foreground)); font-family: inherit; font-size: 1rem;
+    width: 100%; padding: 0.9rem 1.1rem; border: 1px solid var(--apv-linha); border-radius: 0.75rem;
+    background: #ffffff; color: var(--apv-texto); font-family: inherit; font-size: 1rem;
   }
   .aplicacao__field textarea { resize: vertical; line-height: 1.5; }
   .aplicacao__field input::placeholder,
-  .aplicacao__field textarea::placeholder { color: hsl(var(--muted-foreground)); }
+  .aplicacao__field textarea::placeholder { color: #8a837c; }
   .aplicacao__field input:focus,
-  .aplicacao__field textarea:focus { outline: none; border-color: hsl(var(--ring)); }
+  .aplicacao__field textarea:focus { outline: none; border-color: var(--apv-texto); }
 
-  .apv-dica { margin: -0.4rem 0 0.1rem; font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
+  .apv-dica { margin: 0; font-size: 0.85rem; color: var(--apv-suave); }
   .apv-opcoes { display: flex; flex-direction: column; gap: 0.5rem; }
   .apv-opcao {
     display: flex; align-items: center; gap: 0.75rem; cursor: pointer;
-    padding: 0.8rem 1rem; min-height: 44px;
-    border: 1px solid hsl(var(--input)); border-radius: 0.75rem;
-    font-size: 0.95rem; color: hsl(var(--card-foreground));
+    padding: 0.8rem 1rem; min-height: 48px;
+    border: 1px solid var(--apv-linha); border-radius: 0.75rem;
+    font-size: 1rem; color: var(--apv-texto); background: #ffffff;
+    transition: border-color 0.15s, background-color 0.15s;
   }
-  .apv-opcao input { width: 1.1rem; height: 1.1rem; margin: 0; flex: none; accent-color: #5dc986; }
-  .apv-opcao:has(input:checked) { border-color: #5dc986; background: rgba(93, 201, 134, 0.08); }
-  .apv-opcao:has(input:focus-visible) { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .apv-opcao:hover { border-color: rgba(30, 30, 30, 0.35); }
+  .apv-opcao input { width: 1.1rem; height: 1.1rem; margin: 0; flex: none; accent-color: var(--apv-verde); }
+  .apv-opcao:has(input:checked) { border-color: var(--apv-verde); background: var(--apv-verde-fundo); }
+  .apv-opcao:has(input:focus-visible) { outline: 2px solid var(--apv-texto); outline-offset: 2px; }
 
-  .apv-obrigado { padding: 1.75rem 1.25rem 2rem; gap: 1rem; }
-  .apv-obrigado p { margin: 0; font-size: 0.95rem; line-height: 1.55; color: hsl(var(--card-foreground)); }
-  .apv-obrigado .apv-obrigado__destaque { font-size: 1.15rem; font-weight: 700; color: hsl(var(--light-bg)); }
-  .apv-obrigado .apv-obrigado__assinatura { font-weight: 700; color: hsl(var(--light-bg)); }
+  /* Agradecimento: um bloco por informação, para ler de relance. */
+  .apv-obrigado { padding: 2rem 1.25rem; align-items: center; text-align: center; gap: 0; }
+  .apv-obrigado p { margin: 0; }
+  .apv-obrigado__check {
+    width: 3rem; height: 3rem; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--apv-verde-fundo); color: var(--apv-verde); font-size: 1.5rem; font-weight: 700;
+  }
+  .apv-obrigado .apv-obrigado__titulo { margin-top: 0.9rem; font-size: 1.6rem; font-weight: 700; line-height: 1.15; color: var(--apv-texto); }
+  .apv-obrigado__bloco {
+    margin-top: 0.75rem; width: 100%; text-align: left;
+    border: 1px solid var(--apv-linha); border-radius: 0.75rem; padding: 1rem 1.1rem;
+  }
+  .apv-obrigado__titulo + .apv-obrigado__bloco { margin-top: 1.5rem; }
+  .apv-obrigado__bloco p { font-size: 1rem; line-height: 1.5; color: var(--apv-texto); }
+  .apv-obrigado__bloco .apv-obrigado__rotulo {
+    margin-bottom: 0.35rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apv-suave);
+  }
+  .apv-obrigado__data { margin-top: 1.5rem; }
+  .apv-obrigado .apv-obrigado__link { margin-top: 0.6rem; font-size: 0.9rem; line-height: 1.5; color: var(--apv-suave); }
 
-  .aplicacao__erro { color: hsl(var(--destructive)); font-size: 0.9rem; padding: 0 1.25rem; margin: 0; }
+  .aplicacao__erro { color: var(--apv-erro); font-size: 0.9rem; padding: 0 1.25rem; margin: 0; }
   .aplicacao__erro[hidden] { display: none; }
-  .aplicacao__field-erro { color: hsl(var(--destructive)); font-size: 0.8rem; }
+  .aplicacao__field-erro { color: var(--apv-erro); font-size: 0.85rem; }
 
   .aplicacao__nav {
     display: flex; justify-content: space-between; align-items: center;
-    background: hsl(var(--primary-foreground)); padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--apv-linha); background: #faf8f5; padding: 0.75rem 1.25rem;
   }
   #apv-voltar[hidden],
   #apv-avancar[hidden],
   .aplicacao__submit[hidden] { display: none; }
   #apv-voltar,
   #apv-avancar {
-    background: none; border: none; cursor: pointer; color: hsl(var(--light-bg));
+    background: none; border: none; cursor: pointer; color: var(--apv-texto);
     font-size: 1.5rem; line-height: 1; min-width: 44px; min-height: 44px;
     display: inline-flex; align-items: center; justify-content: center; border-radius: 0.5rem;
   }
   #apv-avancar,
   .aplicacao__submit { margin-left: auto; }
+  .aplicacao__submit { background: var(--apv-texto); color: #ffffff; }
   .aplicacao__submit:disabled { opacity: 0.7; cursor: default; }
-  .aplicacao__privacidade { margin-top: 0.5rem; color: hsl(var(--muted-foreground)); font-size: 0.85rem; max-width: 28rem; }
+  .aplicacao__privacidade { margin: 0; color: var(--apv-suave); font-size: 0.8rem; max-width: 28rem; }
 
+  /* Desktop: tudo cabe numa tela, sem rolagem. Cartão centrado na altura. */
   @media (min-width: 640px) {
-    .aplicacao { padding-block: 2rem; }
-    .aplicacao__rosto { padding: 2.5rem 2.5rem 2rem; }
-    .rosto__titulo { font-size: 2.4rem; }
+    .aplicacao { display: flex; align-items: center; padding-block: 1.5rem; }
+    .aplicacao__inner { width: 100%; }
+    .aplicacao__rosto { padding: 2rem 2.5rem 1.75rem; }
+    .rosto__titulo { font-size: 2.3rem; }
+    .aplicacao__etapa:not(.aplicacao__rosto):not(.apv-obrigado) { padding-inline: 1.75rem; }
+    .aplicacao__card-titulo { padding-inline: 1.75rem; }
+    .aplicacao__nav { padding-inline: 1.75rem; }
+    .apv-obrigado { padding: 2rem 2.25rem; }
   }
 </style>
 
@@ -326,6 +373,16 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
 
     const telefoneEl = form.querySelector<HTMLInputElement>('input[name="telefone"]');
     if (telefoneEl) aplicarMascaraTelefone(telefoneEl);
+
+    // Uma pergunta por tela: tocar na opção de uma pergunta de uma opção já
+    // passa para a próxima. Na última tela quem envia é o botão.
+    for (const p of PERGUNTAS as Pergunta[]) {
+      if (p.tipo !== 'uma' || p.etapa >= TOTAL_ETAPAS) continue;
+      caixaDoCampo(p.name)?.addEventListener('change', () => {
+        const etapa = p.etapa;
+        setTimeout(() => { if (etapaAtual === etapa) avancar(); }, 220);
+      });
+    }
 
     // O erro some assim que o campo fica válido (erro novo só ao avançar/enviar).
     for (const p of PERGUNTAS as Pergunta[]) {
