@@ -123,7 +123,7 @@ Migration `migrations/0055_email_campanhas.sql` (só adição):
 - [x] `enviarLote` no `_postmark.js`
 - [x] `_email-campanhas.js` com rascunho, público, limite, resumo, disparo único, envio em lotes, retomada e lista
 - [x] `GET/POST /api/email/campanhas`
-- [ ] `POST /api/sync/email-campanhas` + cron de 5 minutos na VPS
+- [x] `POST /api/sync/email-campanhas` + cron de 5 minutos na VPS
 - [x] Campanhas enviadas nas opções de "abriu/clicou" dos segmentos
 - [x] Vista Campanhas ligada ao backend
 - [x] Testes `email-campanhas` passando (`npm test`)
