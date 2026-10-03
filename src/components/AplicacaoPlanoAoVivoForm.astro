@@ -209,10 +209,12 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
 </style>
 
 <script>
-  import { telefoneValido, TELEFONE_ERRO, aplicarMascaraTelefone } from '../scripts/lead-validacao';
+  import { telefoneValido, aplicarMascaraTelefone } from '../scripts/lead-validacao';
   import { PERGUNTAS, TOTAL_ETAPAS } from '../data/aplicacao-plano-ao-vivo.js';
 
   const ENDPOINT = '/api/aplicacao-plano-ao-vivo';
+  // Mensagem própria: a compartilhada (TELEFONE_ERRO) tem travessão, fora do padrão de copy.
+  const TELEFONE_ERRO = 'Digite um WhatsApp válido com DDD.';
   const ERRO_ENVIO = 'Não conseguimos enviar agora. Confira a internet e toque em enviar de novo.';
 
   type Pergunta = { name: string; etapa: number; tipo: string };
