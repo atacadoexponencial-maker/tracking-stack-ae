@@ -1,0 +1,1247 @@
+// E-mail próprio no dash (spec-email-proprio.md). PROTÓTIPOS das issues 373–376.
+//
+// Só front, com dados de exemplo gerados aqui mesmo: nada chama a API, nada é
+// salvo nem enviado. Serve para a usuária navegar pelas telas na prévia e
+// aprovar o desenho antes das issues de construção (377–388).
+//
+// - App Marketing, seção `mkt-email`, sub-vistas por `?v=`: campanhas,
+//   relatorio, fluxos, contatos, segmentos, modelos, configuracao.
+// - App Agenda, seção `agenda-emails`: e-mails da agenda por tipo de reunião e
+//   o exemplo de detalhe do agendamento com o histórico de e-mails.
+// - O quadro dos fluxos mora em public/dash/email-fluxos.js.
+//
+// Padrões de UX copiados do agenda.js: gaveta lateral para o que abre de uma
+// linha, aviso curto (toast) para cada ação, engrenagem para ações da linha e
+// confirmação na própria linha (pedirConfirmacao do dash). Reusa o CSS `ag-*`.
+(() => {
+  'use strict';
+
+  const VISTAS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
+  const TITULO_VISTA = {
+    campanhas: 'Campanhas de e-mail', relatorio: 'Resultados do e-mail', fluxos: 'Fluxos automáticos',
+    contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', configuracao: 'Configuração de e-mail',
+  };
+  const NOTA_VISTA = {
+    campanhas: 'disparos do canal de marketing', relatorio: 'resultado de cada disparo e do canal',
+    fluxos: 'sequências que começam sozinhas', contatos: 'quem pode receber marketing',
+    segmentos: 'grupos de contatos montados por regra', modelos: 'textos reutilizáveis dos dois canais',
+    configuracao: 'remetentes, rodapé e situação do serviço de envio',
+  };
+
+  const svg = (corpo) => `<svg viewBox="0 0 24 24" aria-hidden="true">${corpo}</svg>`;
+  const ICONE = {
+    engrenagem: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+    fechar: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
+    voltar: svg('<path d="M15 6l-6 6 6 6"/>'),
+    computador: svg('<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/>'),
+    celular: svg('<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/>'),
+  };
+
+  let ctx = null;
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const int = (n) => Number(n || 0).toLocaleString('pt-BR');
+  const pct = (n, c = 1) => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: c, minimumFractionDigits: c }) + '%';
+  const taxa = (a, b, c = 1) => (b ? pct((a / b) * 100, c) : '');
+
+  // ---------------------------------------------------------------------------
+  // Cenário do protótipo: deixa ver os estados de erro e de vazio sem backend.
+  // ---------------------------------------------------------------------------
+  const CENARIOS = [
+    ['ok', 'Tudo certo'],
+    ['dominio', 'Domínio com problema'],
+    ['marketing', 'Marketing não liberado'],
+    ['vazio', 'Tudo vazio (primeiro dia)'],
+  ];
+  let cenario = 'ok';
+  const vazio = () => cenario === 'vazio';
+  const marketingLiberado = () => cenario !== 'marketing';
+
+  function seloProto(semCenario) {
+    return `<div class="em-proto" role="note">
+      <span class="em-proto__selo">Protótipo</span>
+      <span>Dados de exemplo. Nada aqui é salvo nem enviado.</span>
+      ${semCenario ? '' : `<label class="em-proto__cen">Ver estado
+        <select data-cenario aria-label="Estado de exemplo">${CENARIOS.map(([v, r]) => `<option value="${v}"${v === cenario ? ' selected' : ''}>${r}</option>`).join('')}</select></label>`}
+    </div>`;
+  }
+  function ligarCenario(raiz, redesenhar) {
+    const s = raiz.querySelector('[data-cenario]');
+    if (s) s.onchange = () => { cenario = s.value; avisar(`Mostrando: ${CENARIOS.find((c) => c[0] === cenario)[1].toLowerCase()}.`); redesenhar(); };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dados de exemplo (determinísticos: a mesma prévia mostra sempre o mesmo)
+  // ---------------------------------------------------------------------------
+  function aleatorio(semente) {
+    let a = semente;
+    return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  const NOMES = ['Ana', 'Bruno', 'Carla', 'Diego', 'Eduarda', 'Fábio', 'Gabriela', 'Henrique', 'Isabela', 'João', 'Karina', 'Lucas', 'Mariana', 'Nelson', 'Olívia', 'Paulo', 'Rafaela', 'Sérgio', 'Tatiane', 'Vinícius', 'Juliana', 'Marcos', 'Patrícia', 'Rodrigo', 'Simone', 'Thiago', 'Camila', 'André', 'Letícia', 'Gustavo'];
+  const SOBRENOMES = ['Almeida', 'Barbosa', 'Cardoso', 'Duarte', 'Esteves', 'Ferreira', 'Gomes', 'Holanda', 'Lima', 'Machado', 'Nogueira', 'Oliveira', 'Pereira', 'Queiroz', 'Rocha', 'Santana', 'Teixeira', 'Vieira', 'Xavier', 'Moraes'];
+  const ORIGENS = ['Meta Ads', 'Google Ads', 'Instagram orgânico', 'ManyChat', 'Direto'];
+  const FUNIS = [['workshop-gratuito', 'Workshop gratuito'], ['sessao-estrategica', 'Sessão estratégica'], ['aplicacao-mentoria', 'Aplicação mentoria'], ['trafego-atacado', 'Tráfego atacado'], ['materiais', 'Materiais (iscas)']];
+  const ESTAGIOS = ['Lead', 'MQL', 'Reunião agendada', 'Reunião realizada', 'Contrato'];
+  const SITUACOES = {
+    ativo: ['Ativo', 'alta'], descadastrado: ['Descadastrado', 'neutro'], voltou: ['Voltou', 'queda'],
+    denunciou: ['Denunciou spam', 'queda'], invalido: ['Inválido', 'alerta'],
+  };
+  const nomeFunil = (f) => (FUNIS.find((x) => x[0] === f) || [f, f])[1];
+  // 20/07/2026 (quando o tracking passou a mandar leads) até hoje, 03/10/2026.
+  const INICIO = Date.UTC(2026, 6, 20), HOJE = Date.UTC(2026, 9, 3);
+  const dataBR = (t) => new Date(t).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit' });
+  const semAcento = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+  const CAMPANHAS_BASE = [
+    { id: 'c1', nome: 'Convite workshop 08/10', situacao: 'enviada', modelo: 'm6', segmentos: ['s1'], envio: '01/10 às 09:00', dest: 1912, entregues: 1871, voltaram: 17, spam: 2, abertos: 812, clicados: 214, descad: 9 },
+    { id: 'c2', nome: 'Novidade: plano ao vivo', situacao: 'enviada', modelo: 'm12', segmentos: ['s2', 's5'], envio: '24/09 às 10:30', dest: 1240, entregues: 1219, voltaram: 11, spam: 1, abertos: 498, clicados: 96, descad: 6 },
+    { id: 'c3', nome: 'Convite workshop 22/10', situacao: 'agendada', modelo: 'm6', segmentos: ['s1', 's3'], envio: '20/10 às 09:00', dest: 2050 },
+    { id: 'c4', nome: 'Lembrete aplicação plano ao vivo', situacao: 'enviando', modelo: 'm12', segmentos: ['s2'], envio: 'hoje às 14:00', dest: 860, progresso: 63, falhas: 2 },
+    { id: 'c5', nome: 'Black do atacado', situacao: 'rascunho', modelo: 'm10', segmentos: ['s3'], envio: '' },
+    { id: 'c6', nome: 'Convite workshop 24/09', situacao: 'cancelada', modelo: 'm6', segmentos: ['s1'], envio: 'era 23/09 às 09:00' },
+    { id: 'c7', nome: 'Reengajamento de julho', situacao: 'falhou', modelo: 'm12', segmentos: ['s3'], envio: '18/09 às 11:00', motivo: 'O serviço de envio recusou o disparo: o marketing ainda não estava liberado na conta. Nada foi enviado.' },
+  ];
+  const SITUACAO_CAMP = {
+    rascunho: ['Rascunho', 'neutro'], agendada: ['Agendada', 'alerta'], enviando: ['Enviando', 'alerta'],
+    enviada: ['Enviada', 'alta'], cancelada: ['Cancelada', 'neutro'], falhou: ['Falhou', 'queda'],
+  };
+
+  const SEGMENTOS_BASE = [
+    { id: 's1', nome: 'Leads do workshop gratuito', regras: [{ campo: 'funil', op: 'e', valor: 'workshop-gratuito' }] },
+    { id: 's2', nome: 'MQLs sem reunião', regras: [{ campo: 'estagio', op: 'e', valor: 'MQL' }] },
+    { id: 's3', nome: 'Entraram nos últimos 30 dias', regras: [{ campo: 'entrada', op: 'ultimos', valor: '30' }] },
+    { id: 's4', nome: 'Abriram o convite de 01/10', regras: [{ campo: 'abriu', op: 'sim', valor: 'c1' }] },
+    { id: 's5', nome: 'Sessão estratégica vindos do Meta', regras: [{ campo: 'origem', op: 'e', valor: 'Meta Ads' }, { campo: 'funil', op: 'e', valor: 'sessao-estrategica' }] },
+  ];
+
+  const CAMPOS = {
+    transacional: [['nome', 'Ana Lima'], ['primeiro_nome', 'Ana'], ['email', 'ana.lima@exemplo.com'], ['tipo_reuniao', 'Sessão estratégica'], ['data_reuniao', 'terça, 07/10'], ['hora_reuniao', '15:00'], ['link_reuniao', 'https://meet.google.com/abc-defg-hij'], ['link_remarcar', 'https://atacadoexponencial.com/agenda/remarcar']],
+    marketing: [['nome', 'Ana Lima'], ['primeiro_nome', 'Ana'], ['email', 'ana.lima@exemplo.com'], ['funil', 'Workshop gratuito'], ['link_descadastro', 'https://news.atacadoexponencial.com/sair']],
+  };
+  const MODELOS_BASE = [
+    { id: 'm1', nome: 'Confirmação de reunião', canal: 'transacional', assunto: 'Sua reunião está confirmada, {{primeiro_nome}}', previa: '{{data_reuniao}} às {{hora_reuniao}}, pelo Google Meet.', editado: '02/10', corpo: 'Oi, {{primeiro_nome}}!\n\nSua **{{tipo_reuniao}}** está confirmada para {{data_reuniao}} às {{hora_reuniao}} (horário de Brasília).\n\n[[Entrar na reunião | {{link_reuniao}}]]\n\nSe precisar mudar o horário, é só [remarcar por aqui]({{link_remarcar}}).\n\nAté lá,\nEquipe Atacado Exponencial' },
+    { id: 'm2', nome: 'Lembrete 24h antes', canal: 'transacional', assunto: 'Amanhã: sua {{tipo_reuniao}}', previa: 'Amanhã às {{hora_reuniao}}. Guarde o link.', editado: '02/10', corpo: 'Oi, {{primeiro_nome}}!\n\nPassando para lembrar: sua reunião é **amanhã, às {{hora_reuniao}}**.\n\n[[Entrar na reunião | {{link_reuniao}}]]\n\nEquipe Atacado Exponencial' },
+    { id: 'm3', nome: 'Lembrete 1h antes', canal: 'transacional', assunto: 'Começa em 1 hora', previa: 'Às {{hora_reuniao}}, no link de sempre.', editado: '02/10', corpo: 'Oi, {{primeiro_nome}}! Sua reunião começa às **{{hora_reuniao}}**.\n\n[[Entrar na reunião | {{link_reuniao}}]]' },
+    { id: 'm4', nome: 'Reunião remarcada', canal: 'transacional', assunto: 'Novo horário: {{data_reuniao}} às {{hora_reuniao}}', previa: 'Sua reunião mudou de horário.', editado: '02/10', corpo: 'Oi, {{primeiro_nome}}!\n\nSua reunião mudou para **{{data_reuniao}} às {{hora_reuniao}}**.\n\n[[Entrar na reunião | {{link_reuniao}}]]' },
+    { id: 'm5', nome: 'Reunião cancelada', canal: 'transacional', assunto: 'Sua reunião foi cancelada', previa: 'Quer marcar outro horário?', editado: '02/10', corpo: 'Oi, {{primeiro_nome}}.\n\nSua reunião de {{data_reuniao}} foi cancelada. Se quiser, escolha outro horário:\n\n[[Escolher novo horário | {{link_remarcar}}]]' },
+    { id: 'm6', nome: 'Convite workshop gratuito', canal: 'marketing', assunto: '{{primeiro_nome}}, o próximo workshop é dia 22', previa: 'Duas horas sobre como vender mais no atacado. Gratuito.', editado: '30/09', corpo: 'Oi, {{primeiro_nome}}!\n\nNo dia **22/10, às 19h**, tem workshop gratuito ao vivo: como montar uma operação de atacado que vende todo mês.\n\n[[Quero participar | https://atacadoexponencial.com/workshop-gratuito]]\n\nUm abraço,\nFelipe Santos' },
+    { id: 'm7', nome: 'Boas-vindas workshop 1', canal: 'marketing', assunto: 'Sua vaga no workshop está garantida', previa: 'Veja o que preparar antes do dia.', editado: '29/09', corpo: 'Oi, {{primeiro_nome}}!\n\nSua vaga está garantida. Antes do workshop, separe 10 minutos para pensar no seu catálogo atual.\n\n[[Entrar no grupo do workshop | https://atacadoexponencial.com/grupo-workshop]]\n\nFelipe' },
+    { id: 'm8', nome: 'Boas-vindas workshop 2', canal: 'marketing', assunto: 'O erro que trava 8 em cada 10 atacadistas', previa: 'Antes do workshop, um aquecimento.', editado: '29/09', corpo: 'Oi, {{primeiro_nome}}!\n\nQue bom que você abriu o primeiro e-mail. Hoje, um aquecimento rápido para o workshop.\n\n[[Ler o artigo | https://atacadoexponencial.com/blog]]' },
+    { id: 'm9', nome: 'Boas-vindas workshop 1 (outro assunto)', canal: 'marketing', assunto: 'Você ainda não confirmou sua vaga', previa: 'Falta um clique.', editado: '29/09', corpo: 'Oi, {{primeiro_nome}}! Vimos que você ainda não abriu nosso e-mail. Sua vaga no workshop está guardada.\n\n[[Entrar no grupo do workshop | https://atacadoexponencial.com/grupo-workshop]]' },
+    { id: 'm10', nome: 'Black do atacado', canal: 'marketing', assunto: 'Black do atacado: só até sexta', previa: 'Condição especial para quem já é da base.', editado: '03/10', corpo: 'Oi, {{nmoe}}!\n\nEsta semana tem condição especial para quem já está na nossa base.\n\n[[Ver a condição | https://atacadoexponencial.com]]' },
+    { id: 'm11', nome: 'Convite live semanal', canal: 'marketing', assunto: 'Hoje tem live às 20h', previa: 'Ao vivo no Instagram.', editado: '12/08', arquivado: true, corpo: 'Oi, {{primeiro_nome}}! Hoje tem live às 20h.' },
+    { id: 'm12', nome: 'Novidade: plano ao vivo', canal: 'marketing', assunto: 'Abrimos as aplicações do plano ao vivo', previa: 'Vagas limitadas, aplicações até 06/10.', editado: '23/09', corpo: 'Oi, {{primeiro_nome}}!\n\nAbrimos as aplicações para o **plano ao vivo de 07/10**.\n\n[[Quero aplicar | https://atacadoexponencial.com/aplicacao]]' },
+  ];
+
+  // Tipos de reunião e e-mails da agenda (módulo 3).
+  const TIPOS_REUNIAO = [
+    { id: 't1', nome: 'Sessão estratégica', comercial: true },
+    { id: 't2', nome: 'Diagnóstico de tráfego', comercial: true },
+    { id: 't3', nome: 'Entrevista RH', comercial: false },
+  ];
+  const EMAILS_AGENDA = {
+    confirmacao: { nome: 'Confirmação', quando: 'logo que o lead confirma o horário', modelo: 'm1' },
+    lembrete: { nome: 'Lembretes', modelo24: 'm2', modelo1: 'm3' },
+    remarcacao: { nome: 'Remarcação', quando: 'quando a reunião muda de horário', modelo: 'm4', espera: true },
+    cancelamento: { nome: 'Cancelamento', quando: 'quando a reunião é cancelada', modelo: 'm5', espera: true },
+  };
+
+  // Estado mutável do protótipo (vive enquanto a página estiver aberta).
+  const D = {
+    campanhas: CAMPANHAS_BASE.map((c) => ({ ...c })),
+    segmentos: SEGMENTOS_BASE.map((s) => ({ ...s, regras: s.regras.map((r) => ({ ...r })) })),
+    modelos: MODELOS_BASE.map((m) => ({ ...m })),
+    contatos: gerarContatos(),
+    config: {
+      transacional: { nome: 'Atacado Exponencial', endereco: 'notify@envio.atacadoexponencial.com', resposta: '' },
+      marketing: { nome: 'Felipe Santos | Atacado Exponencial', endereco: 'felipe@news.atacadoexponencial.com', resposta: '' },
+      rodape: 'Atacado Exponencial · Seteads Agência Ltda.\nAv. Exemplo, 1000, sala 12, São Paulo, SP, 01000-000',
+    },
+    agenda: Object.fromEntries(TIPOS_REUNIAO.map((t) => [t.id, {
+      confirmacao: { ligado: true, modelo: 'm1' },
+      lembretes: [{ horas: 24, modelo: 'm2', ligado: true }, { horas: 1, modelo: 'm3', ligado: true }],
+      remarcacao: { ligado: true, modelo: 'm4' },
+      cancelamento: { ligado: t.id !== 't3', modelo: 'm5' },
+    }])),
+    usoMes: 7840, limiteMes: 10000,
+  };
+
+  function gerarContatos() {
+    const r = aleatorio(20260703);
+    const lista = [];
+    const vistos = new Set();
+    for (let i = 0; lista.length < 2400; i++) {
+      const n = NOMES[Math.floor(r() * NOMES.length)], s = SOBRENOMES[Math.floor(r() * SOBRENOMES.length)];
+      let email = `${semAcento(n)}.${semAcento(s)}${i % 7 ? Math.floor(r() * 90 + 10) : ''}@${['gmail.com', 'hotmail.com', 'outlook.com', 'uol.com.br', 'empresa.com.br'][Math.floor(r() * 5)]}`;
+      if (vistos.has(email)) continue;
+      const x = r();
+      const situacao = x < 0.885 ? 'ativo' : x < 0.94 ? 'descadastrado' : x < 0.965 ? 'voltou' : x < 0.972 ? 'denunciou' : x < 0.99 ? 'invalido' : 'ativo';
+      if (situacao === 'invalido') email = email.replace('@', r() < 0.5 ? '@@' : ' @').replace('.com', r() < 0.5 ? '.con' : '.com');
+      vistos.add(email);
+      const entrada = INICIO + Math.floor(r() * (HOJE - INICIO));
+      const fi = r();
+      const funil = FUNIS[fi < 0.45 ? 0 : fi < 0.7 ? 1 : fi < 0.8 ? 2 : fi < 0.9 ? 3 : 4][0];
+      const e = r();
+      const estagio = ESTAGIOS[e < 0.6 ? 0 : e < 0.82 ? 1 : e < 0.92 ? 2 : e < 0.98 ? 3 : 4];
+      const abriu = [], clicou = [];
+      if (entrada < Date.UTC(2026, 8, 30) && funil === 'workshop-gratuito' && r() < 0.43) { abriu.push('c1'); if (r() < 0.26) clicou.push('c1'); }
+      if (r() < 0.2) { abriu.push('c2'); if (r() < 0.2) clicou.push('c2'); }
+      lista.push({ id: 'p' + i, nome: `${n} ${s}`, email, origem: ORIGENS[Math.floor(r() ** 1.6 * ORIGENS.length)], funil, entrada, estagio, situacao, abriu, clicou });
+    }
+    return lista;
+  }
+
+  const modelo = (id) => D.modelos.find((m) => m.id === id);
+  const segmento = (id) => D.segmentos.find((s) => s.id === id);
+  const campanha = (id) => D.campanhas.find((c) => c.id === id);
+
+  // Regras de segmento (módulo 5): condições combinadas com "e".
+  const CAMPOS_REGRA = {
+    funil: { rotulo: 'Funil', ops: [['e', 'é'], ['nao', 'não é']], valores: () => FUNIS },
+    origem: { rotulo: 'Origem', ops: [['e', 'é'], ['nao', 'não é']], valores: () => ORIGENS.map((o) => [o, o]) },
+    entrada: { rotulo: 'Data de entrada', ops: [['ultimos', 'nos últimos'], ['antes', 'há mais de']], valores: () => [['7', '7 dias'], ['15', '15 dias'], ['30', '30 dias'], ['60', '60 dias'], ['90', '90 dias']] },
+    estagio: { rotulo: 'Estágio no CRM', ops: [['e', 'é'], ['nao', 'não é']], valores: () => ESTAGIOS.map((e) => [e, e]) },
+    abriu: { rotulo: 'Abriu campanha', ops: [['sim', 'abriu'], ['nao', 'não abriu']], valores: () => D.campanhas.filter((c) => c.situacao === 'enviada').map((c) => [c.id, c.nome]) },
+    clicou: { rotulo: 'Clicou em campanha', ops: [['sim', 'clicou'], ['nao', 'não clicou']], valores: () => D.campanhas.filter((c) => c.situacao === 'enviada').map((c) => [c.id, c.nome]) },
+  };
+  function casa(p, r) {
+    const v = r.valor;
+    switch (r.campo) {
+      case 'funil': return (p.funil === v) === (r.op === 'e');
+      case 'origem': return (p.origem === v) === (r.op === 'e');
+      case 'estagio': return (p.estagio === v) === (r.op === 'e');
+      case 'entrada': { const lim = HOJE - Number(v) * 86400000; return r.op === 'ultimos' ? p.entrada >= lim : p.entrada < lim; }
+      case 'abriu': return p.abriu.includes(v) === (r.op === 'sim');
+      case 'clicou': return p.clicou.includes(v) === (r.op === 'sim');
+      default: return true;
+    }
+  }
+  const noSegmento = (regras) => D.contatos.filter((p) => regras.every((r) => casa(p, r)));
+  const resumoRegra = (regras) => regras.length ? regras.map((r) => {
+    const c = CAMPOS_REGRA[r.campo];
+    const op = (c.ops.find((o) => o[0] === r.op) || ['', ''])[1];
+    const val = (c.valores().find((o) => o[0] === r.valor) || ['', r.valor])[1];
+    return `${c.rotulo.toLowerCase()} ${op} ${val}`;
+  }).join(' e ') : 'todos os contatos';
+
+  // ---------------------------------------------------------------------------
+  // Toast, engrenagem e gaveta (mesmo desenho do agenda.js, CSS ag-*)
+  // ---------------------------------------------------------------------------
+  let toastTempo = null;
+  function avisar(texto, tipo = 'ok') {
+    let t = document.getElementById('em-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'em-toast';
+      t.className = 'ag-toast';
+      t.setAttribute('role', 'status');
+      t.setAttribute('aria-live', 'polite');
+    }
+    const g = document.getElementById('em-gaveta');
+    (g && g.open ? g : document.body).appendChild(t);
+    t.textContent = texto;
+    t.dataset.tipo = tipo;
+    void t.offsetWidth;
+    t.classList.add('visivel');
+    clearTimeout(toastTempo);
+    toastTempo = setTimeout(() => t.classList.remove('visivel'), tipo === 'erro' ? 5200 : 3000);
+  }
+
+  function menuHtml(rotulo, itens) {
+    return `<div class="ag-menu">
+      <button class="ag-engrenagem" type="button" data-menu aria-haspopup="menu" aria-expanded="false" aria-label="Opções de ${esc(rotulo)}">${ICONE.engrenagem}</button>
+      <div class="ag-menu__lista" role="menu" hidden>
+        ${itens.filter(Boolean).map((i) => `<button type="button" role="menuitem"${i.perigo ? ' class="perigo"' : ''} data-acao="${i.acao}" data-id="${esc(i.id)}">${esc(i.rotulo)}</button>`).join('')}
+      </div></div>`;
+  }
+  function fecharMenus() {
+    document.querySelectorAll('.ag-menu__lista').forEach((m) => { m.hidden = true; });
+    document.querySelectorAll('[data-menu]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+  }
+  function alternarMenu(botao) {
+    const lista = botao.nextElementSibling;
+    const abrir = lista.hidden;
+    fecharMenus();
+    if (!abrir) return;
+    lista.hidden = false;
+    botao.setAttribute('aria-expanded', 'true');
+    const r = botao.getBoundingClientRect();
+    const acima = window.innerHeight - r.bottom < lista.offsetHeight + 16;
+    lista.style.top = (acima ? r.top - lista.offsetHeight - 4 : r.bottom + 4) + 'px';
+    lista.style.left = Math.max(8, r.right - lista.offsetWidth) + 'px';
+    lista.querySelector('button').focus();
+  }
+  document.addEventListener('click', (ev) => { if (!ev.target.closest('.ag-menu')) fecharMenus(); });
+
+  /** Cliques de um contêiner: engrenagem abre o menu; [data-acao] chama acoes[acao](id, botão). */
+  function ligarAcoes(container, acoes) {
+    container.addEventListener('click', (ev) => {
+      const b = ev.target.closest('button, a[data-acao]');
+      if (!b || !container.contains(b)) return;
+      if (b.hasAttribute('data-menu')) return alternarMenu(b);
+      const acao = b.dataset.acao;
+      if (!acao || !acoes[acao]) return;
+      ev.preventDefault();
+      if (!b.classList.contains('perigo') || !b.closest('.ag-menu__lista')) fecharMenus();
+      acoes[acao](b.dataset.id, b);
+    });
+  }
+
+  function abrirGaveta(largura) {
+    let g = document.getElementById('em-gaveta');
+    if (!g) {
+      g = document.createElement('dialog');
+      g.id = 'em-gaveta';
+      g.className = 'ag-gaveta em-gaveta';
+      g.addEventListener('click', (ev) => { if (ev.target === g) g.close(); });
+      document.body.appendChild(g);
+    }
+    g.classList.toggle('em-gaveta--larga', largura === 'larga');
+    if (!g.open) g.showModal();
+    return g;
+  }
+  function gaveta({ titulo, sub = '', corpo, rodape = '', largura }) {
+    const g = abrirGaveta(largura);
+    g.innerHTML = `<div class="ag-gaveta__form ag-gaveta__form--simples">
+      <header class="ag-gaveta__topo">
+        <div><h2>${titulo}</h2>${sub ? `<p class="mini">${sub}</p>` : ''}</div>
+        <button class="ag-gaveta__fechar" type="button" data-fechar aria-label="Fechar">${ICONE.fechar}</button>
+      </header>
+      <div class="ag-gaveta__corpo">${corpo}</div>
+      ${rodape ? `<footer class="ag-gaveta__rodape">${rodape}</footer>` : ''}
+    </div>`;
+    g.querySelector('[data-fechar]').onclick = () => g.close();
+    return g;
+  }
+  const fecharGaveta = () => { const g = document.getElementById('em-gaveta'); if (g && g.open) g.close(); };
+
+  const carimbo = (mapa, k) => { const [r, c] = mapa[k] || [k, 'neutro']; return `<span class="carimbo ${c}">${esc(r)}</span>`; };
+  const chave = (ligado, attrs, rotulo) => `<label class="em-chave"><input type="checkbox" ${attrs}${ligado ? ' checked' : ''}><span class="em-chave__trilho" aria-hidden="true"></span><span class="em-chave__rot">${rotulo || (ligado ? 'Ligado' : 'Desligado')}</span></label>`;
+
+  // ---------------------------------------------------------------------------
+  // Render e navegação
+  // ---------------------------------------------------------------------------
+  const api = {
+    vista: 'campanhas',
+    lerVista(v) { api.vista = VISTAS.includes(v) ? v : 'campanhas'; },
+    render,
+    renderAgenda,
+    // Para o quadro dos fluxos (email-fluxos.js).
+    util: { esc, int, pct, avisar, gaveta, fecharGaveta, menuHtml, ligarAcoes, carimbo, chave, seloProto, ICONE, abrirContato: (id) => detalheContato(id) },
+    dados: D,
+    nomeFunil, FUNIS, ORIGENS, ESTAGIOS,
+  };
+  window.EmailMkt = api;
+
+  function irPara(v) { api.vista = v; ctx.escreverUrl(); ctx.rerender(); }
+  const raiz = () => ctx.$('#mkt-email-conteudo');
+
+  function render(c) {
+    ctx = c;
+    fecharGaveta();
+    ctx.$('#titulo').textContent = TITULO_VISTA[api.vista];
+    ctx.$('#subtitulo').textContent = `${NOTA_VISTA[api.vista]} · protótipo`;
+    const el = raiz();
+    el.className = 'em em--' + api.vista;
+    ({ campanhas, relatorio, fluxos, contatos, segmentos, modelos, configuracao })[api.vista](el);
+  }
+
+  // ===========================================================================
+  // 375 · Campanhas
+  // ===========================================================================
+  let filtroCamp = '';
+  function avisoLimite() {
+    const resta = D.limiteMes - D.usoMes;
+    const p = (D.usoMes / D.limiteMes) * 100;
+    return `<div class="em-limite">
+      <div class="em-limite__txt"><b>${int(D.usoMes)}</b> de ${int(D.limiteMes)} e-mails usados em outubro <span class="mini">· restam ${int(resta)} · renova em 01/11</span></div>
+      <div class="regua" aria-hidden="true"><i style="width:${Math.min(100, p)}%"></i></div>
+    </div>`;
+  }
+  function avisoMarketing() {
+    return marketingLiberado() ? '' : `<div class="aviso alerta"><b>Disparos de marketing bloqueados.</b> O serviço de envio ainda não liberou o marketing nesta conta. Dá para montar e agendar, mas o botão de disparo só funciona depois da liberação. <a href="#mkt-email?v=configuracao">Ver configuração</a></div>`;
+  }
+
+  function campanhas(el) {
+    const lista = vazio() ? [] : D.campanhas;
+    const cont = Object.fromEntries(Object.keys(SITUACAO_CAMP).map((k) => [k, lista.filter((c) => c.situacao === k).length]));
+    const linhas = lista.filter((c) => !filtroCamp || c.situacao === filtroCamp);
+    el.innerHTML = `${seloProto()}
+      <div class="em-barra">
+        <div class="ig-vistas" role="group" aria-label="Campanhas ou visão geral">
+          <button type="button" class="tipo-pill" aria-pressed="true">Campanhas</button>
+          <button type="button" class="tipo-pill" aria-pressed="false" data-ir="relatorio">Visão geral do canal</button>
+        </div>
+        <button class="btn" type="button" data-nova>Nova campanha</button>
+      </div>
+      ${avisoMarketing()}
+      ${D.usoMes / D.limiteMes > 0.75 && !vazio() ? `<div class="aviso alerta">Já foram ${pct((D.usoMes / D.limiteMes) * 100, 0)} do limite do mês. A campanha agendada de 20/10 (${int(2050)} pessoas) não cabe no que resta: ela vai ser barrada antes de sair, a não ser que o limite renove ou o segmento diminua.</div>` : ''}
+      ${avisoLimite()}
+      <div class="ag-subvistas" role="group" aria-label="Filtrar por situação">
+        <button type="button" class="ag-subvista" data-filtro="" aria-pressed="${!filtroCamp}">Todas <span class="ag-cont">${lista.length}</span></button>
+        ${Object.entries(SITUACAO_CAMP).map(([k, [r]]) => `<button type="button" class="ag-subvista" data-filtro="${k}" aria-pressed="${filtroCamp === k}">${r} <span class="ag-cont${k === 'falhou' && cont[k] ? ' alerta' : ''}">${cont[k]}</span></button>`).join('')}
+      </div>
+      <div class="tabela-wrap" id="em-camp-lista"></div>`;
+    ligarCenario(el, () => campanhas(el));
+    el.querySelector('[data-ir="relatorio"]').onclick = () => { campanhaRelatorio = null; irPara('relatorio'); };
+    el.querySelector('[data-nova]').onclick = () => formCampanha(null);
+    el.querySelectorAll('[data-filtro]').forEach((b) => { b.onclick = () => { filtroCamp = b.dataset.filtro; campanhas(el); }; });
+    const alvo = el.querySelector('#em-camp-lista');
+    ctx.tabela(alvo, [
+      { titulo: 'Campanha', campo: 'nome', render: (c) => `<button type="button" class="ag-link-linha" data-acao="abrir" data-id="${c.id}">${esc(c.nome)}</button>` },
+      { titulo: 'Situação', campo: 'situacao', render: (c) => c.situacao === 'enviando'
+        ? `<span data-prog="${c.id}"><span class="em-progresso" title="${c.progresso}% enviado"><span style="width:${c.progresso}%"></span></span> <b>${c.progresso}%</b></span>`
+        : carimbo(SITUACAO_CAMP, c.situacao) },
+      { titulo: 'Segmentos', render: (c) => `<span class="mini">${c.segmentos.map((s) => esc((segmento(s) || {}).nome || 's')).join(' + ')}</span>` },
+      { titulo: 'Envio', render: (c) => esc(c.envio || 'sem data') },
+      { titulo: 'Destinatários', num: true, campo: 'dest', render: (c) => c.dest ? int(c.dest) : '' },
+      { titulo: 'Abertura', num: true, render: (c) => c.abertos ? taxa(c.abertos, c.entregues) : '' },
+      { titulo: 'Clique', num: true, render: (c) => c.clicados ? taxa(c.clicados, c.entregues) : '' },
+      { titulo: '', render: (c) => `<div class="ag-acoes ag-acoes--linha">${menuHtml(c.nome, [
+        { acao: 'abrir', id: c.id, rotulo: c.situacao === 'rascunho' ? 'Editar' : 'Abrir' },
+        c.situacao === 'enviada' && { acao: 'relatorio', id: c.id, rotulo: 'Ver relatório' },
+        c.situacao === 'agendada' && { acao: 'editar', id: c.id, rotulo: 'Editar' },
+        { acao: 'teste', id: c.id, rotulo: 'Mandar teste' },
+        { acao: 'duplicar', id: c.id, rotulo: 'Duplicar' },
+        c.situacao === 'agendada' && { acao: 'cancelar', id: c.id, rotulo: 'Cancelar envio', perigo: true },
+        c.situacao === 'rascunho' && { acao: 'excluir', id: c.id, rotulo: 'Excluir rascunho', perigo: true },
+      ])}</div>` },
+    ], linhas, undefined, vazio() ? 'Nenhuma campanha ainda. Comece por "Nova campanha": escolha um modelo, um ou mais segmentos e mande um teste antes de disparar.' : 'Nenhuma campanha nesta situação.');
+    ligarAcoes(alvo, {
+      abrir: (id) => abrirCampanha(id),
+      editar: (id) => formCampanha(campanha(id)),
+      relatorio: (id) => { campanhaRelatorio = id; irPara('relatorio'); },
+      teste: (id) => avisar(`Teste de "${campanha(id).nome}" mandado para felipe@seteads.com.`),
+      duplicar: (id) => {
+        const c = campanha(id);
+        D.campanhas.unshift({ id: 'c' + Date.now(), nome: c.nome + ' (cópia)', situacao: 'rascunho', modelo: c.modelo, segmentos: [...c.segmentos], envio: '' });
+        filtroCamp = '';
+        avisar('Campanha duplicada como rascunho.');
+        campanhas(el);
+      },
+      cancelar: (id, b) => ctx.pedirConfirmacao(b, 'Cancelar o envio agendado?', () => {
+        const c = campanha(id); c.situacao = 'cancelada'; c.envio = 'era ' + c.envio;
+        fecharMenus(); avisar('Envio cancelado. Ninguém recebeu.'); campanhas(el);
+      }),
+      excluir: (id, b) => ctx.pedirConfirmacao(b, 'Excluir este rascunho?', () => {
+        D.campanhas = D.campanhas.filter((c) => c.id !== id);
+        fecharMenus(); avisar('Rascunho excluído.'); campanhas(el);
+      }),
+    });
+  }
+
+  function abrirCampanha(id) {
+    const c = campanha(id);
+    if (c.situacao === 'rascunho') return formCampanha(c);
+    if (c.situacao === 'enviada') { campanhaRelatorio = id; return irPara('relatorio'); }
+    const m = modelo(c.modelo);
+    const base = `<dl class="ag-dl">
+        <dt>Situação</dt><dd>${carimbo(SITUACAO_CAMP, c.situacao)}</dd>
+        <dt>Modelo</dt><dd>${esc(m.nome)}<br><span class="mini">${esc(m.assunto)}</span></dd>
+        <dt>Segmentos</dt><dd>${c.segmentos.map((s) => esc(segmento(s).nome)).join('<br>')}</dd>
+        <dt>Envio</dt><dd>${esc(c.envio)}</dd>
+        ${c.dest ? `<dt>Destinatários</dt><dd>${int(c.dest)}</dd>` : ''}
+      </dl>`;
+    let extra = '', rodape = '';
+    if (c.situacao === 'enviando') {
+      extra = `<div class="em-andamento"><div class="em-andamento__num"><b>${c.progresso}%</b> enviado</div>
+        <span class="em-progresso em-progresso--grande"><span style="width:${c.progresso}%"></span></span>
+        <p class="mini">${int(Math.round((c.dest * c.progresso) / 100))} de ${int(c.dest)} já saíram · ${c.falhas} falhas até agora (endereço recusado na hora). O número sobe sozinho conforme o serviço confirma.</p></div>`;
+    } else if (c.situacao === 'falhou') {
+      extra = `<div class="aviso falha"><b>Motivo:</b> ${esc(c.motivo)}</div><p class="mini">Uma campanha que falha nunca sai pela metade sem aviso: ou sai inteira, ou fica parada aqui com o motivo.</p>`;
+      rodape = '<div class="ag-acoes"><button class="btn sec" type="button" data-dup>Duplicar para tentar de novo</button></div>';
+    } else if (c.situacao === 'agendada') {
+      extra = '<p class="mini">Sai sozinha no horário. O segmento é recalculado na hora do envio: quem entrar até lá também recebe, e quem se descadastrar nesse meio tempo não recebe.</p>';
+      rodape = '<div class="ag-acoes"><button class="btn" type="button" data-editar>Editar</button><button class="btn perigo" type="button" data-cancelar>Cancelar envio</button></div>';
+    } else if (c.situacao === 'cancelada') {
+      extra = '<p class="mini">Cancelada antes do horário. Ninguém recebeu.</p>';
+      rodape = '<div class="ag-acoes"><button class="btn sec" type="button" data-dup>Duplicar</button></div>';
+    }
+    const g = gaveta({ titulo: esc(c.nome), sub: 'campanha de marketing', corpo: base + extra, rodape });
+    const dup = g.querySelector('[data-dup]');
+    if (dup) dup.onclick = () => { D.campanhas.unshift({ id: 'c' + Date.now(), nome: c.nome + ' (cópia)', situacao: 'rascunho', modelo: c.modelo, segmentos: [...c.segmentos], envio: '' }); g.close(); avisar('Campanha duplicada como rascunho.'); ctx.rerender(); };
+    const ed = g.querySelector('[data-editar]');
+    if (ed) ed.onclick = () => formCampanha(c);
+    const ca = g.querySelector('[data-cancelar]');
+    if (ca) ca.onclick = () => ctx.pedirConfirmacao(ca, 'Cancelar o envio?', () => { c.situacao = 'cancelada'; c.envio = 'era ' + c.envio; g.close(); avisar('Envio cancelado. Ninguém recebeu.'); ctx.rerender(); });
+  }
+
+  /** Quem recebe e quem fica de fora (módulo 6): segmentos somados, sem repetir pessoa. */
+  function publicoCampanha(segIds) {
+    const porPessoa = new Map();
+    segIds.forEach((s) => noSegmento(segmento(s).regras).forEach((p) => porPessoa.set(p.id, (porPessoa.get(p.id) || 0) + 1)));
+    const pessoas = [...porPessoa.keys()].map((id) => D.contatos.find((p) => p.id === id));
+    const fora = { descadastrado: 0, voltou: 0, denunciou: 0, invalido: 0 };
+    pessoas.forEach((p) => { if (p.situacao !== 'ativo') fora[p.situacao]++; });
+    return { recebem: pessoas.filter((p) => p.situacao === 'ativo').length, emDois: [...porPessoa.values()].filter((n) => n > 1).length, fora };
+  }
+
+  function formCampanha(c) {
+    const nova = !c;
+    c = c || { id: 'c' + Date.now(), nome: '', situacao: 'rascunho', modelo: '', segmentos: [], envio: '' };
+    const marketing = D.modelos.filter((m) => m.canal === 'marketing' && !m.arquivado);
+    const cfg = D.config.marketing;
+    const corpo = `<form class="ag-form em-form" id="em-camp-form" novalidate>
+        <label>Nome interno<input type="text" name="nome" value="${esc(c.nome)}" placeholder="Ex.: Convite workshop 05/11" required></label>
+        <label>Modelo<select name="modelo"><option value="">Escolha um modelo</option>${marketing.map((m) => `<option value="${m.id}"${m.id === c.modelo ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
+        <div class="em-previa-assunto" id="em-camp-assunto"></div>
+        <fieldset><legend>Segmentos (um ou mais)</legend>
+          ${D.segmentos.map((s) => `<label class="marca"><input type="checkbox" name="seg" value="${s.id}"${c.segmentos.includes(s.id) ? ' checked' : ''}> ${esc(s.nome)} <span class="mini">${int(noSegmento(s.regras).filter((p) => p.situacao === 'ativo').length)} ativos</span></label>`).join('')}
+        </fieldset>
+        <label>Remetente<input type="text" value="${esc(cfg.nome)} <${esc(cfg.endereco)}>" readonly><span class="mini">Vem da configuração de e-mail.</span></label>
+        <fieldset><legend>Quando enviar</legend>
+          <label class="marca"><input type="radio" name="quando" value="agora" checked> Agora, depois do resumo</label>
+          <label class="marca"><input type="radio" name="quando" value="agendar"> Agendar para data e hora</label>
+          <input type="datetime-local" name="data" value="2026-10-20T09:00" hidden>
+        </fieldset>
+      </form>
+      <div id="em-camp-resumo"></div>`;
+    const g = gaveta({
+      titulo: nova ? 'Nova campanha' : esc(c.nome || 'Rascunho'), sub: c.situacao === 'agendada' ? 'campanha agendada: dá para editar até o horário' : 'rascunho salvo sozinho a cada mudança',
+      corpo,
+      rodape: `<div class="ag-acoes"><button class="btn" type="button" data-revisar>Revisar e disparar</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button></div>`,
+    });
+    const f = g.querySelector('#em-camp-form');
+    const dados = () => ({ nome: f.nome.value.trim(), modelo: f.modelo.value, segmentos: [...f.querySelectorAll('[name="seg"]:checked')].map((i) => i.value), quando: f.quando.value, data: f.data.value });
+    const atualizar = () => {
+      const d = dados();
+      const m = modelo(d.modelo);
+      g.querySelector('#em-camp-assunto').innerHTML = m ? `<span class="mini">Assunto</span> <b>${esc(m.assunto)}</b><br><span class="mini">${esc(m.previa)}</span>` : '';
+      f.data.hidden = d.quando !== 'agendar';
+      g.querySelector('[data-revisar]').textContent = d.quando === 'agendar' ? 'Revisar e agendar' : 'Revisar e disparar';
+      g.querySelector('#em-camp-resumo').innerHTML = '';
+    };
+    f.addEventListener('input', atualizar);
+    f.addEventListener('change', atualizar);
+    atualizar();
+    const salvar = () => {
+      const d = dados();
+      Object.assign(c, { nome: d.nome || 'Rascunho sem nome', modelo: d.modelo || 'm6', segmentos: d.segmentos });
+      if (nova && !D.campanhas.includes(c)) D.campanhas.unshift(c);
+    };
+    g.querySelector('[data-salvar]').onclick = () => { salvar(); g.close(); avisar('Rascunho salvo.'); ctx.rerender(); };
+    g.querySelector('[data-teste]').onclick = () => {
+      if (!f.modelo.value) return avisar('Escolha o modelo antes de mandar o teste.', 'erro');
+      avisar('Teste mandado para felipe@seteads.com. Os campos usam os dados de exemplo.');
+    };
+    g.querySelector('[data-revisar]').onclick = () => {
+      const d = dados();
+      const falta = [!d.nome && 'o nome', !d.modelo && 'o modelo', !d.segmentos.length && 'ao menos um segmento'].filter(Boolean);
+      if (falta.length) return avisar(`Falta escolher ${falta.join(', ')}.`, 'erro');
+      const pub = publicoCampanha(d.segmentos);
+      const resta = D.limiteMes - D.usoMes;
+      const passa = pub.recebem > resta;
+      const totFora = Object.values(pub.fora).reduce((a, b) => a + b, 0);
+      const bloqueio = !marketingLiberado() ? 'O marketing ainda não foi liberado pelo serviço de envio. O disparo fica bloqueado até lá.'
+        : passa ? `Este envio tem ${int(pub.recebem)} pessoas e restam ${int(resta)} e-mails no mês. Diminua o segmento ou espere o limite renovar em 01/11.` : '';
+      const agendar = d.quando === 'agendar';
+      const quandoTxt = agendar ? new Date(d.data).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'agora';
+      g.querySelector('#em-camp-resumo').innerHTML = `<div class="em-resumo">
+        <h3 class="ag-h3">Resumo antes de ${agendar ? 'agendar' : 'disparar'}</h3>
+        <div class="em-resumo__grande"><b>${int(pub.recebem)}</b> pessoas vão receber</div>
+        ${pub.emDois ? `<p class="mini">${int(pub.emDois)} estão em mais de um segmento escolhido e recebem uma vez só.</p>` : ''}
+        <p><b>${int(totFora)}</b> ficam de fora:</p>
+        <ul class="em-fora">
+          <li><span>Descadastrados</span><b>${int(pub.fora.descadastrado)}</b></li>
+          <li><span>Voltaram (endereço não existe)</span><b>${int(pub.fora.voltou)}</b></li>
+          <li><span>Denunciaram spam</span><b>${int(pub.fora.denunciou)}</b></li>
+          <li><span>Endereço inválido</span><b>${int(pub.fora.invalido)}</b></li>
+        </ul>
+        <p class="mini">Limite do mês: ${int(D.usoMes)} usados, restam ${int(resta)}.${agendar ? ' Na hora do envio o segmento é recalculado.' : ''}</p>
+        ${bloqueio ? `<div class="aviso alerta">${esc(bloqueio)}</div>` : ''}
+        <div class="ag-acoes"><button class="btn" type="button" data-disparar${bloqueio ? ' disabled' : ''}>${agendar ? `Agendar para ${quandoTxt}` : `Disparar para ${int(pub.recebem)} pessoas`}</button></div>
+      </div>`;
+      const corpoG = g.querySelector('.ag-gaveta__corpo');
+      corpoG.scrollTop = corpoG.scrollHeight;
+      const b = g.querySelector('[data-disparar]');
+      b.onclick = () => ctx.pedirConfirmacao(b, agendar ? `Agendar para ${quandoTxt}?` : `Disparar agora para ${int(pub.recebem)} pessoas? Não dá para desfazer.`, () => {
+        salvar();
+        if (agendar) { c.situacao = 'agendada'; c.envio = quandoTxt.replace(', ', ' às '); c.dest = pub.recebem; }
+        else { c.situacao = 'enviando'; c.envio = 'agora'; c.dest = pub.recebem; c.progresso = 4; c.falhas = 0; simularEnvio(c); }
+        g.close();
+        filtroCamp = '';
+        avisar(agendar ? `Agendada para ${quandoTxt}.` : `Disparo iniciado para ${int(pub.recebem)} pessoas.`);
+        ctx.rerender();
+      }, [{ valor: true, rotulo: agendar ? 'Agendar' : 'Disparar' }]);
+    };
+  }
+
+  // Andamento do envio: o percentual sobe sozinho na lista (simulado).
+  function simularEnvio(c) {
+    const t = setInterval(() => {
+      c.progresso = Math.min(100, c.progresso + 9 + Math.round(Math.random() * 8));
+      if (Math.random() < 0.3) c.falhas++;
+      if (c.progresso >= 100) {
+        clearInterval(t);
+        Object.assign(c, { situacao: 'enviada', envio: 'hoje', entregues: c.dest - c.falhas - 3, voltaram: c.falhas + 3, spam: 0, abertos: 0, clicados: 0, descad: 0 });
+        avisar(`"${c.nome}" terminou de sair.`);
+      }
+      // Só o percentual muda na tela; a lista inteira é redesenhada no fim,
+      // e só se ninguém estiver com menu ou gaveta aberta.
+      const cel = document.querySelector(`[data-prog="${c.id}"]`);
+      if (cel && c.situacao === 'enviando') cel.innerHTML = `<span class="em-progresso"><span style="width:${c.progresso}%"></span></span> <b>${c.progresso}%</b>`;
+      const ocupado = document.querySelector('.ag-menu__lista:not([hidden]), dialog[open], .confirma');
+      if (c.situacao !== 'enviando' && cel && !ocupado) campanhas(raiz());
+    }, 1400);
+  }
+
+  // ===========================================================================
+  // 375 · Relatório da campanha e visão geral do canal
+  // ===========================================================================
+  let campanhaRelatorio = null;
+  let filtroRel = 'abriram';
+  let periodoCanal = 'mes';
+
+  function relatorio(el) {
+    if (campanhaRelatorio && campanha(campanhaRelatorio)) return relatorioCampanha(el, campanha(campanhaRelatorio));
+    const PER = { mes: ['Outubro até hoje', 1], 'mes-passado': ['Setembro', 3.1], '90': ['Últimos 90 dias', 6.4] };
+    const [perRot, f] = PER[periodoCanal];
+    const enviadas = vazio() ? [] : D.campanhas.filter((c) => c.situacao === 'enviada');
+    const ruim = cenario === 'dominio';
+    const enviados = vazio() ? 0 : Math.round(D.usoMes * f), entreg = Math.round(enviados * 0.978);
+    const spam = ruim ? 0.14 : 0.04, volta = ruim ? 4.6 : 1.1, desc = 0.48;
+    el.innerHTML = `${seloProto()}
+      <div class="em-barra">
+        <div class="ig-vistas" role="group" aria-label="Campanhas ou visão geral">
+          <button type="button" class="tipo-pill" aria-pressed="false" data-ir="campanhas">Campanhas</button>
+          <button type="button" class="tipo-pill" aria-pressed="true">Visão geral do canal</button>
+        </div>
+        <select data-periodo aria-label="Período">${Object.entries(PER).map(([k, [r]]) => `<option value="${k}"${k === periodoCanal ? ' selected' : ''}>${r}</option>`).join('')}</select>
+      </div>
+      ${ruim ? `<div class="aviso alerta"><b>Alerta de reputação.</b> A taxa de spam (${pct(spam, 2)}) passou do limite aceito pelo serviço de envio (0,10%) e a devolução (${pct(volta, 1)}) está acima de 4%. Revise os segmentos antes do próximo disparo. Este alerta também vai para o aviso diário de integrações.</div>` : ''}
+      <div class="metas em-metas">
+        <div class="metas-cabeca"><h2>Limite do plano</h2><span class="mini">${int(D.usoMes)} de ${int(D.limiteMes)} e-mails em outubro · renova em 01/11</span></div>
+        <div class="meta"><h3>E-mails enviados no mês <span>${pct((D.usoMes / D.limiteMes) * 100, 0)}</span></h3>
+          <div class="regua"><i style="width:${(D.usoMes / D.limiteMes) * 100}%"></i><b style="left:92%" title="projeção para o fim do mês"></b></div>
+          <div class="mini"><span>marketing ${int(D.usoMes - 410)} · agenda ${int(410)}</span><span>projeção para 31/10: ${int(9200)}</span></div></div>
+      </div>
+      <div class="grid-etiquetas">
+        ${[
+          { rotulo: 'E-mails enviados', valor: int(enviados), nota: perRot.toLowerCase() },
+          { rotulo: 'Taxa de entrega', valor: vazio() ? null : pct(97.8), nota: vazio() ? 'nenhum envio ainda' : `${int(entreg)} entregues` },
+          { rotulo: 'Taxa de spam', valor: vazio() ? null : pct(spam, 2), nota: `limite do serviço: 0,10%${ruim ? ' · ACIMA' : ''}` },
+          { rotulo: 'Devolução', valor: vazio() ? null : pct(volta), nota: 'endereço que não existe' },
+          { rotulo: 'Descadastro', valor: vazio() ? null : pct(desc, 2), nota: 'por e-mail entregue' },
+        ].map((k) => ctx.tile(k)).join('')}
+      </div>
+      <div class="bloco"><h2>Campanhas enviadas <small>clique para abrir o relatório</small></h2><div class="tabela-wrap" id="em-rel-lista"></div></div>`;
+    ligarCenario(el, () => relatorio(el));
+    el.querySelector('[data-ir="campanhas"]').onclick = () => irPara('campanhas');
+    el.querySelector('[data-periodo]').onchange = (e) => { periodoCanal = e.target.value; relatorio(el); };
+    ctx.tabela(el.querySelector('#em-rel-lista'), [
+      { titulo: 'Campanha', campo: 'nome', render: (c) => `<b>${esc(c.nome)}</b>` },
+      { titulo: 'Envio', render: (c) => esc(c.envio) },
+      { titulo: 'Entregues', num: true, campo: 'entregues', render: (c) => int(c.entregues) },
+      { titulo: 'Abertura', num: true, render: (c) => taxa(c.abertos, c.entregues) },
+      { titulo: 'Clique', num: true, render: (c) => taxa(c.clicados, c.entregues) },
+      { titulo: 'Descadastro', num: true, render: (c) => taxa(c.descad, c.entregues, 2) },
+    ], enviadas, (c) => { campanhaRelatorio = c.id; relatorio(el); window.scrollTo(0, 0); }, 'Nenhuma campanha enviada no período. Os resultados aparecem aqui conforme o serviço de envio avisa.');
+  }
+
+  function relatorioCampanha(el, c) {
+    const LINKS = c.id === 'c1'
+      ? [['atacadoexponencial.com/workshop-gratuito', 188], ['atacadoexponencial.com/grupo-workshop', 41], ['instagram.com/atacadoexponencial', 12]]
+      : [['atacadoexponencial.com/aplicacao', 84], ['atacadoexponencial.com/plano-ao-vivo', 19]];
+    const maior = Math.max(...LINKS.map((l) => l[1]), 1);
+    const r = aleatorio(c.id.length * 97 + c.dest);
+    const amostra = D.contatos.slice(0, 400).filter(() => r() < 0.5);
+    const pessoas = {
+      abriram: amostra.slice(0, 24).map((p, i) => ({ ...p, quando: `${dataBR(Date.UTC(2026, 9, 1))} ${String(9 + (i % 9)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}` })),
+      clicaram: amostra.slice(0, 9).map((p, i) => ({ ...p, quando: LINKS[i % LINKS.length][0] })),
+      voltaram: amostra.slice(40, 46).map((p, i) => ({ ...p, quando: i % 3 ? 'endereço não existe' : 'caixa cheia' })),
+      descadastraram: amostra.slice(60, 64).map((p) => ({ ...p, quando: 'pelo link do rodapé' })),
+    };
+    const ROT = { abriram: 'Abriram', clicaram: 'Clicaram', voltaram: 'Voltaram', descadastraram: 'Descadastraram' };
+    el.innerHTML = `${seloProto(true)}
+      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ICONE.voltar} Visão geral</button>
+        <span class="mini">atualiza sozinho conforme os resultados chegam · última atualização há 4 min</span></div>
+      <div class="em-rel-cabeca"><h2>${esc(c.nome)}</h2><p class="mini">Enviada em ${esc(c.envio)} · ${c.segmentos.map((s) => esc(segmento(s).nome)).join(' + ')} · modelo "${esc(modelo(c.modelo).nome)}"</p></div>
+      <div class="grid-etiquetas">${[
+        { rotulo: 'Destinatários', valor: int(c.dest) },
+        { rotulo: 'Entregues', valor: int(c.entregues), nota: `entrega ${taxa(c.entregues, c.dest)}` },
+        { rotulo: 'Aberturas', valor: int(c.abertos), nota: `${taxa(c.abertos, c.entregues)} · pessoas únicas` },
+        { rotulo: 'Cliques', valor: int(c.clicados), nota: `${taxa(c.clicados, c.entregues)} · pessoas únicas` },
+      ].map((k) => ctx.tile(k, true)).join('')}</div>
+      <div class="em-numeros">
+        <div><span>Voltaram</span><b>${int(c.voltaram)}</b><small>${taxa(c.voltaram, c.dest)}</small></div>
+        <div><span>Spam</span><b>${int(c.spam)}</b><small>${taxa(c.spam, c.entregues, 2)}</small></div>
+        <div><span>Descadastros</span><b>${int(c.descad)}</b><small>${taxa(c.descad, c.entregues, 2)}</small></div>
+        <div><span>Clique sobre abertura</span><b>${taxa(c.clicados, c.abertos)}</b><small>de quem abriu</small></div>
+      </div>
+      <div class="duas">
+        <div class="bloco"><h2>Quem fez o quê <small>clique no nome para abrir o contato</small></h2>
+          <div class="ag-subvistas" role="group" aria-label="Filtrar pessoas">
+            ${Object.entries(ROT).map(([k, rot]) => `<button type="button" class="ag-subvista" data-rel="${k}" aria-pressed="${k === filtroRel}">${rot} <span class="ag-cont">${k === 'abriram' ? int(c.abertos) : k === 'clicaram' ? int(c.clicados) : k === 'voltaram' ? int(c.voltaram) : int(c.descad)}</span></button>`).join('')}
+          </div>
+          <div class="tabela-wrap" id="em-rel-pessoas"></div>
+          <p class="mini">Mostrando as primeiras pessoas da lista.</p>
+        </div>
+        <div class="bloco"><h2>Links clicados <small>pessoas únicas</small></h2>
+          <table><tbody>${LINKS.map(([u, n]) => `<tr><td class="em-link-url">${esc(u)}</td><td class="num"><span class="proporcao" style="width:${Math.round((n / maior) * 80)}px"></span>${int(n)}</td></tr>`).join('')}</tbody></table>
+        </div>
+      </div>`;
+    el.querySelector('[data-voltar]').onclick = () => { campanhaRelatorio = null; relatorio(el); };
+    const desenhar = () => ctx.tabela(el.querySelector('#em-rel-pessoas'), [
+      { titulo: 'Pessoa', render: (p) => `<button type="button" class="ag-link-linha" data-contato="${p.id}">${esc(p.nome)}</button><br><span class="mini">${esc(p.email)}</span>` },
+      { titulo: filtroRel === 'clicaram' ? 'Link' : filtroRel === 'abriram' ? 'Quando' : 'Motivo', render: (p) => `<span class="mini">${esc(p.quando)}</span>` },
+    ], pessoas[filtroRel], undefined, 'Ninguém aqui.');
+    desenhar();
+    el.querySelectorAll('[data-rel]').forEach((b) => { b.onclick = () => { filtroRel = b.dataset.rel; el.querySelectorAll('[data-rel]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); desenhar(); }; });
+    el.querySelector('#em-rel-pessoas').addEventListener('click', (ev) => { const b = ev.target.closest('[data-contato]'); if (b) detalheContato(b.dataset.contato); });
+  }
+
+  // ===========================================================================
+  // 376 · Fluxos (quadro em email-fluxos.js)
+  // ===========================================================================
+  function fluxos(el) {
+    if (!window.EmailFluxos) { el.innerHTML = '<div class="aviso falha">O quadro dos fluxos não carregou.</div>'; return; }
+    window.EmailFluxos.render(el, ctx, { vazio: vazio() });
+  }
+
+  // ===========================================================================
+  // 374 · Contatos
+  // ===========================================================================
+  const filtroCont = { busca: '', situacao: '', origem: '', funil: '' };
+  let limiteLista = 50;
+
+  function contatos(el) {
+    const todos = vazio() ? [] : D.contatos;
+    const conta = (s) => todos.filter((p) => p.situacao === s).length;
+    el.innerHTML = `${seloProto()}
+      <div class="grid-etiquetas">${[
+        { rotulo: 'Contatos ativos', valor: int(conta('ativo')), nota: 'podem receber marketing' },
+        { rotulo: 'Total de contatos', valor: int(todos.length), nota: 'leads do tracking desde 20/07' },
+        { rotulo: 'Fora do marketing', valor: int(todos.length - conta('ativo')), nota: `${int(conta('descadastrado'))} descad. · ${int(conta('voltou'))} voltaram · ${int(conta('denunciou'))} spam · ${int(conta('invalido'))} inválidos` },
+      ].map((k) => ctx.tile(k)).join('')}</div>
+      ${vazio() ? '<div class="aviso explica">Os contatos chegam sozinhos: na primeira carga entram os leads que já existem no tracking, e depois cada lead novo de formulário vira contato na hora. Mesmo e-mail é sempre um contato só.</div>' : ''}
+      <div class="em-filtros">
+        <input type="search" data-f="busca" placeholder="Buscar por nome ou e-mail" aria-label="Buscar contato" value="${esc(filtroCont.busca)}">
+        <select data-f="situacao" aria-label="Situação"><option value="">Todas as situações</option>${Object.entries(SITUACOES).map(([k, [r]]) => `<option value="${k}">${r}</option>`).join('')}</select>
+        <select data-f="origem" aria-label="Origem"><option value="">Todas as origens</option>${ORIGENS.map((o) => `<option>${o}</option>`).join('')}</select>
+        <select data-f="funil" aria-label="Funil"><option value="">Todos os funis</option>${FUNIS.map(([v, r]) => `<option value="${v}">${r}</option>`).join('')}</select>
+      </div>
+      <div class="em-contagem mini" id="em-cont-total"></div>
+      <div class="tabela-wrap" id="em-cont-lista"></div>
+      <div class="paginacao" id="em-cont-mais"></div>`;
+    ligarCenario(el, () => contatos(el));
+    el.querySelectorAll('[data-f]').forEach((i) => {
+      if (i.tagName === 'SELECT') i.value = filtroCont[i.dataset.f];
+      i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', () => { filtroCont[i.dataset.f] = i.value; limiteLista = 50; desenharLista(); });
+    });
+    const desenharLista = () => {
+      const b = semAcento(filtroCont.busca.trim());
+      const linhas = todos.filter((p) => (!b || semAcento(p.nome + ' ' + p.email).includes(b))
+        && (!filtroCont.situacao || p.situacao === filtroCont.situacao)
+        && (!filtroCont.origem || p.origem === filtroCont.origem)
+        && (!filtroCont.funil || p.funil === filtroCont.funil));
+      const filtrado = Object.values(filtroCont).some(Boolean);
+      el.querySelector('#em-cont-total').textContent = filtrado ? `${int(linhas.length)} contatos com esses filtros` : `${int(linhas.length)} contatos, mais recentes primeiro`;
+      linhas.sort((a, z) => z.entrada - a.entrada);
+      ctx.tabela(el.querySelector('#em-cont-lista'), [
+        { titulo: 'Nome', campo: 'nome', render: (p) => `<button type="button" class="ag-link-linha" data-contato="${p.id}">${esc(p.nome)}</button>` },
+        { titulo: 'E-mail', campo: 'email', render: (p) => `<span class="mini">${esc(p.email)}</span>` },
+        { titulo: 'Origem', campo: 'origem', render: (p) => esc(p.origem) },
+        { titulo: 'Funil', campo: 'funil', render: (p) => esc(nomeFunil(p.funil)) },
+        { titulo: 'Entrada', campo: 'entrada', render: (p) => dataBR(p.entrada) },
+        { titulo: 'Situação', campo: 'situacao', render: (p) => carimbo(SITUACOES, p.situacao) },
+      ], linhas.slice(0, limiteLista), undefined, todos.length ? 'Nenhum contato com esses filtros.' : 'Nenhum contato ainda.');
+      const mais = el.querySelector('#em-cont-mais');
+      mais.innerHTML = linhas.length > limiteLista ? `<span class="mini">mostrando ${int(limiteLista)} de ${int(linhas.length)}</span><button class="btn sec" type="button">Mostrar mais 50</button>` : '';
+      const bm = mais.querySelector('button');
+      if (bm) bm.onclick = () => { limiteLista += 50; desenharLista(); };
+    };
+    desenharLista();
+    el.querySelector('#em-cont-lista').addEventListener('click', (ev) => { const b = ev.target.closest('[data-contato]'); if (b) detalheContato(b.dataset.contato, () => desenharLista()); });
+  }
+
+  const EXPLICA_SITUACAO = {
+    ativo: 'Recebe marketing normalmente.',
+    descadastrado: 'Pediu para sair. Nunca mais recebe marketing. Só volta se a própria pessoa se cadastrar de novo.',
+    voltou: 'O endereço não existe ou recusou de vez (devolução definitiva). Fora de todos os disparos.',
+    denunciou: 'Marcou um e-mail nosso como spam. Fora de todos os disparos, para proteger a entrega de todo mundo.',
+    invalido: 'Endereço malformado. Entrou como contato, mas fica fora dos disparos para não derrubar um envio inteiro.',
+  };
+
+  function detalheContato(id, aoMudar) {
+    const p = D.contatos.find((x) => x.id === id);
+    if (!p) return;
+    const segs = D.segmentos.filter((s) => s.regras.every((r) => casa(p, r)));
+    const hist = [];
+    if (p.abriu.includes('c1') || p.funil === 'workshop-gratuito') hist.push({ nome: 'Convite workshop 08/10', data: '01/10', abriu: p.abriu.includes('c1'), clicou: p.clicou.includes('c1') });
+    if (p.abriu.includes('c2') || p.estagio === 'MQL') hist.push({ nome: 'Novidade: plano ao vivo', data: '24/09', abriu: p.abriu.includes('c2'), clicou: p.clicou.includes('c2') });
+    const fluxo = p.funil === 'workshop-gratuito' ? [
+      ['Entrou', `${dataBR(p.entrada)} · preencheu o formulário do workshop`],
+      ['E-mail 1', 'recebeu, ' + (p.abriu.length ? 'abriu' : 'não abriu')],
+      ['Desvio', p.abriu.length ? 'seguiu por "sim"' : 'seguiu por "não"'],
+      p.situacao === 'ativo' ? ['Agora', 'esperando 1 dia antes do próximo e-mail'] : ['Saiu', p.situacao === 'descadastrado' ? 'descadastrou-se' : p.situacao === 'voltou' ? 'o e-mail voltou' : p.situacao === 'denunciou' ? 'denunciou spam' : 'endereço inválido'],
+    ] : [];
+    const acao = p.situacao === 'ativo' ? '<button class="btn perigo" type="button" data-descad>Descadastrar</button>'
+      : p.situacao === 'voltou' ? '<button class="btn sec" type="button" data-reativar>Reativar</button>' : '';
+    const g = gaveta({
+      titulo: esc(p.nome), sub: esc(p.email),
+      corpo: `<p>${carimbo(SITUACOES, p.situacao)}</p>
+        <p class="mini em-explica-sit">${EXPLICA_SITUACAO[p.situacao]}</p>
+        <dl class="ag-dl">
+          <dt>Origem</dt><dd>${esc(p.origem)}</dd>
+          <dt>Funil</dt><dd>${esc(nomeFunil(p.funil))}</dd>
+          <dt>Entrada</dt><dd>${dataBR(p.entrada)}/2026</dd>
+          <dt>Estágio no CRM</dt><dd>${esc(p.estagio)}</dd>
+        </dl>
+        <h3 class="ag-h3">Segmentos</h3>
+        ${segs.length ? `<div class="ag-etiquetas">${segs.map((s) => `<span class="ag-etiqueta">${esc(s.nome)}</span>`).join('')}</div>` : '<p class="mini">Não está em nenhum segmento agora.</p>'}
+        <h3 class="ag-h3">E-mails recebidos</h3>
+        ${hist.length ? `<ol class="ag-hist em-hist">${hist.map((h) => `<li><b>${esc(h.nome)}</b> <span class="mini">${h.data}</span><br>${h.abriu ? '<span class="ok">abriu</span>' : '<span class="mini">não abriu</span>'}${h.clicou ? ' · <span class="ok">clicou</span>' : ''}</li>`).join('')}</ol>` : '<p class="mini">Nenhum e-mail de marketing ainda.</p>'}
+        <h3 class="ag-h3">Fluxos</h3>
+        ${fluxo.length ? `<p><b>Boas-vindas do workshop gratuito</b></p><ol class="ag-hist em-hist">${fluxo.map(([a, b]) => `<li><b>${a}</b> <span class="mini">${b}</span></li>`).join('')}</ol>` : '<p class="mini">Não passou por nenhum fluxo.</p>'}
+        <div id="em-contato-confirma"></div>`,
+      rodape: acao ? `<div class="ag-acoes">${acao}</div>` : `<p class="mini">${p.situacao === 'ativo' ? '' : 'Quem se descadastrou, denunciou spam ou tem endereço inválido não pode ser reativado pela equipe.'}</p>`,
+    });
+    const des = g.querySelector('[data-descad]');
+    if (des) des.onclick = () => ctx.pedirConfirmacao(des, 'Descadastrar a pedido da pessoa?', () => {
+      p.situacao = 'descadastrado'; avisar(`${p.nome} foi descadastrado. Sai também dos fluxos.`); detalheContato(id, aoMudar); if (aoMudar) aoMudar();
+    });
+    const re = g.querySelector('[data-reativar]');
+    if (re) re.onclick = () => {
+      g.querySelector('#em-contato-confirma').innerHTML = '<div class="aviso alerta">Só reative se o problema foi resolvido (ex.: a caixa estava cheia e a pessoa liberou). Se o endereço voltar de novo, a reputação do envio cai para todo mundo.</div>';
+      ctx.pedirConfirmacao(re, 'Reativar mesmo assim?', () => {
+        p.situacao = 'ativo'; avisar(`${p.nome} voltou a receber marketing.`); detalheContato(id, aoMudar); if (aoMudar) aoMudar();
+      }, [{ valor: true, rotulo: 'Reativar' }]);
+    };
+  }
+
+  // ===========================================================================
+  // 374 · Segmentos
+  // ===========================================================================
+  function segmentos(el) {
+    const lista = vazio() ? [] : D.segmentos;
+    el.innerHTML = `${seloProto()}
+      <div class="em-barra"><p class="mini">Cada segmento é uma regra. A contagem é de contatos ativos agora e é refeita na hora de cada disparo.</p>
+        <button class="btn" type="button" data-novo>Novo segmento</button></div>
+      <div class="tabela-wrap" id="em-seg-lista"></div>`;
+    ligarCenario(el, () => segmentos(el));
+    el.querySelector('[data-novo]').onclick = () => montador(null, () => segmentos(el));
+    const ligado = (s) => D.campanhas.some((c) => c.situacao === 'agendada' && c.segmentos.includes(s.id));
+    const alvo = el.querySelector('#em-seg-lista');
+    ctx.tabela(alvo, [
+      { titulo: 'Segmento', campo: 'nome', render: (s) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${s.id}">${esc(s.nome)}</button>${ligado(s) ? ' <span class="selo">em campanha agendada</span>' : ''}` },
+      { titulo: 'Regra', render: (s) => `<span class="mini em-regra-curta">${esc(resumoRegra(s.regras))}</span>` },
+      { titulo: 'Ativos agora', num: true, render: (s) => `<b>${int(noSegmento(s.regras).filter((p) => p.situacao === 'ativo').length)}</b>` },
+      { titulo: '', render: (s) => `<div class="ag-acoes ag-acoes--linha">${menuHtml(s.nome, [
+        { acao: 'editar', id: s.id, rotulo: 'Editar regra' },
+        { acao: 'duplicar', id: s.id, rotulo: 'Duplicar' },
+        { acao: 'excluir', id: s.id, rotulo: 'Excluir', perigo: true },
+      ])}</div>` },
+    ], lista, undefined, 'Nenhum segmento ainda. Um segmento junta contatos por funil, origem, data de entrada, estágio no CRM ou campanha que abriram.');
+    ligarAcoes(alvo, {
+      editar: (id) => montador(segmento(id), () => segmentos(el)),
+      duplicar: (id) => { const s = segmento(id); D.segmentos.push({ id: 's' + Date.now(), nome: s.nome + ' (cópia)', regras: s.regras.map((r) => ({ ...r })) }); avisar('Segmento duplicado.'); segmentos(el); },
+      excluir: (id, b) => {
+        const s = segmento(id);
+        if (ligado(s)) { fecharMenus(); return avisar(`"${s.nome}" está numa campanha agendada. Tire o segmento da campanha antes de excluir.`, 'erro'); }
+        ctx.pedirConfirmacao(b, 'Excluir o segmento?', () => { D.segmentos = D.segmentos.filter((x) => x.id !== id); fecharMenus(); avisar('Segmento excluído.'); segmentos(el); });
+      },
+    });
+  }
+
+  function montador(s, aoSalvar) {
+    const novo = !s;
+    const rascunho = { nome: s ? s.nome : '', regras: s ? s.regras.map((r) => ({ ...r })) : [{ campo: 'funil', op: 'e', valor: 'workshop-gratuito' }] };
+    const g = gaveta({
+      titulo: novo ? 'Novo segmento' : 'Editar segmento', sub: 'condições combinadas com "e": a pessoa precisa cumprir todas', largura: 'larga',
+      corpo: `<label class="ag-campo"><span class="ag-campo__rotulo">Nome</span><input type="text" id="em-seg-nome" value="${esc(rascunho.nome)}" placeholder="Ex.: Leads do workshop que abriram o convite"></label>
+        <div class="em-regras" id="em-regras"></div>
+        <button class="btn sec em-mais" type="button" data-add>+ Adicionar condição</button>
+        <div class="em-contagem-viva" id="em-seg-conta" aria-live="polite"></div>
+        <h3 class="ag-h3">Amostra <small class="mini">primeiros contatos que a regra pega</small></h3>
+        <div class="tabela-wrap" id="em-seg-amostra"></div>`,
+      rodape: '<div class="ag-acoes"><button class="btn" type="button" data-salvar>Salvar segmento</button><button class="btn sec" type="button" data-fechar2>Cancelar</button></div>',
+    });
+    const caixa = g.querySelector('#em-regras');
+    const desenhar = () => {
+      caixa.innerHTML = rascunho.regras.map((r, i) => {
+        const c = CAMPOS_REGRA[r.campo];
+        return `<div class="em-regra" data-i="${i}">
+          ${i ? '<span class="em-regra__e">e</span>' : '<span class="em-regra__e">quem</span>'}
+          <select data-k="campo" aria-label="Campo">${Object.entries(CAMPOS_REGRA).map(([k, v]) => `<option value="${k}"${k === r.campo ? ' selected' : ''}>${v.rotulo}</option>`).join('')}</select>
+          <select data-k="op" aria-label="Comparação">${c.ops.map(([k, v]) => `<option value="${k}"${k === r.op ? ' selected' : ''}>${v}</option>`).join('')}</select>
+          <select data-k="valor" aria-label="Valor">${c.valores().map(([k, v]) => `<option value="${esc(k)}"${k === r.valor ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select>
+          <button class="ag-icone" type="button" data-tirar aria-label="Tirar condição">${ICONE.fechar}</button>
+        </div>`;
+      }).join('') || '<p class="mini">Sem condição: o segmento pega todos os contatos ativos.</p>';
+      contar();
+    };
+    const contar = () => {
+      const pegos = noSegmento(rascunho.regras);
+      const ativos = pegos.filter((p) => p.situacao === 'ativo');
+      g.querySelector('#em-seg-conta').innerHTML = `<b>${int(ativos.length)}</b> contatos ativos com essa regra <span class="mini">· mais ${int(pegos.length - ativos.length)} fora do marketing (descadastrados, voltaram, spam, inválidos)</span>`;
+      ctx.tabela(g.querySelector('#em-seg-amostra'), [
+        { titulo: 'Nome', render: (p) => `<b>${esc(p.nome)}</b><br><span class="mini">${esc(p.email)}</span>` },
+        { titulo: 'Funil', render: (p) => `<span class="mini">${esc(nomeFunil(p.funil))}</span>` },
+        { titulo: 'Entrada', render: (p) => dataBR(p.entrada) },
+      ], ativos.slice(0, 8), undefined, 'Ninguém cumpre essa regra agora.');
+    };
+    caixa.addEventListener('change', (ev) => {
+      const linha = ev.target.closest('[data-i]');
+      const r = rascunho.regras[Number(linha.dataset.i)];
+      r[ev.target.dataset.k] = ev.target.value;
+      if (ev.target.dataset.k === 'campo') { const c = CAMPOS_REGRA[r.campo]; r.op = c.ops[0][0]; r.valor = (c.valores()[0] || [''])[0]; }
+      desenhar();
+    });
+    caixa.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-tirar]');
+      if (b) { rascunho.regras.splice(Number(b.closest('[data-i]').dataset.i), 1); desenhar(); }
+    });
+    g.querySelector('[data-add]').onclick = () => { rascunho.regras.push({ campo: 'origem', op: 'e', valor: 'Meta Ads' }); desenhar(); };
+    g.querySelector('[data-fechar2]').onclick = () => g.close();
+    g.querySelector('[data-salvar]').onclick = () => {
+      const nome = g.querySelector('#em-seg-nome').value.trim();
+      if (!nome) return avisar('Dê um nome ao segmento.', 'erro');
+      if (novo) D.segmentos.push({ id: 's' + Date.now(), nome, regras: rascunho.regras });
+      else Object.assign(s, { nome, regras: rascunho.regras });
+      g.close();
+      avisar(novo ? 'Segmento criado.' : 'Segmento salvo.');
+      aoSalvar();
+    };
+    desenhar();
+  }
+
+  // ===========================================================================
+  // 373 · Modelos
+  // ===========================================================================
+  let filtroModelo = 'todos';
+  let modeloAberto = null;
+
+  function emUso(m) {
+    const usos = [];
+    Object.entries(D.agenda).forEach(([tid, a]) => {
+      const t = TIPOS_REUNIAO.find((x) => x.id === tid).nome;
+      if (a.confirmacao.modelo === m.id) usos.push(`confirmação da agenda (${t})`);
+      a.lembretes.forEach((l) => { if (l.modelo === m.id) usos.push(`lembrete de ${l.horas} h da agenda (${t})`); });
+      if (a.remarcacao.modelo === m.id) usos.push(`remarcação da agenda (${t})`);
+      if (a.cancelamento.modelo === m.id) usos.push(`cancelamento da agenda (${t})`);
+    });
+    D.campanhas.filter((c) => c.situacao === 'agendada' && c.modelo === m.id).forEach((c) => usos.push(`campanha agendada "${c.nome}"`));
+    if (['m7', 'm8', 'm9'].includes(m.id)) usos.push('fluxo "Boas-vindas do workshop gratuito"');
+    return [...new Set(usos)];
+  }
+
+  function modelos(el) {
+    if (modeloAberto) return editorModelo(el, modeloAberto);
+    const todos = vazio() ? [] : D.modelos;
+    const linhas = todos.filter((m) => (filtroModelo === 'arquivados' ? m.arquivado : !m.arquivado && (filtroModelo === 'todos' || m.canal === filtroModelo)));
+    const FILTROS_M = [['todos', 'Todos'], ['transacional', 'Transacional'], ['marketing', 'Marketing'], ['arquivados', 'Arquivados']];
+    el.innerHTML = `${seloProto()}
+      <div class="em-barra">
+        <div class="ag-subvistas" role="group" aria-label="Filtrar modelos">${FILTROS_M.map(([k, r]) => `<button type="button" class="ag-subvista" data-fm="${k}" aria-pressed="${k === filtroModelo}">${r} <span class="ag-cont">${todos.filter((m) => (k === 'arquivados' ? m.arquivado : !m.arquivado && (k === 'todos' || m.canal === k))).length}</span></button>`).join('')}</div>
+        <div class="ag-acoes"><button class="btn" type="button" data-novo="marketing">Novo modelo de marketing</button><button class="btn sec" type="button" data-novo="transacional">Novo transacional</button></div>
+      </div>
+      <div class="tabela-wrap" id="em-mod-lista"></div>`;
+    ligarCenario(el, () => modelos(el));
+    el.querySelectorAll('[data-fm]').forEach((b) => { b.onclick = () => { filtroModelo = b.dataset.fm; modelos(el); }; });
+    el.querySelectorAll('[data-novo]').forEach((b) => { b.onclick = () => {
+      const m = { id: 'm' + Date.now(), nome: 'Modelo sem nome', canal: b.dataset.novo, assunto: '', previa: '', editado: '03/10', corpo: 'Oi, {{primeiro_nome}}!\n\n' };
+      D.modelos.unshift(m); modeloAberto = m.id; modelos(el); avisar(`Modelo ${m.canal === 'marketing' ? 'de marketing' : 'transacional'} criado.`);
+    }; });
+    const alvo = el.querySelector('#em-mod-lista');
+    ctx.tabela(alvo, [
+      { titulo: 'Modelo', campo: 'nome', render: (m) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${m.id}">${esc(m.nome)}</button>${emUso(m).length ? ' <span class="selo">em uso</span>' : ''}` },
+      { titulo: 'Canal', campo: 'canal', render: (m) => m.canal === 'marketing' ? 'Marketing' : 'Transacional' },
+      { titulo: 'Assunto', render: (m) => `<span class="em-assunto-curto">${esc(m.assunto || 'sem assunto')}</span>` },
+      { titulo: 'Editado', render: (m) => esc(m.editado) },
+      { titulo: '', render: (m) => `<div class="ag-acoes ag-acoes--linha">${menuHtml(m.nome, m.arquivado ? [
+        { acao: 'desarquivar', id: m.id, rotulo: 'Tirar do arquivo' }, { acao: 'duplicar', id: m.id, rotulo: 'Duplicar' },
+      ] : [
+        { acao: 'editar', id: m.id, rotulo: 'Editar' },
+        { acao: 'teste', id: m.id, rotulo: 'Mandar teste' },
+        { acao: 'duplicar', id: m.id, rotulo: 'Duplicar' },
+        { acao: 'arquivar', id: m.id, rotulo: 'Arquivar', perigo: true },
+      ])}</div>` },
+    ], linhas, undefined, filtroModelo === 'arquivados' ? 'Nenhum modelo arquivado.' : 'Nenhum modelo ainda. Crie o primeiro escolhendo o canal: transacional (agenda) ou marketing (campanhas e fluxos).');
+    ligarAcoes(alvo, {
+      editar: (id) => { modeloAberto = id; modelos(el); window.scrollTo(0, 0); },
+      teste: (id) => avisar(`Teste de "${modelo(id).nome}" mandado para felipe@seteads.com.`),
+      duplicar: (id) => { const m = modelo(id); D.modelos.unshift({ ...m, id: 'm' + Date.now(), nome: m.nome + ' (cópia)', arquivado: false, editado: '03/10' }); filtroModelo = 'todos'; avisar('Modelo duplicado.'); modelos(el); },
+      desarquivar: (id) => { modelo(id).arquivado = false; avisar('Modelo de volta na lista.'); modelos(el); },
+      arquivar: (id, b) => {
+        const m = modelo(id), usos = emUso(m);
+        if (usos.length) { fecharMenus(); return avisar(`Não dá para arquivar: está em uso em ${usos[0]}${usos.length > 1 ? ` e mais ${usos.length - 1}` : ''}. Troque o modelo lá antes.`, 'erro'); }
+        ctx.pedirConfirmacao(b, 'Arquivar?', () => { m.arquivado = true; fecharMenus(); avisar('Modelo arquivado. Ele fica no filtro "Arquivados".'); modelos(el); });
+      },
+    });
+  }
+
+  const camposDe = (canal) => CAMPOS[canal].map((c) => c[0]);
+  const camposDesconhecidos = (texto, canal) => [...new Set([...String(texto).matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)].map((x) => x[1]).filter((n) => !camposDe(canal).includes(n)))];
+  function preencher(texto, canal) {
+    const mapa = Object.fromEntries(CAMPOS[canal]);
+    return esc(texto).replace(/\{\{\s*([^}]*?)\s*\}\}/g, (t, n) => (n in mapa ? esc(mapa[n]) : `<mark class="em-campo-ruim">{{${esc(n)}}}</mark>`));
+  }
+  /** Texto formatado simples: **negrito**, [texto](link) e [[Botão | link]]. */
+  function corpoHtml(texto, canal) {
+    return preencher(texto, canal).split(/\n{2,}/).map((par) => {
+      const botao = par.match(/^\[\[(.+?)\|(.+?)\]\]$/);
+      if (botao) return `<p class="em-email__botao"><a>${botao[1].trim()}</a></p>`;
+      return `<p>${par.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a>$1</a>').replace(/\n/g, '<br>')}</p>`;
+    }).join('');
+  }
+  function emailPrevia(m, canal, tamanho) {
+    const cfg = D.config[canal];
+    return `<div class="em-email em-email--${tamanho}">
+      <div class="em-email__caixa"><b>${esc(cfg.nome)}</b> <span class="mini">&lt;${esc(cfg.endereco)}&gt;</span><br>
+        <span class="em-email__assunto">${preencher(m.assunto || '(sem assunto)', canal)}</span> <span class="mini">${preencher(m.previa || '', canal)}</span></div>
+      <div class="em-email__folha">
+        <div class="em-email__cabeca"><img src="/dash/logo-atacado-exponencial.png" alt="" width="120"></div>
+        <div class="em-email__corpo">${corpoHtml(m.corpo, canal)}</div>
+        <div class="em-email__rodape">${esc(D.config.rodape).replace(/\n/g, '<br>')}${canal === 'marketing' ? '<br><a>Não quero mais receber estes e-mails</a>' : ''}</div>
+      </div></div>`;
+  }
+
+  function editorModelo(el, id) {
+    const m = modelo(id);
+    const rasc = { ...m };
+    let tamanho = 'computador';
+    const usos = emUso(m);
+    el.innerHTML = `${seloProto(true)}
+      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ICONE.voltar} Modelos</button>
+        <div class="ag-acoes"><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-dup>Duplicar</button><button class="btn" type="button" data-salvar>Salvar</button></div></div>
+      ${m.arquivado ? '<div class="aviso alerta">Este modelo está arquivado. Ele não aparece na lista principal nem pode ser escolhido em campanhas, fluxos ou na agenda.</div>' : ''}
+      ${usos.length ? `<div class="aviso explica">Em uso em ${usos.map(esc).join(', ')}. Mudanças valem para os próximos envios.</div>` : ''}
+      <div class="em-editor">
+        <form class="ag-form em-editor__form" onsubmit="return false">
+          <div class="linha"><label>Nome<input type="text" data-m="nome" value="${esc(rasc.nome)}"></label>
+            <label>Canal<input type="text" value="${m.canal === 'marketing' ? 'Marketing (news.)' : 'Transacional (envio.)'}" readonly></label></div>
+          <label>Assunto<input type="text" data-m="assunto" value="${esc(rasc.assunto)}" placeholder="O que aparece em negrito na caixa de entrada"></label>
+          <label>Texto de pré-visualização<input type="text" data-m="previa" value="${esc(rasc.previa)}" placeholder="A linha que aparece depois do assunto"></label>
+          <div class="ag-campo"><span class="ag-campo__rotulo">Corpo</span>
+            <div class="em-ferramentas" role="toolbar" aria-label="Formatação">
+              <button type="button" class="btn sec" data-fmt="negrito"><b>N</b> Negrito</button>
+              <button type="button" class="btn sec" data-fmt="link">Link</button>
+              <button type="button" class="btn sec" data-fmt="botao">Botão</button>
+            </div>
+            <textarea data-m="corpo" rows="12">${esc(rasc.corpo)}</textarea>
+            <span class="mini">**texto** vira negrito · [texto](link) vira link · [[Texto | link]] vira botão. Cabeçalho e rodapé entram sozinhos.</span></div>
+          <div class="ag-campo"><span class="ag-campo__rotulo">Campos do canal ${m.canal} <span class="mini">(clique para inserir onde está o cursor)</span></span>
+            <div class="ag-etiquetas">${CAMPOS[m.canal].map(([c]) => `<button type="button" class="em-campo" data-campo="${c}">{{${c}}}</button>`).join('')}</div></div>
+          <div id="em-campos-ruins" aria-live="polite"></div>
+        </form>
+        <div class="em-editor__previa">
+          <div class="em-barra em-barra--previa"><span class="ag-campo__rotulo">Pré-visualização com dados de exemplo</span>
+            <div class="em-tamanho" role="group" aria-label="Tamanho da pré-visualização">
+              <button type="button" class="ag-icone" data-tam="computador" aria-pressed="true" aria-label="Computador" title="Computador">${ICONE.computador}</button>
+              <button type="button" class="ag-icone" data-tam="celular" aria-pressed="false" aria-label="Celular" title="Celular">${ICONE.celular}</button></div></div>
+          <div id="em-previa"></div>
+        </div>
+      </div>`;
+    const ta = el.querySelector('[data-m="corpo"]');
+    const atualizar = () => {
+      el.querySelector('#em-previa').innerHTML = emailPrevia(rasc, m.canal, tamanho);
+      const ruins = camposDesconhecidos(rasc.assunto + ' ' + rasc.previa + ' ' + rasc.corpo, m.canal);
+      el.querySelector('#em-campos-ruins').innerHTML = ruins.length
+        ? `<div class="aviso falha"><b>Campo desconhecido:</b> ${ruins.map((r) => `{{${esc(r)}}}`).join(', ')}. ${ruins.includes('nmoe') ? 'Você quis dizer {{nome}}? ' : ''}Os campos deste canal estão logo acima. Não dá para salvar assim.</div>` : '';
+    };
+    el.querySelectorAll('[data-m]').forEach((i) => i.addEventListener('input', () => { rasc[i.dataset.m] = i.value; atualizar(); }));
+    let ultimoCampo = ta;
+    el.querySelectorAll('[data-m="assunto"], [data-m="previa"], [data-m="corpo"]').forEach((i) => i.addEventListener('focus', () => { ultimoCampo = i; }));
+    const inserir = (antes, depois = '', padrao = '') => {
+      const i = ultimoCampo, a = i.selectionStart ?? i.value.length, z = i.selectionEnd ?? a;
+      const sel = i.value.slice(a, z) || padrao;
+      i.value = i.value.slice(0, a) + antes + sel + depois + i.value.slice(z);
+      i.focus();
+      i.selectionStart = i.selectionEnd = a + antes.length + sel.length + depois.length;
+      rasc[i.dataset.m] = i.value;
+      atualizar();
+    };
+    el.querySelectorAll('[data-campo]').forEach((b) => { b.onclick = () => inserir(`{{${b.dataset.campo}}}`); });
+    el.querySelectorAll('[data-fmt]').forEach((b) => { b.onclick = () => { ultimoCampo = ta; ({
+      negrito: () => inserir('**', '**', 'texto em negrito'),
+      link: () => inserir('[', '](https://)', 'texto do link'),
+      botao: () => inserir('\n\n[[', ' | https://]]\n\n', 'Texto do botão'),
+    })[b.dataset.fmt](); }; });
+    el.querySelectorAll('[data-tam]').forEach((b) => { b.onclick = () => { tamanho = b.dataset.tam; el.querySelectorAll('[data-tam]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); atualizar(); }; });
+    el.querySelector('[data-voltar]').onclick = () => { modeloAberto = null; modelos(el); };
+    el.querySelector('[data-teste]').onclick = () => avisar('Teste mandado para felipe@seteads.com com os dados de exemplo.');
+    el.querySelector('[data-dup]').onclick = () => { const n = { ...rasc, id: 'm' + Date.now(), nome: rasc.nome + ' (cópia)', arquivado: false }; D.modelos.unshift(n); modeloAberto = n.id; avisar('Modelo duplicado. Você está editando a cópia.'); modelos(el); };
+    el.querySelector('[data-salvar]').onclick = () => {
+      const ruins = camposDesconhecidos(rasc.assunto + ' ' + rasc.previa + ' ' + rasc.corpo, m.canal);
+      if (ruins.length) { avisar(`Corrija o campo {{${ruins[0]}}} antes de salvar.`, 'erro'); el.querySelector('#em-campos-ruins').scrollIntoView({ block: 'center' }); return; }
+      if (!rasc.assunto.trim()) return avisar('O modelo precisa de assunto.', 'erro');
+      Object.assign(m, rasc, { editado: '03/10' });
+      avisar('Modelo salvo.');
+    };
+    atualizar();
+  }
+
+  // ===========================================================================
+  // 373 · Configuração
+  // ===========================================================================
+  function configuracao(el) {
+    const domRuim = cenario === 'dominio';
+    const mktPend = cenario === 'marketing';
+    const geral = domRuim ? 'incidente' : mktPend ? 'atencao' : 'saudavel';
+    const C = D.config;
+    const canal = (k, titulo, dominio, dica) => `<div class="em-canal">
+        <h3>${titulo} <span class="mini">${dominio}</span></h3>
+        <form class="ag-form" data-canal="${k}" novalidate>
+          <label>Nome do remetente<input type="text" name="nome" value="${esc(C[k].nome)}"></label>
+          <label>Endereço do remetente<input type="email" name="endereco" value="${esc(C[k].endereco)}"><span class="mini">Só endereços @${dominio} são aceitos.</span></label>
+          <label>Endereço de resposta<input type="email" name="resposta" value="${esc(C[k].resposta)}" placeholder="ex.: contato@seteads.com"><span class="mini">${dica}</span></label>
+          <div class="em-erro" aria-live="polite"></div>
+          <div class="ag-acoes"><button class="btn sec" type="submit">Salvar remetente</button></div>
+        </form></div>`;
+    el.innerHTML = `${seloProto()}
+      <div class="faixa-estado ${geral}">
+        <span class="selo-estado">${domRuim ? 'Com problema' : mktPend ? 'Pendente' : 'Tudo certo'}</span>
+        <p>${domRuim ? 'O domínio de marketing (news.) perdeu a verificação. Os disparos de marketing estão parados até corrigir. A agenda segue saindo normalmente.'
+          : mktPend ? 'Conta aprovada, mas o serviço de envio ainda não liberou o marketing. A agenda já pode mandar e-mails; campanhas e fluxos esperam.'
+          : 'Conta aprovada e os dois canais liberados. Os e-mails da agenda e de marketing podem sair.'}</p>
+      </div>
+      <div class="duas-colunas">
+        <div class="bloco"><h2>Conta no serviço de envio</h2>
+          <table><tbody>
+            <tr><td>Conta</td><td class="num"><span class="carimbo alta">Aprovada</span></td></tr>
+            <tr><td>Transacional (agenda)</td><td class="num"><span class="carimbo alta">Liberado</span></td></tr>
+            <tr><td>Marketing (campanhas e fluxos)</td><td class="num">${mktPend ? '<span class="carimbo alerta">Pendente</span>' : '<span class="carimbo alta">Liberado</span>'}</td></tr>
+            <tr><td>Chave de acesso</td><td class="num"><span class="carimbo alta">Funcionando</span></td></tr>
+          </tbody></table>
+          <p class="mini em-nota">Se a chave parar de funcionar, o problema entra no aviso diário de credenciais, como as outras integrações.</p>
+        </div>
+        <div class="bloco"><h2>Domínios <small>assinatura e endereço de retorno</small></h2>
+          <table><tbody>
+            <tr><td><b>envio.atacadoexponencial.com</b><br><span class="mini">transacional</span></td><td class="num"><span class="carimbo alta">Verificado</span></td></tr>
+            <tr><td><b>news.atacadoexponencial.com</b><br><span class="mini">marketing</span></td><td class="num">${domRuim ? '<span class="carimbo queda">Com problema</span>' : '<span class="carimbo alta">Verificado</span>'}</td></tr>
+          </tbody></table>
+          ${domRuim ? '<div class="aviso alerta">O registro de assinatura (DKIM) de news. não foi encontrado no DNS desde 02/10 às 18:40. Confira se alguém mexeu no DNS da Cloudflare.</div>' : ''}
+        </div>
+      </div>
+      <div class="bloco"><h2>Remetentes <small>quem aparece como autor do e-mail</small></h2>
+        <div class="duas-colunas">
+          ${canal('transacional', 'Transacional', 'envio.atacadoexponencial.com', 'Vazio: as respostas dos leads se perdem, porque o domínio não recebe e-mail. Sugestão: um endereço @seteads.com.')}
+          ${canal('marketing', 'Marketing', 'news.atacadoexponencial.com', 'Vazio: as respostas dos leads se perdem, porque o domínio não recebe e-mail. Sugestão: um endereço @seteads.com.')}
+        </div>
+      </div>
+      <div class="bloco"><h2>Rodapé comum <small>entra no fim de todo e-mail, dos dois canais</small></h2>
+        <form class="ag-form" data-rodape novalidate>
+          <label>Dados da empresa e endereço físico<textarea name="rodape" rows="3">${esc(C.rodape)}</textarea></label>
+          <p class="mini">No marketing, o link de descadastro de um clique entra sozinho embaixo do rodapé.</p>
+          <div class="ag-acoes"><button class="btn sec" type="submit">Salvar rodapé</button></div>
+        </form>
+      </div>`;
+    ligarCenario(el, () => configuracao(el));
+    el.querySelectorAll('form[data-canal]').forEach((f) => {
+      const k = f.dataset.canal, dom = k === 'marketing' ? 'news.atacadoexponencial.com' : 'envio.atacadoexponencial.com';
+      f.onsubmit = (ev) => {
+        ev.preventDefault();
+        const erro = f.querySelector('.em-erro');
+        const end = f.endereco.value.trim().toLowerCase();
+        if (!f.nome.value.trim()) { erro.textContent = 'O nome do remetente não pode ficar vazio.'; return; }
+        if (!end.endsWith('@' + dom) || end.split('@')[0].length === 0) { erro.textContent = `Use um endereço @${dom}. É o único domínio verificado para este canal.`; return; }
+        if (f.resposta.value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.resposta.value)) { erro.textContent = 'O endereço de resposta parece incompleto.'; return; }
+        erro.textContent = '';
+        Object.assign(C[k], { nome: f.nome.value.trim(), endereco: end, resposta: f.resposta.value.trim() });
+        avisar(`Remetente do ${k} salvo.`);
+      };
+    });
+    el.querySelector('form[data-rodape]').onsubmit = (ev) => { ev.preventDefault(); C.rodape = ev.target.rodape.value; avisar('Rodapé salvo. Vale para os próximos envios.'); };
+  }
+
+  // ===========================================================================
+  // 373 · E-mails da agenda (app Agenda)
+  // ===========================================================================
+  let tipoAgenda = 't1';
+  const HORAS_OPCOES = [[48, '48 h antes'], [24, '24 h antes'], [12, '12 h antes'], [3, '3 h antes'], [2, '2 h antes'], [1, '1 h antes'], [0.5, '30 min antes'], [0.25, '15 min antes']];
+  const rotHoras = (h) => (HORAS_OPCOES.find((x) => x[0] === h) || [h, `${h} h antes`])[1];
+
+  function renderAgenda(c) {
+    ctx = c;
+    fecharGaveta();
+    ctx.$('#subtitulo').textContent = 'saem pelo canal transacional (envio.) · protótipo';
+    const el = ctx.$('#agenda-emails-conteudo');
+    el.className = 'em';
+    const tipo = TIPOS_REUNIAO.find((t) => t.id === tipoAgenda);
+    const a = D.agenda[tipoAgenda];
+    const transac = D.modelos.filter((m) => m.canal === 'transacional' && !m.arquivado);
+    const selModelo = (attr, atual) => `<select ${attr} aria-label="Modelo">${transac.map((m) => `<option value="${m.id}"${m.id === atual ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select>`;
+    const linhas = [
+      { k: 'confirmacao', nome: 'Confirmação', quando: 'logo que o lead confirma o horário', e: a.confirmacao },
+      ...a.lembretes.map((l, i) => ({ k: 'lembrete', i, nome: `Lembrete ${rotHoras(l.horas)}`, quando: `${rotHoras(l.horas)} da reunião`, e: l })),
+      { k: 'remarcacao', nome: 'Remarcação', quando: 'quando a reunião muda de horário', e: a.remarcacao, espera: true },
+      { k: 'cancelamento', nome: 'Cancelamento', quando: 'quando a reunião é cancelada', e: a.cancelamento, espera: true },
+    ];
+    el.innerHTML = `${seloProto(true)}
+      <div class="em-barra">
+        <div class="ag-subvistas" role="group" aria-label="Tipo de reunião">${TIPOS_REUNIAO.map((t) => `<button type="button" class="ag-subvista" data-tipo="${t.id}" aria-pressed="${t.id === tipoAgenda}">${esc(t.nome)}</button>`).join('')}</div>
+      </div>
+      ${tipo.comercial ? '' : '<div class="aviso explica">Tipo não comercial: a pessoa recebe confirmação e lembretes normalmente, mas não vira contato de marketing.</div>'}
+      <div class="bloco"><h2>E-mails de ${esc(tipo.nome)} <small>remetente: ${esc(D.config.transacional.nome)} &lt;${esc(D.config.transacional.endereco)}&gt;</small></h2>
+        <div class="tabela-wrap"><table class="em-agenda-tab"><thead><tr><th>E-mail</th><th>Quando sai</th><th>Modelo</th><th>Situação</th><th></th></tr></thead><tbody>
+        ${linhas.map((l, n) => `<tr data-n="${n}">
+          <td><b>${esc(l.nome)}</b>${l.espera ? '<br><span class="selo">espera a agenda</span>' : ''}</td>
+          <td><span class="mini">${esc(l.quando)}</span></td>
+          <td>${selModelo('data-modelo', l.e.modelo)}</td>
+          <td>${chave(l.e.ligado, 'data-ligar')}</td>
+          <td><div class="ag-acoes ag-acoes--linha"><button class="btn sec" type="button" data-teste>Mandar teste</button>${l.k === 'lembrete' ? `<button class="ag-icone" type="button" data-tirar aria-label="Tirar lembrete">${ICONE.fechar}</button>` : ''}</div></td>
+        </tr>`).join('')}
+        </tbody></table></div>
+        <div class="aviso alerta">Remarcação e cancelamento já ficam prontos aqui, mas só passam a sair quando a agenda tiver os fluxos de remarcar e cancelar. Confirmação e lembretes funcionam desde o primeiro dia.</div>
+        <div class="em-lembrete-novo"><span class="mini">Lembretes deste tipo:</span>
+          <select data-novo-lembrete aria-label="Novo horário de lembrete"><option value="">Adicionar lembrete…</option>${HORAS_OPCOES.filter(([h]) => !a.lembretes.some((l) => l.horas === h)).map(([h, r]) => `<option value="${h}">${r}</option>`).join('')}</select></div>
+        <ul class="em-regras-agenda mini">
+          <li>Reunião cancelada não recebe lembrete.</li>
+          <li>Reunião remarcada recebe os lembretes do horário novo, nunca do antigo.</li>
+          <li>Lembrete cujo horário já passou não sai (marcou para daqui a 30 minutos: não recebe o de 1 h).</li>
+          <li>E-mail que não saiu ou voltou aparece no detalhe do agendamento e entra no aviso diário de integrações.</li>
+        </ul>
+      </div>
+      <div class="bloco"><h2>Exemplo: detalhe do agendamento <small>como o histórico de e-mails aparece na lista de agendamentos</small></h2>
+        <div class="tabela-wrap" id="em-ag-exemplos"></div></div>`;
+    el.querySelectorAll('[data-tipo]').forEach((b) => { b.onclick = () => { tipoAgenda = b.dataset.tipo; renderAgenda(ctx); }; });
+    el.querySelectorAll('tr[data-n]').forEach((tr) => {
+      const l = linhas[Number(tr.dataset.n)];
+      tr.querySelector('[data-modelo]').onchange = (ev) => { l.e.modelo = ev.target.value; avisar(`${l.nome}: modelo trocado para "${modelo(ev.target.value).nome}".`); };
+      tr.querySelector('[data-ligar]').onchange = (ev) => { l.e.ligado = ev.target.checked; ev.target.parentElement.querySelector('.em-chave__rot').textContent = l.e.ligado ? 'Ligado' : 'Desligado'; avisar(`${l.nome} ${l.e.ligado ? 'ligado' : 'desligado'} para ${tipo.nome}.`); };
+      tr.querySelector('[data-teste]').onclick = () => avisar(`Teste de "${l.nome}" mandado para felipe@seteads.com.`);
+      const t = tr.querySelector('[data-tirar]');
+      if (t) t.onclick = () => ctx.pedirConfirmacao(t, 'Tirar este lembrete?', () => { a.lembretes.splice(l.i, 1); avisar('Lembrete tirado.'); renderAgenda(ctx); });
+    });
+    el.querySelector('[data-novo-lembrete]').onchange = (ev) => {
+      const h = Number(ev.target.value);
+      if (!h) return;
+      a.lembretes.push({ horas: h, modelo: h >= 12 ? 'm2' : 'm3', ligado: true });
+      a.lembretes.sort((x, y) => y.horas - x.horas);
+      avisar(`Lembrete de ${rotHoras(h)} adicionado.`);
+      renderAgenda(ctx);
+    };
+    const EXEMPLOS = [
+      { id: 'a1', quando: 'ter 07/10 15:00', nome: 'Ana Lima', email: 'ana.lima@exemplo.com', situacao: 'Marcada', hist: [['Confirmação', '03/10 10:12', 'aberto'], ['Lembrete 24 h antes', '06/10 15:00', 'agendado'], ['Lembrete 1 h antes', '07/10 14:00', 'agendado']] },
+      { id: 'a2', quando: 'seg 06/10 10:00', nome: 'Bruno Rocha', email: 'bruno.rocha@empresa.com.br', situacao: 'Marcada', hist: [['Confirmação', '02/10 18:40', 'entregue'], ['Lembrete 24 h antes', '05/10 10:00', 'falhou', 'O serviço de envio não respondeu em três tentativas. Entrou no aviso diário de integrações.'], ['Lembrete 1 h antes', '06/10 09:00', 'agendado']] },
+      { id: 'a3', quando: 'sex 03/10 16:30', nome: 'Carla Duarte', email: 'carla.duarte@gmai.com', situacao: 'Marcada', hist: [['Confirmação', '01/10 09:05', 'voltou', 'O endereço não existe (gmai.com). Vale confirmar o e-mail com o lead pelo WhatsApp.'], ['Lembrete 24 h antes', '02/10 16:30', 'nao_enviado', 'Não saiu: o endereço já tinha voltado.']] },
+      { id: 'a4', quando: 'qui 09/10 11:00', nome: 'Diego Teixeira', email: 'diego.t@outlook.com', situacao: 'Cancelada', hist: [['Confirmação', '30/09 14:22', 'aberto'], ['Cancelamento', '02/10 08:10', 'espera', 'Pronto, mas só sai quando a agenda tiver o fluxo de cancelar.'], ['Lembretes', '', 'cancelado', 'Cancelados junto com a reunião.']] },
+    ];
+    const SIT_EMAIL = {
+      entregue: ['Entregue', 'alta'], aberto: ['Aberto', 'alta'], voltou: ['Voltou', 'queda'], falhou: ['Falhou', 'queda'],
+      agendado: ['Agendado', 'neutro'], nao_enviado: ['Não enviado', 'neutro'], cancelado: ['Cancelado', 'neutro'], espera: ['Espera a agenda', 'alerta'],
+    };
+    const alvo = el.querySelector('#em-ag-exemplos');
+    ctx.tabela(alvo, [
+      { titulo: 'Quando', render: (r) => `<b>${esc(r.quando)}</b>` },
+      { titulo: 'Pessoa', render: (r) => `<button type="button" class="ag-link-linha" data-abrir="${r.id}">${esc(r.nome)}</button><br><span class="mini">${esc(r.email)}</span>` },
+      { titulo: 'E-mails', render: (r) => {
+        const ruins = r.hist.filter((h) => ['voltou', 'falhou'].includes(h[2])).length;
+        return ruins ? `<span class="carimbo queda">${ruins} com problema</span>` : ((n) => `<span class="mini">${n} ${n === 1 ? 'entregue' : 'entregues'}</span>`)(r.hist.filter((h) => ['entregue', 'aberto'].includes(h[2])).length);
+      } },
+      { titulo: '', render: (r) => `<div class="ag-acoes ag-acoes--linha"><button class="btn sec" type="button" data-abrir="${r.id}">Abrir</button></div>` },
+    ], EXEMPLOS);
+    alvo.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-abrir]');
+      if (!b) return;
+      const r = EXEMPLOS.find((x) => x.id === b.dataset.abrir);
+      gaveta({
+        titulo: esc(r.nome), sub: `${esc(tipo.nome)} · exemplo`,
+        corpo: `<p><span class="carimbo ${r.situacao === 'Cancelada' ? 'queda' : 'neutro'}">${r.situacao}</span></p>
+          <dl class="ag-dl"><dt>Quando</dt><dd>${esc(r.quando)}</dd><dt>Contato</dt><dd>${esc(r.email)}</dd><dt>Meet</dt><dd><a>meet.google.com/abc-defg-hij</a></dd></dl>
+          <h3 class="ag-h3">E-mails desta reunião</h3>
+          <ol class="ag-hist em-hist">${r.hist.map(([n, q, s, nota]) => `<li class="em-hist__item"><div><b>${esc(n)}</b> ${q ? `<span class="mini">${esc(q)}</span>` : ''}${nota ? `<br><span class="mini">${esc(nota)}</span>` : ''}</div>${carimbo(SIT_EMAIL, s)}</li>`).join('')}</ol>
+          <p class="mini">Agendado: ainda vai sair no horário. Entregue e aberto chegam do serviço de envio conforme acontecem.</p>`,
+      });
+    });
+  }
+})();
