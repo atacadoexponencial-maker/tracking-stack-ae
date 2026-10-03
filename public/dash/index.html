@@ -6056,24 +6056,26 @@ R.agendaCtx = () => ({
   $, esc, fmtInt, fmtPct, money, fetchJson, tabela, tile, pedirConfirmacao, intervalo, delta, deltaChip,
   key: () => key,
 });
+// POST com a chave do dash; erro do backend vira `mensagemUsuario`.
+const postJson = async (rota, corpo) => {
+  const r = await fetch(`${rota}?key=${encodeURIComponent(key)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.error || 'Não foi possível salvar. Tente de novo.'), { mensagemUsuario: d.error, dados: d });
+  return d;
+};
 R.agenda = () => window.AgendaDash.render({
   $, esc, fmtInt, fmtPct, fetchJson, tabela, tile, pedirConfirmacao, intervalo,
   key: () => key,
-  postJson: async (rota, corpo) => {
-    const r = await fetch(`${rota}?key=${encodeURIComponent(key)}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
-    });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw Object.assign(new Error(d.error || 'Não foi possível salvar. Tente de novo.'), { mensagemUsuario: d.error });
-    return d;
-  },
+  postJson,
   rerender: () => render(),
   escreverUrl: () => escreverUrl(),
 });
 
 // ---------- E-mail próprio (public/dash/email-mkt.js) ----------
-// PROTÓTIPO (issues 373–376): só front, dados de exemplo, nenhuma chamada à API.
-const emailCtx = () => ({ $, esc, fmtInt, fmtPct, tabela, tile, pedirConfirmacao, rerender: () => render(), escreverUrl: () => escreverUrl() });
+// Protótipos 373–376 com dados de exemplo; a vista Configuração (377) já usa a API.
+const emailCtx = () => ({ $, esc, fmtInt, fmtPct, tabela, tile, pedirConfirmacao, fetchJson, postJson, rerender: () => render(), escreverUrl: () => escreverUrl() });
 R['mkt-email'] = () => window.EmailMkt.render(emailCtx());
 R['agenda-emails'] = () => window.EmailMkt.renderAgenda(emailCtx());
 

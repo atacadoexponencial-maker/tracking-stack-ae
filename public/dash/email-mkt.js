@@ -339,7 +339,7 @@
     ctx = c;
     fecharGaveta();
     ctx.$('#titulo').textContent = TITULO_VISTA[api.vista];
-    ctx.$('#subtitulo').textContent = `${NOTA_VISTA[api.vista]} · protótipo`;
+    ctx.$('#subtitulo').textContent = NOTA_VISTA[api.vista] + (api.vista === 'configuracao' ? '' : ' · protótipo');
     const el = raiz();
     el.className = 'em em--' + api.vista;
     ({ campanhas, relatorio, fluxos, contatos, segmentos, modelos, configuracao })[api.vista](el);
@@ -1071,76 +1071,217 @@
   }
 
   // ===========================================================================
-  // 373 · Configuração
+  // 373 · Configuração (ligada ao backend na 377: GET/POST /api/email/config)
   // ===========================================================================
-  function configuracao(el) {
-    const domRuim = cenario === 'dominio';
-    const mktPend = cenario === 'marketing';
-    const geral = domRuim ? 'incidente' : mktPend ? 'atencao' : 'saudavel';
-    const C = D.config;
-    const canal = (k, titulo, dominio, dica) => `<div class="em-canal">
-        <h3>${titulo} <span class="mini">${dominio}</span></h3>
+  // Única vista real: lê e grava pelo backend. Validação de remetente, envio de
+  // teste e conexão dos resultados ficam todas no servidor; aqui só a tela.
+  const DOMINIO_CANAL = { transacional: 'envio.atacadoexponencial.com', marketing: 'news.atacadoexponencial.com' };
+  const SITUACAO_ENVIO = {
+    enviado: ['Enviado', 'neutro'], falhou: ['Falhou', 'queda'], entregue: ['Entregue', 'alta'],
+    aberto: ['Aberto', 'alta'], clicado: ['Clicado', 'alta'], voltou: ['Voltou', 'queda'],
+    voltou_temporario: ['Voltou temporariamente', 'alerta'], spam: ['Marcado como spam', 'queda'], descadastrou: ['Descadastrou', 'alerta'],
+  };
+  const ROTULO_EVENTO = {
+    entregue: 'Entregue', aberto: 'Aberto', clicado: 'Clicado', voltou: 'Voltou',
+    voltou_temporario: 'Voltou temporariamente', spam: 'Spam', descadastrou: 'Descadastrou',
+  };
+  const quando = (ts) => (ts ? new Date(ts * 1000).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '');
+  const msgErro = (e) => (e && (e.mensagemUsuario || e.message)) || 'Não foi possível concluir. Tente de novo.';
+  const selo = (rotulo, cor) => `<span class="carimbo ${cor}">${esc(rotulo)}</span>`;
+  let cfgEstado = null;
+
+  async function configuracao(el) {
+    el.innerHTML = '<p class="aviso">Carregando a configuração…</p>';
+    try {
+      cfgEstado = await ctx.fetchJson('/api/email/config?_=' + Date.now());
+    } catch (e) {
+      el.innerHTML = `<div class="aviso falha">Não foi possível carregar a configuração (${esc(e.message)}). Tente de novo em instantes.</div>`;
+      return;
+    }
+    desenharConfig(el);
+  }
+
+  // Os outros protótipos passam a mostrar os remetentes de verdade.
+  function espelharNoPrototipo(C) {
+    Object.assign(D.config.transacional, { nome: C.remetente_transacional_nome, endereco: C.remetente_transacional_email, resposta: C.resposta_transacional });
+    Object.assign(D.config.marketing, { nome: C.remetente_marketing_nome, endereco: C.remetente_marketing_email, resposta: C.resposta_marketing });
+    D.config.rodape = C.rodape;
+  }
+
+  function desenharConfig(el) {
+    const S = cfgEstado;
+    const C = S.config;
+    espelharNoPrototipo(C);
+    const contaOk = S.conta === 'aceita';
+    const mktLiberado = C.marketing_liberado === '1';
+    const domRuins = S.dominios.consultado ? S.dominios.itens.filter((d) => !d.dkim) : [];
+    const semResultados = contaOk && (S.resultados.transacional === false || S.resultados.marketing === false);
+    const geral = !contaOk || domRuins.length ? 'incidente' : !mktLiberado || semResultados ? 'atencao' : 'saudavel';
+    const frase = S.conta === 'ausente' || S.conta === 'recusada' ? 'Serviço de envio sem acesso. Confira a chave em Saúde das integrações. Teste e conexão dos resultados ficam indisponíveis.'
+      : S.conta === 'sem_resposta' ? 'Não foi possível falar com o serviço de envio agora. Atualize em instantes.'
+      : domRuins.length ? `O domínio ${domRuins.map((d) => d.nome).join(' e ')} está sem verificação. Confira o DNS na Cloudflare.`
+      : !mktLiberado ? 'Conta aprovada, mas o marketing está marcado como não liberado. A agenda pode mandar e-mails; campanhas e fluxos esperam.'
+      : semResultados ? 'Envio funcionando, mas os resultados (entregue, aberto, clicado) ainda não estão conectados.'
+      : 'Conta aprovada e os dois canais liberados. Os e-mails da agenda e de marketing podem sair.';
+    const CHAVE = { aceita: ['Funcionando', 'alta'], recusada: ['Recusada', 'queda'], ausente: ['Não configurada', 'queda'], sem_resposta: ['Sem resposta', 'alerta'] };
+    const seloResultado = (v) => (v === true ? selo('Conectado', 'alta') : v === false ? selo('Não conectado', 'alerta') : selo('Não consultado', 'neutro'));
+    const linhaDominio = (canal) => {
+      let s;
+      if (!S.dominios.consultado) s = selo('Não consultado', 'neutro');
+      else {
+        const d = S.dominios.itens.find((i) => i.canal === canal);
+        s = !d || !d.encontrado ? selo('Não cadastrado', 'queda')
+          : !d.dkim ? selo('Com problema', 'queda')
+          : !d.retorno ? selo('Retorno pendente', 'alerta')
+          : selo('Verificado', 'alta');
+      }
+      return `<tr><td><b>${DOMINIO_CANAL[canal]}</b><br><span class="mini">${canal}</span></td><td class="num">${s}</td></tr>`;
+    };
+    const MOTIVO_DOM = {
+      sem_chave_conta: 'Não consultada (falta a chave da conta).',
+      recusada: 'Não consultada: o serviço recusou a chave da conta.',
+      sem_resposta: 'Não consultada: o serviço não respondeu agora.',
+    };
+    const canal = (k, titulo) => `<div class="em-canal">
+        <h3>${titulo} <span class="mini">${DOMINIO_CANAL[k]}</span></h3>
         <form class="ag-form" data-canal="${k}" novalidate>
-          <label>Nome do remetente<input type="text" name="nome" value="${esc(C[k].nome)}"></label>
-          <label>Endereço do remetente<input type="email" name="endereco" value="${esc(C[k].endereco)}"><span class="mini">Só endereços @${dominio} são aceitos.</span></label>
-          <label>Endereço de resposta<input type="email" name="resposta" value="${esc(C[k].resposta)}" placeholder="ex.: contato@seteads.com"><span class="mini">${dica}</span></label>
+          <label>Nome do remetente<input type="text" name="nome" maxlength="100" value="${esc(C[`remetente_${k}_nome`])}"></label>
+          <label>Endereço do remetente<input type="email" name="endereco" value="${esc(C[`remetente_${k}_email`])}"><span class="mini">Só endereços @${DOMINIO_CANAL[k]} são aceitos.</span></label>
+          <label>Endereço de resposta<input type="email" name="resposta" value="${esc(C[`resposta_${k}`])}" placeholder="ex.: contato@seteads.com"><span class="mini">Vazio: as respostas dos leads se perdem, porque o domínio não recebe e-mail. Sugestão: um endereço @seteads.com.</span></label>
           <div class="em-erro" aria-live="polite"></div>
           <div class="ag-acoes"><button class="btn sec" type="submit">Salvar remetente</button></div>
         </form></div>`;
-    el.innerHTML = `${seloProto()}
+    const linhaTeste = (t) => {
+      const passos = [`Enviado ${quando(t.enviado_em)}`].concat(t.eventos.map((ev) => `${ROTULO_EVENTO[ev.tipo] || ev.tipo} ${quando(ev.ocorrido_em)}`));
+      return `<tr>
+        <td>${quando(t.enviado_em)}</td>
+        <td>${esc(t.destinatario)}<br><span class="mini">${t.canal}</span></td>
+        <td>${carimbo(SITUACAO_ENVIO, t.situacao)}${t.erro && t.situacao === 'falhou' ? `<br><span class="mini">${esc(t.erro)}</span>` : ''}</td>
+        <td class="mini">${t.situacao === 'falhou' ? '' : passos.map(esc).join(' · ')}</td>
+      </tr>`;
+    };
+    el.innerHTML = `
       <div class="faixa-estado ${geral}">
-        <span class="selo-estado">${domRuim ? 'Com problema' : mktPend ? 'Pendente' : 'Tudo certo'}</span>
-        <p>${domRuim ? 'O domínio de marketing (news.) perdeu a verificação. Os disparos de marketing estão parados até corrigir. A agenda segue saindo normalmente.'
-          : mktPend ? 'Conta aprovada, mas o serviço de envio ainda não liberou o marketing. A agenda já pode mandar e-mails; campanhas e fluxos esperam.'
-          : 'Conta aprovada e os dois canais liberados. Os e-mails da agenda e de marketing podem sair.'}</p>
+        <span class="selo-estado">${geral === 'incidente' ? 'Com problema' : geral === 'atencao' ? 'Pendente' : 'Tudo certo'}</span>
+        <p>${frase}</p>
       </div>
       <div class="duas-colunas">
         <div class="bloco"><h2>Conta no serviço de envio</h2>
           <table><tbody>
-            <tr><td>Conta</td><td class="num"><span class="carimbo alta">Aprovada</span></td></tr>
-            <tr><td>Transacional (agenda)</td><td class="num"><span class="carimbo alta">Liberado</span></td></tr>
-            <tr><td>Marketing (campanhas e fluxos)</td><td class="num">${mktPend ? '<span class="carimbo alerta">Pendente</span>' : '<span class="carimbo alta">Liberado</span>'}</td></tr>
-            <tr><td>Chave de acesso</td><td class="num"><span class="carimbo alta">Funcionando</span></td></tr>
+            <tr><td>Chave de acesso</td><td class="num">${carimbo(CHAVE, S.conta)}</td></tr>
+            <tr><td>Transacional (agenda)</td><td class="num">${contaOk ? selo('Liberado', 'alta') : selo('Indisponível', 'queda')}</td></tr>
+            <tr><td>Marketing (campanhas e fluxos)<br><span class="mini">a equipe marca quando o serviço libera</span></td><td class="num">${chave(mktLiberado, 'data-mkt-liberado', mktLiberado ? 'Liberado' : 'Pendente')}</td></tr>
           </tbody></table>
           <p class="mini em-nota">Se a chave parar de funcionar, o problema entra no aviso diário de credenciais, como as outras integrações.</p>
         </div>
         <div class="bloco"><h2>Domínios <small>assinatura e endereço de retorno</small></h2>
-          <table><tbody>
-            <tr><td><b>envio.atacadoexponencial.com</b><br><span class="mini">transacional</span></td><td class="num"><span class="carimbo alta">Verificado</span></td></tr>
-            <tr><td><b>news.atacadoexponencial.com</b><br><span class="mini">marketing</span></td><td class="num">${domRuim ? '<span class="carimbo queda">Com problema</span>' : '<span class="carimbo alta">Verificado</span>'}</td></tr>
-          </tbody></table>
-          ${domRuim ? '<div class="aviso alerta">O registro de assinatura (DKIM) de news. não foi encontrado no DNS desde 02/10 às 18:40. Confira se alguém mexeu no DNS da Cloudflare.</div>' : ''}
+          <table><tbody>${linhaDominio('transacional')}${linhaDominio('marketing')}</tbody></table>
+          ${S.dominios.consultado ? '' : `<p class="mini em-nota">${MOTIVO_DOM[S.dominios.motivo] || MOTIVO_DOM.sem_resposta}</p>`}
         </div>
       </div>
-      <div class="bloco"><h2>Remetentes <small>quem aparece como autor do e-mail</small></h2>
-        <div class="duas-colunas">
-          ${canal('transacional', 'Transacional', 'envio.atacadoexponencial.com', 'Vazio: as respostas dos leads se perdem, porque o domínio não recebe e-mail. Sugestão: um endereço @seteads.com.')}
-          ${canal('marketing', 'Marketing', 'news.atacadoexponencial.com', 'Vazio: as respostas dos leads se perdem, porque o domínio não recebe e-mail. Sugestão: um endereço @seteads.com.')}
+      <div class="duas-colunas">
+        <div class="bloco"><h2>Resultados <small>entregue, voltou, spam, aberto, clicado e descadastro</small></h2>
+          <table><tbody>
+            <tr><td>Transacional</td><td class="num">${seloResultado(S.resultados.transacional)}</td></tr>
+            <tr><td>Marketing</td><td class="num">${seloResultado(S.resultados.marketing)}</td></tr>
+          </tbody></table>
+          <div class="ag-acoes"><button class="btn sec" type="button" data-conectar${contaOk ? '' : ' disabled'}>Conectar resultados</button></div>
         </div>
+        <div class="bloco"><h2>Mandar teste <small>chega com um link para conferir abertura e clique</small></h2>
+          <form class="ag-form" data-teste novalidate>
+            <label>Para<input type="email" name="para" placeholder="seu e-mail" autocomplete="email"></label>
+            <label>Canal<select name="canal"><option value="transacional">Transacional (envio.)</option><option value="marketing">Marketing (news.)</option></select></label>
+            <div class="em-erro" aria-live="polite"></div>
+            <div class="ag-acoes"><button class="btn" type="submit"${contaOk ? '' : ' disabled'}>Mandar teste</button></div>
+          </form>
+        </div>
+      </div>
+      <div class="bloco"><h2>Últimos testes <small>linha do tempo de cada envio</small></h2>
+        ${S.testes.length ? `<table><thead><tr><th>Quando</th><th>Para</th><th>Situação</th><th>Linha do tempo</th></tr></thead><tbody>${S.testes.map(linhaTeste).join('')}</tbody></table>`
+          : '<p class="aviso">Nenhum teste ainda. Mande um para o seu e-mail e acompanhe aqui.</p>'}
+        <div class="ag-acoes"><button class="btn sec" type="button" data-atualizar>Atualizar</button></div>
+      </div>
+      <div class="bloco"><h2>Remetentes <small>quem aparece como autor do e-mail</small></h2>
+        <div class="duas-colunas">${canal('transacional', 'Transacional')}${canal('marketing', 'Marketing')}</div>
       </div>
       <div class="bloco"><h2>Rodapé comum <small>entra no fim de todo e-mail, dos dois canais</small></h2>
         <form class="ag-form" data-rodape novalidate>
-          <label>Dados da empresa e endereço físico<textarea name="rodape" rows="3">${esc(C.rodape)}</textarea></label>
+          <label>Dados da empresa e endereço físico<textarea name="rodape" rows="3" maxlength="1000">${esc(C.rodape)}</textarea></label>
           <p class="mini">No marketing, o link de descadastro de um clique entra sozinho embaixo do rodapé.</p>
+          <div class="em-erro" aria-live="polite"></div>
           <div class="ag-acoes"><button class="btn sec" type="submit">Salvar rodapé</button></div>
         </form>
       </div>`;
-    ligarCenario(el, () => configuracao(el));
+
+    // Trava o botão enquanto a chamada corre (evita duplo clique).
+    const ocupado = async (botao, fn) => {
+      if (botao.disabled) return;
+      botao.disabled = true;
+      botao.setAttribute('aria-busy', 'true');
+      try { await fn(); } finally { botao.disabled = false; botao.removeAttribute('aria-busy'); }
+    };
+    const salvar = (form, campos) => {
+      const erro = form.querySelector('.em-erro');
+      return ocupado(form.querySelector('[type=submit]'), async () => {
+        try {
+          const r = await ctx.postJson('/api/email/config', { acao: 'salvar', campos });
+          erro.textContent = '';
+          S.config = r.config;
+          espelharNoPrototipo(S.config);
+          avisar('Configuração salva');
+        } catch (e) { erro.textContent = msgErro(e); avisar(msgErro(e), 'erro'); }
+      });
+    };
     el.querySelectorAll('form[data-canal]').forEach((f) => {
-      const k = f.dataset.canal, dom = k === 'marketing' ? 'news.atacadoexponencial.com' : 'envio.atacadoexponencial.com';
+      const k = f.dataset.canal;
       f.onsubmit = (ev) => {
         ev.preventDefault();
-        const erro = f.querySelector('.em-erro');
-        const end = f.endereco.value.trim().toLowerCase();
-        if (!f.nome.value.trim()) { erro.textContent = 'O nome do remetente não pode ficar vazio.'; return; }
-        if (!end.endsWith('@' + dom) || end.split('@')[0].length === 0) { erro.textContent = `Use um endereço @${dom}. É o único domínio verificado para este canal.`; return; }
-        if (f.resposta.value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.resposta.value)) { erro.textContent = 'O endereço de resposta parece incompleto.'; return; }
-        erro.textContent = '';
-        Object.assign(C[k], { nome: f.nome.value.trim(), endereco: end, resposta: f.resposta.value.trim() });
-        avisar(`Remetente do ${k} salvo.`);
+        salvar(f, { [`remetente_${k}_nome`]: f.nome.value, [`remetente_${k}_email`]: f.endereco.value, [`resposta_${k}`]: f.resposta.value });
       };
     });
-    el.querySelector('form[data-rodape]').onsubmit = (ev) => { ev.preventDefault(); C.rodape = ev.target.rodape.value; avisar('Rodapé salvo. Vale para os próximos envios.'); };
+    const fr = el.querySelector('form[data-rodape]');
+    fr.onsubmit = (ev) => { ev.preventDefault(); salvar(fr, { rodape: fr.rodape.value }); };
+
+    const mkt = el.querySelector('[data-mkt-liberado]');
+    mkt.onchange = async () => {
+      mkt.disabled = true;
+      try {
+        const r = await ctx.postJson('/api/email/config', { acao: 'salvar', campos: { marketing_liberado: mkt.checked ? '1' : '0' } });
+        S.config = r.config;
+        avisar(mkt.checked ? 'Marketing marcado como liberado.' : 'Marketing marcado como pendente.');
+        desenharConfig(el);
+      } catch (e) { mkt.checked = !mkt.checked; mkt.disabled = false; avisar(msgErro(e), 'erro'); }
+    };
+
+    const con = el.querySelector('[data-conectar]');
+    con.onclick = () => ocupado(con, async () => {
+      try {
+        await ctx.postJson('/api/email/config', { acao: 'conectar_resultados' });
+        avisar('Resultados conectados nos dois canais.');
+        await configuracao(el);
+      } catch (e) { avisar(msgErro(e), 'erro'); }
+    });
+
+    const ft = el.querySelector('form[data-teste]');
+    ft.onsubmit = (ev) => {
+      ev.preventDefault();
+      const erro = ft.querySelector('.em-erro');
+      ocupado(ft.querySelector('[type=submit]'), async () => {
+        try {
+          const r = await ctx.postJson('/api/email/config', { acao: 'enviar_teste', para: ft.para.value, canal: ft.canal.value });
+          S.testes = r.testes;
+          avisar('Teste enviado. A entrega aparece em Últimos testes em alguns segundos.');
+          desenharConfig(el);
+        } catch (e) {
+          erro.textContent = msgErro(e);
+          avisar(msgErro(e), 'erro');
+          if (e.dados && e.dados.testes) S.testes = e.dados.testes;
+        }
+      });
+    };
+
+    const at = el.querySelector('[data-atualizar]');
+    at.onclick = () => ocupado(at, () => configuracao(el));
   }
 
   // ===========================================================================

@@ -11,7 +11,7 @@
 
 // obrigatoria: faltar é problema. Opcional ausente = "não se aplica".
 // formato: validação de forma quando ela é conhecida.
-// teste: 'meta' | 'clickup' — consulta de aceitação sem efeito colateral.
+// teste: 'meta' | 'clickup' | 'postmark' — consulta de aceitação sem efeito colateral.
 export const CATALOGO = [
   { nome: 'META_PIXEL_ID_2', integracao: 'Meta (conversões)', obrigatoria: true, formato: 'numerico', teste: 'meta' },
   { nome: 'META_ACCESS_TOKEN_2', integracao: 'Meta (conversões)', obrigatoria: true, teste: 'meta' },
@@ -54,6 +54,13 @@ export const CATALOGO = [
   // Agenda própria (spec-agenda-propria.md): chave da conta de serviço do Google.
   { nome: 'GOOGLE_AGENDA_SA_JSON', integracao: 'Agenda (Google)', obrigatoria: false },
   { nome: 'AGENDA_ATIVA', integracao: 'Agenda (Google)', obrigatoria: false },
+  // E-mail próprio (issue 377). Opcionais até produção ter as chaves; depois
+  // do merge com as chaves gravadas, POSTMARK_SERVER_TOKEN e as do webhook
+  // passam a obrigatórias.
+  { nome: 'POSTMARK_SERVER_TOKEN', integracao: 'E-mail (Postmark)', obrigatoria: false, teste: 'postmark' },
+  { nome: 'POSTMARK_ACCOUNT_TOKEN', integracao: 'E-mail (Postmark)', obrigatoria: false },
+  { nome: 'POSTMARK_WEBHOOK_USER', integracao: 'E-mail (Postmark)', obrigatoria: false },
+  { nome: 'POSTMARK_WEBHOOK_PASS', integracao: 'E-mail (Postmark)', obrigatoria: false },
   { nome: 'SYNC_SECRET', integracao: 'Acesso interno', obrigatoria: true },
   { nome: 'DASH_KEY', integracao: 'Acesso interno', obrigatoria: true },
   { nome: 'FEEDBACK_MARKETING_KEY', integracao: 'Acesso interno', obrigatoria: true },
