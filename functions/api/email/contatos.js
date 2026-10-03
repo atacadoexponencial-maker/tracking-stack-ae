@@ -1,9 +1,10 @@
 // GET  /api/email/contatos?key=...[&busca=&situacao=&origem=&funil=&pagina=]  → lista, totais e opções dos filtros
-// GET  /api/email/contatos?key=...&id=<id>                                    → detalhe com entradas e e-mails
+// GET  /api/email/contatos?key=...&id=<id>                                    → detalhe com entradas, e-mails e segmentos (381)
 // POST /api/email/contatos?key=...  → { acao: 'descadastrar' | 'reativar', id }
 //
 // Spec spec-email-proprio.md, módulo 4 (issue 380). Regras em ../_email-contatos.js.
 import { ErroContato, listar, detalhe, descadastrar, reativar } from '../_email-contatos.js';
+import { segmentosDoContato } from '../_email-segmentos.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') === env.DASH_KEY;
@@ -21,7 +22,12 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   if (!autorizado(url, env)) return json({ error: 'Unauthorized' }, 401);
   const p = url.searchParams;
-  if (p.get('id')) return responder(() => detalhe(env, p.get('id')));
+  if (p.get('id')) {
+    return responder(async () => {
+      const d = await detalhe(env, p.get('id'));
+      return { ...d, segmentos: await segmentosDoContato(env, d.contato.id) };
+    });
+  }
   return responder(() => listar(env, {
     busca: p.get('busca') || '', situacao: p.get('situacao') || '', origem: p.get('origem') || '',
     funil: p.get('funil') || '', pagina: p.get('pagina') || 1,

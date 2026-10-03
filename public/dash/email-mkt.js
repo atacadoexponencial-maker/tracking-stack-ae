@@ -17,8 +17,8 @@
   'use strict';
 
   const VISTAS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
-  // Vistas já ligadas ao backend (377, 378, 380); as outras seguem protótipo.
-  const VISTAS_REAIS = ['contatos', 'modelos', 'configuracao'];
+  // Vistas já ligadas ao backend (377, 378, 380, 381); as outras seguem protótipo.
+  const VISTAS_REAIS = ['contatos', 'segmentos', 'modelos', 'configuracao'];
   const TITULO_VISTA = {
     campanhas: 'Campanhas de e-mail', relatorio: 'Resultados do e-mail', fluxos: 'Fluxos automáticos',
     contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', configuracao: 'Configuração de e-mail',
@@ -195,12 +195,6 @@
     }
   }
   const noSegmento = (regras) => D.contatos.filter((p) => regras.every((r) => casa(p, r)));
-  const resumoRegra = (regras) => regras.length ? regras.map((r) => {
-    const c = CAMPOS_REGRA[r.campo];
-    const op = (c.ops.find((o) => o[0] === r.op) || ['', ''])[1];
-    const val = (c.valores().find((o) => o[0] === r.valor) || ['', r.valor])[1];
-    return `${c.rotulo.toLowerCase()} ${op} ${val}`;
-  }).join(' e ') : 'todos os contatos';
 
   // ---------------------------------------------------------------------------
   // Toast, engrenagem e gaveta (mesmo desenho do agenda.js, CSS ag-*)
@@ -772,6 +766,8 @@
           <dt>Funil</dt><dd>${esc(p.funil ? nomeFunil(p.funil) : '') || '<span class="mini">sem funil</span>'}</dd>
           <dt>Entrada</dt><dd>${esc(dataLonga(p.entrou_em))}</dd>
         </dl>
+        <h3 class="ag-h3">Segmentos em que está</h3>
+        ${(d.segmentos || []).length ? `<div class="ag-etiquetas">${d.segmentos.map((x) => `<span class="ag-etiqueta">${esc(x.nome)}</span>`).join('')}</div>` : '<p class="mini">Não está em nenhum segmento agora.</p>'}
         <h3 class="ag-h3">Formulários preenchidos</h3>
         ${d.entradas.length ? `<ol class="ag-hist em-hist">${d.entradas.map((x) => `<li><b>${esc(x.funil ? nomeFunil(x.funil) : 'Sem funil')}</b> <span class="mini">${esc(dataLonga(x.entrou_em))} · ${esc(nomeOrigem(x.origem))}${x.material ? ` · material ${esc(x.material)}` : ''}</span></li>`).join('')}</ol>` : '<p class="mini">Nenhum formulário registrado.</p>'}
         <h3 class="ag-h3">E-mails recebidos</h3>
@@ -860,98 +856,149 @@
   }
 
   // ===========================================================================
-  // 374 · Segmentos
+  // 381 · Segmentos (ligada ao backend: GET/POST /api/email/segmentos)
   // ===========================================================================
-  function segmentos(el) {
-    const lista = vazio() ? [] : D.segmentos;
-    el.innerHTML = `${seloProto()}
-      <div class="em-barra"><p class="mini">Cada segmento é uma regra. A contagem é de contatos ativos agora e é refeita na hora de cada disparo.</p>
+  // A regra é avaliada no servidor (contagem, amostra e validação); aqui só a
+  // tela. As vistas que ainda são protótipo (campanhas, fluxos) seguem com
+  // D.segmentos e noSegmento.
+  let segEstado = null; // { segmentos, opcoes }
+
+  // Rótulos do montador. Os valores vêm do servidor (opcoes).
+  function camposUi(op) {
+    const c = {
+      funil: { rotulo: 'Funil', ops: [['e', 'é'], ['nao', 'não é']], valores: op.funis.map((f) => [f, nomeFunil(f)]) },
+      origem: { rotulo: 'Origem', ops: [['e', 'é'], ['nao', 'não é']], valores: op.origens.map((o) => [o, nomeOrigem(o)]) },
+      entrada: { rotulo: 'Data de entrada', ops: [['ultimos', 'nos últimos'], ['antes', 'há mais de']], valores: op.entrada.map((d) => [String(d), `${d} dias`]) },
+      estagio: { rotulo: 'Estágio no CRM', ops: [['e', 'é'], ['nao', 'não é']], valores: op.estagios.map((s) => [s, s]) },
+    };
+    if (op.campanhas.length) {
+      const camp = op.campanhas.map((x) => [String(x.id), x.nome]);
+      c.abriu = { rotulo: 'Abriu campanha', ops: [['sim', 'abriu'], ['nao', 'não abriu']], valores: camp };
+      c.clicou = { rotulo: 'Clicou em campanha', ops: [['sim', 'clicou'], ['nao', 'não clicou']], valores: camp };
+    }
+    return c;
+  }
+  const resumoRegraReal = (regras, campos) => (regras.length ? regras.map((r) => {
+    const c = campos[r.campo];
+    if (!c) return r.campo;
+    const op = (c.ops.find((o) => o[0] === r.op) || ['', ''])[1];
+    const val = (c.valores.find((o) => o[0] === String(r.valor)) || ['', r.valor])[1];
+    return `${c.rotulo.toLowerCase()} ${op} ${val}`;
+  }).join(' e ') : 'todos os contatos');
+
+  async function segmentos(el) {
+    el.innerHTML = '<p class="aviso">Carregando os segmentos…</p>';
+    try {
+      segEstado = await ctx.fetchJson('/api/email/segmentos?_=' + Date.now());
+    } catch (e) {
+      el.innerHTML = `<div class="aviso falha">Não foi possível carregar os segmentos (${esc(e.message)}). Tente de novo em instantes.</div>`;
+      return;
+    }
+    const campos = camposUi(segEstado.opcoes);
+    el.innerHTML = `<div class="em-barra"><p class="mini">Cada segmento é uma regra. A contagem é de contatos ativos agora e é refeita na hora de cada disparo.</p>
         <button class="btn" type="button" data-novo>Novo segmento</button></div>
       <div class="tabela-wrap" id="em-seg-lista"></div>`;
-    ligarCenario(el, () => segmentos(el));
     el.querySelector('[data-novo]').onclick = () => montador(null, () => segmentos(el));
-    const ligado = (s) => D.campanhas.some((c) => c.situacao === 'agendada' && c.segmentos.includes(s.id));
     const alvo = el.querySelector('#em-seg-lista');
     ctx.tabela(alvo, [
-      { titulo: 'Segmento', campo: 'nome', render: (s) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${s.id}">${esc(s.nome)}</button>${ligado(s) ? ' <span class="selo">em campanha agendada</span>' : ''}` },
-      { titulo: 'Regra', render: (s) => `<span class="mini em-regra-curta">${esc(resumoRegra(s.regras))}</span>` },
-      { titulo: 'Ativos agora', num: true, render: (s) => `<b>${int(noSegmento(s.regras).filter((p) => p.situacao === 'ativo').length)}</b>` },
+      { titulo: 'Segmento', campo: 'nome', render: (s) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${s.id}">${esc(s.nome)}</button>` },
+      { titulo: 'Regra', render: (s) => `<span class="mini em-regra-curta">${esc(resumoRegraReal(s.regras, campos))}</span>` },
+      { titulo: 'Ativos agora', num: true, render: (s) => `<b>${int(s.ativos)}</b>` },
       { titulo: '', render: (s) => `<div class="ag-acoes ag-acoes--linha">${menuHtml(s.nome, [
         { acao: 'editar', id: s.id, rotulo: 'Editar regra' },
         { acao: 'duplicar', id: s.id, rotulo: 'Duplicar' },
         { acao: 'excluir', id: s.id, rotulo: 'Excluir', perigo: true },
       ])}</div>` },
-    ], lista, undefined, 'Nenhum segmento ainda. Um segmento junta contatos por funil, origem, data de entrada, estágio no CRM ou campanha que abriram.');
+    ], segEstado.segmentos, undefined, 'Nenhum segmento ainda. Um segmento junta contatos por funil, origem, data de entrada, estágio no CRM ou campanha que abriram.');
+    const seg = (id) => segEstado.segmentos.find((s) => String(s.id) === String(id));
     ligarAcoes(alvo, {
-      editar: (id) => montador(segmento(id), () => segmentos(el)),
-      duplicar: (id) => { const s = segmento(id); D.segmentos.push({ id: 's' + Date.now(), nome: s.nome + ' (cópia)', regras: s.regras.map((r) => ({ ...r })) }); avisar('Segmento duplicado.'); segmentos(el); },
-      excluir: (id, b) => {
-        const s = segmento(id);
-        if (ligado(s)) { fecharMenus(); return avisar(`"${s.nome}" está numa campanha agendada. Tire o segmento da campanha antes de excluir.`, 'erro'); }
-        ctx.pedirConfirmacao(b, 'Excluir o segmento?', () => { D.segmentos = D.segmentos.filter((x) => x.id !== id); fecharMenus(); avisar('Segmento excluído.'); segmentos(el); });
+      editar: (id) => montador(seg(id), () => segmentos(el)),
+      duplicar: async (id) => {
+        try { const r = await ctx.postJson('/api/email/segmentos', { acao: 'duplicar', id: Number(id) }); avisar(`Segmento duplicado: "${r.segmento.nome}".`); segmentos(el); }
+        catch (e) { avisar(msgErro(e), 'erro'); }
       },
+      excluir: (id, b) => ctx.pedirConfirmacao(b, 'Excluir o segmento?', async () => {
+        fecharMenus();
+        try { await ctx.postJson('/api/email/segmentos', { acao: 'excluir', id: Number(id) }); avisar('Segmento excluído.'); segmentos(el); }
+        catch (e) { avisar(msgErro(e), 'erro'); }
+      }),
     });
   }
 
   function montador(s, aoSalvar) {
     const novo = !s;
-    const rascunho = { nome: s ? s.nome : '', regras: s ? s.regras.map((r) => ({ ...r })) : [{ campo: 'funil', op: 'e', valor: 'workshop-gratuito' }] };
+    const campos = camposUi(segEstado.opcoes);
+    const primeiro = (campo) => { const c = campos[campo]; return { campo, op: c.ops[0][0], valor: (c.valores[0] || [''])[0] }; };
+    const rascunho = { nome: s ? s.nome : '', regras: s ? s.regras.map((r) => ({ ...r, valor: String(r.valor) })) : [primeiro('funil')] };
     const g = gaveta({
       titulo: novo ? 'Novo segmento' : 'Editar segmento', sub: 'condições combinadas com "e": a pessoa precisa cumprir todas', largura: 'larga',
-      corpo: `<label class="ag-campo"><span class="ag-campo__rotulo">Nome</span><input type="text" id="em-seg-nome" value="${esc(rascunho.nome)}" placeholder="Ex.: Leads do workshop que abriram o convite"></label>
+      corpo: `<label class="ag-campo"><span class="ag-campo__rotulo">Nome</span><input type="text" id="em-seg-nome" maxlength="100" value="${esc(rascunho.nome)}" placeholder="Ex.: Leads do workshop nos últimos 30 dias"></label>
         <div class="em-regras" id="em-regras"></div>
         <button class="btn sec em-mais" type="button" data-add>+ Adicionar condição</button>
         <div class="em-contagem-viva" id="em-seg-conta" aria-live="polite"></div>
-        <h3 class="ag-h3">Amostra <small class="mini">primeiros contatos que a regra pega</small></h3>
-        <div class="tabela-wrap" id="em-seg-amostra"></div>`,
+        <h3 class="ag-h3">Amostra <small class="mini">primeiros contatos ativos que a regra pega</small></h3>
+        <div class="tabela-wrap" id="em-seg-amostra"></div>
+        <div class="em-erro" aria-live="polite"></div>`,
       rodape: '<div class="ag-acoes"><button class="btn" type="button" data-salvar>Salvar segmento</button><button class="btn sec" type="button" data-fechar2>Cancelar</button></div>',
     });
     const caixa = g.querySelector('#em-regras');
+    const erro = g.querySelector('.em-erro');
+    let espera = null, pedido = 0;
+    const contar = () => {
+      clearTimeout(espera);
+      espera = setTimeout(async () => {
+        const n = ++pedido;
+        const conta = g.querySelector('#em-seg-conta');
+        try {
+          const p = await ctx.postJson('/api/email/segmentos', { acao: 'previa', regras: rascunho.regras });
+          if (n !== pedido) return;
+          conta.innerHTML = `<b>${int(p.ativos)}</b> contatos ativos com essa regra <span class="mini">· mais ${int(p.fora)} fora do marketing (descadastrados, voltaram, spam, inválidos)</span>`;
+          ctx.tabela(g.querySelector('#em-seg-amostra'), [
+            { titulo: 'Nome', render: (c) => `<b>${esc(c.nome || c.email)}</b><br><span class="mini">${esc(c.email)}</span>` },
+            { titulo: 'Funil', render: (c) => `<span class="mini">${esc(c.funil ? nomeFunil(c.funil) : '')}</span>` },
+            { titulo: 'Entrada', render: (c) => esc(dataLonga(c.entrou_em)) },
+          ], p.amostra, undefined, 'Ninguém cumpre essa regra agora.');
+        } catch (e) {
+          if (n === pedido) conta.innerHTML = `<span class="mini">Não foi possível contar agora (${esc(msgErro(e))}).</span>`;
+        }
+      }, 400);
+    };
     const desenhar = () => {
       caixa.innerHTML = rascunho.regras.map((r, i) => {
-        const c = CAMPOS_REGRA[r.campo];
+        const c = campos[r.campo];
         return `<div class="em-regra" data-i="${i}">
-          ${i ? '<span class="em-regra__e">e</span>' : '<span class="em-regra__e">quem</span>'}
-          <select data-k="campo" aria-label="Campo">${Object.entries(CAMPOS_REGRA).map(([k, v]) => `<option value="${k}"${k === r.campo ? ' selected' : ''}>${v.rotulo}</option>`).join('')}</select>
+          <span class="em-regra__e">${i ? 'e' : 'quem'}</span>
+          <select data-k="campo" aria-label="Campo">${Object.entries(campos).map(([k, v]) => `<option value="${k}"${k === r.campo ? ' selected' : ''}>${v.rotulo}</option>`).join('')}</select>
           <select data-k="op" aria-label="Comparação">${c.ops.map(([k, v]) => `<option value="${k}"${k === r.op ? ' selected' : ''}>${v}</option>`).join('')}</select>
-          <select data-k="valor" aria-label="Valor">${c.valores().map(([k, v]) => `<option value="${esc(k)}"${k === r.valor ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select>
+          <select data-k="valor" aria-label="Valor">${c.valores.map(([k, v]) => `<option value="${esc(k)}"${k === r.valor ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select>
           <button class="ag-icone" type="button" data-tirar aria-label="Tirar condição">${ICONE.fechar}</button>
         </div>`;
       }).join('') || '<p class="mini">Sem condição: o segmento pega todos os contatos ativos.</p>';
       contar();
     };
-    const contar = () => {
-      const pegos = noSegmento(rascunho.regras);
-      const ativos = pegos.filter((p) => p.situacao === 'ativo');
-      g.querySelector('#em-seg-conta').innerHTML = `<b>${int(ativos.length)}</b> contatos ativos com essa regra <span class="mini">· mais ${int(pegos.length - ativos.length)} fora do marketing (descadastrados, voltaram, spam, inválidos)</span>`;
-      ctx.tabela(g.querySelector('#em-seg-amostra'), [
-        { titulo: 'Nome', render: (p) => `<b>${esc(p.nome)}</b><br><span class="mini">${esc(p.email)}</span>` },
-        { titulo: 'Funil', render: (p) => `<span class="mini">${esc(nomeFunil(p.funil))}</span>` },
-        { titulo: 'Entrada', render: (p) => dataBR(p.entrada) },
-      ], ativos.slice(0, 8), undefined, 'Ninguém cumpre essa regra agora.');
-    };
     caixa.addEventListener('change', (ev) => {
       const linha = ev.target.closest('[data-i]');
-      const r = rascunho.regras[Number(linha.dataset.i)];
-      r[ev.target.dataset.k] = ev.target.value;
-      if (ev.target.dataset.k === 'campo') { const c = CAMPOS_REGRA[r.campo]; r.op = c.ops[0][0]; r.valor = (c.valores()[0] || [''])[0]; }
+      const i = Number(linha.dataset.i);
+      if (ev.target.dataset.k === 'campo') rascunho.regras[i] = primeiro(ev.target.value);
+      else rascunho.regras[i][ev.target.dataset.k] = ev.target.value;
+      erro.textContent = '';
       desenhar();
     });
     caixa.addEventListener('click', (ev) => {
       const b = ev.target.closest('[data-tirar]');
       if (b) { rascunho.regras.splice(Number(b.closest('[data-i]').dataset.i), 1); desenhar(); }
     });
-    g.querySelector('[data-add]').onclick = () => { rascunho.regras.push({ campo: 'origem', op: 'e', valor: 'Meta Ads' }); desenhar(); };
+    g.querySelector('[data-add]').onclick = () => { rascunho.regras.push(primeiro('origem')); desenhar(); };
     g.querySelector('[data-fechar2]').onclick = () => g.close();
-    g.querySelector('[data-salvar]').onclick = () => {
-      const nome = g.querySelector('#em-seg-nome').value.trim();
-      if (!nome) return avisar('Dê um nome ao segmento.', 'erro');
-      if (novo) D.segmentos.push({ id: 's' + Date.now(), nome, regras: rascunho.regras });
-      else Object.assign(s, { nome, regras: rascunho.regras });
-      g.close();
-      avisar(novo ? 'Segmento criado.' : 'Segmento salvo.');
-      aoSalvar();
-    };
+    const salvar = g.querySelector('[data-salvar]');
+    salvar.onclick = () => ocupado(salvar, async () => {
+      try {
+        await ctx.postJson('/api/email/segmentos', { acao: 'salvar', id: s ? s.id : undefined, nome: g.querySelector('#em-seg-nome').value, regras: rascunho.regras });
+        g.close();
+        avisar(novo ? 'Segmento criado.' : 'Segmento salvo.');
+        aoSalvar();
+      } catch (e) { erro.textContent = msgErro(e); avisar(msgErro(e), 'erro'); }
+    });
     desenhar();
   }
 

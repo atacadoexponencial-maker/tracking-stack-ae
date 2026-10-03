@@ -91,10 +91,10 @@ Migration `migrations/0054_email_segmentos.sql` (só adição):
 
 ## Checklist
 
-- [ ] Migration `0054_email_segmentos.sql` aplicada no D1 remoto com `d1 execute --file`
-- [ ] `_email-segmentos.js` com validação, SQL das regras, contagem, amostra, lista para o disparo, opções, trava e segmentos do contato
-- [ ] `GET/POST /api/email/segmentos`
-- [ ] Segmentos no detalhe do contato
-- [ ] Vista Segmentos e montador ligados ao backend
-- [ ] Testes `email-segmentos` passando (`npm test`)
+- [x] Migration `0054_email_segmentos.sql` aplicada no D1 remoto com `d1 execute --file`
+- [x] `_email-segmentos.js` com validação, SQL das regras, contagem, amostra, lista para o disparo, opções, trava e segmentos do contato
+- [x] `GET/POST /api/email/segmentos`
+- [x] Segmentos no detalhe do contato
+- [x] Vista Segmentos e montador ligados ao backend
+- [x] Testes `email-segmentos` passando (`npm test`)
 - [ ] Usuária monta "leads do workshop gratuito nos últimos 30 dias", vê a contagem mudar enquanto ajusta a regra, confere a amostra, e só ativos entram na conta
