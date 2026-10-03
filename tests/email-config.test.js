@@ -70,6 +70,7 @@ function postmarkFalso() {
 beforeEach(() => {
   db = new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../migrations/0050_email.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0053_email_contatos.sql', import.meta.url), 'utf8'));
   env = {
     DB: d1(db), DASH_KEY: 'k',
     POSTMARK_SERVER_TOKEN: 'srv', POSTMARK_ACCOUNT_TOKEN: 'acc',
@@ -305,6 +306,19 @@ test('webhook: fora de ordem não rebaixa a situação; voltou é mais grave', a
   e = envio(id);
   assert.equal(e.situacao, 'spam');
   assert.ok(e.spam_em > 0);
+});
+
+test('webhook: devolução definitiva e spam chegam ao contato; temporária não', async () => {
+  db.prepare("INSERT INTO email_contatos (email, situacao, entrou_em, atualizado_em) VALUES ('eu@x.com', 'ativo', 1, 1)").run();
+  await dash({ acao: 'enviar_teste', para: 'eu@x.com', canal: 'transacional' });
+  await aviso({ RecordType: 'Bounce', MessageID: 'msg-1', Type: 'SoftBounce', Inactive: false, BouncedAt: '2026-10-03T14:10:00Z' });
+  const sit = () => db.prepare("SELECT situacao FROM email_contatos WHERE email = 'eu@x.com'").get().situacao;
+  assert.equal(sit(), 'ativo');
+  const r = await aviso({ RecordType: 'Bounce', MessageID: 'msg-1', Type: 'HardBounce', Inactive: true, BouncedAt: '2026-10-03T14:20:00Z' });
+  assert.equal(r.status, 200);
+  assert.equal(sit(), 'voltou');
+  await aviso({ RecordType: 'SpamComplaint', MessageID: 'msg-1', BouncedAt: '2026-10-03T15:00:00Z' });
+  assert.equal(sit(), 'denunciou');
 });
 
 test('webhook: soft bounce de envio só enviado marca voltou_temporario sem data definitiva', async () => {

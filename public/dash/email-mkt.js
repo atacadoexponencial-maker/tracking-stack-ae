@@ -17,8 +17,8 @@
   'use strict';
 
   const VISTAS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
-  // Vistas já ligadas ao backend (377, 378); as outras seguem protótipo.
-  const VISTAS_REAIS = ['modelos', 'configuracao'];
+  // Vistas já ligadas ao backend (377, 378, 380); as outras seguem protótipo.
+  const VISTAS_REAIS = ['contatos', 'modelos', 'configuracao'];
   const TITULO_VISTA = {
     campanhas: 'Campanhas de e-mail', relatorio: 'Resultados do e-mail', fluxos: 'Fluxos automáticos',
     contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', configuracao: 'Configuração de e-mail',
@@ -677,59 +677,129 @@
   }
 
   // ===========================================================================
-  // 374 · Contatos
+  // 380 · Contatos (ligada ao backend: GET/POST /api/email/contatos)
   // ===========================================================================
+  // Busca, filtros, totais, situação e as regras de descadastro e reativação
+  // ficam no servidor; aqui só a tela.
   const filtroCont = { busca: '', situacao: '', origem: '', funil: '' };
-  let limiteLista = 50;
+  const NOME_ORIGEM = { 'meta-ads': 'Meta Ads', bio: 'Bio do Instagram', manychat: 'ManyChat', email: 'E-mail', outro: 'Outra origem', direto: 'Direto' };
+  const nomeOrigem = (o) => NOME_ORIGEM[o] || o || '';
+  const dataLonga = (ts) => (ts ? new Date(ts * 1000).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '');
 
-  function contatos(el) {
-    const todos = vazio() ? [] : D.contatos;
-    const conta = (s) => todos.filter((p) => p.situacao === s).length;
-    el.innerHTML = `${seloProto()}
-      <div class="grid-etiquetas">${[
-        { rotulo: 'Contatos ativos', valor: int(conta('ativo')), nota: 'podem receber marketing' },
-        { rotulo: 'Total de contatos', valor: int(todos.length), nota: 'leads do tracking desde 20/07' },
-        { rotulo: 'Fora do marketing', valor: int(todos.length - conta('ativo')), nota: `${int(conta('descadastrado'))} descad. · ${int(conta('voltou'))} voltaram · ${int(conta('denunciou'))} spam · ${int(conta('invalido'))} inválidos` },
+  async function contatos(el) {
+    el.innerHTML = '<p class="aviso">Carregando os contatos…</p>';
+    let pagina = 1;
+    let linhas = [];
+    let d;
+    const qs = () => new URLSearchParams({ ...filtroCont, pagina: String(pagina), _: String(Date.now()) }).toString();
+    try {
+      d = await ctx.fetchJson('/api/email/contatos?' + qs());
+    } catch (e) {
+      el.innerHTML = `<div class="aviso falha">Não foi possível carregar os contatos (${esc(e.message)}). Tente de novo em instantes.</div>`;
+      return;
+    }
+    const fora = d.totais.geral - d.totais.ativos;
+    el.innerHTML = `<div class="grid-etiquetas">${[
+        { rotulo: 'Contatos ativos', valor: int(d.totais.ativos), nota: 'podem receber marketing' },
+        { rotulo: 'Total de contatos', valor: int(d.totais.geral), nota: 'leads dos formulários do tracking' },
+        { rotulo: 'Fora do marketing', valor: int(fora), nota: 'descadastrados, voltaram, spam e inválidos' },
       ].map((k) => ctx.tile(k)).join('')}</div>
-      ${vazio() ? '<div class="aviso explica">Os contatos chegam sozinhos: na primeira carga entram os leads que já existem no tracking, e depois cada lead novo de formulário vira contato na hora. Mesmo e-mail é sempre um contato só.</div>' : ''}
+      ${d.totais.geral ? '' : '<div class="aviso explica">Os contatos chegam sozinhos: na primeira carga entram os leads que já existem no tracking, e depois cada lead novo de formulário vira contato na hora. Mesmo e-mail é sempre um contato só.</div>'}
       <div class="em-filtros">
         <input type="search" data-f="busca" placeholder="Buscar por nome ou e-mail" aria-label="Buscar contato" value="${esc(filtroCont.busca)}">
         <select data-f="situacao" aria-label="Situação"><option value="">Todas as situações</option>${Object.entries(SITUACOES).map(([k, [r]]) => `<option value="${k}">${r}</option>`).join('')}</select>
-        <select data-f="origem" aria-label="Origem"><option value="">Todas as origens</option>${ORIGENS.map((o) => `<option>${o}</option>`).join('')}</select>
-        <select data-f="funil" aria-label="Funil"><option value="">Todos os funis</option>${FUNIS.map(([v, r]) => `<option value="${v}">${r}</option>`).join('')}</select>
+        <select data-f="origem" aria-label="Origem"><option value="">Todas as origens</option>${d.origens.map((o) => `<option value="${esc(o)}">${esc(nomeOrigem(o))}</option>`).join('')}</select>
+        <select data-f="funil" aria-label="Funil"><option value="">Todos os funis</option>${d.funis.map((f) => `<option value="${esc(f)}">${esc(nomeFunil(f))}</option>`).join('')}</select>
       </div>
       <div class="em-contagem mini" id="em-cont-total"></div>
       <div class="tabela-wrap" id="em-cont-lista"></div>
       <div class="paginacao" id="em-cont-mais"></div>`;
-    ligarCenario(el, () => contatos(el));
+
+    const desenharLista = () => {
+      const filtrado = Object.values(filtroCont).some(Boolean);
+      el.querySelector('#em-cont-total').textContent = filtrado ? `${int(d.total)} contatos com esses filtros` : `${int(d.total)} contatos, mais recentes primeiro`;
+      ctx.tabela(el.querySelector('#em-cont-lista'), [
+        { titulo: 'Nome', campo: 'nome', render: (p) => `<button type="button" class="ag-link-linha" data-contato="${p.id}">${esc(p.nome || p.email)}</button>` },
+        { titulo: 'E-mail', campo: 'email', render: (p) => `<span class="mini">${esc(p.email)}</span>` },
+        { titulo: 'Origem', campo: 'origem', render: (p) => esc(nomeOrigem(p.origem)) },
+        { titulo: 'Funil', campo: 'funil', render: (p) => esc(p.funil ? nomeFunil(p.funil) : '') },
+        { titulo: 'Entrada', campo: 'entrou_em', render: (p) => esc(dataLonga(p.entrou_em)) },
+        { titulo: 'Situação', campo: 'situacao', render: (p) => carimbo(SITUACOES, p.situacao) },
+      ], linhas, undefined, d.totais.geral ? 'Nenhum contato com esses filtros.' : 'Nenhum contato ainda.');
+      const mais = el.querySelector('#em-cont-mais');
+      mais.innerHTML = d.total > linhas.length ? `<span class="mini">mostrando ${int(linhas.length)} de ${int(d.total)}</span><button class="btn sec" type="button">Mostrar mais ${d.por_pagina}</button>` : '';
+      const bm = mais.querySelector('button');
+      if (bm) bm.onclick = () => ocupado(bm, async () => {
+        pagina += 1;
+        try { d = await ctx.fetchJson('/api/email/contatos?' + qs()); linhas = linhas.concat(d.contatos); desenharLista(); }
+        catch (e) { pagina -= 1; avisar(msgErro(e), 'erro'); }
+      });
+    };
+    const recarregar = async () => {
+      pagina = 1;
+      try { d = await ctx.fetchJson('/api/email/contatos?' + qs()); linhas = d.contatos; desenharLista(); }
+      catch (e) { avisar(msgErro(e), 'erro'); }
+    };
+    let espera = null;
     el.querySelectorAll('[data-f]').forEach((i) => {
       if (i.tagName === 'SELECT') i.value = filtroCont[i.dataset.f];
-      i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', () => { filtroCont[i.dataset.f] = i.value; limiteLista = 50; desenharLista(); });
+      i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', () => {
+        filtroCont[i.dataset.f] = i.value;
+        clearTimeout(espera);
+        espera = setTimeout(recarregar, i.tagName === 'SELECT' ? 0 : 300);
+      });
     });
-    const desenharLista = () => {
-      const b = semAcento(filtroCont.busca.trim());
-      const linhas = todos.filter((p) => (!b || semAcento(p.nome + ' ' + p.email).includes(b))
-        && (!filtroCont.situacao || p.situacao === filtroCont.situacao)
-        && (!filtroCont.origem || p.origem === filtroCont.origem)
-        && (!filtroCont.funil || p.funil === filtroCont.funil));
-      const filtrado = Object.values(filtroCont).some(Boolean);
-      el.querySelector('#em-cont-total').textContent = filtrado ? `${int(linhas.length)} contatos com esses filtros` : `${int(linhas.length)} contatos, mais recentes primeiro`;
-      linhas.sort((a, z) => z.entrada - a.entrada);
-      ctx.tabela(el.querySelector('#em-cont-lista'), [
-        { titulo: 'Nome', campo: 'nome', render: (p) => `<button type="button" class="ag-link-linha" data-contato="${p.id}">${esc(p.nome)}</button>` },
-        { titulo: 'E-mail', campo: 'email', render: (p) => `<span class="mini">${esc(p.email)}</span>` },
-        { titulo: 'Origem', campo: 'origem', render: (p) => esc(p.origem) },
-        { titulo: 'Funil', campo: 'funil', render: (p) => esc(nomeFunil(p.funil)) },
-        { titulo: 'Entrada', campo: 'entrada', render: (p) => dataBR(p.entrada) },
-        { titulo: 'Situação', campo: 'situacao', render: (p) => carimbo(SITUACOES, p.situacao) },
-      ], linhas.slice(0, limiteLista), undefined, todos.length ? 'Nenhum contato com esses filtros.' : 'Nenhum contato ainda.');
-      const mais = el.querySelector('#em-cont-mais');
-      mais.innerHTML = linhas.length > limiteLista ? `<span class="mini">mostrando ${int(limiteLista)} de ${int(linhas.length)}</span><button class="btn sec" type="button">Mostrar mais 50</button>` : '';
-      const bm = mais.querySelector('button');
-      if (bm) bm.onclick = () => { limiteLista += 50; desenharLista(); };
-    };
+    linhas = d.contatos;
     desenharLista();
-    el.querySelector('#em-cont-lista').addEventListener('click', (ev) => { const b = ev.target.closest('[data-contato]'); if (b) detalheContato(b.dataset.contato, () => desenharLista()); });
+    el.querySelector('#em-cont-lista').addEventListener('click', (ev) => { const b = ev.target.closest('[data-contato]'); if (b) detalheContatoReal(b.dataset.contato, () => contatos(el)); });
+  }
+
+  async function detalheContatoReal(id, aoMudar) {
+    let d;
+    try { d = await ctx.fetchJson(`/api/email/contatos?id=${encodeURIComponent(id)}&_=${Date.now()}`); }
+    catch (e) { return avisar(msgErro(e), 'erro'); }
+    const p = d.contato;
+    const ORIGEM_ENVIO = { teste: 'Teste', agenda: 'Agenda', campanha: 'Campanha', fluxo: 'Fluxo' };
+    const acao = p.situacao === 'ativo' ? '<button class="btn perigo" type="button" data-descad>Descadastrar</button>'
+      : p.situacao === 'descadastrado' ? '<button class="btn sec" type="button" data-descad>Confirmar no serviço de envio</button>'
+      : p.situacao === 'voltou' ? '<button class="btn sec" type="button" data-reativar>Reativar</button>' : '';
+    const g = gaveta({
+      titulo: esc(p.nome || p.email), sub: esc(p.email),
+      corpo: `<p>${carimbo(SITUACOES, p.situacao)}${p.situacao_em && p.situacao !== 'ativo' ? ` <span class="mini">desde ${esc(dataLonga(p.situacao_em))}</span>` : ''}</p>
+        <p class="mini em-explica-sit">${EXPLICA_SITUACAO[p.situacao] || ''}</p>
+        <dl class="ag-dl">
+          <dt>Origem</dt><dd>${esc(nomeOrigem(p.origem)) || '<span class="mini">sem origem</span>'}</dd>
+          <dt>Funil</dt><dd>${esc(p.funil ? nomeFunil(p.funil) : '') || '<span class="mini">sem funil</span>'}</dd>
+          <dt>Entrada</dt><dd>${esc(dataLonga(p.entrou_em))}</dd>
+        </dl>
+        <h3 class="ag-h3">Formulários preenchidos</h3>
+        ${d.entradas.length ? `<ol class="ag-hist em-hist">${d.entradas.map((x) => `<li><b>${esc(x.funil ? nomeFunil(x.funil) : 'Sem funil')}</b> <span class="mini">${esc(dataLonga(x.entrou_em))} · ${esc(nomeOrigem(x.origem))}${x.material ? ` · material ${esc(x.material)}` : ''}</span></li>`).join('')}</ol>` : '<p class="mini">Nenhum formulário registrado.</p>'}
+        <h3 class="ag-h3">E-mails recebidos</h3>
+        ${d.envios.length ? `<ol class="ag-hist em-hist">${d.envios.map((x) => `<li class="em-hist__item"><div><b>${esc(x.assunto || '(sem assunto)')}</b><br><span class="mini">${esc(ORIGEM_ENVIO[x.origem] || x.origem)} · ${esc(quando(x.enviado_em))}${x.erro ? ` · ${esc(x.erro)}` : ''}</span></div>${carimbo(SITUACAO_ENVIO, x.situacao)}</li>`).join('')}</ol>` : '<p class="mini">Nenhum e-mail ainda.</p>'}
+        <div id="em-contato-confirma"></div>`,
+      rodape: acao ? `<div class="ag-acoes">${acao}</div>` : `<p class="mini">${p.situacao === 'ativo' ? '' : 'Quem denunciou spam ou tem endereço inválido não pode ser reativado pela equipe.'}</p>`,
+    });
+    const des = g.querySelector('[data-descad]');
+    if (des) des.onclick = () => ctx.pedirConfirmacao(des, p.situacao === 'ativo' ? 'Descadastrar a pedido da pessoa?' : 'Tentar de novo no serviço de envio?', async () => {
+      try {
+        const r = await ctx.postJson('/api/email/contatos', { acao: 'descadastrar', id: p.id });
+        avisar(r.aviso || `${p.nome || p.email} foi descadastrado.`, r.aviso ? 'erro' : 'ok');
+        detalheContatoReal(p.id, aoMudar);
+        if (aoMudar) aoMudar();
+      } catch (e) { avisar(msgErro(e), 'erro'); return false; }
+    });
+    const re = g.querySelector('[data-reativar]');
+    if (re) re.onclick = () => {
+      g.querySelector('#em-contato-confirma').innerHTML = '<div class="aviso alerta">Só reative se o problema foi resolvido (ex.: a caixa estava cheia e a pessoa liberou). Se o endereço voltar de novo, a reputação do envio cai para todo mundo.</div>';
+      ctx.pedirConfirmacao(re, 'Reativar mesmo assim?', async () => {
+        try {
+          await ctx.postJson('/api/email/contatos', { acao: 'reativar', id: p.id });
+          avisar(`${p.nome || p.email} voltou a receber marketing.`);
+          detalheContatoReal(p.id, aoMudar);
+          if (aoMudar) aoMudar();
+        } catch (e) { avisar(msgErro(e), 'erro'); return false; }
+      }, [{ valor: true, rotulo: 'Reativar' }]);
+    };
   }
 
   const EXPLICA_SITUACAO = {
@@ -740,6 +810,8 @@
     invalido: 'Endereço malformado. Entrou como contato, mas fica fora dos disparos para não derrubar um envio inteiro.',
   };
 
+  // Detalhe de contato do PROTÓTIPO: ainda usado pelas vistas de exemplo
+  // (campanhas, relatório e fluxos). O real é detalheContatoReal (380).
   function detalheContato(id, aoMudar) {
     const p = D.contatos.find((x) => x.id === id);
     if (!p) return;

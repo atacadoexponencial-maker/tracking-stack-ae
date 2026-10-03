@@ -14,6 +14,7 @@
 // Nada do corpo vai para log: ele traz o e-mail do destinatário.
 
 import { normalizarEvento, sqlAtualizarEnvio } from '../_email-eventos.js';
+import { aplicarResultado } from '../_email-contatos.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 
@@ -68,12 +69,14 @@ export async function onRequestPost({ request, env }) {
     const ja = await env.DB.prepare('SELECT 1 FROM email_eventos WHERE chave = ?').bind(evento.chave).first();
     if (ja) return json({ ok: true, status: 'repetido' });
 
-    const envio = await env.DB.prepare('SELECT id FROM email_envios WHERE message_id = ?').bind(evento.messageId).first();
+    const envio = await env.DB.prepare('SELECT id, destinatario FROM email_envios WHERE message_id = ?').bind(evento.messageId).first();
     // Primeiro o envio (idempotente), depois o evento: se o D1 cair entre os
     // dois, a reentrega do Postmark refaz os dois sem estragar nada.
     if (envio) {
       const { sql, binds } = sqlAtualizarEnvio(evento, envio.id);
       await env.DB.prepare(sql).bind(...binds).run();
+      // Devolução definitiva, spam e descadastro mudam o contato (issue 380).
+      await aplicarResultado(env, envio.destinatario, evento.tipo, evento.ocorridoEm);
     }
     await env.DB.prepare(
       `INSERT OR IGNORE INTO email_eventos (chave, message_id, envio_id, tipo, stream, ocorrido_em, recebido_em, detalhe_json)

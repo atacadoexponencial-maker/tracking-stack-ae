@@ -8,6 +8,8 @@ import { normalizarSituacaoAviso } from './_aviso-cookies.js';
 import { padronizarTelefone } from './_telefone.js';
 import { enviarLeadAoManyChat } from './api/_lead-manychat.js';
 import { tipoDoFunil, criarConvite, conviteDoLead } from './api/_agenda-convite.js';
+import { registrarLead } from './api/_email-contatos.js';
+import { canalDeLead } from './api/_canal.js';
 import {
   CU_FIELD,
   CU_DEFAULT_LIST,
@@ -363,6 +365,18 @@ export async function onRequestPost(context) {
       // ManyChat: contato + tag do formulário, só para os funis configurados em
       // functions/api/_lead-manychat.js (hoje só 'workshop'). Os demais saem na hora.
       context.waitUntil(enviarLeadAoManyChat({ leadData: body.lead_data || {}, env }));
+
+      // Contato de marketing do e-mail próprio (issue 380), com o nome do
+      // formulário. Independente dos outros destinos; se falhar, a rodada
+      // /api/sync/email-contatos pega o lead pelo event_log. Robô não entra.
+      if (!isBot && env.DB) {
+        context.waitUntil(registrarLead(env, {
+          email: rawEmail, nome: (body.lead_data && body.lead_data.nome) || '',
+          funil: loggedFunnel, material: loggedMaterial,
+          origem: canalDeLead({ material: loggedMaterial, utm_source: sessionData.utm_source, utm_campaign: sessionData.utm_campaign }),
+          eventId: body.event_id || '', quando: Math.floor(Date.now() / 1000),
+        }).catch((e) => console.error('Contato de e-mail:', e.message)));
+      }
 
       // Demais destinos desacoplados (inalterados): CRM Supabase + barramento
       // WhatsApp (n8n). Cada um dispara independente; se um falhar, os outros seguem.

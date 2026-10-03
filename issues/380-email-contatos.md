@@ -116,14 +116,14 @@ Migration `migrations/0053_email_contatos.sql` (só adição):
 
 ## Checklist
 
-- [ ] Migration `0053_email_contatos.sql` aplicada no D1 remoto com `d1 execute --file`
-- [ ] `_email-contatos.js` com entrada, carga, nomes, resultados, descadastro, reativação, lista e detalhe
-- [ ] Gravação do contato no `tracker.js` (segundo plano, só lead não bloqueado e não robô)
-- [ ] Supressão no Postmark (`criarSupressao`, `apagarSupressao`)
-- [ ] Webhook atualiza o contato
-- [ ] `GET/POST /api/email/contatos`
+- [x] Migration `0053_email_contatos.sql` aplicada no D1 remoto com `d1 execute --file`
+- [x] `_email-contatos.js` com entrada, carga, nomes, resultados, descadastro, reativação, lista e detalhe
+- [x] Gravação do contato no `tracker.js` (segundo plano, só lead não bloqueado e não robô)
+- [x] Supressão no Postmark (`criarSupressao`, `apagarSupressao`)
+- [x] Webhook atualiza o contato
+- [x] `GET/POST /api/email/contatos`
 - [ ] `POST /api/sync/email-contatos` + cron de 5 minutos na VPS
-- [ ] Vista Contatos ligada ao backend
-- [ ] Testes `email-contatos` e `email-config` passando (`npm test`)
+- [x] Vista Contatos ligada ao backend
+- [x] Testes `email-contatos` e `email-config` passando (`npm test`)
 - [ ] Primeira carga rodada na prévia: contatos antigos aparecem, nomes chegando do ClickUp
 - [ ] Usuária abre Contatos, vê os leads, um lead novo de teste aparece sozinho, busca e filtros funcionam, o detalhe mostra o e-mail de teste e descadastrar muda a situação

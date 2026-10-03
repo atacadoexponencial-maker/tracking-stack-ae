@@ -138,3 +138,26 @@ export async function editarWebhook(env, id, dados) {
   const res = await chamar(`/webhooks/${encodeURIComponent(id)}`, { token: env.POSTMARK_SERVER_TOKEN, metodo: 'PUT', corpo: dados });
   return res.ok ? { ok: true, webhook: res.dados } : erroDe(res);
 }
+
+/**
+ * Supressão de um endereço num stream (issue 380): descadastro manual cria;
+ * reativar "voltou" apaga. Devolve { ok } ou { ok: false, erro }.
+ * Lança SemResposta quando o serviço não respondeu.
+ * O Postmark não apaga supressão de spam (SpamComplaint): o dash nem tenta.
+ */
+export async function criarSupressao(env, stream, email) {
+  return supressao(env, `/message-streams/${encodeURIComponent(stream)}/suppressions`, email);
+}
+
+export async function apagarSupressao(env, stream, email) {
+  return supressao(env, `/message-streams/${encodeURIComponent(stream)}/suppressions/delete`, email);
+}
+
+async function supressao(env, caminho, email) {
+  if (!env.POSTMARK_SERVER_TOKEN) return { ok: false, codigo: 10, erro: ERROS[10] };
+  const res = await chamar(caminho, { token: env.POSTMARK_SERVER_TOKEN, metodo: 'POST', corpo: { Suppressions: [{ EmailAddress: email }] } });
+  if (!res.ok) return erroDe(res);
+  const item = (res.dados?.Suppressions || [])[0];
+  if (item && item.Status === 'Failed') return { ok: false, codigo: null, erro: item.Message || 'O serviço de envio recusou a supressão.' };
+  return { ok: true };
+}
