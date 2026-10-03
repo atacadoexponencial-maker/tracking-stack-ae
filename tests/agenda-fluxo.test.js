@@ -100,6 +100,8 @@ beforeEach(() => {
   db.exec(readFileSync(new URL('../migrations/0047_agenda.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0048_agenda_descricao.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0049_agenda_etapas.sql', import.meta.url), 'utf8'));
+  // E-mails da agenda (issue 379): os ganchos de e-mail rodam de verdade.
+  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0052_email_agenda.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   // As colunas de UTM da sessão entraram fora das migrations (conferido no D1 remoto).
   for (const c of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'funnel']) db.exec(`ALTER TABLE sessions ADD COLUMN ${c} TEXT`);
   env = { DB: d1(db), DASH_KEY: 'k', SYNC_SECRET: 's', GOOGLE_AGENDA_SA_JSON: SA };
@@ -180,6 +182,11 @@ test('fluxo comercial: convite → horários → confirmar → remarcar → canc
   assert.equal(linha.crm_situacao, 'sem_credencial');
   assert.equal(google.eventos.size, 1);
   assert.match([...google.eventos.values()][0].desc, /reuniao\//);
+  // E-mails da agenda (379): confirmação tentada na hora (sem chave do Postmark
+  // aqui, então "falhou") e os dois lembretes padrão na fila.
+  const fila = () => db.prepare('SELECT evento, situacao, motivo, inicio_ref FROM agenda_emails_fila ORDER BY id').all();
+  assert.deepEqual(fila().map((x) => x.evento), ['confirmacao', 'lembrete', 'lembrete']);
+  assert.equal(fila()[0].situacao, 'falhou');
 
   // O mesmo horário não é mais oferecido, e confirmar de novo dá conflito.
   const h2 = await publico(pubHorarios, { qs: `?slug=consultoria-individual&c=${c}` });
@@ -198,14 +205,22 @@ test('fluxo comercial: convite → horários → confirmar → remarcar → canc
   assert.equal(ver.corpo.pode_mudar, true);
   const hg = await publico(pubHorarios, { qs: `?g=${g}` });
   const novo = hg.corpo.dias[dias[2]][5];
+  pendentes = [];
   const rem = await publico(pubReuniao, { corpo: { g, acao: 'remarcar', inicio: novo } });
   assert.equal(rem.status, 200, JSON.stringify(rem.corpo));
+  await Promise.all(pendentes);
+  assert.ok(!fila().some((x) => x.situacao === 'pendente' && x.inicio_ref === horario), 'nenhum lembrete do horário antigo pendente');
+  assert.ok(fila().some((x) => x.evento === 'remarcacao'));
   assert.equal(rem.corpo.inicio, novo);
   assert.equal(google.eventos.size, 1);
 
   // Lead cancela
+  pendentes = [];
   const can = await publico(pubReuniao, { corpo: { g, acao: 'cancelar', motivo: 'imprevisto' } });
   assert.equal(can.corpo.situacao, 'cancelada');
+  await Promise.all(pendentes);
+  assert.ok(!fila().some((x) => x.situacao === 'pendente'), 'nada pendente depois de cancelar');
+  assert.ok(fila().some((x) => x.evento === 'cancelamento'));
   assert.equal(google.eventos.size, 0);
   const hist = db.prepare('SELECT acao FROM agenda_historico ORDER BY id').all().map((x) => x.acao);
   assert.deepEqual(hist, ['agendou', 'remarcou', 'cancelou']);

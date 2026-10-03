@@ -6,8 +6,8 @@
 //
 // - App Marketing, seção `mkt-email`, sub-vistas por `?v=`: campanhas,
 //   relatorio, fluxos, contatos, segmentos, modelos, configuracao.
-// - App Agenda, seção `agenda-emails`: e-mails da agenda por tipo de reunião e
-//   o exemplo de detalhe do agendamento com o histórico de e-mails.
+// - App Agenda, seção `agenda-emails`: e-mails da agenda por tipo de reunião
+//   (ligada ao backend na 379).
 // - O quadro dos fluxos mora em public/dash/email-fluxos.js.
 //
 // Padrões de UX copiados do agenda.js: gaveta lateral para o que abre de uma
@@ -130,19 +130,6 @@
     { id: 'm12', nome: 'Novidade: plano ao vivo', canal: 'marketing', assunto: 'Abrimos as aplicações do plano ao vivo', previa: 'Vagas limitadas, aplicações até 06/10.', editado: '23/09', corpo: 'Oi, {{primeiro_nome}}!\n\nAbrimos as aplicações para o **plano ao vivo de 07/10**.\n\n[[Quero aplicar | https://atacadoexponencial.com/aplicacao]]' },
   ];
 
-  // Tipos de reunião e e-mails da agenda (módulo 3).
-  const TIPOS_REUNIAO = [
-    { id: 't1', nome: 'Sessão estratégica', comercial: true },
-    { id: 't2', nome: 'Diagnóstico de tráfego', comercial: true },
-    { id: 't3', nome: 'Entrevista RH', comercial: false },
-  ];
-  const EMAILS_AGENDA = {
-    confirmacao: { nome: 'Confirmação', quando: 'logo que o lead confirma o horário', modelo: 'm1' },
-    lembrete: { nome: 'Lembretes', modelo24: 'm2', modelo1: 'm3' },
-    remarcacao: { nome: 'Remarcação', quando: 'quando a reunião muda de horário', modelo: 'm4', espera: true },
-    cancelamento: { nome: 'Cancelamento', quando: 'quando a reunião é cancelada', modelo: 'm5', espera: true },
-  };
-
   // Estado mutável do protótipo (vive enquanto a página estiver aberta).
   const D = {
     campanhas: CAMPANHAS_BASE.map((c) => ({ ...c })),
@@ -154,12 +141,6 @@
       marketing: { nome: 'Felipe Santos | Atacado Exponencial', endereco: 'felipe@news.atacadoexponencial.com', resposta: '' },
       rodape: 'Atacado Exponencial · Seteads Agência Ltda.\nAv. Exemplo, 1000, sala 12, São Paulo, SP, 01000-000',
     },
-    agenda: Object.fromEntries(TIPOS_REUNIAO.map((t) => [t.id, {
-      confirmacao: { ligado: true, modelo: 'm1' },
-      lembretes: [{ horas: 24, modelo: 'm2', ligado: true }, { horas: 1, modelo: 'm3', ligado: true }],
-      remarcacao: { ligado: true, modelo: 'm4' },
-      cancelamento: { ligado: t.id !== 't3', modelo: 'm5' },
-    }])),
     usoMes: 7840, limiteMes: 10000,
   };
 
@@ -1404,104 +1385,98 @@
   }
 
   // ===========================================================================
-  // 373 · E-mails da agenda (app Agenda)
+  // 379 · E-mails da agenda (app Agenda; ligada ao backend: GET/POST /api/agenda/emails)
   // ===========================================================================
-  let tipoAgenda = 't1';
-  const HORAS_OPCOES = [[48, '48 h antes'], [24, '24 h antes'], [12, '12 h antes'], [3, '3 h antes'], [2, '2 h antes'], [1, '1 h antes'], [0.5, '30 min antes'], [0.25, '15 min antes']];
-  const rotHoras = (h) => (HORAS_OPCOES.find((x) => x[0] === h) || [h, `${h} h antes`])[1];
+  // Configuração por tipo de reunião. As regras (padrão, validação do modelo,
+  // lembretes aceitos) ficam no servidor; aqui só a tela. O "Mandar teste" usa
+  // o teste de modelo da 378.
+  let tipoAgenda = null;
+  let agendaEstado = null;
+  const rotAntes = (min) => (min >= 60 ? `${min / 60} h antes` : `${min} min antes`);
 
-  function renderAgenda(c) {
+  async function renderAgenda(c) {
     ctx = c;
     fecharGaveta();
-    ctx.$('#subtitulo').textContent = 'saem pelo canal transacional (envio.) · protótipo';
+    ctx.$('#subtitulo').textContent = 'saem pelo canal transacional (envio.)';
     const el = ctx.$('#agenda-emails-conteudo');
     el.className = 'em';
-    const tipo = TIPOS_REUNIAO.find((t) => t.id === tipoAgenda);
-    const a = D.agenda[tipoAgenda];
-    const transac = D.modelos.filter((m) => m.canal === 'transacional' && !m.arquivado);
-    const selModelo = (attr, atual) => `<select ${attr} aria-label="Modelo">${transac.map((m) => `<option value="${m.id}"${m.id === atual ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select>`;
-    const linhas = [
-      { k: 'confirmacao', nome: 'Confirmação', quando: 'logo que o lead confirma o horário', e: a.confirmacao },
-      ...a.lembretes.map((l, i) => ({ k: 'lembrete', i, nome: `Lembrete ${rotHoras(l.horas)}`, quando: `${rotHoras(l.horas)} da reunião`, e: l })),
-      { k: 'remarcacao', nome: 'Remarcação', quando: 'quando a reunião muda de horário', e: a.remarcacao, espera: true },
-      { k: 'cancelamento', nome: 'Cancelamento', quando: 'quando a reunião é cancelada', e: a.cancelamento, espera: true },
-    ];
-    el.innerHTML = `${seloProto(true)}
-      <div class="em-barra">
-        <div class="ag-subvistas" role="group" aria-label="Tipo de reunião">${TIPOS_REUNIAO.map((t) => `<button type="button" class="ag-subvista" data-tipo="${t.id}" aria-pressed="${t.id === tipoAgenda}">${esc(t.nome)}</button>`).join('')}</div>
+    el.innerHTML = '<p class="aviso">Carregando os e-mails da agenda…</p>';
+    try {
+      agendaEstado = await ctx.fetchJson(`/api/agenda/emails?${tipoAgenda ? `tipo=${tipoAgenda}&` : ''}_=${Date.now()}`);
+    } catch (e) {
+      el.innerHTML = `<div class="aviso falha">Não foi possível carregar os e-mails da agenda (${esc(e.message)}). Tente de novo em instantes.</div>`;
+      return;
+    }
+    desenharAgenda(el);
+  }
+
+  function desenharAgenda(el) {
+    const S = agendaEstado;
+    tipoAgenda = S.tipo_id;
+    if (!S.tipos.length) {
+      el.innerHTML = '<p class="aviso">Nenhum tipo de reunião ainda. Crie um em Agenda › Tipos de reunião e volte aqui.</p>';
+      return;
+    }
+    const tipo = S.tipos.find((t) => t.id === S.tipo_id);
+    const selModelo = (e) => `<select data-modelo aria-label="Modelo de ${esc(e.nome)}">${S.modelos.some((m) => m.id === e.modelo_id) ? '' : '<option value="">(modelo arquivado)</option>'}${S.modelos.map((m) => `<option value="${m.id}"${m.id === e.modelo_id ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select>`;
+    const livres = S.antecedencias.filter((min) => !S.emails.some((e) => e.evento === 'lembrete' && e.antes_min === min));
+    el.innerHTML = `<div class="em-barra">
+        <div class="ag-subvistas" role="group" aria-label="Tipo de reunião">${S.tipos.map((t) => `<button type="button" class="ag-subvista" data-tipo="${t.id}" aria-pressed="${t.id === S.tipo_id}">${esc(t.nome)}${t.ativo ? '' : ' <span class="mini">(pausado)</span>'}</button>`).join('')}</div>
       </div>
       ${tipo.comercial ? '' : '<div class="aviso explica">Tipo não comercial: a pessoa recebe confirmação e lembretes normalmente, mas não vira contato de marketing.</div>'}
-      <div class="bloco"><h2>E-mails de ${esc(tipo.nome)} <small>remetente: ${esc(D.config.transacional.nome)} &lt;${esc(D.config.transacional.endereco)}&gt;</small></h2>
+      <div class="bloco"><h2>E-mails de ${esc(tipo.nome)} <small>remetente: ${esc(S.remetente.nome)} &lt;${esc(S.remetente.email)}&gt;</small></h2>
         <div class="tabela-wrap"><table class="em-agenda-tab"><thead><tr><th>E-mail</th><th>Quando sai</th><th>Modelo</th><th>Situação</th><th></th></tr></thead><tbody>
-        ${linhas.map((l, n) => `<tr data-n="${n}">
-          <td><b>${esc(l.nome)}</b>${l.espera ? '<br><span class="selo">espera a agenda</span>' : ''}</td>
-          <td><span class="mini">${esc(l.quando)}</span></td>
-          <td>${selModelo('data-modelo', l.e.modelo)}</td>
-          <td>${chave(l.e.ligado, 'data-ligar')}</td>
-          <td><div class="ag-acoes ag-acoes--linha"><button class="btn sec" type="button" data-teste>Mandar teste</button>${l.k === 'lembrete' ? `<button class="ag-icone" type="button" data-tirar aria-label="Tirar lembrete">${ICONE.fechar}</button>` : ''}</div></td>
+        ${S.emails.map((e) => `<tr data-id="${e.id}">
+          <td><b>${esc(e.nome)}</b></td>
+          <td><span class="mini">${esc(e.quando)}</span></td>
+          <td>${selModelo(e)}</td>
+          <td>${chave(!!e.ligado, 'data-ligar')}</td>
+          <td><div class="ag-acoes ag-acoes--linha"><button class="btn sec" type="button" data-teste>Mandar teste</button>${e.evento === 'lembrete' ? `<button class="ag-icone" type="button" data-tirar aria-label="Tirar lembrete">${ICONE.fechar}</button>` : ''}</div></td>
         </tr>`).join('')}
         </tbody></table></div>
-        <div class="aviso alerta">Remarcação e cancelamento já ficam prontos aqui, mas só passam a sair quando a agenda tiver os fluxos de remarcar e cancelar. Confirmação e lembretes funcionam desde o primeiro dia.</div>
-        <div class="em-lembrete-novo"><span class="mini">Lembretes deste tipo:</span>
-          <select data-novo-lembrete aria-label="Novo horário de lembrete"><option value="">Adicionar lembrete…</option>${HORAS_OPCOES.filter(([h]) => !a.lembretes.some((l) => l.horas === h)).map(([h, r]) => `<option value="${h}">${r}</option>`).join('')}</select></div>
+        ${livres.length ? `<div class="em-lembrete-novo"><span class="mini">Lembretes deste tipo:</span>
+          <select data-novo-lembrete aria-label="Novo horário de lembrete"><option value="">Adicionar lembrete…</option>${livres.map((min) => `<option value="${min}">${rotAntes(min)}</option>`).join('')}</select></div>` : ''}
         <ul class="em-regras-agenda mini">
           <li>Reunião cancelada não recebe lembrete.</li>
           <li>Reunião remarcada recebe os lembretes do horário novo, nunca do antigo.</li>
           <li>Lembrete cujo horário já passou não sai (marcou para daqui a 30 minutos: não recebe o de 1 h).</li>
-          <li>E-mail que não saiu ou voltou aparece no detalhe do agendamento e entra no aviso diário de integrações.</li>
+          <li>Mudanças aqui valem para as reuniões marcadas daqui em diante; desligar também segura o que já estava na fila.</li>
+          <li>E-mail que não saiu ou voltou aparece no detalhe do agendamento e entra no aviso de integrações.</li>
         </ul>
-      </div>
-      <div class="bloco"><h2>Exemplo: detalhe do agendamento <small>como o histórico de e-mails aparece na lista de agendamentos</small></h2>
-        <div class="tabela-wrap" id="em-ag-exemplos"></div></div>`;
-    el.querySelectorAll('[data-tipo]').forEach((b) => { b.onclick = () => { tipoAgenda = b.dataset.tipo; renderAgenda(ctx); }; });
-    el.querySelectorAll('tr[data-n]').forEach((tr) => {
-      const l = linhas[Number(tr.dataset.n)];
-      tr.querySelector('[data-modelo]').onchange = (ev) => { l.e.modelo = ev.target.value; avisar(`${l.nome}: modelo trocado para "${modelo(ev.target.value).nome}".`); };
-      tr.querySelector('[data-ligar]').onchange = (ev) => { l.e.ligado = ev.target.checked; ev.target.parentElement.querySelector('.em-chave__rot').textContent = l.e.ligado ? 'Ligado' : 'Desligado'; avisar(`${l.nome} ${l.e.ligado ? 'ligado' : 'desligado'} para ${tipo.nome}.`); };
-      tr.querySelector('[data-teste]').onclick = () => avisar(`Teste de "${l.nome}" mandado para felipe@seteads.com.`);
+      </div>`;
+
+    const postAgenda = async (corpo, aviso) => {
+      try {
+        agendaEstado = await ctx.postJson('/api/agenda/emails', corpo);
+        avisar(aviso);
+      } catch (e) { avisar(msgErro(e), 'erro'); }
+      desenharAgenda(el);
+    };
+    el.querySelectorAll('[data-tipo]').forEach((b) => { b.onclick = () => { tipoAgenda = Number(b.dataset.tipo); renderAgenda(ctx); }; });
+    el.querySelectorAll('tr[data-id]').forEach((tr) => {
+      const e = S.emails.find((x) => String(x.id) === tr.dataset.id);
+      tr.querySelector('[data-modelo]').onchange = (ev) => {
+        const m = S.modelos.find((x) => String(x.id) === ev.target.value);
+        if (m) postAgenda({ acao: 'salvar', id: e.id, modelo_id: m.id }, `${e.nome}: modelo trocado para "${m.nome}".`);
+      };
+      tr.querySelector('[data-ligar]').onchange = (ev) => {
+        ev.target.disabled = true;
+        postAgenda({ acao: 'salvar', id: e.id, ligado: ev.target.checked }, `${e.nome} ${ev.target.checked ? 'ligado' : 'desligado'} para ${tipo.nome}.`);
+      };
+      tr.querySelector('[data-teste]').onclick = () => {
+        const m = S.modelos.find((x) => x.id === e.modelo_id);
+        if (!m) return avisar('Escolha um modelo antes de mandar o teste.', 'erro');
+        pedirTeste({ ...m, canal: 'transacional' });
+      };
       const t = tr.querySelector('[data-tirar]');
-      if (t) t.onclick = () => ctx.pedirConfirmacao(t, 'Tirar este lembrete?', () => { a.lembretes.splice(l.i, 1); avisar('Lembrete tirado.'); renderAgenda(ctx); });
+      if (t) t.onclick = () => ctx.pedirConfirmacao(t, 'Tirar este lembrete?', () => postAgenda({ acao: 'tirar_lembrete', id: e.id }, 'Lembrete tirado.'));
     });
-    el.querySelector('[data-novo-lembrete]').onchange = (ev) => {
-      const h = Number(ev.target.value);
-      if (!h) return;
-      a.lembretes.push({ horas: h, modelo: h >= 12 ? 'm2' : 'm3', ligado: true });
-      a.lembretes.sort((x, y) => y.horas - x.horas);
-      avisar(`Lembrete de ${rotHoras(h)} adicionado.`);
-      renderAgenda(ctx);
+    const novo = el.querySelector('[data-novo-lembrete]');
+    if (novo) novo.onchange = (ev) => {
+      const min = Number(ev.target.value);
+      if (!min) return;
+      ev.target.disabled = true;
+      postAgenda({ acao: 'adicionar_lembrete', tipo_id: S.tipo_id, antes_min: min }, `Lembrete de ${rotAntes(min)} adicionado.`);
     };
-    const EXEMPLOS = [
-      { id: 'a1', quando: 'ter 07/10 15:00', nome: 'Ana Lima', email: 'ana.lima@exemplo.com', situacao: 'Marcada', hist: [['Confirmação', '03/10 10:12', 'aberto'], ['Lembrete 24 h antes', '06/10 15:00', 'agendado'], ['Lembrete 1 h antes', '07/10 14:00', 'agendado']] },
-      { id: 'a2', quando: 'seg 06/10 10:00', nome: 'Bruno Rocha', email: 'bruno.rocha@empresa.com.br', situacao: 'Marcada', hist: [['Confirmação', '02/10 18:40', 'entregue'], ['Lembrete 24 h antes', '05/10 10:00', 'falhou', 'O serviço de envio não respondeu em três tentativas. Entrou no aviso diário de integrações.'], ['Lembrete 1 h antes', '06/10 09:00', 'agendado']] },
-      { id: 'a3', quando: 'sex 03/10 16:30', nome: 'Carla Duarte', email: 'carla.duarte@gmai.com', situacao: 'Marcada', hist: [['Confirmação', '01/10 09:05', 'voltou', 'O endereço não existe (gmai.com). Vale confirmar o e-mail com o lead pelo WhatsApp.'], ['Lembrete 24 h antes', '02/10 16:30', 'nao_enviado', 'Não saiu: o endereço já tinha voltado.']] },
-      { id: 'a4', quando: 'qui 09/10 11:00', nome: 'Diego Teixeira', email: 'diego.t@outlook.com', situacao: 'Cancelada', hist: [['Confirmação', '30/09 14:22', 'aberto'], ['Cancelamento', '02/10 08:10', 'espera', 'Pronto, mas só sai quando a agenda tiver o fluxo de cancelar.'], ['Lembretes', '', 'cancelado', 'Cancelados junto com a reunião.']] },
-    ];
-    const SIT_EMAIL = {
-      entregue: ['Entregue', 'alta'], aberto: ['Aberto', 'alta'], voltou: ['Voltou', 'queda'], falhou: ['Falhou', 'queda'],
-      agendado: ['Agendado', 'neutro'], nao_enviado: ['Não enviado', 'neutro'], cancelado: ['Cancelado', 'neutro'], espera: ['Espera a agenda', 'alerta'],
-    };
-    const alvo = el.querySelector('#em-ag-exemplos');
-    ctx.tabela(alvo, [
-      { titulo: 'Quando', render: (r) => `<b>${esc(r.quando)}</b>` },
-      { titulo: 'Pessoa', render: (r) => `<button type="button" class="ag-link-linha" data-abrir="${r.id}">${esc(r.nome)}</button><br><span class="mini">${esc(r.email)}</span>` },
-      { titulo: 'E-mails', render: (r) => {
-        const ruins = r.hist.filter((h) => ['voltou', 'falhou'].includes(h[2])).length;
-        return ruins ? `<span class="carimbo queda">${ruins} com problema</span>` : ((n) => `<span class="mini">${n} ${n === 1 ? 'entregue' : 'entregues'}</span>`)(r.hist.filter((h) => ['entregue', 'aberto'].includes(h[2])).length);
-      } },
-      { titulo: '', render: (r) => `<div class="ag-acoes ag-acoes--linha"><button class="btn sec" type="button" data-abrir="${r.id}">Abrir</button></div>` },
-    ], EXEMPLOS);
-    alvo.addEventListener('click', (ev) => {
-      const b = ev.target.closest('[data-abrir]');
-      if (!b) return;
-      const r = EXEMPLOS.find((x) => x.id === b.dataset.abrir);
-      gaveta({
-        titulo: esc(r.nome), sub: `${esc(tipo.nome)} · exemplo`,
-        corpo: `<p><span class="carimbo ${r.situacao === 'Cancelada' ? 'queda' : 'neutro'}">${r.situacao}</span></p>
-          <dl class="ag-dl"><dt>Quando</dt><dd>${esc(r.quando)}</dd><dt>Contato</dt><dd>${esc(r.email)}</dd><dt>Meet</dt><dd><a>meet.google.com/abc-defg-hij</a></dd></dl>
-          <h3 class="ag-h3">E-mails desta reunião</h3>
-          <ol class="ag-hist em-hist">${r.hist.map(([n, q, s, nota]) => `<li class="em-hist__item"><div><b>${esc(n)}</b> ${q ? `<span class="mini">${esc(q)}</span>` : ''}${nota ? `<br><span class="mini">${esc(nota)}</span>` : ''}</div>${carimbo(SIT_EMAIL, s)}</li>`).join('')}</ol>
-          <p class="mini">Agendado: ainda vai sair no horário. Entregue e aberto chegam do serviço de envio conforme acontecem.</p>`,
-      });
-    });
   }
 })();

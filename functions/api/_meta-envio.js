@@ -154,6 +154,8 @@ export const TITULOS_CONDICAO = {
   horario_suspeito: 'Horário suspeito numa integração',
   // spec-agenda-propria.md, módulo 1
   agenda_problema: 'Agenda do Google sem leitura',
+  // spec-email-proprio.md, módulo 3
+  email_agenda_falha: 'E-mail da agenda com problema',
 };
 
 /**

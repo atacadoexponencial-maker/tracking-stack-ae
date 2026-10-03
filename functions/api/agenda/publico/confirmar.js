@@ -5,12 +5,13 @@
 // o horário no Google, cria a reunião com Meet e grava. Nos tipos comerciais,
 // em seguida (sem segurar a resposta): registra no card do CRM e manda o
 // Schedule. Tipos não comerciais (RH, entrevistas) não tocam tracking, CRM,
-// Meta nem GA4.
+// Meta nem GA4. Todos os tipos recebem os e-mails da agenda (issue 379).
 import { validarDadosAgendamento } from '../../_agenda-regras.js';
 import {
   lerTipo, reservar, registrarNoCrm, textoCrm, enviarSchedule, atualizarDescricao, linkGestao,
 } from '../../_agenda.js';
 import { lerConvite } from '../../_agenda-convite.js';
+import { emailsDaMudanca } from '../../_email-agenda.js';
 import { padronizarTelefone } from '../../../_telefone.js';
 import { detectBot, detectBotPorIp } from '../../../_bots.js';
 import { motivoBloqueio } from '../../../_lead-bloqueio.js';
@@ -65,6 +66,9 @@ export async function onRequestPost(context) {
     await registrarNoCrm(env, reuniao, textoCrm('agendou', tipo, reuniao));
     await enviarSchedule(context, reuniao, eventId);
   })().catch((e) => console.error('agenda: pós-confirmação', e.message)));
+  // E-mails da agenda (issue 379): confirmação na hora e lembretes na fila.
+  // Vale também para tipos não comerciais.
+  context.waitUntil(emailsDaMudanca(env, reuniao.id, 'agendou'));
 
   return json({
     ok: true,

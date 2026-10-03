@@ -1,6 +1,6 @@
 // GET  /api/agenda/reunioes?key=...&from=&to=[&tipo=&situacao=]
 //        → reuniões cujo HORÁRIO cai no período + números do período
-// GET  /api/agenda/reunioes?key=...&id=<id>      → detalhe com histórico
+// GET  /api/agenda/reunioes?key=...&id=<id>      → detalhe com histórico e e-mails da reunião
 // GET  /api/agenda/reunioes?key=...&por=funil&from=&to=
 //        → Reuniões agendadas por funil (painel da Visão geral): reuniões
 //          comerciais MARCADAS no período (data em que o lead agendou), sem
@@ -16,8 +16,11 @@ import { ymdBrt, inicioDoDiaBrt } from '../_data-brt.js';
 import {
   lerReuniao, lerTipo, cancelar, remarcar, registrarNoCrm, textoCrm, historico, agora, enviarRealizada,
 } from '../_agenda.js';
+import { emailsDaMudanca, emailsDaReuniao } from '../_email-agenda.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
+// E-mails da agenda (issue 379) sem segurar a resposta quando há waitUntil.
+const depois = (waitUntil, promessa) => (waitUntil ? waitUntil(promessa) : promessa);
 const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') === env.DASH_KEY;
 
 function linkCrm(situacao) {
@@ -39,7 +42,7 @@ export async function onRequestGet({ request, env }) {
       ? await env.DB.prepare('SELECT utm_source, utm_medium, utm_campaign FROM sessions WHERE session_id = ?').bind(r.session_id).first()
       : null;
     const { token_gestao, ip, session_id, ...publico } = r;
-    return json({ reuniao: { ...publico, tipo_nome: tipo?.nome, crm_link: linkCrm(r.crm_situacao), origem: sessao || null }, historico: hist });
+    return json({ reuniao: { ...publico, tipo_nome: tipo?.nome, crm_link: linkCrm(r.crm_situacao), origem: sessao || null }, historico: hist, emails: await emailsDaReuniao(env, r.id) });
   }
 
   const de = Number(p.get('from')) || agora() - 30 * 86400;
@@ -101,6 +104,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const r = await cancelar(env, reuniao, { por: 'equipe', motivo: corpo.motivo });
     if (r.erro) return json({ error: r.erro }, 409);
     await registrarNoCrm(env, reuniao, textoCrm('cancelou', tipo, reuniao, corpo.motivo ? `Motivo: ${corpo.motivo}` : 'Cancelada pela equipe.'));
+    await depois(waitUntil, emailsDaMudanca(env, reuniao.id, 'cancelou'));
     return json({ ok: true });
   }
 
@@ -108,6 +112,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const r = await remarcar(env, reuniao, tipo, Number(corpo.inicio), { por: 'equipe' });
     if (r.erro) return json({ error: r.erro }, 409);
     await registrarNoCrm(env, reuniao, textoCrm('remarcou', tipo, { ...reuniao, inicio: r.inicio }));
+    await depois(waitUntil, emailsDaMudanca(env, reuniao.id, 'remarcou'));
     return json({ ok: true });
   }
 

@@ -10,6 +10,7 @@ import { processarAlertas } from './_meta-alerta.js';
 import { lerCredenciais } from './_credenciais-checagem.js';
 import { avaliarFontes } from './_horario-registro.js';
 import { resumoProblema } from './_credenciais.js';
+import { falhasRecentes } from './_email-agenda.js';
 
 /** Condições e itens de credenciais e horário (sem valor de segredo, sem dado pessoal). */
 export async function condicoesDasProtecoes(env, agora) {
@@ -33,6 +34,13 @@ export async function condicoesDasProtecoes(env, agora) {
   if (agendas.length) {
     condicoes.push('agenda_problema');
     itens.agenda_problema = agendas;
+  }
+  // E-mails da agenda (spec-email-proprio.md, módulo 3): falhou ou voltou nas
+  // últimas 24 h. Itens sem dado pessoal.
+  const emails = await falhasRecentes(env, agora);
+  if (emails.length) {
+    condicoes.push('email_agenda_falha');
+    itens.email_agenda_falha = emails;
   }
   return { condicoes, itens, credenciais, fontes };
 }

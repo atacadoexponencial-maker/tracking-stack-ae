@@ -6,11 +6,12 @@
 //
 // Spec spec-email-proprio.md, módulos 1 e 8 (issue 377). Validação em
 // ../_email-config.js; Postmark em ../_postmark.js.
-import { lerConfig, validarConfig, salvarConfig, remetente, emailValido, DOMINIOS } from '../_email-config.js';
+import { lerConfig, validarConfig, salvarConfig, emailValido, DOMINIOS } from '../_email-config.js';
 import {
-  STREAMS, enviar, consultarServidor, listarDominios, listarWebhooks, criarWebhook, editarWebhook,
+  STREAMS, consultarServidor, listarDominios, listarWebhooks, criarWebhook, editarWebhook,
 } from '../_postmark.js';
 import { montarEmail } from '../_email-render.js';
+import { enviarERegistrar } from '../_email-envio.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') === env.DASH_KEY;
@@ -110,34 +111,14 @@ export async function enviarTeste(env, { canal, para, assunto, html, texto, tag,
   if (canal === 'marketing' && cfg.marketing_liberado !== '1') {
     return json({ error: 'O marketing está marcado como não liberado. Ligue a opção antes de testar este canal.' }, 409);
   }
-  // O envio nasce como "falhou" e só vira "enviado" com a confirmação do
-  // serviço: assim o envio_id existe para ir no Metadata.
-  const ins = await env.DB.prepare(
-    `INSERT INTO email_envios (canal, origem, ref_id, destinatario, assunto, situacao, erro)
-     VALUES (?, 'teste', ?, ?, ?, 'falhou', 'Envio em andamento.')`,
-  ).bind(canal, refId, destino, assunto).run();
-  const envioId = ins.meta.last_row_id;
-  let r;
-  try {
-    r = await enviar(env, {
-      canal, de: remetente(cfg, canal), para: destino, assunto, html, texto,
-      resposta: cfg[`resposta_${canal}`] || null,
-      tag, metadata: { origem: 'teste', envio_id: String(envioId) },
-    });
-  } catch (e) {
-    // Sem resposta: nada fica registrado como enviado.
-    await env.DB.prepare('DELETE FROM email_envios WHERE id = ?').bind(envioId).run();
-    return json({ error: e.message || 'Não foi possível falar com o serviço de envio agora. Tente de novo.' }, 504);
-  }
+  const r = await enviarERegistrar(env, { canal, origem: 'teste', refId, para: destino, assunto, html, texto, tag, cfg });
+  // Sem resposta: nada fica registrado como enviado.
+  if (r.semResposta) return json({ error: r.erro }, 504);
   if (!r.ok) {
-    await env.DB.prepare('UPDATE email_envios SET erro = ?, enviado_em = ? WHERE id = ?').bind(r.erro, agora(), envioId).run();
     const status = r.codigo === 10 ? 503 : 422;
     return json({ error: r.codigo === 10 ? SEM_ACESSO : r.erro, testes: await ultimosTestes(env) }, status);
   }
-  await env.DB.prepare(
-    "UPDATE email_envios SET message_id = ?, situacao = 'enviado', erro = NULL, enviado_em = ? WHERE id = ?",
-  ).bind(r.messageId, agora(), envioId).run();
-  return json({ ok: true, envio_id: envioId, testes: await ultimosTestes(env) });
+  return json({ ok: true, envio_id: r.envioId, testes: await ultimosTestes(env) });
 }
 
 export async function onRequestPost({ request, env }) {

@@ -126,15 +126,15 @@ Migration `migrations/0052_email_agenda.sql` (só adição):
 
 ## Checklist
 
-- [ ] Migration `0052_email_agenda.sql` aplicada no D1 remoto com `d1 execute --file`
-- [ ] `_email-envio.js` com o núcleo do envio registrado, usado pelo teste da Configuração
-- [ ] `_email-agenda.js` com configuração padrão, programação, fila, histórico, uso do modelo e falhas
-- [ ] Ganchos em confirmar, reunião do lead, reuniões da equipe e rodada do Google
-- [ ] `GET/POST /api/agenda/emails`
+- [x] Migration `0052_email_agenda.sql` aplicada no D1 remoto com `d1 execute --file`
+- [x] `_email-envio.js` com o núcleo do envio registrado, usado pelo teste da Configuração
+- [x] `_email-agenda.js` com configuração padrão, programação, fila, histórico, uso do modelo e falhas
+- [x] Ganchos em confirmar, reunião do lead, reuniões da equipe e rodada do Google
+- [x] `GET/POST /api/agenda/emails`
 - [ ] `POST /api/sync/email-agenda` + cron de 5 minutos na VPS
-- [ ] Condição `email_agenda_falha` no aviso de integrações
-- [ ] Trava "em uso" dos modelos ligada à agenda
-- [ ] Agenda › E-mails ligada ao backend
-- [ ] "E-mails desta reunião" no detalhe do agendamento
-- [ ] Testes `email-agenda` e `agenda-fluxo` passando (`npm test`)
+- [x] Condição `email_agenda_falha` no aviso de integrações
+- [x] Trava "em uso" dos modelos ligada à agenda
+- [x] Agenda › E-mails ligada ao backend
+- [x] "E-mails desta reunião" no detalhe do agendamento
+- [x] Testes `email-agenda` e `agenda-fluxo` passando (`npm test`)
 - [ ] Usuária agenda uma reunião de teste na prévia, recebe a confirmação e o lembrete, vê os dois no detalhe, e um tipo com o e-mail desligado não envia

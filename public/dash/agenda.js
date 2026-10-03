@@ -391,6 +391,14 @@
     return `<span class="carimbo ${c}">${ctx.esc(r)}</span>`;
   }
 
+  // E-mails da agenda (issue 379): situação de cada e-mail da reunião.
+  const SITUACAO_EMAIL = {
+    agendado: ['Agendado', 'neutro'], nao_enviado: ['Não enviado', 'neutro'], falhou: ['Falhou', 'queda'],
+    enviado: ['Enviado', 'neutro'], entregue: ['Entregue', 'alta'], aberto: ['Aberto', 'alta'], clicado: ['Clicado', 'alta'],
+    voltou: ['Voltou', 'queda'], voltou_temporario: ['Voltou temporariamente', 'alerta'], spam: ['Marcado como spam', 'queda'],
+    descadastrou: ['Descadastrou', 'alerta'],
+  };
+
   async function detalhe(id) {
     const g = gavetaSimples({ titulo: 'Carregando…', corpo: '<div class="aviso">Carregando…</div>' });
     let d;
@@ -420,7 +428,13 @@
       </dl>
       ${r.respostas.length ? `<h3 class="ag-h3">Respostas</h3><dl class="ag-dl">${r.respostas.map((x) => `<dt>${ctx.esc(x.pergunta)}</dt><dd>${x.resposta ? ctx.esc(x.resposta) : '<span class="mini">sem resposta</span>'}</dd>`).join('')}</dl>` : ''}
       <h3 class="ag-h3">Histórico</h3>
-      <ol class="ag-hist">${d.historico.map((h) => `<li><span class="mini">${quando(h.criado_em)}</span> <b>${ACOES[h.acao] || ctx.esc(h.acao)}</b> ${POR[h.por] || ''}${h.detalhe ? `<br><span class="mini">${ctx.esc(h.detalhe)}</span>` : ''}</li>`).join('')}</ol>`;
+      <ol class="ag-hist">${d.historico.map((h) => `<li><span class="mini">${quando(h.criado_em)}</span> <b>${ACOES[h.acao] || ctx.esc(h.acao)}</b> ${POR[h.por] || ''}${h.detalhe ? `<br><span class="mini">${ctx.esc(h.detalhe)}</span>` : ''}</li>`).join('')}</ol>
+      <h3 class="ag-h3">E-mails desta reunião</h3>
+      ${(d.emails || []).length ? `<ol class="ag-hist em-hist">${d.emails.map((e) => {
+        const [rot, cor] = SITUACAO_EMAIL[e.situacao] || [e.situacao, 'neutro'];
+        return `<li class="em-hist__item"><div><b>${ctx.esc(e.nome)}</b> <span class="mini">${quando(e.quando)}</span>${e.motivo ? `<br><span class="mini">${ctx.esc(e.motivo)}</span>` : ''}</div><span class="carimbo ${cor}">${ctx.esc(rot)}</span></li>`;
+      }).join('')}</ol>
+      <p class="mini">Agendado: ainda vai sair no horário. Entregue e aberto chegam do serviço de envio conforme acontecem.</p>` : '<p class="mini">Nenhum e-mail programado para esta reunião.</p>'}`;
     const rodape = `<div class="ag-acoes">
         ${passou && r.situacao !== 'cancelada' ? `<span class="mini">Presença:</span>
           <button class="btn sec" type="button" data-presenca="realizada">Realizada</button>

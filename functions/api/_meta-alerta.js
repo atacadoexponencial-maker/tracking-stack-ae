@@ -14,7 +14,7 @@ import { FUSO_BRT } from './_data-brt.js';
 const CONDICOES = Object.keys(TITULOS_CONDICAO);
 // Condições que carregam uma lista de itens (credenciais, fontes): item novo
 // numa condição já ativa gera alerta só com o item novo.
-const CONDICOES_COM_ITENS = new Set(['credencial_problema', 'horario_suspeito', 'agenda_problema']);
+const CONDICOES_COM_ITENS = new Set(['credencial_problema', 'horario_suspeito', 'agenda_problema', 'email_agenda_falha']);
 const REENTREGA_JANELA_SEG = 24 * 3600;
 const LINK_PADRAO = 'https://tracking-ae.pages.dev/dash/#saude-meta';
 

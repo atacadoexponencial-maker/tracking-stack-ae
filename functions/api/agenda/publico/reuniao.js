@@ -9,6 +9,10 @@ import { emCimaDaHora, SITUACOES_ATIVAS } from '../../_agenda-regras.js';
 import {
   lerReuniao, lerTipo, cancelar, remarcar, registrarNoCrm, textoCrm, agora,
 } from '../../_agenda.js';
+import { emailsDaMudanca } from '../../_email-agenda.js';
+
+// E-mails da agenda (issue 379) sem segurar a resposta quando há waitUntil.
+const depois = (waitUntil, promessa) => (waitUntil ? waitUntil(promessa) : promessa);
 
 const json = (dados, status = 200) => Response.json(dados, { status, headers: { 'Cache-Control': 'no-store' } });
 
@@ -35,7 +39,7 @@ export async function onRequestGet({ request, env }) {
   return json(publico(reuniao, tipo));
 }
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   const corpo = await request.json().catch(() => ({}));
   const reuniao = await lerReuniao(env, { tokenGestao: corpo.g });
   if (!reuniao) return json({ error: 'Link inválido.' }, 404);
@@ -51,6 +55,7 @@ export async function onRequestPost({ request, env }) {
     const r = await cancelar(env, reuniao, { por: 'lead', motivo: corpo.motivo });
     if (r.erro) return json({ error: r.erro }, 409);
     await registrarNoCrm(env, reuniao, textoCrm('cancelou', tipo, reuniao, corpo.motivo ? `Motivo: ${String(corpo.motivo).slice(0, 500)}` : 'Cancelada pelo lead.'));
+    await depois(waitUntil, emailsDaMudanca(env, reuniao.id, 'cancelou'));
     return json(publico(await lerReuniao(env, { id: reuniao.id }), tipo));
   }
 
@@ -58,6 +63,7 @@ export async function onRequestPost({ request, env }) {
     const r = await remarcar(env, reuniao, tipo, Number(corpo.inicio), { por: 'lead' });
     if (r.erro) return json({ error: r.erro, codigo: r.codigo }, 409);
     await registrarNoCrm(env, reuniao, textoCrm('remarcou', tipo, { ...reuniao, inicio: r.inicio }));
+    await depois(waitUntil, emailsDaMudanca(env, reuniao.id, 'remarcou'));
     return json(publico(await lerReuniao(env, { id: reuniao.id }), tipo));
   }
 

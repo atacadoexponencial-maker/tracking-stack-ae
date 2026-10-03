@@ -16,6 +16,7 @@ import { situacaoPelaPresenca } from '../_agenda-regras.js';
 import {
   contasDasAgendas, lerTipo, historico, registrarNoCrm, textoCrm, agora, enviarRealizada,
 } from '../_agenda.js';
+import { emailsDaMudanca } from '../_email-agenda.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 const TETO_GOOGLE = 40;
@@ -82,11 +83,13 @@ export async function onRequestPost({ request, env, waitUntil }) {
         await historico(env, r.id, 'cancelou', 'evento apagado direto na agenda do Google', 'google');
         const tipo = await tipoDe(r.tipo_id);
         if (tipo) await registrarNoCrm(env, r, textoCrm('cancelou', tipo, r, 'Apagada direto na agenda do Google.'));
+        await emailsDaMudanca(env, r.id, 'cancelou');
         resumo.google.canceladas++;
       } else if (ev.ini !== r.inicio || ev.fim !== r.fim) {
         await env.DB.prepare("UPDATE agenda_reunioes SET inicio = ?, fim = ?, situacao = 'remarcada', atualizado_em = ? WHERE id = ?")
           .bind(ev.ini, ev.fim, t, r.id).run();
         await historico(env, r.id, 'remarcou', 'movida direto na agenda do Google', 'google');
+        await emailsDaMudanca(env, r.id, 'remarcou');
         resumo.google.movidas++;
       } else {
         await env.DB.prepare('UPDATE agenda_reunioes SET atualizado_em = ? WHERE id = ?').bind(t, r.id).run();
