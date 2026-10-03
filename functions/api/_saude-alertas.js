@@ -11,6 +11,7 @@ import { lerCredenciais } from './_credenciais-checagem.js';
 import { avaliarFontes } from './_horario-registro.js';
 import { resumoProblema } from './_credenciais.js';
 import { falhasRecentes } from './_email-agenda.js';
+import { reputacao } from './_email-relatorios.js';
 
 /** Condições e itens de credenciais e horário (sem valor de segredo, sem dado pessoal). */
 export async function condicoesDasProtecoes(env, agora) {
@@ -41,6 +42,13 @@ export async function condicoesDasProtecoes(env, agora) {
   if (emails.length) {
     condicoes.push('email_agenda_falha');
     itens.email_agenda_falha = emails;
+  }
+  // Reputação do e-mail (spec-email-proprio.md, módulo 7): spam ou devolução
+  // acima do limite nos últimos 30 dias, por canal.
+  const rep = await reputacao(env, agora);
+  if (rep.itens.length) {
+    condicoes.push('email_reputacao');
+    itens.email_reputacao = rep.itens;
   }
   return { condicoes, itens, credenciais, fontes };
 }

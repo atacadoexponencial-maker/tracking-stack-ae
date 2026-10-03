@@ -156,6 +156,8 @@ export const TITULOS_CONDICAO = {
   agenda_problema: 'Agenda do Google sem leitura',
   // spec-email-proprio.md, módulo 3
   email_agenda_falha: 'E-mail da agenda com problema',
+  // spec-email-proprio.md, módulo 7
+  email_reputacao: 'Reputação do e-mail acima do limite',
 };
 
 /**

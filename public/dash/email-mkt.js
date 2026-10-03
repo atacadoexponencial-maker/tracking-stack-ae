@@ -17,8 +17,8 @@
   'use strict';
 
   const VISTAS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
-  // Vistas já ligadas ao backend (377, 378, 380, 381, 382); as outras seguem protótipo.
-  const VISTAS_REAIS = ['campanhas', 'contatos', 'segmentos', 'modelos', 'configuracao'];
+  // Vistas já ligadas ao backend (377, 378, 380–384); as outras seguem protótipo.
+  const VISTAS_REAIS = ['campanhas', 'relatorio', 'contatos', 'segmentos', 'modelos', 'configuracao'];
   const TITULO_VISTA = {
     campanhas: 'Campanhas de e-mail', relatorio: 'Resultados do e-mail', fluxos: 'Fluxos automáticos',
     contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', configuracao: 'Configuração de e-mail',
@@ -171,7 +171,6 @@
 
   const modelo = (id) => D.modelos.find((m) => m.id === id);
   const segmento = (id) => D.segmentos.find((s) => s.id === id);
-  const campanha = (id) => D.campanhas.find((c) => c.id === id);
 
   // Regras de segmento (módulo 5): condições combinadas com "e".
   const CAMPOS_REGRA = {
@@ -322,8 +321,7 @@
   // 382 · Campanhas (ligada ao backend: GET/POST /api/email/campanhas)
   // ===========================================================================
   // Público, resumo, limite do mês, bloqueios, disparo único, envio em lotes e
-  // agendamento (383) ficam no servidor; aqui só a tela. O relatório segue
-  // protótipo até a 384.
+  // agendamento (383) ficam no servidor; aqui só a tela. O relatório é a 384.
   let filtroCamp = '';
   let campEstado = null;
   let campTimer = null;
@@ -384,6 +382,7 @@
       { titulo: 'Falhas', num: true, render: (c) => (c.falhas ? `<span class="carimbo queda">${int(c.falhas)}</span>` : '') },
       { titulo: '', render: (c) => `<div class="ag-acoes ag-acoes--linha">${menuHtml(c.nome, [
         { acao: 'abrir', id: c.id, rotulo: ['rascunho', 'agendada'].includes(c.situacao) ? 'Editar' : 'Abrir' },
+        c.disparada_em && { acao: 'relatorio', id: c.id, rotulo: 'Ver relatório' },
         c.modelo_id && { acao: 'teste', id: c.id, rotulo: 'Mandar teste' },
         { acao: 'duplicar', id: c.id, rotulo: 'Duplicar' },
         c.situacao === 'agendada' && { acao: 'cancelar', id: c.id, rotulo: 'Cancelar envio', perigo: true },
@@ -393,6 +392,7 @@
     const campanhaReal = (id) => S.campanhas.find((c) => String(c.id) === String(id));
     ligarAcoes(alvo, {
       abrir: (id) => abrirCampanha(campanhaReal(id), el),
+      relatorio: (id) => { campanhaRelatorio = Number(id); irPara('relatorio'); },
       teste: (id) => { const c = campanhaReal(id); const m = S.opcoes.modelos.find((x) => x.id === c.modelo_id); pedirTeste({ id: c.modelo_id, nome: m ? m.nome : c.nome, canal: 'marketing' }); },
       duplicar: async (id) => {
         try { const r = await ctx.postJson('/api/email/campanhas', { acao: 'duplicar', id: Number(id) }); filtroCamp = ''; avisar(`Campanha duplicada como rascunho: "${r.campanha.nome}".`); campanhas(el); }
@@ -435,7 +435,7 @@
     } else if (c.situacao === 'cancelada') {
       extra = '<p class="mini">Cancelada antes do horário. Ninguém recebeu.</p>';
     } else if (c.situacao === 'enviada') {
-      extra = '<p class="mini">Entregas, aberturas e cliques chegam do serviço de envio conforme acontecem. O relatório completo da campanha vem na próxima etapa.</p>';
+      extra = '<p class="mini">Entregas, aberturas e cliques chegam do serviço de envio conforme acontecem. O relatório mostra tudo, pessoa por pessoa.</p>';
     }
     const g = gaveta({
       titulo: esc(c.nome), sub: 'campanha de marketing',
@@ -446,8 +446,10 @@
           <dt>Envio</dt><dd>${esc(envioTxt(c))}</dd>
           <dt>Destinatários</dt><dd>${int(c.total)} · ${int(c.enviados)} enviados · ${int(c.falhas)} falhas</dd>
         </dl>${extra}`,
-      rodape: '<div class="ag-acoes"><button class="btn sec" type="button" data-dup>Duplicar</button></div>',
+      rodape: `<div class="ag-acoes">${c.disparada_em ? '<button class="btn" type="button" data-rel>Ver relatório</button>' : ''}<button class="btn sec" type="button" data-dup>Duplicar</button></div>`,
     });
+    const vr = g.querySelector('[data-rel]');
+    if (vr) vr.onclick = () => { g.close(); campanhaRelatorio = c.id; irPara('relatorio'); };
     g.querySelector('[data-dup]').onclick = async () => {
       try { await ctx.postJson('/api/email/campanhas', { acao: 'duplicar', id: c.id }); g.close(); filtroCamp = ''; avisar('Campanha duplicada como rascunho.'); campanhas(el); }
       catch (e) { avisar(msgErro(e), 'erro'); }
@@ -578,108 +580,144 @@
   }
 
   // ===========================================================================
-  // 375 · Relatório da campanha e visão geral do canal
+  // 384 · Relatório da campanha e visão geral do canal (GET /api/email/relatorios)
   // ===========================================================================
+  // Números, taxas, listas, uso do mês e reputação vêm do servidor; aqui só a
+  // tela. Com o relatório aberto, os números são pedidos de novo a cada 30 s.
   let campanhaRelatorio = null;
   let filtroRel = 'abriram';
   let periodoCanal = 'mes';
+  let relTimer = null;
+  const PERIODOS = [['mes', 'Este mês'], ['mes-passado', 'Mês passado'], ['90', 'Últimos 90 dias']];
+  const tx = (v, c = 1) => (v == null ? '–' : pct(v * 100, c));
 
-  function relatorio(el) {
-    if (campanhaRelatorio && campanha(campanhaRelatorio)) return relatorioCampanha(el, campanha(campanhaRelatorio));
-    const PER = { mes: ['Outubro até hoje', 1], 'mes-passado': ['Setembro', 3.1], '90': ['Últimos 90 dias', 6.4] };
-    const [perRot, f] = PER[periodoCanal];
-    const enviadas = vazio() ? [] : D.campanhas.filter((c) => c.situacao === 'enviada');
-    const ruim = cenario === 'dominio';
-    const enviados = vazio() ? 0 : Math.round(D.usoMes * f), entreg = Math.round(enviados * 0.978);
-    const spam = ruim ? 0.14 : 0.04, volta = ruim ? 4.6 : 1.1, desc = 0.48;
-    el.innerHTML = `${seloProto()}
-      <div class="em-barra">
+  async function relatorio(el) {
+    clearTimeout(relTimer);
+    if (campanhaRelatorio) return relatorioCampanha(el, campanhaRelatorio);
+    el.innerHTML = '<p class="aviso">Carregando a visão geral…</p>';
+    let v;
+    try { v = await ctx.fetchJson(`/api/email/relatorios?periodo=${periodoCanal}&_=${Date.now()}`); }
+    catch (e) { el.innerHTML = `<div class="aviso falha">Não foi possível carregar o relatório (${esc(e.message)}). Tente de novo em instantes.</div>`; return; }
+    if (api.vista !== 'relatorio' || campanhaRelatorio) return;
+    const u = v.uso;
+    const perRot = (PERIODOS.find((p) => p[0] === v.periodo) || PERIODOS[0])[1];
+    const usoP = u.limite ? (u.usados / u.limite) * 100 : 0;
+    const projP = u.limite ? Math.min(100, (u.projecao / u.limite) * 100) : 0;
+    const semEnvio = !v.enviados;
+    el.innerHTML = `<div class="em-barra">
         <div class="ig-vistas" role="group" aria-label="Campanhas ou visão geral">
           <button type="button" class="tipo-pill" aria-pressed="false" data-ir="campanhas">Campanhas</button>
           <button type="button" class="tipo-pill" aria-pressed="true">Visão geral do canal</button>
         </div>
-        <select data-periodo aria-label="Período">${Object.entries(PER).map(([k, [r]]) => `<option value="${k}"${k === periodoCanal ? ' selected' : ''}>${r}</option>`).join('')}</select>
+        <select data-periodo aria-label="Período">${PERIODOS.map(([k, r]) => `<option value="${k}"${k === periodoCanal ? ' selected' : ''}>${r}</option>`).join('')}</select>
       </div>
-      ${ruim ? `<div class="aviso alerta"><b>Alerta de reputação.</b> A taxa de spam (${pct(spam, 2)}) passou do limite aceito pelo serviço de envio (0,10%) e a devolução (${pct(volta, 1)}) está acima de 4%. Revise os segmentos antes do próximo disparo. Este alerta também vai para o aviso diário de integrações.</div>` : ''}
+      ${v.reputacao.itens.length ? `<div class="aviso alerta"><b>Alerta de reputação.</b> ${v.reputacao.itens.map(esc).join(' · ')}. Revise os segmentos antes do próximo disparo. Este alerta também vai para o aviso de integrações.</div>` : ''}
       <div class="metas em-metas">
-        <div class="metas-cabeca"><h2>Limite do plano</h2><span class="mini">${int(D.usoMes)} de ${int(D.limiteMes)} e-mails em outubro · renova em 01/11</span></div>
-        <div class="meta"><h3>E-mails enviados no mês <span>${pct((D.usoMes / D.limiteMes) * 100, 0)}</span></h3>
-          <div class="regua"><i style="width:${(D.usoMes / D.limiteMes) * 100}%"></i><b style="left:92%" title="projeção para o fim do mês"></b></div>
-          <div class="mini"><span>marketing ${int(D.usoMes - 410)} · agenda ${int(410)}</span><span>projeção para 31/10: ${int(9200)}</span></div></div>
+        <div class="metas-cabeca"><h2>Limite do plano</h2><span class="mini">${int(u.usados)} de ${int(u.limite)} e-mails neste mês · restam ${int(u.restam)} · renova em ${esc(u.renova)}</span></div>
+        <div class="meta"><h3>E-mails enviados no mês <span>${pct(usoP, 0)}</span></h3>
+          <div class="regua"><i style="width:${Math.min(100, usoP)}%"></i><b style="left:${projP}%" title="projeção para o fim do mês"></b></div>
+          <div class="mini"><span>marketing ${int(u.por_canal.marketing || 0)} · agenda e transacional ${int(u.por_canal.transacional || 0)}</span><span>projeção para o fim do mês: ${int(u.projecao)}</span></div></div>
       </div>
       <div class="grid-etiquetas">
         ${[
-          { rotulo: 'E-mails enviados', valor: int(enviados), nota: perRot.toLowerCase() },
-          { rotulo: 'Taxa de entrega', valor: vazio() ? null : pct(97.8), nota: vazio() ? 'nenhum envio ainda' : `${int(entreg)} entregues` },
-          { rotulo: 'Taxa de spam', valor: vazio() ? null : pct(spam, 2), nota: `limite do serviço: 0,10%${ruim ? ' · ACIMA' : ''}` },
-          { rotulo: 'Devolução', valor: vazio() ? null : pct(volta), nota: 'endereço que não existe' },
-          { rotulo: 'Descadastro', valor: vazio() ? null : pct(desc, 2), nota: 'por e-mail entregue' },
+          { rotulo: 'E-mails enviados', valor: int(v.enviados), nota: perRot.toLowerCase() + ' · sem os testes' },
+          { rotulo: 'Taxa de entrega', valor: semEnvio ? null : tx(v.taxas.entrega), nota: semEnvio ? 'nenhum envio no período' : `${int(v.entregues)} entregues` },
+          { rotulo: 'Taxa de spam', valor: semEnvio ? null : tx(v.taxas.spam, 2), nota: 'limite do serviço: 0,10%' },
+          { rotulo: 'Devolução', valor: semEnvio ? null : tx(v.taxas.devolucao), nota: 'endereço que não existe · alerta em 5%' },
+          { rotulo: 'Descadastro', valor: v.taxas.descadastro == null ? null : tx(v.taxas.descadastro, 2), nota: 'marketing, por e-mail entregue' },
         ].map((k) => ctx.tile(k)).join('')}
       </div>
       <div class="bloco"><h2>Campanhas enviadas <small>clique para abrir o relatório</small></h2><div class="tabela-wrap" id="em-rel-lista"></div></div>`;
-    ligarCenario(el, () => relatorio(el));
     el.querySelector('[data-ir="campanhas"]').onclick = () => irPara('campanhas');
     el.querySelector('[data-periodo]').onchange = (e) => { periodoCanal = e.target.value; relatorio(el); };
     ctx.tabela(el.querySelector('#em-rel-lista'), [
-      { titulo: 'Campanha', campo: 'nome', render: (c) => `<b>${esc(c.nome)}</b>` },
-      { titulo: 'Envio', render: (c) => esc(c.envio) },
+      { titulo: 'Campanha', campo: 'nome', render: (c) => `<b>${esc(c.nome)}</b>${c.situacao === 'falhou' ? ' <span class="carimbo queda">falhou</span>' : ''}` },
+      { titulo: 'Envio', render: (c) => esc(quando(c.disparada_em)) },
       { titulo: 'Entregues', num: true, campo: 'entregues', render: (c) => int(c.entregues) },
-      { titulo: 'Abertura', num: true, render: (c) => taxa(c.abertos, c.entregues) },
-      { titulo: 'Clique', num: true, render: (c) => taxa(c.clicados, c.entregues) },
-      { titulo: 'Descadastro', num: true, render: (c) => taxa(c.descad, c.entregues, 2) },
-    ], enviadas, (c) => { campanhaRelatorio = c.id; relatorio(el); window.scrollTo(0, 0); }, 'Nenhuma campanha enviada no período. Os resultados aparecem aqui conforme o serviço de envio avisa.');
+      { titulo: 'Abertura', num: true, render: (c) => tx(c.taxas.abertura) },
+      { titulo: 'Clique', num: true, render: (c) => tx(c.taxas.clique) },
+      { titulo: 'Descadastro', num: true, render: (c) => tx(c.taxas.descadastro, 2) },
+    ], v.campanhas, (c) => { campanhaRelatorio = c.id; relatorio(el); window.scrollTo(0, 0); }, 'Nenhuma campanha enviada no período. Os resultados aparecem aqui conforme o serviço de envio avisa.');
   }
 
-  function relatorioCampanha(el, c) {
-    const LINKS = c.id === 'c1'
-      ? [['atacadoexponencial.com/workshop-gratuito', 188], ['atacadoexponencial.com/grupo-workshop', 41], ['instagram.com/atacadoexponencial', 12]]
-      : [['atacadoexponencial.com/aplicacao', 84], ['atacadoexponencial.com/plano-ao-vivo', 19]];
-    const maior = Math.max(...LINKS.map((l) => l[1]), 1);
-    const r = aleatorio(c.id.length * 97 + c.dest);
-    const amostra = D.contatos.slice(0, 400).filter(() => r() < 0.5);
-    const pessoas = {
-      abriram: amostra.slice(0, 24).map((p, i) => ({ ...p, quando: `${dataBR(Date.UTC(2026, 9, 1))} ${String(9 + (i % 9)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}` })),
-      clicaram: amostra.slice(0, 9).map((p, i) => ({ ...p, quando: LINKS[i % LINKS.length][0] })),
-      voltaram: amostra.slice(40, 46).map((p, i) => ({ ...p, quando: i % 3 ? 'endereço não existe' : 'caixa cheia' })),
-      descadastraram: amostra.slice(60, 64).map((p) => ({ ...p, quando: 'pelo link do rodapé' })),
-    };
-    const ROT = { abriram: 'Abriram', clicaram: 'Clicaram', voltaram: 'Voltaram', descadastraram: 'Descadastraram' };
-    el.innerHTML = `${seloProto(true)}
-      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ICONE.voltar} Visão geral</button>
-        <span class="mini">atualiza sozinho conforme os resultados chegam · última atualização há 4 min</span></div>
-      <div class="em-rel-cabeca"><h2>${esc(c.nome)}</h2><p class="mini">Enviada em ${esc(c.envio)} · ${c.segmentos.map((s) => esc(segmento(s).nome)).join(' + ')} · modelo "${esc(modelo(c.modelo).nome)}"</p></div>
+  async function relatorioCampanha(el, id) {
+    clearTimeout(relTimer);
+    let r;
+    try { r = await ctx.fetchJson(`/api/email/relatorios?campanha=${encodeURIComponent(id)}&_=${Date.now()}`); }
+    catch (e) {
+      // Na atualização automática, mantém o que já está na tela e tenta de novo.
+      if (el.querySelector('[data-rel-campanha]')) { relTimer = setTimeout(() => relatorioCampanha(el, id), 30000); return; }
+      el.innerHTML = `<div class="aviso falha">Não foi possível carregar o relatório (${esc(e.message)}).</div><button class="btn sec" type="button" data-voltar>Voltar</button>`;
+      el.querySelector('[data-voltar]').onclick = () => { campanhaRelatorio = null; relatorio(el); };
+      return;
+    }
+    if (api.vista !== 'relatorio' || String(campanhaRelatorio) !== String(id)) return;
+    const c = r.campanha;
+    const maior = Math.max(1, ...r.links.map((l) => l.pessoas));
+    const ROT = { abriram: ['Abriram', r.abertos], clicaram: ['Clicaram', r.clicados], voltaram: ['Voltaram', r.voltaram], descadastraram: ['Descadastraram', r.descadastros] };
+    const atualizado = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    el.innerHTML = `<div class="em-barra" data-rel-campanha><button class="btn sec em-voltar" type="button" data-voltar>${ICONE.voltar} Visão geral</button>
+        <span class="mini">atualiza sozinho a cada 30 segundos · última às ${esc(atualizado)}</span></div>
+      <div class="em-rel-cabeca"><h2>${esc(c.nome)}</h2><p class="mini">${c.situacao === 'enviando' ? `Enviando: ${c.percentual}% · ` : ''}Enviada em ${esc(quando(c.disparada_em))} · assunto "${esc(c.assunto || '')}"</p></div>
+      ${c.situacao === 'falhou' && c.motivo ? `<div class="aviso falha"><b>Falhou:</b> ${esc(c.motivo)}</div>` : ''}
       <div class="grid-etiquetas">${[
-        { rotulo: 'Destinatários', valor: int(c.dest) },
-        { rotulo: 'Entregues', valor: int(c.entregues), nota: `entrega ${taxa(c.entregues, c.dest)}` },
-        { rotulo: 'Aberturas', valor: int(c.abertos), nota: `${taxa(c.abertos, c.entregues)} · pessoas únicas` },
-        { rotulo: 'Cliques', valor: int(c.clicados), nota: `${taxa(c.clicados, c.entregues)} · pessoas únicas` },
+        { rotulo: 'Destinatários', valor: int(r.destinatarios) },
+        { rotulo: 'Entregues', valor: int(r.entregues), nota: `entrega ${tx(r.taxas.entrega)}` },
+        { rotulo: 'Aberturas', valor: int(r.abertos), nota: `${tx(r.taxas.abertura)} · pessoas únicas` },
+        { rotulo: 'Cliques', valor: int(r.clicados), nota: `${tx(r.taxas.clique)} · pessoas únicas` },
       ].map((k) => ctx.tile(k, true)).join('')}</div>
       <div class="em-numeros">
-        <div><span>Voltaram</span><b>${int(c.voltaram)}</b><small>${taxa(c.voltaram, c.dest)}</small></div>
-        <div><span>Spam</span><b>${int(c.spam)}</b><small>${taxa(c.spam, c.entregues, 2)}</small></div>
-        <div><span>Descadastros</span><b>${int(c.descad)}</b><small>${taxa(c.descad, c.entregues, 2)}</small></div>
-        <div><span>Clique sobre abertura</span><b>${taxa(c.clicados, c.abertos)}</b><small>de quem abriu</small></div>
+        <div><span>Voltaram</span><b>${int(r.voltaram)}</b><small>${tx(r.taxas.devolucao)}</small></div>
+        <div><span>Spam</span><b>${int(r.spam)}</b><small>${tx(r.taxas.spam, 2)}</small></div>
+        <div><span>Descadastros</span><b>${int(r.descadastros)}</b><small>${tx(r.taxas.descadastro, 2)}</small></div>
+        <div><span>Clique sobre abertura</span><b>${tx(r.taxas.clique_sobre_abertura)}</b><small>de quem abriu</small></div>
       </div>
       <div class="duas">
         <div class="bloco"><h2>Quem fez o quê <small>clique no nome para abrir o contato</small></h2>
           <div class="ag-subvistas" role="group" aria-label="Filtrar pessoas">
-            ${Object.entries(ROT).map(([k, rot]) => `<button type="button" class="ag-subvista" data-rel="${k}" aria-pressed="${k === filtroRel}">${rot} <span class="ag-cont">${k === 'abriram' ? int(c.abertos) : k === 'clicaram' ? int(c.clicados) : k === 'voltaram' ? int(c.voltaram) : int(c.descad)}</span></button>`).join('')}
+            ${Object.entries(ROT).map(([k, [rot, n]]) => `<button type="button" class="ag-subvista" data-rel="${k}" aria-pressed="${k === filtroRel}">${rot} <span class="ag-cont">${int(n)}</span></button>`).join('')}
           </div>
           <div class="tabela-wrap" id="em-rel-pessoas"></div>
-          <p class="mini">Mostrando as primeiras pessoas da lista.</p>
+          <div class="paginacao" id="em-rel-mais"></div>
         </div>
         <div class="bloco"><h2>Links clicados <small>pessoas únicas</small></h2>
-          <table><tbody>${LINKS.map(([u, n]) => `<tr><td class="em-link-url">${esc(u)}</td><td class="num"><span class="proporcao" style="width:${Math.round((n / maior) * 80)}px"></span>${int(n)}</td></tr>`).join('')}</tbody></table>
+          ${r.links.length ? `<table><tbody>${r.links.map((l) => `<tr><td class="em-link-url">${esc(l.link.replace(/^https?:\/\//, ''))}</td><td class="num"><span class="proporcao" style="width:${Math.round((l.pessoas / maior) * 80)}px"></span>${int(l.pessoas)}</td></tr>`).join('')}</tbody></table>` : '<p class="mini">Nenhum clique ainda.</p>'}
         </div>
       </div>`;
-    el.querySelector('[data-voltar]').onclick = () => { campanhaRelatorio = null; relatorio(el); };
-    const desenhar = () => ctx.tabela(el.querySelector('#em-rel-pessoas'), [
-      { titulo: 'Pessoa', render: (p) => `<button type="button" class="ag-link-linha" data-contato="${p.id}">${esc(p.nome)}</button><br><span class="mini">${esc(p.email)}</span>` },
-      { titulo: filtroRel === 'clicaram' ? 'Link' : filtroRel === 'abriram' ? 'Quando' : 'Motivo', render: (p) => `<span class="mini">${esc(p.quando)}</span>` },
-    ], pessoas[filtroRel], undefined, 'Ninguém aqui.');
-    desenhar();
-    el.querySelectorAll('[data-rel]').forEach((b) => { b.onclick = () => { filtroRel = b.dataset.rel; el.querySelectorAll('[data-rel]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); desenhar(); }; });
-    el.querySelector('#em-rel-pessoas').addEventListener('click', (ev) => { const b = ev.target.closest('[data-contato]'); if (b) detalheContato(b.dataset.contato); });
+    el.querySelector('[data-voltar]').onclick = () => { clearTimeout(relTimer); campanhaRelatorio = null; relatorio(el); };
+    const MOTIVO = { HardBounce: 'endereço não existe', BadEmailAddress: 'endereço inválido', ManuallyDeactivated: 'desativado' };
+    let pagina = 1, linhas = [];
+    const coluna = () => (filtroRel === 'clicaram' ? 'Link' : filtroRel === 'voltaram' ? 'Motivo' : 'Quando');
+    const desenhar = (d) => {
+      ctx.tabela(el.querySelector('#em-rel-pessoas'), [
+        { titulo: 'Pessoa', render: (p) => (p.contato_id
+          ? `<button type="button" class="ag-link-linha" data-contato="${p.contato_id}">${esc(p.nome || p.email)}</button><br><span class="mini">${esc(p.email)}</span>`
+          : `<b>${esc(p.email)}</b>`) },
+        { titulo: coluna(), render: (p) => `<span class="mini">${esc(filtroRel === 'clicaram' ? (p.detalhe || '').replace(/^https?:\/\//, '')
+          : filtroRel === 'voltaram' ? (MOTIVO[p.detalhe] || p.detalhe || '') : quando(p.quando))}</span>` },
+      ], linhas, undefined, 'Ninguém aqui ainda.');
+      const mais = el.querySelector('#em-rel-mais');
+      mais.innerHTML = d.total > linhas.length ? `<span class="mini">mostrando ${int(linhas.length)} de ${int(d.total)}</span><button class="btn sec" type="button">Mostrar mais ${d.por_pagina}</button>` : '';
+      const b = mais.querySelector('button');
+      if (b) b.onclick = () => ocupado(b, () => carregar(pagina + 1));
+    };
+    const carregar = async (p) => {
+      try {
+        const d = await ctx.fetchJson(`/api/email/relatorios?campanha=${encodeURIComponent(id)}&lista=${filtroRel}&pagina=${p}&_=${Date.now()}`);
+        pagina = p;
+        linhas = p === 1 ? d.pessoas : linhas.concat(d.pessoas);
+        desenhar(d);
+      } catch (e) { avisar(msgErro(e), 'erro'); }
+    };
+    el.querySelectorAll('[data-rel]').forEach((b) => { b.onclick = () => { filtroRel = b.dataset.rel; el.querySelectorAll('[data-rel]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); carregar(1); }; });
+    el.querySelector('#em-rel-pessoas').addEventListener('click', (ev) => { const b = ev.target.closest('[data-contato]'); if (b) detalheContatoReal(b.dataset.contato); });
+    await carregar(1);
+    // Atualização sozinha: não redesenha com gaveta ou menu abertos.
+    relTimer = setTimeout(function tic() {
+      if (api.vista !== 'relatorio' || String(campanhaRelatorio) !== String(id)) return;
+      if (document.querySelector('.ag-menu__lista:not([hidden]), dialog[open], .confirma')) { relTimer = setTimeout(tic, 30000); return; }
+      relatorioCampanha(el, id);
+    }, 30000);
   }
 
   // ===========================================================================

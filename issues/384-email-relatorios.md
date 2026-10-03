@@ -82,10 +82,10 @@ A usuária abre o relatório da campanha de teste, vê os números atualizarem c
 
 ## Checklist
 
-- [ ] `_email-relatorios.js` com relatório da campanha, listas, visão do canal e reputação
-- [ ] `GET /api/email/relatorios`
-- [ ] Condição `email_reputacao` no aviso de integrações
-- [ ] Relatório e visão geral ligados ao backend, com atualização a cada 30 s
-- [ ] "Ver relatório" nas campanhas que saíram
-- [ ] Testes `email-relatorios` passando (`npm test`)
+- [x] `_email-relatorios.js` com relatório da campanha, listas, visão do canal e reputação
+- [x] `GET /api/email/relatorios`
+- [x] Condição `email_reputacao` no aviso de integrações
+- [x] Relatório e visão geral ligados ao backend, com atualização a cada 30 s
+- [x] "Ver relatório" nas campanhas que saíram
+- [x] Testes `email-relatorios` passando (`npm test`)
 - [ ] Usuária abre o relatório da campanha de teste, vê os números mudarem conforme abre e clica, filtra quem clicou, abre o contato e vê na visão geral quanto do limite do mês foi usado
