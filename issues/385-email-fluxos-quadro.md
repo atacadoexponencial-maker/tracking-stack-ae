@@ -117,13 +117,13 @@ Migration `migrations/0057_email_fluxos.sql` (só adição):
 
 ## Checklist
 
-- [ ] Migration `0057_email_fluxos.sql` aplicada no D1 remoto com `d1 execute --file`
-- [ ] `_email-fluxos.js` com catálogo, estrutura, problemas, salvar com versão, duplicar, arquivar, opções e travas
-- [ ] `GET/POST /api/email/fluxos`
-- [ ] Travas de modelo e segmento usados em fluxo
-- [ ] Quadro ligado ao backend com salvamento sozinho e problemas do servidor
-- [ ] Opções reais nos filtros dos gatilhos e condições
-- [ ] Criar modelo sem sair do fluxo
-- [ ] Seleção múltipla, copiar e colar (inclusive para outro fluxo)
-- [ ] Testes `email-fluxos` passando (`npm test`)
+- [x] Migration `0057_email_fluxos.sql` aplicada no D1 remoto com `d1 execute --file`
+- [x] `_email-fluxos.js` com catálogo, estrutura, problemas, salvar com versão, duplicar, arquivar, opções e travas
+- [x] `GET/POST /api/email/fluxos`
+- [x] Travas de modelo e segmento usados em fluxo
+- [x] Quadro ligado ao backend com salvamento sozinho e problemas do servidor
+- [x] Opções reais nos filtros dos gatilhos e condições
+- [x] Criar modelo sem sair do fluxo
+- [x] Seleção múltipla, copiar e colar (inclusive para outro fluxo)
+- [x] Testes `email-fluxos` passando (`npm test`)
 - [ ] Usuária monta do zero um fluxo com gatilho filtrado, dois e-mails, espera, desvio e objetivo, fecha e reabre e está tudo salvo; o quadro aponta onde está o problema quando falta ligação ou modelo
