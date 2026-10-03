@@ -70,10 +70,10 @@ export const TEXTOS = {
   selo: 'Plano de ação ao vivo',
   titulo: 'Dos 100 aos 500 mil por mês',
   subtitulo: 'O Felipe monta ao vivo o plano de 2 atacados reais. O seu pode ser um deles.',
-  pilula: 'Quarta, 07/10 às 19h · Google Meet',
-  abertura: 'Preencha para concorrer a uma das 2 vagas do plano de ação ao vivo. O preenchimento não garante a vaga.',
+  quando: 'Quarta, 07/10 às 19h',
+  onde: 'Google Meet, ao vivo',
   cta: 'Quero aplicar a minha marca',
-  nota: 'Leva uns 3 minutos.',
+  nota: 'São só 2 vagas. Preencher não garante a vaga. Leva uns 3 minutos.',
   obrigado: {
     titulo: 'Aplicação recebida',
     escolhidaRotulo: 'Se a sua marca for escolhida',
@@ -84,7 +84,7 @@ export const TEXTOS = {
     link: 'O link chega no grupo de WhatsApp e por aqui.',
   },
   encerradas: 'As aplicações foram encerradas.',
-  encerradasLembrete: 'Quarta, 07/10, às 19h, no Google Meet. O link chega no grupo de WhatsApp.',
+  encerradasLembrete: 'O link do Meet chega no grupo de WhatsApp.',
 };
 
 /**
