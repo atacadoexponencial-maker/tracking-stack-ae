@@ -321,9 +321,9 @@
   // ===========================================================================
   // 382 · Campanhas (ligada ao backend: GET/POST /api/email/campanhas)
   // ===========================================================================
-  // Público, resumo, limite do mês, bloqueios, disparo único e envio em lotes
-  // ficam no servidor; aqui só a tela. Agendar fica para a 383; o relatório
-  // segue protótipo até a 384.
+  // Público, resumo, limite do mês, bloqueios, disparo único, envio em lotes e
+  // agendamento (383) ficam no servidor; aqui só a tela. O relatório segue
+  // protótipo até a 384.
   let filtroCamp = '';
   let campEstado = null;
   let campTimer = null;
@@ -336,6 +336,10 @@
       <div class="regua" aria-hidden="true"><i style="width:${Math.min(100, p)}%"></i></div>
     </div>`;
   }
+  const diaBrt = (t) => new Date(t * 1000).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const horaBrt = (t) => new Date(t * 1000).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+  const envioTxt = (c) => (c.situacao === 'agendada' && c.agendada_para ? `agendada para ${quando(c.agendada_para)}`
+    : c.disparada_em ? quando(c.disparada_em) : c.situacao === 'cancelada' ? 'cancelada' : 'sem data');
   const progresso = (c) => `<span data-prog="${c.id}"><span class="em-progresso" title="${c.percentual}% enviado"><span style="width:${c.percentual}%"></span></span> <b>${c.percentual}%</b></span>`;
 
   async function campanhas(el) {
@@ -362,7 +366,7 @@
       ${avisoLimite(S.uso)}
       <div class="ag-subvistas" role="group" aria-label="Filtrar por situação">
         <button type="button" class="ag-subvista" data-filtro="" aria-pressed="${!filtroCamp}">Todas <span class="ag-cont">${total}</span></button>
-        ${['rascunho', 'enviando', 'enviada', 'falhou'].map((k) => `<button type="button" class="ag-subvista" data-filtro="${k}" aria-pressed="${filtroCamp === k}">${SITUACAO_CAMP[k][0]} <span class="ag-cont${k === 'falhou' && S.por_situacao[k] ? ' alerta' : ''}">${S.por_situacao[k] || 0}</span></button>`).join('')}
+        ${['rascunho', 'agendada', 'enviando', 'enviada', 'cancelada', 'falhou'].map((k) => `<button type="button" class="ag-subvista" data-filtro="${k}" aria-pressed="${filtroCamp === k}">${SITUACAO_CAMP[k][0]} <span class="ag-cont${k === 'falhou' && S.por_situacao[k] ? ' alerta' : ''}">${S.por_situacao[k] || 0}</span></button>`).join('')}
       </div>
       <div class="tabela-wrap" id="em-camp-lista"></div>`;
     el.querySelector('[data-ir="relatorio"]').onclick = () => { campanhaRelatorio = null; irPara('relatorio'); };
@@ -374,14 +378,15 @@
       { titulo: 'Campanha', campo: 'nome', render: (c) => `<button type="button" class="ag-link-linha" data-acao="abrir" data-id="${c.id}">${esc(c.nome)}</button>` },
       { titulo: 'Situação', campo: 'situacao', render: (c) => (c.situacao === 'enviando' ? progresso(c) : carimbo(SITUACAO_CAMP, c.situacao)) },
       { titulo: 'Segmentos', render: (c) => `<span class="mini">${c.segmentos.map((s) => esc(segNome(s))).join(' + ')}</span>` },
-      { titulo: 'Envio', render: (c) => esc(c.disparada_em ? quando(c.disparada_em) : 'sem data') },
+      { titulo: 'Envio', render: (c) => esc(envioTxt(c)) },
       { titulo: 'Destinatários', num: true, render: (c) => (c.total ? int(c.total) : '') },
       { titulo: 'Enviados', num: true, render: (c) => (c.disparada_em ? int(c.enviados) : '') },
       { titulo: 'Falhas', num: true, render: (c) => (c.falhas ? `<span class="carimbo queda">${int(c.falhas)}</span>` : '') },
       { titulo: '', render: (c) => `<div class="ag-acoes ag-acoes--linha">${menuHtml(c.nome, [
-        { acao: 'abrir', id: c.id, rotulo: c.situacao === 'rascunho' ? 'Editar' : 'Abrir' },
+        { acao: 'abrir', id: c.id, rotulo: ['rascunho', 'agendada'].includes(c.situacao) ? 'Editar' : 'Abrir' },
         c.modelo_id && { acao: 'teste', id: c.id, rotulo: 'Mandar teste' },
         { acao: 'duplicar', id: c.id, rotulo: 'Duplicar' },
+        c.situacao === 'agendada' && { acao: 'cancelar', id: c.id, rotulo: 'Cancelar envio', perigo: true },
         c.situacao === 'rascunho' && { acao: 'excluir', id: c.id, rotulo: 'Excluir rascunho', perigo: true },
       ])}</div>` },
     ], S.campanhas, undefined, total ? 'Nenhuma campanha nesta situação.' : 'Nenhuma campanha ainda. Comece por "Nova campanha": escolha um modelo, um ou mais segmentos e mande um teste antes de disparar.');
@@ -393,6 +398,11 @@
         try { const r = await ctx.postJson('/api/email/campanhas', { acao: 'duplicar', id: Number(id) }); filtroCamp = ''; avisar(`Campanha duplicada como rascunho: "${r.campanha.nome}".`); campanhas(el); }
         catch (e) { avisar(msgErro(e), 'erro'); }
       },
+      cancelar: (id, b) => ctx.pedirConfirmacao(b, 'Cancelar o envio agendado?', async () => {
+        fecharMenus();
+        try { await ctx.postJson('/api/email/campanhas', { acao: 'cancelar', id: Number(id) }); avisar('Envio cancelado. Ninguém recebeu.'); campanhas(el); }
+        catch (e) { avisar(msgErro(e), 'erro'); }
+      }),
       excluir: (id, b) => ctx.pedirConfirmacao(b, 'Excluir este rascunho?', async () => {
         fecharMenus();
         try { await ctx.postJson('/api/email/campanhas', { acao: 'excluir', id: Number(id) }); avisar('Rascunho excluído.'); campanhas(el); }
@@ -411,7 +421,7 @@
   }
 
   function abrirCampanha(c, el) {
-    if (c.situacao === 'rascunho') return formCampanha(c, el);
+    if (c.situacao === 'rascunho' || c.situacao === 'agendada') return formCampanha(c, el);
     const S = campEstado;
     const m = S.opcoes.modelos.find((x) => x.id === c.modelo_id);
     const segs = c.segmentos.map((id) => (S.opcoes.segmentos.find((s) => s.id === id) || { nome: 'segmento excluído' }).nome);
@@ -422,6 +432,8 @@
         <p class="mini">${int(c.enviados)} de ${int(c.total)} já saíram · ${int(c.falhas)} falhas até agora. Feche e acompanhe na lista: o número sobe sozinho.</p></div>`;
     } else if (c.situacao === 'falhou') {
       extra = `<div class="aviso falha"><b>Motivo:</b> ${esc(c.motivo || 'sem motivo registrado')}</div><p class="mini">Uma campanha que falha nunca sai pela metade sem aviso: o que não saiu fica marcado, e nada é reenviado sozinho.</p>`;
+    } else if (c.situacao === 'cancelada') {
+      extra = '<p class="mini">Cancelada antes do horário. Ninguém recebeu.</p>';
     } else if (c.situacao === 'enviada') {
       extra = '<p class="mini">Entregas, aberturas e cliques chegam do serviço de envio conforme acontecem. O relatório completo da campanha vem na próxima etapa.</p>';
     }
@@ -431,7 +443,7 @@
           <dt>Situação</dt><dd>${carimbo(SITUACAO_CAMP, c.situacao)}</dd>
           <dt>Modelo</dt><dd>${esc(m ? m.nome : 'modelo arquivado')}<br><span class="mini">${esc(c.assunto || (m ? m.assunto : ''))}</span></dd>
           <dt>Segmentos</dt><dd>${segs.map(esc).join('<br>')}</dd>
-          <dt>Envio</dt><dd>${esc(c.disparada_em ? quando(c.disparada_em) : '')}</dd>
+          <dt>Envio</dt><dd>${esc(envioTxt(c))}</dd>
           <dt>Destinatários</dt><dd>${int(c.total)} · ${int(c.enviados)} enviados · ${int(c.falhas)} falhas</dd>
         </dl>${extra}`,
       rodape: '<div class="ag-acoes"><button class="btn sec" type="button" data-dup>Duplicar</button></div>',
@@ -444,6 +456,7 @@
 
   function formCampanha(c, el) {
     const S = campEstado;
+    const agendada = !!(c && c.situacao === 'agendada');
     const corpo = `<form class="ag-form em-form" id="em-camp-form" novalidate>
         <label>Nome interno<input type="text" name="nome" maxlength="100" value="${esc(c ? c.nome : '')}" placeholder="Ex.: Convite workshop 05/11" required></label>
         <label>Modelo<select name="modelo"><option value="">Escolha um modelo</option>${S.opcoes.modelos.map((m) => `<option value="${m.id}"${c && m.id === c.modelo_id ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
@@ -452,35 +465,58 @@
           ${S.opcoes.segmentos.length ? S.opcoes.segmentos.map((s) => `<label class="marca"><input type="checkbox" name="seg" value="${s.id}"${c && c.segmentos.includes(s.id) ? ' checked' : ''}> ${esc(s.nome)} <span class="mini">${int(s.ativos)} ativos</span></label>`).join('') : '<p class="mini">Nenhum segmento ainda. Crie um em Segmentos.</p>'}
         </fieldset>
         <label>Remetente<input type="text" value="${esc(S.remetente)}" readonly><span class="mini">Vem da configuração de e-mail.</span></label>
+        <fieldset><legend>Quando enviar</legend>
+          <label class="marca"><input type="radio" name="quando" value="agora"${agendada ? '' : ' checked'}${agendada ? ' disabled' : ''}> Agora, depois do resumo</label>
+          <label class="marca"><input type="radio" name="quando" value="agendar"${agendada ? ' checked' : ''}> Agendar para data e hora (Brasília)</label>
+          <div class="linha" data-quando-campos${agendada ? '' : ' hidden'}>
+            <label>Dia<input type="date" name="dia" value="${agendada ? diaBrt(c.agendada_para) : ''}"></label>
+            <label>Hora<input type="time" name="hora" value="${agendada ? horaBrt(c.agendada_para) : '09:00'}"></label>
+          </div>
+          <span class="mini">A lista é recalculada na hora do envio: quem entrar até lá também recebe, e quem se descadastrar não recebe.</span>
+        </fieldset>
       </form>
       <div class="em-erro" aria-live="polite"></div>
       <div id="em-camp-resumo"></div>`;
     const g = gaveta({
-      titulo: c ? esc(c.nome) : 'Nova campanha', sub: 'rascunho: só sai quando você disparar',
+      titulo: c ? esc(c.nome) : 'Nova campanha',
+      sub: agendada ? `agendada para ${esc(quando(c.agendada_para))}: dá para editar até o horário` : 'rascunho: só sai quando você disparar ou agendar',
       corpo,
-      rodape: '<div class="ag-acoes"><button class="btn" type="button" data-revisar>Revisar e disparar</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button></div>',
+      rodape: agendada
+        ? '<div class="ag-acoes"><button class="btn" type="button" data-salvar>Salvar alterações</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn perigo" type="button" data-cancelar>Cancelar envio</button></div>'
+        : '<div class="ag-acoes"><button class="btn" type="button" data-revisar>Revisar e disparar</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button></div>',
     });
     const f = g.querySelector('#em-camp-form');
     const erro = g.querySelector('.em-erro');
     let atual = c;
     const dados = () => ({ nome: f.nome.value, modelo_id: f.modelo.value ? Number(f.modelo.value) : null, segmentos: [...f.querySelectorAll('[name="seg"]:checked')].map((i) => Number(i.value)) });
+    const agendar = () => f.quando.value === 'agendar';
+    const quandoTxt = () => `${f.dia.value.split('-').reverse().slice(0, 2).join('/')} às ${f.hora.value}`;
     const mostrarAssunto = () => {
       const m = S.opcoes.modelos.find((x) => String(x.id) === f.modelo.value);
       g.querySelector('#em-camp-assunto').innerHTML = m ? `<span class="mini">Assunto</span> <b>${esc(m.assunto || '(sem assunto)')}</b><br><span class="mini">${esc(m.previa || '')}</span>` : '';
       g.querySelector('#em-camp-resumo').innerHTML = '';
       erro.textContent = '';
+      g.querySelector('[data-quando-campos]').hidden = !agendar();
+      const br2 = g.querySelector('[data-revisar]');
+      if (br2) br2.textContent = agendar() ? 'Revisar e agendar' : 'Revisar e disparar';
     };
     f.addEventListener('change', mostrarAssunto);
     mostrarAssunto();
     const salvarRascunho = async () => {
-      const r = await ctx.postJson('/api/email/campanhas', { acao: 'salvar', id: atual ? atual.id : undefined, ...dados() });
+      const extra = agendada ? { dia: f.dia.value, hora: f.hora.value } : {};
+      const r = await ctx.postJson('/api/email/campanhas', { acao: 'salvar', id: atual ? atual.id : undefined, ...dados(), ...extra });
       atual = r.campanha;
       return atual;
     };
     const bs = g.querySelector('[data-salvar]');
     bs.onclick = () => ocupado(bs, async () => {
-      try { await salvarRascunho(); g.close(); avisar('Rascunho salvo.'); campanhas(el); }
+      try { await salvarRascunho(); g.close(); avisar(agendada ? 'Campanha agendada atualizada.' : 'Rascunho salvo.'); campanhas(el); }
       catch (e) { erro.textContent = msgErro(e); }
+    });
+    const bc = g.querySelector('[data-cancelar]');
+    if (bc) bc.onclick = () => ctx.pedirConfirmacao(bc, 'Cancelar o envio agendado?', async () => {
+      try { await ctx.postJson('/api/email/campanhas', { acao: 'cancelar', id: c.id }); g.close(); avisar('Envio cancelado. Ninguém recebeu.'); campanhas(el); }
+      catch (e) { erro.textContent = msgErro(e); return false; }
     });
     g.querySelector('[data-teste]').onclick = () => {
       const m = S.opcoes.modelos.find((x) => String(x.id) === f.modelo.value);
@@ -488,7 +524,8 @@
       pedirTeste({ id: m.id, nome: m.nome, canal: 'marketing' });
     };
     const br = g.querySelector('[data-revisar]');
-    br.onclick = () => ocupado(br, async () => {
+    if (br) br.onclick = () => ocupado(br, async () => {
+      if (agendar() && (!f.dia.value || !f.hora.value)) { erro.textContent = 'Escolha o dia e a hora do envio.'; return; }
       let r;
       try {
         await salvarRascunho();
@@ -497,8 +534,9 @@
       erro.textContent = '';
       const totFora = Object.values(r.fora).reduce((a, b) => a + b, 0);
       g.querySelector('#em-camp-resumo').innerHTML = `<div class="em-resumo">
-        <h3 class="ag-h3">Resumo antes de disparar</h3>
-        <div class="em-resumo__grande"><b>${int(r.recebem)}</b> pessoas vão receber</div>
+        <h3 class="ag-h3">Resumo antes de ${agendar() ? 'agendar' : 'disparar'}</h3>
+        <div class="em-resumo__grande"><b>${int(r.recebem)}</b> pessoas ${agendar() ? 'receberiam agora' : 'vão receber'}</div>
+        ${agendar() ? '<p class="mini">Na hora do envio a lista é recalculada, e o envio é conferido de novo (marketing liberado, limite do mês).</p>' : ''}
         ${r.em_dois ? `<p class="mini">${int(r.em_dois)} estão em mais de um segmento escolhido e recebem uma vez só.</p>` : ''}
         <p><b>${int(totFora)}</b> ficam de fora:</p>
         <ul class="em-fora">
@@ -510,12 +548,24 @@
         ${r.sem_nome ? `<div class="aviso alerta">${int(r.sem_nome)} ${r.sem_nome === 1 ? 'pessoa está' : 'pessoas estão'} sem nome no cadastro: para elas, o nome do e-mail sai em branco.</div>` : ''}
         <p class="mini">Assunto: <b>${esc(r.assunto)}</b> · remetente ${esc(r.remetente)}. Limite do mês: ${int(r.uso.usados)} usados, restam ${int(r.uso.restam)}.</p>
         ${r.bloqueio ? `<div class="aviso alerta">${esc(r.bloqueio)}</div>` : ''}
-        <div class="ag-acoes"><button class="btn" type="button" data-disparar${r.bloqueio ? ' disabled' : ''}>Disparar para ${int(r.recebem)} pessoas</button></div>
+        <div class="ag-acoes">${agendar()
+          ? `<button class="btn" type="button" data-agendar>Agendar para ${esc(quandoTxt())}</button>`
+          : `<button class="btn" type="button" data-disparar${r.bloqueio ? ' disabled' : ''}>Disparar para ${int(r.recebem)} pessoas</button>`}</div>
       </div>`;
       const corpoG = g.querySelector('.ag-gaveta__corpo');
       corpoG.scrollTop = corpoG.scrollHeight;
+      const ba = g.querySelector('[data-agendar]');
+      if (ba) ba.onclick = () => ctx.pedirConfirmacao(ba, `Agendar para ${quandoTxt()}?`, async () => {
+        try {
+          await ctx.postJson('/api/email/campanhas', { acao: 'agendar', id: atual.id, dia: f.dia.value, hora: f.hora.value });
+          g.close();
+          filtroCamp = '';
+          avisar(`Agendada para ${quandoTxt()}.`);
+          campanhas(el);
+        } catch (e) { erro.textContent = msgErro(e); avisar(msgErro(e), 'erro'); return false; }
+      }, [{ valor: true, rotulo: 'Agendar' }]);
       const b = g.querySelector('[data-disparar]');
-      b.onclick = () => ctx.pedirConfirmacao(b, `Disparar agora para ${int(r.recebem)} pessoas? Não dá para desfazer.`, async () => {
+      if (b) b.onclick = () => ctx.pedirConfirmacao(b, `Disparar agora para ${int(r.recebem)} pessoas? Não dá para desfazer.`, async () => {
         try {
           await ctx.postJson('/api/email/campanhas', { acao: 'disparar', id: atual.id });
           g.close();

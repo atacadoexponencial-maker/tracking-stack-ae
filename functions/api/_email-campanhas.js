@@ -131,20 +131,33 @@ async function segmentosValidos(env, ids, { exigir }) {
   return r.map((s) => ({ id: s.id, regras: JSON.parse(s.regras_json || '[]') }));
 }
 
-export async function salvarCampanha(env, { id, nome, modelo_id: modeloId, segmentos }) {
+export async function salvarCampanha(env, { id, nome, modelo_id: modeloId, segmentos, dia, hora }) {
   const n = String(nome || '').trim();
   if (!n) throw new ErroCampanha('Dê um nome à campanha.');
   if (n.length > MAX_NOME) throw new ErroCampanha(`O nome passa de ${MAX_NOME} caracteres.`);
-  const m = await modeloDaCampanha(env, modeloId, { exigir: false });
-  const segs = await segmentosValidos(env, segmentos, { exigir: false });
   const t = agora();
   if (id) {
     const c = await lerCampanha(env, id);
-    if (c.situacao !== 'rascunho') throw new ErroCampanha('Só dá para editar campanha em rascunho.', 409);
+    if (c.situacao === 'agendada') {
+      // Agendada (383): edita até o horário, com tudo preenchido.
+      const m = await modeloDaCampanha(env, modeloId, { exigir: true });
+      const segs = await segmentosValidos(env, segmentos, { exigir: true });
+      const para = dia || hora ? quandoBrt(dia, hora, t) : c.agendada_para;
+      const r = await env.DB.prepare(
+        "UPDATE email_campanhas SET nome = ?, modelo_id = ?, segmentos_json = ?, agendada_para = ?, atualizado_em = ? WHERE id = ? AND situacao = 'agendada'",
+      ).bind(n, m.id, JSON.stringify(segs.map((s) => s.id)), para, t, c.id).run();
+      if (r.meta.changes !== 1) throw new ErroCampanha('A campanha já começou a sair.', 409);
+      return detalheCampanha(env, c.id);
+    }
+    if (c.situacao !== 'rascunho') throw new ErroCampanha('Só dá para editar campanha em rascunho ou agendada.', 409);
+    const m = await modeloDaCampanha(env, modeloId, { exigir: false });
+    const segs = await segmentosValidos(env, segmentos, { exigir: false });
     await env.DB.prepare('UPDATE email_campanhas SET nome = ?, modelo_id = ?, segmentos_json = ?, atualizado_em = ? WHERE id = ?')
       .bind(n, m ? m.id : null, JSON.stringify(segs.map((s) => s.id)), t, c.id).run();
     return detalheCampanha(env, c.id);
   }
+  const m = await modeloDaCampanha(env, modeloId, { exigir: false });
+  const segs = await segmentosValidos(env, segmentos, { exigir: false });
   const ins = await env.DB.prepare(
     "INSERT INTO email_campanhas (nome, modelo_id, segmentos_json, situacao, criado_em, atualizado_em) VALUES (?, ?, ?, 'rascunho', ?, ?)",
   ).bind(n, m ? m.id : null, JSON.stringify(segs.map((s) => s.id)), t, t).run();
@@ -232,12 +245,22 @@ export async function disparar(env, id, t = agora()) {
   if (c.situacao !== 'rascunho') throw new ErroCampanha('Esta campanha já foi disparada.', 409);
   const r = await resumo(env, { modelo_id: c.modelo_id, segmentos: c.segmentos });
   if (r.bloqueio) throw new ErroCampanha(r.bloqueio, 409);
+  if (!(await iniciarEnvio(env, c, 'rascunho', r.assunto, t))) throw new ErroCampanha('Esta campanha já foi disparada.', 409);
+  return detalheCampanha(env, c.id);
+}
+
+/**
+ * Começo do envio, comum ao disparo (rascunho) e à agendada (383): troca a
+ * situação uma vez só, recalcula a lista de ativos e grava os destinatários.
+ * Devolve false quando outra chamada já trocou.
+ */
+async function iniciarEnvio(env, c, de, assunto, t) {
   const segs = await segmentosValidos(env, c.segmentos, { exigir: true });
   const p = await publico(env, segs, t);
   const troca = await env.DB.prepare(
-    "UPDATE email_campanhas SET situacao = 'enviando', assunto = ?, total = ?, disparada_em = ?, atualizado_em = ? WHERE id = ? AND situacao = 'rascunho'",
-  ).bind(r.assunto, p.ativos.length, t, t, c.id).run();
-  if (troca.meta.changes !== 1) throw new ErroCampanha('Esta campanha já foi disparada.', 409);
+    "UPDATE email_campanhas SET situacao = 'enviando', assunto = ?, total = ?, disparada_em = ?, atualizado_em = ? WHERE id = ? AND situacao = ?",
+  ).bind(assunto, p.ativos.length, t, t, c.id, de).run();
+  if (troca.meta.changes !== 1) return false;
   // O D1 aceita até 100 valores por comando: 3 por destinatário, 30 por vez.
   for (let i = 0; i < p.ativos.length; i += 30) {
     const parte = p.ativos.slice(i, i + 30);
@@ -246,7 +269,99 @@ export async function disparar(env, id, t = agora()) {
        VALUES ${parte.map(() => `(${c.id}, ?, ?, 'pendente', ?)`).join(', ')}`,
     ).bind(...parte.flatMap((x) => [x.id, x.email, t])).run();
   }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Agendamento (383)
+// ---------------------------------------------------------------------------
+
+const MIN_ANTECEDENCIA = 5 * 60;
+const MAX_ANTECEDENCIA = 90 * 86400;
+
+/** Dia (AAAA-MM-DD) e hora (HH:MM) de Brasília → unix, dentro da janela aceita. */
+export function quandoBrt(dia, hora, t = agora()) {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hora || ''));
+  const zero = inicioDoDiaBrt(String(dia || ''));
+  if (!m || zero === null) throw new ErroCampanha('Escolha o dia e a hora do envio.');
+  const quando = zero + Number(m[1]) * 3600 + Number(m[2]) * 60;
+  if (quando < t + MIN_ANTECEDENCIA) throw new ErroCampanha('Escolha um horário pelo menos 5 minutos à frente.');
+  if (quando > t + MAX_ANTECEDENCIA) throw new ErroCampanha('Escolha um horário dentro dos próximos 90 dias.');
+  return quando;
+}
+
+/** Rascunho → agendada. Os bloqueios de envio são conferidos de novo na hora de sair. */
+export async function agendar(env, id, { dia, hora }, t = agora()) {
+  const c = await lerCampanha(env, id);
+  if (c.situacao !== 'rascunho') throw new ErroCampanha('Só rascunho pode ser agendado.', 409);
+  await modeloDaCampanha(env, c.modelo_id, { exigir: true });
+  await segmentosValidos(env, c.segmentos, { exigir: true });
+  const para = quandoBrt(dia, hora, t);
+  const r = await env.DB.prepare(
+    "UPDATE email_campanhas SET situacao = 'agendada', agendada_para = ?, atualizado_em = ? WHERE id = ? AND situacao = 'rascunho'",
+  ).bind(para, t, c.id).run();
+  if (r.meta.changes !== 1) throw new ErroCampanha('Só rascunho pode ser agendado.', 409);
   return detalheCampanha(env, c.id);
+}
+
+export async function cancelarAgendada(env, id, t = agora()) {
+  const c = await lerCampanha(env, id);
+  const r = await env.DB.prepare(
+    "UPDATE email_campanhas SET situacao = 'cancelada', cancelada_em = ?, atualizado_em = ? WHERE id = ? AND situacao = 'agendada'",
+  ).bind(t, t, c.id).run();
+  if (r.meta.changes !== 1) {
+    throw new ErroCampanha(c.situacao === 'agendada' || c.situacao === 'enviando' ? 'A campanha já começou a sair.' : 'Só campanha agendada pode ser cancelada.', 409);
+  }
+  return detalheCampanha(env, c.id);
+}
+
+/**
+ * Agendadas cujo horário chegou: confere os bloqueios de novo e começa o
+ * envio (lista recalculada agora). O que barrar vira "falhou" com o motivo.
+ */
+export async function processarAgendadas(env, t = agora()) {
+  const prontas = (await env.DB.prepare(
+    "SELECT * FROM email_campanhas WHERE situacao = 'agendada' AND agendada_para <= ? ORDER BY agendada_para",
+  ).bind(t).all()).results || [];
+  let iniciadas = 0;
+  for (const l of prontas) {
+    const c = daLinha(l);
+    let r;
+    try {
+      r = await resumo(env, { modelo_id: c.modelo_id, segmentos: c.segmentos });
+    } catch (e) {
+      if (!(e instanceof ErroCampanha)) throw e;
+      r = { bloqueio: e.message };
+    }
+    if (r.bloqueio) {
+      await env.DB.prepare("UPDATE email_campanhas SET situacao = 'falhou', motivo = ?, concluida_em = ?, atualizado_em = ? WHERE id = ? AND situacao = 'agendada'")
+        .bind(`Não saiu no horário: ${r.bloqueio}`, t, t, c.id).run();
+      continue;
+    }
+    if (await iniciarEnvio(env, c, 'agendada', r.assunto, t)) iniciadas++;
+  }
+  return iniciadas;
+}
+
+/** Travas: modelo e segmento usados em campanha agendada. */
+export async function modeloEmAgendadas(env, modeloId) {
+  try {
+    const r = (await env.DB.prepare("SELECT nome FROM email_campanhas WHERE situacao = 'agendada' AND modelo_id = ? ORDER BY nome").bind(Number(modeloId)).all()).results || [];
+    return r.map((x) => `campanha agendada "${x.nome}"`);
+  } catch {
+    return []; // migration 0056 ainda não aplicada
+  }
+}
+
+export async function segmentoEmAgendadas(env, segmentoId) {
+  try {
+    const r = (await env.DB.prepare(
+      "SELECT DISTINCT c.nome FROM email_campanhas c, json_each(c.segmentos_json) j WHERE c.situacao = 'agendada' AND j.value = ? ORDER BY c.nome",
+    ).bind(Number(segmentoId)).all()).results || [];
+    return r.map((x) => `campanha agendada "${x.nome}"`);
+  } catch {
+    return [];
+  }
 }
 
 function valoresDoContato(d) {

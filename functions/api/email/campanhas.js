@@ -1,6 +1,8 @@
 // GET  /api/email/campanhas?key=...[&situacao=]  → campanhas com andamento, uso do mês e opções do formulário
 // GET  /api/email/campanhas?key=...&id=<id>      → uma campanha com andamento
-// POST /api/email/campanhas?key=...  → { acao: 'salvar', id?, nome, modelo_id?, segmentos? }
+// POST /api/email/campanhas?key=...  → { acao: 'salvar', id?, nome, modelo_id?, segmentos?, dia?, hora? }  (dia/hora: reagendar uma agendada)
+//                                      { acao: 'agendar', id, dia: 'AAAA-MM-DD', hora: 'HH:MM' }   (Brasília; 383)
+//                                      { acao: 'cancelar', id }   (só agendada; 383)
 //                                      { acao: 'resumo', modelo_id, segmentos }   (sem gravar)
 //                                      { acao: 'disparar' | 'duplicar' | 'excluir', id }
 //
@@ -10,7 +12,7 @@
 // POST /api/email/modelos (enviar_teste) com o modelo da campanha.
 import {
   ErroCampanha, listarCampanhas, detalheCampanha, usoDoMes, salvarCampanha, resumo, disparar,
-  duplicarCampanha, excluirCampanha, processarEnvio,
+  duplicarCampanha, excluirCampanha, processarEnvio, agendar, cancelarAgendada,
 } from '../_email-campanhas.js';
 import { listarSegmentos } from '../_email-segmentos.js';
 import { lerConfig, remetente } from '../_email-config.js';
@@ -56,6 +58,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
         if (waitUntil) waitUntil(envio); else await envio;
         return json({ ok: true, campanha });
       }
+      case 'agendar': return json({ ok: true, campanha: await agendar(env, corpo.id, corpo) });
+      case 'cancelar': return json({ ok: true, campanha: await cancelarAgendada(env, corpo.id) });
       case 'duplicar': return json({ ok: true, campanha: await duplicarCampanha(env, corpo.id) });
       case 'excluir': await excluirCampanha(env, corpo.id); return json({ ok: true });
       default: return json({ error: 'Ação desconhecida.' }, 400);

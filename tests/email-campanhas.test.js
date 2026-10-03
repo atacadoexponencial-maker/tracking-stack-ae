@@ -1,4 +1,4 @@
-// Campanhas (issue 382) contra SQLite real (migrations 0050, 0051, 0053–0055)
+// Campanhas (issues 382 e 383) contra SQLite real (migrations 0050, 0051, 0053–0055)
 // e um Postmark simulado (fetch trocado) que aceita /email/batch.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,9 @@ import * as segApi from '../functions/api/email/segmentos.js';
 import * as syncCamp from '../functions/api/sync/email-campanhas.js';
 import * as webhook from '../functions/api/webhooks/postmark.js';
 import { registrarLead, aplicarResultado } from '../functions/api/_email-contatos.js';
-import { processarEnvio, LIMITE_MES } from '../functions/api/_email-campanhas.js';
+import { processarEnvio, processarAgendadas, LIMITE_MES } from '../functions/api/_email-campanhas.js';
+import * as modelosApi from '../functions/api/email/modelos.js';
+import { ymdBrt } from '../functions/api/_data-brt.js';
 
 function d1(db) {
   const conv = (b) => b.map((v) => (v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v));
@@ -52,7 +54,7 @@ beforeEach(async () => {
     CREATE TABLE lead_dispatch (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT, email TEXT, task_id TEXT);
     CREATE TABLE crm_status_log (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, status TEXT NOT NULL, recebido_em INTEGER NOT NULL, hist_id TEXT, hist_date INTEGER);
   `);
-  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0053_email_contatos.sql', '0054_email_segmentos.sql', '0055_email_campanhas.sql']) {
+  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0053_email_contatos.sql', '0054_email_segmentos.sql', '0055_email_campanhas.sql', '0056_email_campanhas_agendadas.sql']) {
     db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   }
   db.prepare(`INSERT INTO email_modelos (id, nome, canal, assunto, previa, corpo, arquivado, criado_em, atualizado_em) VALUES
@@ -249,4 +251,108 @@ test('lista com filtro, duplicar e excluir só rascunho', async () => {
   assert.equal(l.corpo.campanhas.length, 1);
   assert.equal((await camp({ acao: 'excluir', id: d.corpo.campanha.id })).status, 200);
   assert.equal((await camp(null, '&id=999')).status, 404);
+});
+
+// ---------------------------------------------------------------------------
+// 383 · Agendadas
+// ---------------------------------------------------------------------------
+
+/** Dia e hora de Brasília daqui a `seg` segundos. */
+function daquiA(seg) {
+  const t = AGORA + seg;
+  const hm = new Date(t * 1000).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+  return { dia: ymdBrt(t), hora: hm };
+}
+const situacao = (id) => db.prepare('SELECT situacao, agendada_para, motivo FROM email_campanhas WHERE id = ?').get(id);
+
+test('agendar: horário de Brasília, pelo menos 5 minutos e até 90 dias', async () => {
+  await contatos([['ana@x.com', 'Ana', 'workshop']]);
+  const id = await rascunho([await segmento('W', 'workshop')]);
+  assert.equal((await camp({ acao: 'agendar', id, ...daquiA(60) })).status, 400);
+  assert.equal((await camp({ acao: 'agendar', id, ...daquiA(100 * 86400) })).status, 400);
+  assert.equal((await camp({ acao: 'agendar', id, dia: '2026-13-01', hora: '09:00' })).status, 400);
+  assert.equal((await camp({ acao: 'agendar', id, dia: ymdBrt(AGORA + 86400), hora: '25:00' })).status, 400);
+  const ok = await camp({ acao: 'agendar', id, ...daquiA(3600) });
+  assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+  assert.equal(ok.corpo.campanha.situacao, 'agendada');
+  // 12:00 em Brasília = 15:00 UTC
+  const id2 = await rascunho([await segmento('W2', 'workshop')]);
+  const dia = ymdBrt(AGORA + 2 * 86400);
+  await camp({ acao: 'agendar', id: id2, dia, hora: '12:00' });
+  assert.equal(situacao(id2).agendada_para, Date.parse(`${dia}T15:00:00Z`) / 1000);
+  assert.equal((await camp({ acao: 'agendar', id, ...daquiA(7200) })).status, 409, 'agendada não agenda de novo');
+});
+
+test('editar e cancelar antes do horário; depois de começar, recusa', async () => {
+  await contatos([['ana@x.com', 'Ana', 'workshop']]);
+  const s = await segmento('W', 'workshop');
+  const id = await rascunho([s]);
+  await camp({ acao: 'agendar', id, ...daquiA(3600) });
+  const e = await camp({ acao: 'salvar', id, nome: 'Convite novo', modelo_id: 3, segmentos: [s], ...daquiA(7200) });
+  assert.equal(e.status, 200, JSON.stringify(e.corpo));
+  assert.deepEqual([e.corpo.campanha.nome, e.corpo.campanha.modelo_id, e.corpo.campanha.situacao], ['Convite novo', 3, 'agendada']);
+  assert.equal((await camp({ acao: 'salvar', id, nome: 'x', modelo_id: null, segmentos: [s] })).status, 400, 'agendada precisa de modelo');
+  const outra = await rascunho([s]);
+  await camp({ acao: 'agendar', id: outra, ...daquiA(3600) });
+  const c = await camp({ acao: 'cancelar', id: outra });
+  assert.equal(c.corpo.campanha.situacao, 'cancelada');
+  assert.equal((await camp({ acao: 'cancelar', id: outra })).status, 409);
+  assert.equal((await camp({ acao: 'excluir', id: outra })).status, 409, 'cancelada fica no histórico');
+  // Começou a sair: editar e cancelar são recusados.
+  await processarAgendadas(env, AGORA + 7300);
+  assert.equal(situacao(id).situacao, 'enviando');
+  assert.equal((await camp({ acao: 'cancelar', id })).status, 409);
+  assert.equal((await camp({ acao: 'salvar', id, nome: 'y', modelo_id: 1, segmentos: [s] })).status, 409);
+});
+
+test('rodada: sai no horário com a lista recalculada, uma vez só', async () => {
+  await contatos([['ana@x.com', 'Ana', 'workshop'], ['bia@x.com', 'Bia', 'workshop']]);
+  const id = await rascunho([await segmento('W', 'workshop')]);
+  await camp({ acao: 'agendar', id, ...daquiA(600) });
+  assert.equal(await processarAgendadas(env, AGORA + 60), 0, 'antes do horário: nada');
+  // Entre o agendamento e o horário: entra um contato, outro se descadastra.
+  await contatos([['caio@x.com', 'Caio', 'workshop']]);
+  await aplicarResultado(env, 'bia@x.com', 'descadastrou', AGORA);
+  const para = situacao(id).agendada_para;
+  const [a, b] = await Promise.all([processarAgendadas(env, para), processarAgendadas(env, para)]);
+  assert.equal(a + b, 1);
+  await processarEnvio(env, { t: para });
+  assert.deepEqual(pm.lotes.flat().map((m) => m.To).sort(), ['ana@x.com', 'caio@x.com']);
+  assert.equal(situacao(id).situacao, 'enviada');
+  // A rodada pela rota faz as duas coisas.
+  const outra = await rascunho([await segmento('W2', 'workshop')]);
+  await camp({ acao: 'agendar', id: outra, ...daquiA(600) });
+  db.prepare('UPDATE email_campanhas SET agendada_para = ? WHERE id = ?').run(AGORA - 1, outra);
+  const r = await syncCamp.onRequestPost({ request: new Request('https://x', { method: 'POST', headers: { 'x-sync-secret': 's' } }), env });
+  const corpo = await r.json();
+  assert.equal(corpo.agendadas, 1);
+  assert.equal(situacao(outra).situacao, 'enviada');
+});
+
+test('bloqueio na hora de sair vira "falhou" com o motivo e nada sai', async () => {
+  await contatos([['ana@x.com', 'Ana', 'workshop']]);
+  const id = await rascunho([await segmento('W', 'workshop')]);
+  db.prepare("UPDATE email_config SET valor = '0' WHERE chave = 'marketing_liberado'").run();
+  const r = await camp({ acao: 'agendar', id, ...daquiA(600) });
+  assert.equal(r.status, 200, 'dá para agendar sem o marketing liberado');
+  await processarAgendadas(env, situacao(id).agendada_para);
+  const c = situacao(id);
+  assert.equal(c.situacao, 'falhou');
+  assert.match(c.motivo, /Não saiu no horário: .*não liberado/);
+  assert.equal(pm.lotes.length, 0);
+});
+
+test('travas: modelo e segmento usados em campanha agendada', async () => {
+  await contatos([['ana@x.com', 'Ana', 'workshop']]);
+  const s = await segmento('W', 'workshop');
+  const id = await rascunho([s]);
+  await camp({ acao: 'agendar', id, ...daquiA(3600) });
+  const arq = await api(modelosApi, { acao: 'arquivar', id: 1 });
+  assert.equal(arq.status, 409);
+  assert.match(arq.corpo.error, /campanha agendada "Convite outubro"/);
+  const exc = await api(segApi, { acao: 'excluir', id: s });
+  assert.equal(exc.status, 409);
+  assert.match(exc.corpo.error, /campanha agendada "Convite outubro"/);
+  await camp({ acao: 'cancelar', id });
+  assert.equal((await api(segApi, { acao: 'excluir', id: s })).status, 200);
 });

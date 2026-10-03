@@ -92,12 +92,12 @@ Migration `migrations/0056_email_campanhas_agendadas.sql` (só adição):
 
 ## Checklist
 
-- [ ] Migration `0056_email_campanhas_agendadas.sql` aplicada no D1 remoto com `d1 execute --file`
-- [ ] Agendar, editar, cancelar e começo de envio comum no `_email-campanhas.js`
-- [ ] Rodada dispara as agendadas no horário, com bloqueios conferidos de novo
-- [ ] `POST /api/email/campanhas` com `agendar` e `cancelar`
-- [ ] Travas de modelo e segmento valendo para campanha agendada
-- [ ] Formulário, lista e detalhe com agendamento
+- [x] Migration `0056_email_campanhas_agendadas.sql` aplicada no D1 remoto com `d1 execute --file`
+- [x] Agendar, editar, cancelar e começo de envio comum no `_email-campanhas.js`
+- [x] Rodada dispara as agendadas no horário, com bloqueios conferidos de novo
+- [x] `POST /api/email/campanhas` com `agendar` e `cancelar`
+- [x] Travas de modelo e segmento valendo para campanha agendada
+- [x] Formulário, lista e detalhe com agendamento
 - [ ] Cron das campanhas a cada minuto na VPS
-- [ ] Testes `email-campanhas` passando (`npm test`)
+- [x] Testes `email-campanhas` passando (`npm test`)
 - [ ] Usuária agenda uma campanha para daqui a alguns minutos, edita, cancela outra, e vê a agendada sair sozinha no horário com a lista recalculada
