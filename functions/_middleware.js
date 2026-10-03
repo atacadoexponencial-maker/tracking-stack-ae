@@ -1,7 +1,7 @@
 import { escolherVariante } from './_ab-sorteio.js';
 import { carregarTestesAtivos, normalizarPath } from './_ab-consulta.js';
 import { detectBot, detectBotPorIp } from './_bots.js';
-import { fbcValido, vidaRestanteFbc } from './_fbc.js';
+import { fbcValido, fbclidValido, vidaRestanteFbc } from './_fbc.js';
 
 export async function onRequest(context) {
   const { request, next, env } = context;
@@ -64,7 +64,10 @@ export async function onRequest(context) {
   // CRITICAL: Use raw query string extraction, NOT url.searchParams.get().
   // searchParams.get() URL-decodes the value, but Meta expects the exact
   // raw fbclid as it appears in the URL.
-  const fbclid = getRawParam(url.search, 'fbclid');
+  // fbclid de exemplo (`?fbclid=fbclid` dos robôs do Meta) conta como ausente:
+  // não vira fbc nem vai para a sessão (ver _fbc.js).
+  const fbclidBruto = getRawParam(url.search, 'fbclid');
+  const fbclid = fbclidValido(fbclidBruto) ? fbclidBruto : '';
   const gclid = getRawParam(url.search, 'gclid');
   const msclkid = getRawParam(url.search, 'msclkid');
 
@@ -112,7 +115,8 @@ export async function onRequest(context) {
   // --- Build _fbc from fbclid ---
   // Clique com mais de 90 dias sai (recomendação do Meta, ver _fbc.js): sem
   // isso o cookie, regravado a cada visita, levaria um clique velho para
-  // sempre e o Meta o receberia como atribuição.
+  // sempre e o Meta o receberia como atribuição. Cookie com fbclid de exemplo
+  // (gravado antes de 03/10/2026) também sai por aqui.
   let fbc = fbcValido(existingFbc) ? existingFbc : '';
   const fbcVencido = !!existingFbc && !fbc;
   if (fbclid) {
