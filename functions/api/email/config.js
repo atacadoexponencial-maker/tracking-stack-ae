@@ -10,6 +10,7 @@ import { lerConfig, validarConfig, salvarConfig, remetente, emailValido, DOMINIO
 import {
   STREAMS, enviar, consultarServidor, listarDominios, listarWebhooks, criarWebhook, editarWebhook,
 } from '../_postmark.js';
+import { montarEmail } from '../_email-render.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') === env.DASH_KEY;
@@ -90,20 +91,53 @@ export async function onRequestGet({ request, env }) {
   return json(await estado(env, request));
 }
 
-const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Corpo do teste da Configuração: mesmo layout dos modelos (_email-render.js).
+const CORPO_TESTE = (canal) => `Este é um e-mail de teste do canal **${canal}**, mandado pelo dash.
 
-function corpoTeste(cfg, canal) {
-  const nomeCanal = canal === 'marketing' ? 'marketing' : 'transacional';
-  const link = 'https://atacadoexponencial.com/';
-  const rodape = cfg.rodape || '';
-  const html = `<!doctype html><html><body style="font-family:sans-serif;color:#222;line-height:1.5">
-<p>Este é um e-mail de teste do canal <b>${nomeCanal}</b>, mandado pelo dash.</p>
-<p>Se ele chegou, a entrega está funcionando. Clique no link abaixo para conferir a marcação de clique:</p>
-<p><a href="${link}">Abrir o site do Atacado Exponencial</a></p>
-${rodape ? `<hr style="border:none;border-top:1px solid #ddd"><p style="font-size:12px;color:#666">${escHtml(rodape).replace(/\n/g, '<br>')}</p>` : ''}
-</body></html>`;
-  const texto = `Este é um e-mail de teste do canal ${nomeCanal}, mandado pelo dash.\n\nSe ele chegou, a entrega está funcionando. Link para conferir a marcação de clique: ${link}\n${rodape ? `\n--\n${rodape}\n` : ''}`;
-  return { html, texto };
+Se ele chegou, a entrega está funcionando. Clique no botão abaixo para conferir a marcação de clique:
+
+[[Abrir o site do Atacado Exponencial | https://atacadoexponencial.com/]]`;
+
+/**
+ * Manda um e-mail de teste e registra em email_envios (origem 'teste').
+ * Usado aqui e pelo teste de modelo (email/modelos.js). Devolve a Response.
+ */
+export async function enviarTeste(env, { canal, para, assunto, html, texto, tag, refId = null }) {
+  const destino = String(para || '').trim().toLowerCase();
+  if (!emailValido(destino)) return json({ error: 'Digite um e-mail válido para receber o teste.' }, 400);
+  if (!env.POSTMARK_SERVER_TOKEN) return json({ error: SEM_ACESSO }, 503);
+  const cfg = await lerConfig(env);
+  if (canal === 'marketing' && cfg.marketing_liberado !== '1') {
+    return json({ error: 'O marketing está marcado como não liberado. Ligue a opção antes de testar este canal.' }, 409);
+  }
+  // O envio nasce como "falhou" e só vira "enviado" com a confirmação do
+  // serviço: assim o envio_id existe para ir no Metadata.
+  const ins = await env.DB.prepare(
+    `INSERT INTO email_envios (canal, origem, ref_id, destinatario, assunto, situacao, erro)
+     VALUES (?, 'teste', ?, ?, ?, 'falhou', 'Envio em andamento.')`,
+  ).bind(canal, refId, destino, assunto).run();
+  const envioId = ins.meta.last_row_id;
+  let r;
+  try {
+    r = await enviar(env, {
+      canal, de: remetente(cfg, canal), para: destino, assunto, html, texto,
+      resposta: cfg[`resposta_${canal}`] || null,
+      tag, metadata: { origem: 'teste', envio_id: String(envioId) },
+    });
+  } catch (e) {
+    // Sem resposta: nada fica registrado como enviado.
+    await env.DB.prepare('DELETE FROM email_envios WHERE id = ?').bind(envioId).run();
+    return json({ error: e.message || 'Não foi possível falar com o serviço de envio agora. Tente de novo.' }, 504);
+  }
+  if (!r.ok) {
+    await env.DB.prepare('UPDATE email_envios SET erro = ?, enviado_em = ? WHERE id = ?').bind(r.erro, agora(), envioId).run();
+    const status = r.codigo === 10 ? 503 : 422;
+    return json({ error: r.codigo === 10 ? SEM_ACESSO : r.erro, testes: await ultimosTestes(env) }, status);
+  }
+  await env.DB.prepare(
+    "UPDATE email_envios SET message_id = ?, situacao = 'enviado', erro = NULL, enviado_em = ? WHERE id = ?",
+  ).bind(r.messageId, agora(), envioId).run();
+  return json({ ok: true, envio_id: envioId, testes: await ultimosTestes(env) });
 }
 
 export async function onRequestPost({ request, env }) {
@@ -120,43 +154,10 @@ export async function onRequestPost({ request, env }) {
   if (corpo.acao === 'enviar_teste') {
     const canal = corpo.canal === 'marketing' ? 'marketing' : corpo.canal === 'transacional' ? 'transacional' : null;
     if (!canal) return json({ error: 'Escolha o canal do teste.' }, 400);
-    const para = String(corpo.para || '').trim().toLowerCase();
-    if (!emailValido(para)) return json({ error: 'Digite um e-mail válido para receber o teste.' }, 400);
-    if (!env.POSTMARK_SERVER_TOKEN) return json({ error: SEM_ACESSO }, 503);
     const cfg = await lerConfig(env);
-    if (canal === 'marketing' && cfg.marketing_liberado !== '1') {
-      return json({ error: 'O marketing está marcado como não liberado. Ligue a opção antes de testar este canal.' }, 409);
-    }
     const assunto = `Teste do dash: canal ${canal}`;
-    // O envio nasce como "falhou" e só vira "enviado" com a confirmação do
-    // serviço: assim o envio_id existe para ir no Metadata.
-    const ins = await env.DB.prepare(
-      `INSERT INTO email_envios (canal, origem, destinatario, assunto, situacao, erro)
-       VALUES (?, 'teste', ?, ?, 'falhou', 'Envio em andamento.')`,
-    ).bind(canal, para, assunto).run();
-    const envioId = ins.meta.last_row_id;
-    const { html, texto } = corpoTeste(cfg, canal);
-    let r;
-    try {
-      r = await enviar(env, {
-        canal, de: remetente(cfg, canal), para, assunto, html, texto,
-        resposta: cfg[`resposta_${canal}`] || null,
-        tag: 'teste', metadata: { origem: 'teste', envio_id: String(envioId) },
-      });
-    } catch (e) {
-      // Sem resposta: nada fica registrado como enviado.
-      await env.DB.prepare('DELETE FROM email_envios WHERE id = ?').bind(envioId).run();
-      return json({ error: e.message || 'Não foi possível falar com o serviço de envio agora. Tente de novo.' }, 504);
-    }
-    if (!r.ok) {
-      await env.DB.prepare('UPDATE email_envios SET erro = ?, enviado_em = ? WHERE id = ?').bind(r.erro, agora(), envioId).run();
-      const status = r.codigo === 10 ? 503 : 422;
-      return json({ error: r.codigo === 10 ? SEM_ACESSO : r.erro, testes: await ultimosTestes(env) }, status);
-    }
-    await env.DB.prepare(
-      "UPDATE email_envios SET message_id = ?, situacao = 'enviado', erro = NULL, enviado_em = ? WHERE id = ?",
-    ).bind(r.messageId, agora(), envioId).run();
-    return json({ ok: true, envio_id: envioId, testes: await ultimosTestes(env) });
+    const { html, texto } = montarEmail({ canal, assunto, previa: '', corpo: CORPO_TESTE(canal) }, cfg, { valores: {}, site: new URL(request.url).origin });
+    return enviarTeste(env, { canal, para: corpo.para, assunto, html, texto, tag: 'teste' });
   }
 
   if (corpo.acao === 'conectar_resultados') {

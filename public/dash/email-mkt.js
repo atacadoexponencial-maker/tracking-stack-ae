@@ -17,6 +17,8 @@
   'use strict';
 
   const VISTAS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
+  // Vistas já ligadas ao backend (377, 378); as outras seguem protótipo.
+  const VISTAS_REAIS = ['modelos', 'configuracao'];
   const TITULO_VISTA = {
     campanhas: 'Campanhas de e-mail', relatorio: 'Resultados do e-mail', fluxos: 'Fluxos automáticos',
     contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', configuracao: 'Configuração de e-mail',
@@ -113,10 +115,6 @@
     { id: 's5', nome: 'Sessão estratégica vindos do Meta', regras: [{ campo: 'origem', op: 'e', valor: 'Meta Ads' }, { campo: 'funil', op: 'e', valor: 'sessao-estrategica' }] },
   ];
 
-  const CAMPOS = {
-    transacional: [['nome', 'Ana Lima'], ['primeiro_nome', 'Ana'], ['email', 'ana.lima@exemplo.com'], ['tipo_reuniao', 'Sessão estratégica'], ['data_reuniao', 'terça, 07/10'], ['hora_reuniao', '15:00'], ['link_reuniao', 'https://meet.google.com/abc-defg-hij'], ['link_remarcar', 'https://atacadoexponencial.com/agenda/remarcar']],
-    marketing: [['nome', 'Ana Lima'], ['primeiro_nome', 'Ana'], ['email', 'ana.lima@exemplo.com'], ['funil', 'Workshop gratuito'], ['link_descadastro', 'https://news.atacadoexponencial.com/sair']],
-  };
   const MODELOS_BASE = [
     { id: 'm1', nome: 'Confirmação de reunião', canal: 'transacional', assunto: 'Sua reunião está confirmada, {{primeiro_nome}}', previa: '{{data_reuniao}} às {{hora_reuniao}}, pelo Google Meet.', editado: '02/10', corpo: 'Oi, {{primeiro_nome}}!\n\nSua **{{tipo_reuniao}}** está confirmada para {{data_reuniao}} às {{hora_reuniao}} (horário de Brasília).\n\n[[Entrar na reunião | {{link_reuniao}}]]\n\nSe precisar mudar o horário, é só [remarcar por aqui]({{link_remarcar}}).\n\nAté lá,\nEquipe Atacado Exponencial' },
     { id: 'm2', nome: 'Lembrete 24h antes', canal: 'transacional', assunto: 'Amanhã: sua {{tipo_reuniao}}', previa: 'Amanhã às {{hora_reuniao}}. Guarde o link.', editado: '02/10', corpo: 'Oi, {{primeiro_nome}}!\n\nPassando para lembrar: sua reunião é **amanhã, às {{hora_reuniao}}**.\n\n[[Entrar na reunião | {{link_reuniao}}]]\n\nEquipe Atacado Exponencial' },
@@ -339,7 +337,7 @@
     ctx = c;
     fecharGaveta();
     ctx.$('#titulo').textContent = TITULO_VISTA[api.vista];
-    ctx.$('#subtitulo').textContent = NOTA_VISTA[api.vista] + (api.vista === 'configuracao' ? '' : ' · protótipo');
+    ctx.$('#subtitulo').textContent = NOTA_VISTA[api.vista] + (VISTAS_REAIS.includes(api.vista) ? '' : ' · protótipo');
     const el = raiz();
     el.className = 'em em--' + api.vista;
     ({ campanhas, relatorio, fluxos, contatos, segmentos, modelos, configuracao })[api.vista](el);
@@ -905,48 +903,66 @@
   }
 
   // ===========================================================================
-  // 373 · Modelos
+  // 378 · Modelos (ligada ao backend: GET/POST /api/email/modelos)
   // ===========================================================================
+  // Lista, editor, prévia, teste, duplicar e arquivar vêm do servidor: a
+  // validação de campos e links, o layout do e-mail e a trava de "em uso"
+  // ficam lá. Aqui só a tela.
   let filtroModelo = 'todos';
   let modeloAberto = null;
+  let modelosEstado = null; // { modelos, campos }
+  let paraTeste = '';
 
-  function emUso(m) {
-    const usos = [];
-    Object.entries(D.agenda).forEach(([tid, a]) => {
-      const t = TIPOS_REUNIAO.find((x) => x.id === tid).nome;
-      if (a.confirmacao.modelo === m.id) usos.push(`confirmação da agenda (${t})`);
-      a.lembretes.forEach((l) => { if (l.modelo === m.id) usos.push(`lembrete de ${l.horas} h da agenda (${t})`); });
-      if (a.remarcacao.modelo === m.id) usos.push(`remarcação da agenda (${t})`);
-      if (a.cancelamento.modelo === m.id) usos.push(`cancelamento da agenda (${t})`);
-    });
-    D.campanhas.filter((c) => c.situacao === 'agendada' && c.modelo === m.id).forEach((c) => usos.push(`campanha agendada "${c.nome}"`));
-    if (['m7', 'm8', 'm9'].includes(m.id)) usos.push('fluxo "Boas-vindas do workshop gratuito"');
-    return [...new Set(usos)];
+  const NOME_CANAL = { transacional: 'Transacional', marketing: 'Marketing' };
+  const dataCurta = (ts) => (ts ? new Date(ts * 1000).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : '');
+
+  // Trava o botão enquanto a chamada corre (evita duplo clique).
+  async function ocupado(botao, fn) {
+    if (botao.disabled) return;
+    botao.disabled = true;
+    botao.setAttribute('aria-busy', 'true');
+    try { await fn(); } finally { botao.disabled = false; botao.removeAttribute('aria-busy'); }
   }
 
-  function modelos(el) {
+  const postModelos = (corpo) => ctx.postJson('/api/email/modelos', corpo);
+  const modeloReal = (id) => modelosEstado.modelos.find((m) => String(m.id) === String(id));
+  function trocarModelo(m) {
+    const i = modelosEstado.modelos.findIndex((x) => x.id === m.id);
+    if (i >= 0) modelosEstado.modelos[i] = m; else modelosEstado.modelos.unshift(m);
+  }
+
+  async function modelos(el) {
+    if (!modelosEstado) {
+      el.innerHTML = '<p class="aviso">Carregando os modelos…</p>';
+      try {
+        modelosEstado = await ctx.fetchJson('/api/email/modelos?_=' + Date.now());
+      } catch (e) {
+        el.innerHTML = `<div class="aviso falha">Não foi possível carregar os modelos (${esc(e.message)}). Tente de novo em instantes.</div>`;
+        return;
+      }
+    }
     if (modeloAberto) return editorModelo(el, modeloAberto);
-    const todos = vazio() ? [] : D.modelos;
-    const linhas = todos.filter((m) => (filtroModelo === 'arquivados' ? m.arquivado : !m.arquivado && (filtroModelo === 'todos' || m.canal === filtroModelo)));
+    listaModelos(el);
+  }
+
+  function listaModelos(el) {
+    const todos = modelosEstado.modelos;
+    const casaFiltro = (m, k) => (k === 'arquivados' ? m.arquivado : !m.arquivado && (k === 'todos' || m.canal === k));
+    const linhas = todos.filter((m) => casaFiltro(m, filtroModelo));
     const FILTROS_M = [['todos', 'Todos'], ['transacional', 'Transacional'], ['marketing', 'Marketing'], ['arquivados', 'Arquivados']];
-    el.innerHTML = `${seloProto()}
-      <div class="em-barra">
-        <div class="ag-subvistas" role="group" aria-label="Filtrar modelos">${FILTROS_M.map(([k, r]) => `<button type="button" class="ag-subvista" data-fm="${k}" aria-pressed="${k === filtroModelo}">${r} <span class="ag-cont">${todos.filter((m) => (k === 'arquivados' ? m.arquivado : !m.arquivado && (k === 'todos' || m.canal === k))).length}</span></button>`).join('')}</div>
+    el.innerHTML = `<div class="em-barra">
+        <div class="ag-subvistas" role="group" aria-label="Filtrar modelos">${FILTROS_M.map(([k, r]) => `<button type="button" class="ag-subvista" data-fm="${k}" aria-pressed="${k === filtroModelo}">${r} <span class="ag-cont">${todos.filter((m) => casaFiltro(m, k)).length}</span></button>`).join('')}</div>
         <div class="ag-acoes"><button class="btn" type="button" data-novo="marketing">Novo modelo de marketing</button><button class="btn sec" type="button" data-novo="transacional">Novo transacional</button></div>
       </div>
       <div class="tabela-wrap" id="em-mod-lista"></div>`;
-    ligarCenario(el, () => modelos(el));
-    el.querySelectorAll('[data-fm]').forEach((b) => { b.onclick = () => { filtroModelo = b.dataset.fm; modelos(el); }; });
-    el.querySelectorAll('[data-novo]').forEach((b) => { b.onclick = () => {
-      const m = { id: 'm' + Date.now(), nome: 'Modelo sem nome', canal: b.dataset.novo, assunto: '', previa: '', editado: '03/10', corpo: 'Oi, {{primeiro_nome}}!\n\n' };
-      D.modelos.unshift(m); modeloAberto = m.id; modelos(el); avisar(`Modelo ${m.canal === 'marketing' ? 'de marketing' : 'transacional'} criado.`);
-    }; });
+    el.querySelectorAll('[data-fm]').forEach((b) => { b.onclick = () => { filtroModelo = b.dataset.fm; listaModelos(el); }; });
+    el.querySelectorAll('[data-novo]').forEach((b) => { b.onclick = () => novoModelo(el, b.dataset.novo); });
     const alvo = el.querySelector('#em-mod-lista');
     ctx.tabela(alvo, [
-      { titulo: 'Modelo', campo: 'nome', render: (m) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${m.id}">${esc(m.nome)}</button>${emUso(m).length ? ' <span class="selo">em uso</span>' : ''}` },
-      { titulo: 'Canal', campo: 'canal', render: (m) => m.canal === 'marketing' ? 'Marketing' : 'Transacional' },
+      { titulo: 'Modelo', campo: 'nome', render: (m) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${m.id}">${esc(m.nome)}</button>` },
+      { titulo: 'Canal', campo: 'canal', render: (m) => NOME_CANAL[m.canal] },
       { titulo: 'Assunto', render: (m) => `<span class="em-assunto-curto">${esc(m.assunto || 'sem assunto')}</span>` },
-      { titulo: 'Editado', render: (m) => esc(m.editado) },
+      { titulo: 'Editado', render: (m) => esc(dataCurta(m.atualizado_em)) },
       { titulo: '', render: (m) => `<div class="ag-acoes ag-acoes--linha">${menuHtml(m.nome, m.arquivado ? [
         { acao: 'desarquivar', id: m.id, rotulo: 'Tirar do arquivo' }, { acao: 'duplicar', id: m.id, rotulo: 'Duplicar' },
       ] : [
@@ -957,60 +973,103 @@
       ])}</div>` },
     ], linhas, undefined, filtroModelo === 'arquivados' ? 'Nenhum modelo arquivado.' : 'Nenhum modelo ainda. Crie o primeiro escolhendo o canal: transacional (agenda) ou marketing (campanhas e fluxos).');
     ligarAcoes(alvo, {
-      editar: (id) => { modeloAberto = id; modelos(el); window.scrollTo(0, 0); },
-      teste: (id) => avisar(`Teste de "${modelo(id).nome}" mandado para felipe@seteads.com.`),
-      duplicar: (id) => { const m = modelo(id); D.modelos.unshift({ ...m, id: 'm' + Date.now(), nome: m.nome + ' (cópia)', arquivado: false, editado: '03/10' }); filtroModelo = 'todos'; avisar('Modelo duplicado.'); modelos(el); },
-      desarquivar: (id) => { modelo(id).arquivado = false; avisar('Modelo de volta na lista.'); modelos(el); },
+      editar: (id) => { modeloAberto = Number(id); modelos(el); window.scrollTo(0, 0); },
+      teste: (id) => pedirTeste(modeloReal(id)),
+      duplicar: async (id) => {
+        try {
+          const r = await postModelos({ acao: 'duplicar', id: Number(id) });
+          trocarModelo(r.modelo); filtroModelo = 'todos';
+          avisar(`Modelo duplicado: "${r.modelo.nome}".`); listaModelos(el);
+        } catch (e) { avisar(msgErro(e), 'erro'); }
+      },
+      desarquivar: async (id) => {
+        try {
+          const r = await postModelos({ acao: 'desarquivar', id: Number(id) });
+          trocarModelo(r.modelo); avisar('Modelo de volta na lista.'); listaModelos(el);
+        } catch (e) { avisar(msgErro(e), 'erro'); }
+      },
       arquivar: (id, b) => {
-        const m = modelo(id), usos = emUso(m);
-        if (usos.length) { fecharMenus(); return avisar(`Não dá para arquivar: está em uso em ${usos[0]}${usos.length > 1 ? ` e mais ${usos.length - 1}` : ''}. Troque o modelo lá antes.`, 'erro'); }
-        ctx.pedirConfirmacao(b, 'Arquivar?', () => { m.arquivado = true; fecharMenus(); avisar('Modelo arquivado. Ele fica no filtro "Arquivados".'); modelos(el); });
+        ctx.pedirConfirmacao(b, 'Arquivar?', async () => {
+          fecharMenus();
+          try {
+            const r = await postModelos({ acao: 'arquivar', id: Number(id) });
+            trocarModelo(r.modelo); avisar('Modelo arquivado. Ele fica no filtro "Arquivados".'); listaModelos(el);
+          } catch (e) { avisar(msgErro(e), 'erro'); }
+        });
       },
     });
   }
 
-  const camposDe = (canal) => CAMPOS[canal].map((c) => c[0]);
-  const camposDesconhecidos = (texto, canal) => [...new Set([...String(texto).matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)].map((x) => x[1]).filter((n) => !camposDe(canal).includes(n)))];
-  function preencher(texto, canal) {
-    const mapa = Object.fromEntries(CAMPOS[canal]);
-    return esc(texto).replace(/\{\{\s*([^}]*?)\s*\}\}/g, (t, n) => (n in mapa ? esc(mapa[n]) : `<mark class="em-campo-ruim">{{${esc(n)}}}</mark>`));
+  function novoModelo(el, canal) {
+    const g = gaveta({
+      titulo: canal === 'marketing' ? 'Novo modelo de marketing' : 'Novo modelo transacional',
+      sub: canal === 'marketing' ? 'sai por news. em campanhas e fluxos' : 'sai por envio. nos e-mails da agenda',
+      corpo: `<form class="ag-form" data-novo-form novalidate>
+          <label>Nome do modelo<input type="text" name="nome" maxlength="100" placeholder="Ex.: Convite workshop de outubro" autocomplete="off"></label>
+          <p class="mini">O nome é só para a equipe achar o modelo. Quem recebe vê o assunto.</p>
+          <div class="em-erro" aria-live="polite"></div>
+        </form>`,
+      rodape: '<button class="btn" type="button" data-criar>Criar e abrir</button>',
+    });
+    const f = g.querySelector('[data-novo-form]');
+    const criar = g.querySelector('[data-criar]');
+    f.nome.focus();
+    const enviar = () => ocupado(criar, async () => {
+      try {
+        const r = await postModelos({ acao: 'salvar', modelo: { nome: f.nome.value, canal } });
+        trocarModelo(r.modelo);
+        fecharGaveta();
+        modeloAberto = r.modelo.id;
+        avisar('Modelo criado. Escreva o assunto e o corpo e salve.');
+        modelos(el);
+      } catch (e) { f.querySelector('.em-erro').textContent = msgErro(e); }
+    });
+    criar.onclick = enviar;
+    f.onsubmit = (ev) => { ev.preventDefault(); enviar(); };
   }
-  /** Texto formatado simples: **negrito**, [texto](link) e [[Botão | link]]. */
-  function corpoHtml(texto, canal) {
-    return preencher(texto, canal).split(/\n{2,}/).map((par) => {
-      const botao = par.match(/^\[\[(.+?)\|(.+?)\]\]$/);
-      if (botao) return `<p class="em-email__botao"><a>${botao[1].trim()}</a></p>`;
-      return `<p>${par.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a>$1</a>').replace(/\n/g, '<br>')}</p>`;
-    }).join('');
-  }
-  function emailPrevia(m, canal, tamanho) {
-    const cfg = D.config[canal];
-    return `<div class="em-email em-email--${tamanho}">
-      <div class="em-email__caixa"><b>${esc(cfg.nome)}</b> <span class="mini">&lt;${esc(cfg.endereco)}&gt;</span><br>
-        <span class="em-email__assunto">${preencher(m.assunto || '(sem assunto)', canal)}</span> <span class="mini">${preencher(m.previa || '', canal)}</span></div>
-      <div class="em-email__folha">
-        <div class="em-email__cabeca"><img src="/dash/logo-atacado-exponencial.png" alt="" width="120"></div>
-        <div class="em-email__corpo">${corpoHtml(m.corpo, canal)}</div>
-        <div class="em-email__rodape">${esc(D.config.rodape).replace(/\n/g, '<br>')}${canal === 'marketing' ? '<br><a>Não quero mais receber estes e-mails</a>' : ''}</div>
-      </div></div>`;
+
+  function pedirTeste(m) {
+    const g = gaveta({
+      titulo: 'Mandar teste',
+      sub: `"${esc(m.nome)}" com os dados de exemplo`,
+      corpo: `<form class="ag-form" data-teste-form novalidate>
+          <label>Para<input type="email" name="para" value="${esc(paraTeste)}" placeholder="seu e-mail" autocomplete="email"></label>
+          <p class="mini">Sai pelo remetente do canal ${m.canal}, com os campos preenchidos por dados de exemplo. A entrega aparece em Configuração › Últimos testes.</p>
+          <div class="em-erro" aria-live="polite"></div>
+        </form>`,
+      rodape: '<button class="btn" type="button" data-mandar>Mandar teste</button>',
+    });
+    const f = g.querySelector('[data-teste-form]');
+    const b = g.querySelector('[data-mandar]');
+    f.para.focus();
+    const enviar = () => ocupado(b, async () => {
+      try {
+        await postModelos({ acao: 'enviar_teste', id: m.id, para: f.para.value });
+        paraTeste = f.para.value.trim();
+        fecharGaveta();
+        avisar(`Teste mandado para ${paraTeste}.`);
+      } catch (e) { f.querySelector('.em-erro').textContent = msgErro(e); }
+    });
+    b.onclick = enviar;
+    f.onsubmit = (ev) => { ev.preventDefault(); enviar(); };
   }
 
   function editorModelo(el, id) {
-    const m = modelo(id);
-    const rasc = { ...m };
+    const m = modeloReal(id);
+    if (!m) { modeloAberto = null; return listaModelos(el); }
+    const CHAVES = ['nome', 'canal', 'assunto', 'previa', 'corpo'];
+    const rasc = Object.fromEntries(CHAVES.map((k) => [k, m[k] ?? '']));
+    const sujo = () => CHAVES.some((k) => rasc[k] !== (m[k] ?? ''));
     let tamanho = 'computador';
-    const usos = emUso(m);
-    el.innerHTML = `${seloProto(true)}
-      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ICONE.voltar} Modelos</button>
+    el.innerHTML = `<div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ICONE.voltar} Modelos</button>
         <div class="ag-acoes"><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-dup>Duplicar</button><button class="btn" type="button" data-salvar>Salvar</button></div></div>
       ${m.arquivado ? '<div class="aviso alerta">Este modelo está arquivado. Ele não aparece na lista principal nem pode ser escolhido em campanhas, fluxos ou na agenda.</div>' : ''}
-      ${usos.length ? `<div class="aviso explica">Em uso em ${usos.map(esc).join(', ')}. Mudanças valem para os próximos envios.</div>` : ''}
       <div class="em-editor">
         <form class="ag-form em-editor__form" onsubmit="return false">
-          <div class="linha"><label>Nome<input type="text" data-m="nome" value="${esc(rasc.nome)}"></label>
-            <label>Canal<input type="text" value="${m.canal === 'marketing' ? 'Marketing (news.)' : 'Transacional (envio.)'}" readonly></label></div>
-          <label>Assunto<input type="text" data-m="assunto" value="${esc(rasc.assunto)}" placeholder="O que aparece em negrito na caixa de entrada"></label>
-          <label>Texto de pré-visualização<input type="text" data-m="previa" value="${esc(rasc.previa)}" placeholder="A linha que aparece depois do assunto"></label>
+          <div class="linha"><label>Nome<input type="text" data-m="nome" maxlength="100" value="${esc(rasc.nome)}"></label>
+            <label>Canal<select data-m="canal">${Object.entries(NOME_CANAL).map(([k, r]) => `<option value="${k}"${k === rasc.canal ? ' selected' : ''}>${r} (${k === 'marketing' ? 'news.' : 'envio.'})</option>`).join('')}</select></label></div>
+          <label>Assunto<input type="text" data-m="assunto" maxlength="200" value="${esc(rasc.assunto)}" placeholder="O que aparece em negrito na caixa de entrada"></label>
+          <label>Texto de pré-visualização<input type="text" data-m="previa" maxlength="200" value="${esc(rasc.previa)}" placeholder="A linha que aparece depois do assunto"></label>
           <div class="ag-campo"><span class="ag-campo__rotulo">Corpo</span>
             <div class="em-ferramentas" role="toolbar" aria-label="Formatação">
               <button type="button" class="btn sec" data-fmt="negrito"><b>N</b> Negrito</button>
@@ -1019,9 +1078,10 @@
             </div>
             <textarea data-m="corpo" rows="12">${esc(rasc.corpo)}</textarea>
             <span class="mini">**texto** vira negrito · [texto](link) vira link · [[Texto | link]] vira botão. Cabeçalho e rodapé entram sozinhos.</span></div>
-          <div class="ag-campo"><span class="ag-campo__rotulo">Campos do canal ${m.canal} <span class="mini">(clique para inserir onde está o cursor)</span></span>
-            <div class="ag-etiquetas">${CAMPOS[m.canal].map(([c]) => `<button type="button" class="em-campo" data-campo="${c}">{{${c}}}</button>`).join('')}</div></div>
+          <div class="ag-campo"><span class="ag-campo__rotulo">Campos do canal <span data-nome-canal>${rasc.canal}</span> <span class="mini">(clique para inserir onde está o cursor)</span></span>
+            <div class="ag-etiquetas" data-chips></div></div>
           <div id="em-campos-ruins" aria-live="polite"></div>
+          <div class="em-erro" aria-live="polite"></div>
         </form>
         <div class="em-editor__previa">
           <div class="em-barra em-barra--previa"><span class="ag-campo__rotulo">Pré-visualização com dados de exemplo</span>
@@ -1032,15 +1092,10 @@
         </div>
       </div>`;
     const ta = el.querySelector('[data-m="corpo"]');
-    const atualizar = () => {
-      el.querySelector('#em-previa').innerHTML = emailPrevia(rasc, m.canal, tamanho);
-      const ruins = camposDesconhecidos(rasc.assunto + ' ' + rasc.previa + ' ' + rasc.corpo, m.canal);
-      el.querySelector('#em-campos-ruins').innerHTML = ruins.length
-        ? `<div class="aviso falha"><b>Campo desconhecido:</b> ${ruins.map((r) => `{{${esc(r)}}}`).join(', ')}. ${ruins.includes('nmoe') ? 'Você quis dizer {{nome}}? ' : ''}Os campos deste canal estão logo acima. Não dá para salvar assim.</div>` : '';
-    };
-    el.querySelectorAll('[data-m]').forEach((i) => i.addEventListener('input', () => { rasc[i.dataset.m] = i.value; atualizar(); }));
+    const erro = el.querySelector('.em-editor__form .em-erro');
     let ultimoCampo = ta;
-    el.querySelectorAll('[data-m="assunto"], [data-m="previa"], [data-m="corpo"]').forEach((i) => i.addEventListener('focus', () => { ultimoCampo = i; }));
+    let ultimaPrevia = null;
+
     const inserir = (antes, depois = '', padrao = '') => {
       const i = ultimoCampo, a = i.selectionStart ?? i.value.length, z = i.selectionEnd ?? a;
       const sel = i.value.slice(a, z) || padrao;
@@ -1050,24 +1105,95 @@
       rasc[i.dataset.m] = i.value;
       atualizar();
     };
-    el.querySelectorAll('[data-campo]').forEach((b) => { b.onclick = () => inserir(`{{${b.dataset.campo}}}`); });
+    const desenharChips = () => {
+      el.querySelector('[data-nome-canal]').textContent = rasc.canal;
+      el.querySelector('[data-chips]').innerHTML = (modelosEstado.campos[rasc.canal] || [])
+        .map((c) => `<button type="button" class="em-campo" data-campo="${esc(c.campo)}" title="${esc(c.rotulo)}">{{${esc(c.campo)}}}</button>`).join('');
+      el.querySelectorAll('[data-campo]').forEach((b) => { b.onclick = () => inserir(`{{${b.dataset.campo}}}`); });
+    };
+    // A prévia é o HTML final montado pelo servidor, isolado num iframe sem scripts.
+    const desenharPrevia = () => {
+      const p = ultimaPrevia;
+      if (!p) return;
+      const cfg = D.config[rasc.canal];
+      const alvo = el.querySelector('#em-previa');
+      alvo.innerHTML = `<div class="em-email em-email--${tamanho}">
+          <div class="em-email__caixa"><b>${esc(cfg.nome)}</b> <span class="mini">&lt;${esc(cfg.endereco)}&gt;</span><br>
+            <span class="em-email__assunto">${esc(p.assunto || '(sem assunto)')}</span> <span class="mini">${esc(p.previa)}</span></div>
+          <iframe title="Pré-visualização do e-mail" sandbox="allow-same-origin" style="display:block;width:100%;border:0;min-height:320px"></iframe>
+        </div>`;
+      const fr = alvo.querySelector('iframe');
+      fr.onload = () => { try { fr.style.height = fr.contentDocument.documentElement.scrollHeight + 'px'; } catch { /* fica a altura mínima */ } };
+      fr.srcdoc = p.html;
+      el.querySelector('#em-campos-ruins').innerHTML = [
+        p.desconhecidos.length ? `<div class="aviso falha"><b>Campo desconhecido:</b> ${p.desconhecidos.map((r) => `{{${esc(r)}}}`).join(', ')}. Os campos deste canal estão logo acima. Não dá para salvar assim.</div>` : '',
+        ...p.avisos.map((a) => `<div class="aviso alerta">${esc(a)}</div>`),
+      ].join('');
+    };
+    let espera = null, pedido = 0;
+    function atualizar(imediato) {
+      clearTimeout(espera);
+      espera = setTimeout(async () => {
+        const n = ++pedido;
+        try {
+          const p = await postModelos({ acao: 'previa', modelo: { canal: rasc.canal, assunto: rasc.assunto, previa: rasc.previa, corpo: rasc.corpo } });
+          if (n !== pedido) return; // já há um pedido mais novo
+          ultimaPrevia = p;
+          desenharPrevia();
+        } catch (e) {
+          if (n === pedido) el.querySelector('#em-previa').innerHTML = `<div class="aviso falha">Não foi possível montar a pré-visualização (${esc(msgErro(e))}).</div>`;
+        }
+      }, imediato ? 0 : 400);
+    }
+
+    el.querySelectorAll('[data-m]').forEach((i) => i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', () => {
+      rasc[i.dataset.m] = i.value;
+      erro.textContent = '';
+      if (i.dataset.m === 'canal') desenharChips();
+      if (i.dataset.m !== 'nome') atualizar(i.dataset.m === 'canal');
+    }));
+    el.querySelectorAll('[data-m="assunto"], [data-m="previa"], [data-m="corpo"]').forEach((i) => i.addEventListener('focus', () => { ultimoCampo = i; }));
     el.querySelectorAll('[data-fmt]').forEach((b) => { b.onclick = () => { ultimoCampo = ta; ({
       negrito: () => inserir('**', '**', 'texto em negrito'),
       link: () => inserir('[', '](https://)', 'texto do link'),
       botao: () => inserir('\n\n[[', ' | https://]]\n\n', 'Texto do botão'),
     })[b.dataset.fmt](); }; });
-    el.querySelectorAll('[data-tam]').forEach((b) => { b.onclick = () => { tamanho = b.dataset.tam; el.querySelectorAll('[data-tam]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); atualizar(); }; });
-    el.querySelector('[data-voltar]').onclick = () => { modeloAberto = null; modelos(el); };
-    el.querySelector('[data-teste]').onclick = () => avisar('Teste mandado para felipe@seteads.com com os dados de exemplo.');
-    el.querySelector('[data-dup]').onclick = () => { const n = { ...rasc, id: 'm' + Date.now(), nome: rasc.nome + ' (cópia)', arquivado: false }; D.modelos.unshift(n); modeloAberto = n.id; avisar('Modelo duplicado. Você está editando a cópia.'); modelos(el); };
-    el.querySelector('[data-salvar]').onclick = () => {
-      const ruins = camposDesconhecidos(rasc.assunto + ' ' + rasc.previa + ' ' + rasc.corpo, m.canal);
-      if (ruins.length) { avisar(`Corrija o campo {{${ruins[0]}}} antes de salvar.`, 'erro'); el.querySelector('#em-campos-ruins').scrollIntoView({ block: 'center' }); return; }
-      if (!rasc.assunto.trim()) return avisar('O modelo precisa de assunto.', 'erro');
-      Object.assign(m, rasc, { editado: '03/10' });
-      avisar('Modelo salvo.');
+    el.querySelectorAll('[data-tam]').forEach((b) => { b.onclick = () => { tamanho = b.dataset.tam; el.querySelectorAll('[data-tam]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); desenharPrevia(); }; });
+
+    const voltar = el.querySelector('[data-voltar]');
+    voltar.onclick = () => {
+      if (!sujo()) { modeloAberto = null; return listaModelos(el); }
+      ctx.pedirConfirmacao(voltar, 'Sair sem salvar?', () => { modeloAberto = null; listaModelos(el); });
     };
-    atualizar();
+    el.querySelector('[data-teste]').onclick = () => (sujo() ? avisar('Salve as mudanças antes de mandar o teste.', 'erro') : pedirTeste(m));
+    const dup = el.querySelector('[data-dup]');
+    dup.onclick = () => {
+      if (sujo()) return avisar('Salve as mudanças antes de duplicar.', 'erro');
+      ocupado(dup, async () => {
+        try {
+          const r = await postModelos({ acao: 'duplicar', id: m.id });
+          trocarModelo(r.modelo); modeloAberto = r.modelo.id;
+          avisar('Modelo duplicado. Você está editando a cópia.'); modelos(el);
+        } catch (e) { avisar(msgErro(e), 'erro'); }
+      });
+    };
+    const salvar = el.querySelector('[data-salvar]');
+    salvar.onclick = () => ocupado(salvar, async () => {
+      try {
+        const r = await postModelos({ acao: 'salvar', id: m.id, modelo: rasc });
+        trocarModelo(r.modelo);
+        Object.assign(m, r.modelo);
+        Object.assign(rasc, Object.fromEntries(CHAVES.map((k) => [k, r.modelo[k] ?? ''])));
+        erro.textContent = '';
+        avisar('Modelo salvo.');
+      } catch (e) {
+        erro.textContent = msgErro(e);
+        avisar(msgErro(e), 'erro');
+        erro.scrollIntoView({ block: 'center' });
+      }
+    });
+    desenharChips();
+    atualizar(true);
   }
 
   // ===========================================================================
@@ -1213,13 +1339,6 @@
         </form>
       </div>`;
 
-    // Trava o botão enquanto a chamada corre (evita duplo clique).
-    const ocupado = async (botao, fn) => {
-      if (botao.disabled) return;
-      botao.disabled = true;
-      botao.setAttribute('aria-busy', 'true');
-      try { await fn(); } finally { botao.disabled = false; botao.removeAttribute('aria-busy'); }
-    };
     const salvar = (form, campos) => {
       const erro = form.querySelector('.em-erro');
       return ocupado(form.querySelector('[type=submit]'), async () => {
