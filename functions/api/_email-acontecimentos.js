@@ -14,7 +14,10 @@ import { sqlDasRegras } from './_email-segmentos.js';
 import { variantesTelefone } from '../_telefone.js';
 
 const agora = () => Math.floor(Date.now() / 1000);
-const LIMITE = 300;
+const LIMITE = 200;
+// Uma rodada não passa disto lendo fontes: o que faltar fica para a próxima
+// (a primeira rodada traz o histórico inteiro, aos poucos).
+const ORCAMENTO_MS = 20000;
 const RODADA_SEGMENTOS = 15 * 60;
 const EVENTOS_SITE = ['CTAClick', 'FormStart', 'FormStep', 'StoryOpen'];
 
@@ -31,10 +34,12 @@ async function gravarCursor(env, fonte, posicao) {
     .bind(fonte, posicao).run();
 }
 
+// Em lotes: o D1 aceita até 100 valores por comando (5 por acontecimento).
 async function gravar(env, lista) {
-  for (const a of lista) {
-    await env.DB.prepare('INSERT OR IGNORE INTO email_acontecimentos (chave, tipo, email, dados_json, quando) VALUES (?, ?, ?, ?, ?)')
-      .bind(a.chave, a.tipo, a.email ? normalizarEmail(a.email) : null, JSON.stringify(a.dados || {}), a.quando).run();
+  for (let i = 0; i < lista.length; i += 20) {
+    const parte = lista.slice(i, i + 20);
+    await env.DB.prepare(`INSERT OR IGNORE INTO email_acontecimentos (chave, tipo, email, dados_json, quando) VALUES ${parte.map(() => '(?, ?, ?, ?, ?)').join(', ')}`)
+      .bind(...parte.flatMap((a) => [a.chave, a.tipo, a.email ? normalizarEmail(a.email) : null, JSON.stringify(a.dados || {}), a.quando])).run();
   }
 }
 
@@ -116,17 +121,16 @@ const FONTES = {
       `SELECT id, group_jid, participant_jid, action, received_at, json_extract(raw_json, '$.phoneNumber') AS fone
          FROM whatsapp_group_events WHERE id > ? ORDER BY id LIMIT ?`,
     ).bind(desde, LIMITE).all()).results || [];
+    if (!r.length) return { lista: [], ultimo: desde };
+    // Telefone → e-mail dos leads, lido uma vez por rodada (o mais recente vence).
+    const fones = new Map();
+    for (const l of (await env.DB.prepare("SELECT REPLACE(phone, '+', '') AS fone, email FROM lead_dispatch WHERE COALESCE(phone, '') <> '' AND COALESCE(email, '') <> '' ORDER BY id").all()).results || []) {
+      fones.set(l.fone, l.email);
+    }
     const lista = [];
     for (const x of r) {
       const bruto = /@s\.whatsapp\.net$/.test(x.participant_jid || '') ? x.participant_jid.split('@')[0] : String(x.fone || '').split('@')[0];
-      const variantes = variantesTelefone(bruto);
-      let email = null;
-      if (variantes.length) {
-        const l = await env.DB.prepare(
-          `SELECT email FROM lead_dispatch WHERE REPLACE(phone, '+', '') IN (${variantes.map(() => '?').join(',')}) AND COALESCE(email, '') <> '' ORDER BY id DESC LIMIT 1`,
-        ).bind(...variantes).first();
-        email = l ? l.email : null;
-      }
+      const email = variantesTelefone(bruto).map((v) => fones.get(v)).find(Boolean) || null;
       lista.push({ chave: `grupo:${x.id}`, tipo: x.action === 'entrou' ? 'grupo_entrou' : 'grupo_saiu', email, quando: x.received_at, dados: { grupo: x.group_jid } });
     }
     return { lista, ultimo: r.length ? r[r.length - 1].id : desde };
@@ -162,7 +166,9 @@ const FONTES = {
 /** Lê todas as fontes. Fonte que falhar fica para a próxima rodada, sem travar as outras. */
 export async function coletar(env) {
   const resumo = {};
+  const inicio = Date.now();
   for (const [fonte, fn] of Object.entries(FONTES)) {
+    if (Date.now() - inicio > ORCAMENTO_MS) { resumo[fonte] = 'fica para a próxima rodada'; continue; }
     try {
       const desde = await lerCursor(env, fonte);
       const { lista, ultimo } = await fn(env, desde);

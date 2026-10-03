@@ -326,12 +326,26 @@ async function soltarEsperas(env, ctx, t) {
 
 async function tratarAcontecimentos(env, ctx, t) {
   const desde = Number((await env.DB.prepare("SELECT posicao FROM email_fluxo_cursores WHERE fonte = 'motor'").first())?.posicao || 0);
+  const gravarPosicao = (id) => env.DB.prepare("INSERT INTO email_fluxo_cursores (fonte, posicao) VALUES ('motor', ?) ON CONFLICT(fonte) DO UPDATE SET posicao = excluded.posicao").bind(id).run();
+  // Sem fluxo ativo não há o que fazer com os acontecimentos: só anda o cursor
+  // (quem disparou antes da publicação nunca entra mesmo).
+  if (!ctx.fluxos.size) {
+    const m = (await env.DB.prepare('SELECT MAX(id) AS m FROM email_acontecimentos').first())?.m || 0;
+    if (m > desde) await gravarPosicao(m);
+    return 0;
+  }
   const novos = (await env.DB.prepare('SELECT * FROM email_acontecimentos WHERE id > ? ORDER BY id LIMIT ?').bind(desde, ACONTECIMENTOS_POR_RODADA).all()).results || [];
+  // Contatos ativos dos acontecimentos, numa leitura só.
+  const emails = [...new Set(novos.map((a) => a.email).filter(Boolean))];
+  const ativos = new Map();
+  for (let i = 0; i < emails.length; i += 90) {
+    const parte = emails.slice(i, i + 90);
+    for (const c of (await env.DB.prepare(`SELECT id, email, situacao FROM email_contatos WHERE situacao = 'ativo' AND email IN (${parte.map(() => '?').join(',')})`).bind(...parte).all()).results || []) ativos.set(c.email, c);
+  }
   let entradas = 0;
   for (const a of novos) {
-    if (!a.email) continue;
-    const contato = await env.DB.prepare('SELECT id, email, situacao FROM email_contatos WHERE email = ?').bind(a.email).first();
-    if (!contato || contato.situacao !== 'ativo') continue;
+    const contato = a.email ? ativos.get(a.email) : null;
+    if (!contato) continue;
     const dados = JSON.parse(a.dados_json || '{}');
     for (const fluxo of ctx.fluxos.values()) {
       // Entrada: gatilho do início, só o que aconteceu depois de publicar.
@@ -361,10 +375,7 @@ async function tratarAcontecimentos(env, ctx, t) {
       }
     }
   }
-  if (novos.length) {
-    await env.DB.prepare("INSERT INTO email_fluxo_cursores (fonte, posicao) VALUES ('motor', ?) ON CONFLICT(fonte) DO UPDATE SET posicao = excluded.posicao")
-      .bind(novos[novos.length - 1].id).run();
-  }
+  if (novos.length) await gravarPosicao(novos[novos.length - 1].id);
   return entradas;
 }
 
