@@ -17,8 +17,8 @@
   'use strict';
 
   const VISTAS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
-  // Vistas já ligadas ao backend (377, 378, 380–384); as outras seguem protótipo.
-  const VISTAS_REAIS = ['campanhas', 'relatorio', 'contatos', 'segmentos', 'modelos', 'configuracao'];
+  // Vistas ligadas ao backend (377, 378, 380–385).
+  const VISTAS_REAIS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
   const TITULO_VISTA = {
     campanhas: 'Campanhas de e-mail', relatorio: 'Resultados do e-mail', fluxos: 'Fluxos automáticos',
     contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', configuracao: 'Configuração de e-mail',
@@ -298,7 +298,12 @@
     render,
     renderAgenda,
     // Para o quadro dos fluxos (email-fluxos.js).
-    util: { esc, int, pct, avisar, gaveta, fecharGaveta, menuHtml, ligarAcoes, carimbo, chave, seloProto, ICONE, abrirContato: (id) => detalheContato(id) },
+    util: {
+      esc, int, pct, avisar, gaveta, fecharGaveta, menuHtml, ligarAcoes, carimbo, chave, seloProto, ICONE, fecharMenus,
+      abrirContato: (id) => detalheContato(id),
+      // Fluxos (385): mesma trava de duplo clique e mesma mensagem de erro das outras vistas.
+      ocupado: (b, fn) => ocupado(b, fn), msgErro: (e) => msgErro(e),
+    },
     dados: D,
     nomeFunil, FUNIS, ORIGENS, ESTAGIOS,
   };
@@ -725,7 +730,7 @@
   // ===========================================================================
   function fluxos(el) {
     if (!window.EmailFluxos) { el.innerHTML = '<div class="aviso falha">O quadro dos fluxos não carregou.</div>'; return; }
-    window.EmailFluxos.render(el, ctx, { vazio: vazio() });
+    window.EmailFluxos.render(el, ctx);
   }
 
   // ===========================================================================

@@ -7,6 +7,7 @@
 // Prefixo "_": o Cloudflare Pages não transforma o arquivo em rota.
 import { CANAIS } from './_canal.js';
 import { campanhasEnviadas, segmentoEmAgendadas } from './_email-campanhas.js';
+import { segmentoEmFluxos } from './_email-fluxos.js';
 
 const agora = () => Math.floor(Date.now() / 1000);
 const MAX_REGRAS = 10;
@@ -33,7 +34,7 @@ export const fontesDeCampanhas = [campanhasEnviadas];
  * Onde o segmento é usado (trava de excluir). A 383 acrescenta a consulta das
  * campanhas agendadas: async (env, id) => ['campanha agendada "X"', ...].
  */
-export const consultasDeUso = [segmentoEmAgendadas];
+export const consultasDeUso = [segmentoEmAgendadas, segmentoEmFluxos];
 
 export class ErroSegmento extends Error {
   constructor(mensagem, status = 400) { super(mensagem); this.status = status; }

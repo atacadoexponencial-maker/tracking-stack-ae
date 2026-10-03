@@ -1,4 +1,5 @@
-// Fluxos automáticos de e-mail (spec-email-proprio.md, módulo 9). PROTÓTIPO da issue 376.
+// Fluxos automáticos de e-mail (spec-email-proprio.md, módulo 9). Quadro do
+// protótipo aprovado (376), ligado ao backend na 385: GET/POST /api/email/fluxos.
 //
 // Quadro no estilo do construtor do ManyChat, feito em JS puro: cartões em HTML
 // posicionados num "mundo" que recebe translate + scale, e as ligações em SVG
@@ -7,7 +8,9 @@
 // ligar arrastando, pinça no celular) usam Pointer Events, que funcionam igual
 // com mouse e com dedo.
 //
-// Nada é salvo: os fluxos vivem na memória da página, com dados de exemplo.
+// O rascunho é salvo sozinho a cada mudança (com versão, para duas abas não se
+// atropelarem) e os problemas que impedem publicar vêm do servidor. Publicar,
+// testar e os números nos cartões chegam nas issues 386–388.
 (() => {
   'use strict';
 
@@ -52,45 +55,30 @@
   };
   const NOVOS = ['email', 'espera', 'desvio', 'objetivo', 'ir_fluxo', 'fim'];
 
-  const FILTRO_VALORES = {
-    funil: () => M().FUNIS,
-    pagina: () => ['/workshop-gratuito', '/workshop-gratuito-v2', '/se-v2', '/aplicacao-mentoria', '/trafego-atacado'].map((p) => [p, p]),
-    canal: () => M().ORIGENS.map((o) => [o, o]),
-    utm_source: () => ['facebook', 'instagram', 'google', 'manychat'].map((p) => [p, p]),
-    utm_campaign: () => ['wo-gratuito-perene', 'wo-gratuito-0810', 'se-conversao', 'remarketing-30d'].map((p) => [p, p]),
-    utm_content: () => ['video-depoimento', 'carrossel-selos', 'stories-bastidor'].map((p) => [p, p]),
-    formulario: () => [['plano-ao-vivo', 'Aplicação plano ao vivo 07/10'], ['mentoria', 'Aplicação mentoria']],
-    material: () => [['icp', 'ICP do atacado'], ['catalogo', 'Catálogo da primeira compra'], ['sell-out', 'Sell-out'], ['black', 'Black do atacado']],
-    produto: () => [['wo-pago', 'Workshop Black Exponencial'], ['mentoria', 'Mentoria'], ['plano', 'Plano ao vivo']],
-    compra: () => [['aprovada', 'aprovada'], ['reembolsada', 'reembolsada'], ['cancelada', 'cancelada']],
-    tipo: () => [['t1', 'Sessão estratégica'], ['t2', 'Diagnóstico de tráfego']],
-    grupo: () => [['g1', 'Grupo do workshop 08/10'], ['g2', 'AVISOS Atacado Exponencial']],
-    estagio: () => M().ESTAGIOS.map((e) => [e, e]),
-    evento: () => [['clicou-cta', 'clicou no botão principal'], ['rolou-75', 'rolou 75% da página'], ['abriu-form', 'abriu o formulário']],
-    segmento: () => D().segmentos.map((s) => [s.id, s.nome]),
-    campanha: () => D().campanhas.filter((c) => ['enviada', 'enviando'].includes(c.situacao)).map((c) => [c.id, c.nome]),
-    acao: () => [['abriu', 'abriu'], ['clicou', 'clicou']],
-  };
+  // Valores reais de cada filtro, vindos do servidor ao abrir o fluxo.
+  let OPC = {};
+  const FILTRO_VALORES = new Proxy({}, { get: (_, campo) => () => OPC[campo] || [] });
+  const primeiroValor = (campo) => (FILTRO_VALORES[campo]()[0] || [''])[0];
   const FILTRO_ROTULO = {
     funil: 'Funil', pagina: 'Página', canal: 'Canal', utm_source: 'UTM origem', utm_campaign: 'UTM campanha', utm_content: 'UTM anúncio',
     formulario: 'Formulário', material: 'Material', produto: 'Produto', compra: 'Situação da compra', tipo: 'Tipo de reunião', grupo: 'Grupo',
     estagio: 'Estágio', evento: 'Evento', segmento: 'Segmento', campanha: 'Campanha', acao: 'Fez',
   };
   const EVENTOS = {
-    formulario: { rotulo: 'Preencheu formulário (virou lead)', curto: 'Virou lead', filtros: ['funil', 'pagina', 'canal', 'utm_source', 'utm_campaign', 'utm_content'], base: 1300 },
-    aplicacao: { rotulo: 'Enviou aplicação', curto: 'Enviou aplicação', filtros: ['formulario'], base: 140 },
-    material: { rotulo: 'Baixou material (isca)', curto: 'Baixou material', filtros: ['material'], base: 420 },
-    compra: { rotulo: 'Comprou na Greenn', curto: 'Comprou', filtros: ['produto', 'compra'], base: 96 },
-    agendou: { rotulo: 'Agendou reunião', curto: 'Agendou reunião', filtros: ['tipo'], base: 180 },
-    cancelou: { rotulo: 'Cancelou reunião', curto: 'Cancelou reunião', filtros: ['tipo'], base: 34 },
-    faltou: { rotulo: 'Faltou à reunião', curto: 'Faltou', filtros: ['tipo'], base: 41 },
-    compareceu: { rotulo: 'Compareceu à reunião', curto: 'Compareceu', filtros: ['tipo'], base: 102 },
-    grupo_entrou: { rotulo: 'Entrou num grupo de WhatsApp', curto: 'Entrou no grupo', filtros: ['grupo'], base: 610 },
-    grupo_saiu: { rotulo: 'Saiu de um grupo de WhatsApp', curto: 'Saiu do grupo', filtros: ['grupo'], base: 75 },
-    crm: { rotulo: 'Mudou de estágio no CRM', curto: 'Mudou de estágio', filtros: ['estagio'], base: 260 },
-    site: { rotulo: 'Visitou página ou clicou num botão', curto: 'No site', filtros: ['pagina', 'evento'], base: 3100 },
-    segmento: { rotulo: 'Entrou num segmento', curto: 'Entrou no segmento', filtros: ['segmento'], base: 220 },
-    campanha: { rotulo: 'Abriu ou clicou numa campanha', curto: 'Campanha', filtros: ['acao', 'campanha'], base: 700 },
+    formulario: { rotulo: 'Preencheu formulário (virou lead)', curto: 'Virou lead', filtros: ['funil', 'pagina', 'canal', 'utm_source', 'utm_campaign', 'utm_content'] },
+    aplicacao: { rotulo: 'Enviou aplicação', curto: 'Enviou aplicação', filtros: ['formulario'] },
+    material: { rotulo: 'Baixou material (isca)', curto: 'Baixou material', filtros: ['material'] },
+    compra: { rotulo: 'Comprou na Greenn', curto: 'Comprou', filtros: ['produto', 'compra'] },
+    agendou: { rotulo: 'Agendou reunião', curto: 'Agendou reunião', filtros: ['tipo'] },
+    cancelou: { rotulo: 'Cancelou reunião', curto: 'Cancelou reunião', filtros: ['tipo'] },
+    faltou: { rotulo: 'Faltou à reunião', curto: 'Faltou', filtros: ['tipo'] },
+    compareceu: { rotulo: 'Compareceu à reunião', curto: 'Compareceu', filtros: ['tipo'] },
+    grupo_entrou: { rotulo: 'Entrou num grupo de WhatsApp', curto: 'Entrou no grupo', filtros: ['grupo'] },
+    grupo_saiu: { rotulo: 'Saiu de um grupo de WhatsApp', curto: 'Saiu do grupo', filtros: ['grupo'] },
+    crm: { rotulo: 'Mudou de estágio no CRM', curto: 'Mudou de estágio', filtros: ['estagio'] },
+    site: { rotulo: 'Visitou página ou clicou num botão', curto: 'No site', filtros: ['pagina', 'evento'] },
+    segmento: { rotulo: 'Entrou num segmento', curto: 'Entrou no segmento', filtros: ['segmento'] },
+    campanha: { rotulo: 'Abriu ou clicou numa campanha', curto: 'Campanha', filtros: ['acao', 'campanha'] },
   };
   const valorRot = (campo, v) => ((FILTRO_VALORES[campo] ? FILTRO_VALORES[campo]() : []).find((o) => o[0] === v) || [v, v])[1];
 
@@ -108,80 +96,8 @@
   // ---------------------------------------------------------------------------
   const DIAS = [['1', 'segunda'], ['2', 'terça'], ['3', 'quarta'], ['4', 'quinta'], ['5', 'sexta'], ['6', 'sábado'], ['0', 'domingo']];
   const janela = (ligada = true) => ({ ligada, de: '08:00', ate: '20:00' });
-  const FLUXOS = [
-    {
-      id: 'f1', nome: 'Boas-vindas do workshop gratuito', situacao: 'ativo', dentro: 37, concluiram: 1102, clique: 14.6,
-      nos: [
-        { id: 'n1', tipo: 'inicio', x: 40, y: 150, dados: { gatilhos: [{ evento: 'formulario', filtros: [{ campo: 'funil', valor: 'workshop-gratuito' }] }] } },
-        { id: 'n2', tipo: 'email', x: 360, y: 150, dados: { modelo: 'm7' } },
-        { id: 'n3', tipo: 'espera', x: 680, y: 150, dados: { modo: 'tempo', qtd: 1, unidade: 'dias', janela: janela() } },
-        { id: 'n4', tipo: 'desvio', x: 1000, y: 150, dados: { juncao: 'e', condicoes: [{ tipo: 'abriu', ref: 'n2' }] } },
-        { id: 'n5', tipo: 'email', x: 1330, y: 20, dados: { modelo: 'm8' } },
-        { id: 'n6', tipo: 'email', x: 1330, y: 330, dados: { modelo: 'm9' } },
-        { id: 'n7', tipo: 'objetivo', x: 1660, y: 170, dados: { evento: 'agendou', filtro: 't1' } },
-        { id: 'n8', tipo: 'fim', x: 1990, y: 200, dados: {} },
-      ],
-      arestas: [['n1', 'proximo', 'n2'], ['n2', 'proximo', 'n3'], ['n3', 'proximo', 'n4'], ['n4', 'sim', 'n5'], ['n4', 'nao', 'n6'], ['n5', 'proximo', 'n7'], ['n6', 'proximo', 'n7'], ['n7', 'proximo', 'n8']],
-      notas: [{ id: 'o1', x: 660, y: 400, texto: 'Quem não abriu o primeiro e-mail recebe o mesmo convite com outro assunto. Quem agendar reunião em qualquer ponto pula direto para o objetivo.' }],
-      stats: { n1: { entraram: 1284 }, n2: { receberam: 1284, abriram: 702, clicaram: 188 }, n3: { esperando: 37 }, n4: { sim: 655, nao: 592 }, n5: { receberam: 655, abriram: 401, clicaram: 97 }, n6: { receberam: 592, abriram: 141, clicaram: 22 }, n7: { chegaram: 74 }, n8: { concluiram: 1102 } },
-    },
-    {
-      id: 'f2', nome: 'Pós-compra do workshop pago', situacao: 'pausado', dentro: 12, concluiram: 64, clique: 31.2,
-      nos: [
-        { id: 'n1', tipo: 'inicio', x: 40, y: 120, dados: { gatilhos: [{ evento: 'compra', filtros: [{ campo: 'produto', valor: 'wo-pago' }, { campo: 'compra', valor: 'aprovada' }] }] } },
-        { id: 'n2', tipo: 'email', x: 360, y: 120, dados: { modelo: 'm7' } },
-        { id: 'n3', tipo: 'espera', x: 680, y: 120, dados: { modo: 'dia', dia: '2', hora: '09:00', janela: janela(false) } },
-        { id: 'n4', tipo: 'email', x: 1000, y: 120, dados: { modelo: 'm12' } },
-        { id: 'n5', tipo: 'fim', x: 1320, y: 160, dados: {} },
-      ],
-      arestas: [['n1', 'proximo', 'n2'], ['n2', 'proximo', 'n3'], ['n3', 'proximo', 'n4'], ['n4', 'proximo', 'n5']],
-      notas: [],
-      stats: { n1: { entraram: 76 }, n2: { receberam: 76, abriram: 61, clicaram: 30 }, n3: { esperando: 12 }, n4: { receberam: 64, abriram: 44, clicaram: 18 }, n5: { concluiram: 64 } },
-    },
-    {
-      id: 'f3', nome: 'Convite para sessão estratégica', situacao: 'ativo', mudancas: true, dentro: 58, concluiram: 233, clique: 9.8,
-      nos: [
-        { id: 'n1', tipo: 'inicio', x: 40, y: 140, dados: { gatilhos: [{ evento: 'crm', filtros: [{ campo: 'estagio', valor: 'MQL' }] }, { evento: 'aplicacao', filtros: [{ campo: 'formulario', valor: 'mentoria' }] }] } },
-        { id: 'n2', tipo: 'email', x: 360, y: 140, dados: { modelo: 'm12' } },
-        { id: 'n3', tipo: 'espera', x: 680, y: 140, dados: { modo: 'evento', evento: 'clicou', ref: 'n2', prazo: 3, unidade: 'dias', janela: janela() } },
-        { id: 'n4', tipo: 'objetivo', x: 1010, y: 20, dados: { evento: 'agendou', filtro: 't1' } },
-        { id: 'n5', tipo: 'ir_fluxo', x: 1010, y: 300, dados: { fluxo: 'f1' } },
-        { id: 'n6', tipo: 'fim', x: 1330, y: 50, dados: {} },
-      ],
-      arestas: [['n1', 'proximo', 'n2'], ['n2', 'proximo', 'n3'], ['n3', 'aconteceu', 'n4'], ['n3', 'nao_aconteceu', 'n5'], ['n4', 'proximo', 'n6']],
-      notas: [],
-      stats: { n1: { entraram: 391 }, n2: { receberam: 391, abriram: 188, clicaram: 38 }, n3: { esperando: 58, aconteceu: 38, nao_aconteceu: 295 }, n4: { chegaram: 61 }, n5: { passaram: 272 }, n6: { concluiram: 233 } },
-    },
-    {
-      id: 'f4', nome: 'Reengajar leads frios', situacao: 'rascunho', dentro: 0, concluiram: 0, clique: null,
-      nos: [
-        { id: 'n1', tipo: 'inicio', x: 40, y: 120, dados: { gatilhos: [] } },
-        { id: 'n2', tipo: 'email', x: 360, y: 120, dados: { modelo: '' } },
-        { id: 'n3', tipo: 'desvio', x: 680, y: 120, dados: { juncao: 'e', condicoes: [] } },
-        { id: 'n4', tipo: 'espera', x: 360, y: 380, dados: { modo: 'tempo', qtd: 2, unidade: 'dias', janela: janela() } },
-      ],
-      arestas: [['n1', 'proximo', 'n2'], ['n2', 'proximo', 'n3']],
-      notas: [{ id: 'o1', x: 700, y: 360, texto: 'Ideia: mandar o material de sell-out para quem não abriu nada em 60 dias.' }],
-      stats: {},
-    },
-  ].map(prepararFluxo);
-
-  let seq = 100;
-  const novoId = (p) => p + (++seq);
-  function prepararFluxo(f) {
-    f.arestas = f.arestas.map((a, i) => (Array.isArray(a) ? { id: 'a' + i, de: a[0], saida: a[1], para: a[2] } : a));
-    f.publicado = f.situacao === 'rascunho' ? null : instantaneo(f);
-    if (f.mudancas) {
-      // Exemplo de mudança não publicada: um e-mail novo antes de mandar para
-      // outro fluxo. No ar, quem não clica ainda vai direto para o outro fluxo.
-      f.nos.push({ id: 'n7', tipo: 'email', x: 1010, y: 300, dados: { modelo: 'm6' } });
-      const ir = f.nos.find((n) => n.id === 'n5'); ir.x = 1330; ir.y = 330;
-      f.arestas = f.arestas.filter((a) => !(a.de === 'n3' && a.saida === 'nao_aconteceu'));
-      f.arestas.push({ id: 'a7', de: 'n3', saida: 'nao_aconteceu', para: 'n7' }, { id: 'a8', de: 'n7', saida: 'proximo', para: 'n5' });
-    }
-    f.salvoEm = '10:42';
-    return f;
-  }
+  // Ids novos não repetem os que já estão no quadro salvo.
+  const novoId = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   function instantaneo(f) { return JSON.stringify({ nos: f.nos, arestas: f.arestas, notas: f.notas }); }
   function restaurar(f, txt) { const o = JSON.parse(txt); f.nos = o.nos; f.arestas = o.arestas; f.notas = o.notas; }
 
@@ -193,92 +109,137 @@
   let sel = null;                   // cartão com o painel aberto
   let selAresta = null;
   let desfazer = [], refazer = [];
-  let periodo = '30';
-  const FATOR = { '7': 0.26, '30': 1, tudo: 2.7 };
   let el = null;                    // raiz da vista
-  let opcoes = {};
+  let MODELOS = [];                 // modelos de e-mail (GET /api/email/modelos)
+  let verArquivados = false;
+  let marcados = new Set();         // cartões marcados com Shift + clique
+  let areaCopia = null;             // cartões copiados (vale para outro fluxo)
+  let salvar = { timer: null, rodando: false, pendente: false, erro: null };
 
   const $q = (s) => el.querySelector(s);
   const no = (id) => F.nos.find((n) => n.id === id);
   const esc = (s) => U().esc(s);
   const int = (n) => U().int(n);
-  const modelo = (id) => D().modelos.find((m) => m.id === id);
+  const modelo = (id) => (id === '' || id == null ? null : MODELOS.find((m) => String(m.id) === String(id)));
 
   // ---------------------------------------------------------------------------
   // Entrada: lista de fluxos ou quadro
   // ---------------------------------------------------------------------------
-  function render(raiz, c, op) {
-    el = raiz; ctx = c; opcoes = op || {};
+  function render(raiz, c) {
+    el = raiz; ctx = c;
     if (F) return quadro();
     lista();
   }
   window.EmailFluxos = { render };
 
   function resumoGatilhos(f) {
-    const g = f.nos.find((n) => n.tipo === 'inicio').dados.gatilhos;
+    const g = f.grafo.nos.find((n) => n.tipo === 'inicio').dados.gatilhos;
     if (!g.length) return 'sem gatilho';
-    return g.map((x) => EVENTOS[x.evento].curto + (x.filtros[0] ? ` (${valorRot(x.filtros[0].campo, x.filtros[0].valor)})` : '')).join(' ou ');
+    return g.map((x) => (EVENTOS[x.evento] || { curto: x.evento }).curto + (x.filtros[0] ? ` (${x.filtros[0].valor})` : '')).join(' ou ');
   }
   const SIT = { rascunho: ['Rascunho', 'neutro'], ativo: ['Ativo', 'alta'], pausado: ['Pausado', 'alerta'] };
 
-  function lista() {
-    const fluxos = opcoes.vazio ? FLUXOS.filter((f) => f.criadoAgora) : FLUXOS.filter((f) => !f.arquivado);
-    el.innerHTML = `${U().seloProto(true)}
-      <div class="em-barra"><p class="mini">Cada fluxo começa sozinho quando a pessoa faz algo (vira lead, compra, agenda). Sai pelo canal de marketing.</p>
-        <button class="btn" type="button" data-novo>Novo fluxo</button></div>
+  const postFluxos = (corpo) => ctx.postJson('/api/email/fluxos', corpo);
+  const quandoCurto = (t) => new Date(t * 1000).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '');
+
+  async function lista() {
+    el.innerHTML = '<p class="aviso">Carregando os fluxos…</p>';
+    let d;
+    try { d = await ctx.fetchJson(`/api/email/fluxos?${verArquivados ? 'arquivados=1&' : ''}_=${Date.now()}`); }
+    catch (e) { el.innerHTML = `<div class="aviso falha">Não foi possível carregar os fluxos (${esc(e.message)}). Tente de novo em instantes.</div>`; return; }
+    if (F) return;
+    el.innerHTML = `<div class="em-barra"><p class="mini">Cada fluxo começa sozinho quando a pessoa faz algo (vira lead, compra, agenda). Sai pelo canal de marketing.</p>
+        <div class="ag-acoes"><button class="btn sec" type="button" data-arquivados aria-pressed="${verArquivados}">${verArquivados ? 'Ver fluxos em uso' : `Arquivados (${int(d.arquivados)})`}</button><button class="btn" type="button" data-novo>Novo fluxo</button></div></div>
       <div class="tabela-wrap" id="fx-lista"></div>`;
-    $q('[data-novo]').onclick = () => {
-      const f = prepararFluxo({ id: novoId('f'), nome: 'Fluxo sem nome', situacao: 'rascunho', dentro: 0, concluiram: 0, clique: null, criadoAgora: true,
-        nos: [{ id: 'n1', tipo: 'inicio', x: 60, y: 140, dados: { gatilhos: [] } }], arestas: [], notas: [], stats: {} });
-      FLUXOS.unshift(f);
-      abrir(f, 'n1');
-      U().avisar('Fluxo criado. Comece escolhendo o gatilho no cartão de início.');
-    };
+    $q('[data-arquivados]').onclick = () => { verArquivados = !verArquivados; lista(); };
+    const bn = $q('[data-novo]');
+    bn.onclick = () => U().ocupado(bn, async () => {
+      try {
+        const r = await postFluxos({ acao: 'criar', nome: 'Fluxo sem nome' });
+        verArquivados = false;
+        await abrir(r.fluxo.id, 'n1');
+        U().avisar('Fluxo criado. Comece escolhendo o gatilho no cartão de início.');
+      } catch (e) { U().avisar(U().msgErro(e), 'erro'); }
+    });
     const alvo = $q('#fx-lista');
     ctx.tabela(alvo, [
-      { titulo: 'Fluxo', campo: 'nome', render: (f) => `<button type="button" class="ag-link-linha" data-acao="abrir" data-id="${f.id}">${esc(f.nome)}</button>${f.mudancas ? ' <span class="selo pago">mudanças não publicadas</span>' : ''}` },
+      { titulo: 'Fluxo', campo: 'nome', render: (f) => `<button type="button" class="ag-link-linha" data-acao="abrir" data-id="${f.id}">${esc(f.nome)}</button>` },
       { titulo: 'Gatilhos', render: (f) => `<span class="mini">${esc(resumoGatilhos(f))}</span>` },
       { titulo: 'Situação', campo: 'situacao', render: (f) => U().carimbo(SIT, f.situacao) },
-      { titulo: 'Dentro agora', num: true, campo: 'dentro', render: (f) => int(f.dentro) },
-      { titulo: 'Concluíram', num: true, campo: 'concluiram', render: (f) => int(f.concluiram) },
-      { titulo: 'Clique', num: true, campo: 'clique', render: (f) => (f.clique === null ? '' : U().pct(f.clique)) },
-      { titulo: '', render: (f) => `<div class="ag-acoes ag-acoes--linha">${U().menuHtml(f.nome, [
+      { titulo: 'Editado', render: (f) => esc(quandoCurto(f.atualizado_em)) },
+      { titulo: '', render: (f) => `<div class="ag-acoes ag-acoes--linha">${U().menuHtml(f.nome, f.arquivado ? [
+        { acao: 'desarquivar', id: f.id, rotulo: 'Tirar do arquivo' }, { acao: 'duplicar', id: f.id, rotulo: 'Duplicar' },
+      ] : [
         { acao: 'abrir', id: f.id, rotulo: 'Abrir quadro' },
         { acao: 'duplicar', id: f.id, rotulo: 'Duplicar' },
-        f.situacao === 'ativo' && { acao: 'pausar', id: f.id, rotulo: 'Pausar' },
-        f.situacao === 'pausado' && { acao: 'retomar', id: f.id, rotulo: 'Retomar' },
         { acao: 'arquivar', id: f.id, rotulo: 'Arquivar', perigo: true },
       ])}</div>` },
-    ], fluxos, undefined, 'Nenhum fluxo ainda. Um fluxo junta gatilho, e-mails, esperas e desvios num quadro, como no ManyChat.');
-    const achar = (id) => FLUXOS.find((f) => f.id === id);
+    ], d.fluxos, undefined, verArquivados ? 'Nenhum fluxo arquivado.' : 'Nenhum fluxo ainda. Um fluxo junta gatilho, e-mails, esperas e desvios num quadro, como no ManyChat.');
+    const acao = (corpo, aviso) => async () => {
+      try { await postFluxos(corpo); U().avisar(aviso); lista(); } catch (e) { U().avisar(U().msgErro(e), 'erro'); }
+    };
     U().ligarAcoes(alvo, {
-      abrir: (id) => abrir(achar(id)),
-      duplicar: (id) => {
-        const o = achar(id);
-        const f = prepararFluxo({ ...JSON.parse(JSON.stringify(o)), id: novoId('f'), nome: o.nome + ' (cópia)', situacao: 'rascunho', mudancas: false, dentro: 0, concluiram: 0, clique: null, stats: {}, criadoAgora: true });
-        FLUXOS.splice(FLUXOS.indexOf(o) + 1, 0, f);
-        U().avisar('Fluxo duplicado como rascunho.'); lista();
-      },
-      pausar: (id) => { achar(id).situacao = 'pausado'; U().avisar('Fluxo pausado. Ninguém novo entra e quem está dentro parou onde estava.'); lista(); },
-      retomar: (id) => { achar(id).situacao = 'ativo'; U().avisar('Fluxo retomado. Cada pessoa segue de onde parou, sem receber os e-mails acumulados.'); lista(); },
-      arquivar: (id, b) => ctx.pedirConfirmacao(b, 'Arquivar o fluxo?', () => { const f = achar(id); f.arquivado = true; f.situacao = 'pausado'; U().avisar('Fluxo arquivado.'); lista(); }),
+      abrir: (id) => abrir(Number(id)),
+      duplicar: (id) => acao({ acao: 'duplicar', id: Number(id) }, 'Fluxo duplicado como rascunho.')(),
+      desarquivar: (id) => acao({ acao: 'desarquivar', id: Number(id) }, 'Fluxo de volta na lista.')(),
+      arquivar: (id, b) => ctx.pedirConfirmacao(b, 'Arquivar o fluxo?', () => { U().fecharMenus(); acao({ acao: 'arquivar', id: Number(id) }, 'Fluxo arquivado.')(); }),
     });
   }
 
-  function abrir(f, abrirNo) {
-    F = f; sel = null; selAresta = null; desfazer = []; refazer = [];
+  async function abrir(id, abrirNo) {
+    el.innerHTML = '<p class="aviso">Abrindo o quadro…</p>';
+    let d, m;
+    try {
+      [d, m] = await Promise.all([ctx.fetchJson(`/api/email/fluxos?id=${id}&_=${Date.now()}`), ctx.fetchJson(`/api/email/modelos?_=${Date.now()}`)]);
+    } catch (e) { el.innerHTML = `<div class="aviso falha">Não foi possível abrir o fluxo (${esc(e.message)}).</div>`; return; }
+    OPC = d.opcoes;
+    MODELOS = m.modelos;
+    const f = d.fluxo;
+    F = { id: f.id, nome: f.nome, situacao: f.situacao, versao: f.versao, nos: f.grafo.nos, arestas: f.grafo.arestas, notas: f.grafo.notas, problemas: f.problemas, salvoEm: quandoCurto(f.atualizado_em).slice(-5) };
+    sel = null; selAresta = null; desfazer = []; refazer = []; marcados = new Set();
+    salvar = { timer: null, rodando: false, pendente: false, erro: null };
     quadro();
     centralizar();
     if (abrirNo) selecionar(abrirNo);
     window.scrollTo(0, 0);
   }
 
+  // Salvamento sozinho: 1 s depois da última mudança; uma chamada por vez.
+  function agendarSalvar() {
+    clearTimeout(salvar.timer);
+    salvar.timer = setTimeout(salvarAgora, 1000);
+    desenharSituacao();
+  }
+  async function salvarAgora() {
+    clearTimeout(salvar.timer);
+    salvar.timer = null;
+    if (!F) return;
+    if (salvar.rodando) { salvar.pendente = true; return; }
+    salvar.rodando = true;
+    const fluxo = F;
+    try {
+      const r = await postFluxos({ acao: 'salvar', id: fluxo.id, nome: fluxo.nome, versao: fluxo.versao, grafo: { nos: fluxo.nos, arestas: fluxo.arestas, notas: fluxo.notas } });
+      fluxo.versao = r.versao;
+      fluxo.problemas = r.problemas;
+      fluxo.salvoEm = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      salvar.erro = null;
+    } catch (e) {
+      salvar.erro = U().msgErro(e);
+      // Conflito entre abas não se resolve tentando de novo.
+      if (!(e.mensagemUsuario && /outra aba/.test(e.mensagemUsuario))) salvar.timer = setTimeout(salvarAgora, 10000);
+    } finally {
+      salvar.rodando = false;
+    }
+    if (F !== fluxo) return;
+    if (salvar.pendente) { salvar.pendente = false; return salvarAgora(); }
+    desenharCartoes(); desenharArestas(); desenharSituacao();
+  }
+
   // ---------------------------------------------------------------------------
   // Quadro
   // ---------------------------------------------------------------------------
   function quadro() {
-    el.innerHTML = `${U().seloProto(true)}
-      <div class="fx-topo">
+    el.innerHTML = `<div class="fx-topo">
         <button class="btn sec em-voltar" type="button" data-voltar>${IC.voltar} Fluxos</button>
         <input class="fx-nome" type="text" value="${esc(F.nome)}" aria-label="Nome do fluxo">
         <div class="fx-situacao" id="fx-situacao"></div>
@@ -303,16 +264,20 @@
           <span class="fx-sep"></span>
           <button type="button" class="fx-ferr fx-ferr--txt" data-f="cartao">${IC.mais} Cartão</button>
           <button type="button" class="fx-ferr fx-ferr--txt" data-f="nota">${IC.nota} Nota</button>
-          <select data-f="periodo" aria-label="Período dos números"><option value="7">7 dias</option><option value="30">30 dias</option><option value="tudo">Desde o início</option></select>
+          <button type="button" class="fx-ferr fx-ferr--txt" data-f="copiar" title="Copiar os cartões marcados (Shift + clique marca vários; Ctrl+C)">${IC.copiar} Copiar</button>
+          <button type="button" class="fx-ferr fx-ferr--txt" data-f="colar" title="Colar (Ctrl+V), também em outro fluxo">${IC.copiar} Colar</button>
         </div>
         <div class="fx-mapa" id="fx-mapa" aria-label="Mapa em miniatura"><svg id="fx-mapa-svg"></svg></div>
         <aside class="fx-painel" id="fx-painel" hidden></aside>
         <div class="fx-escolha" id="fx-escolha" hidden></div>
       </div>
-      <p class="mini fx-dica">Arraste o fundo para mover a tela · Ctrl + rolar ou pinça para zoom · arraste da bolinha de saída até outro cartão para ligar · clique no cartão para editar.</p>`;
-    $q('[data-voltar]').onclick = () => { F = null; lista(); };
+      <p class="mini fx-dica">Arraste o fundo para mover a tela · Ctrl + rolar ou pinça para zoom · arraste da bolinha de saída até outro cartão para ligar · clique no cartão para editar · Shift + clique marca vários para copiar.</p>`;
+    $q('[data-voltar]').onclick = async () => {
+      clearTimeout(salvar.timer);
+      if (salvar.rodando || salvar.pendente || salvar.erro) await salvarAgora();
+      F = null; lista();
+    };
     $q('.fx-nome').onchange = (ev) => { mudar(() => { F.nome = ev.target.value.trim() || 'Fluxo sem nome'; }); };
-    $q('[data-f="periodo"]').value = periodo;
     ligarFerramentas();
     ligarGestos();
     desenharTudo();
@@ -387,8 +352,7 @@
     if (redesenhar) desenharTudo();
   }
   function marcarMudanca() {
-    if (F.situacao !== 'rascunho' && F.publicado) F.mudancas = instantaneo(F) !== F.publicado;
-    F.salvoEm = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    agendarSalvar();
   }
   function voltarEstado(de, para) {
     if (!de.length) return U().avisar('Nada para ' + (de === desfazer ? 'desfazer.' : 'refazer.'));
@@ -404,64 +368,32 @@
   // ---------------------------------------------------------------------------
   // Problemas (impedem publicar)
   // ---------------------------------------------------------------------------
+  // Os problemas que impedem publicar são calculados no servidor a cada
+  // salvamento (GET/POST /api/email/fluxos).
   function problemas() {
-    const lista = [];
-    const ini = F.nos.find((n) => n.tipo === 'inicio');
-    const alcance = new Set();
-    const fila = [ini.id, ...F.nos.filter((n) => n.tipo === 'objetivo').map((n) => n.id)];
-    while (fila.length) {
-      const id = fila.shift();
-      if (alcance.has(id)) continue;
-      alcance.add(id);
-      F.arestas.filter((a) => a.de === id).forEach((a) => fila.push(a.para));
-    }
-    F.nos.forEach((n) => {
-      const p = [];
-      if (n.tipo === 'inicio' && !n.dados.gatilhos.length) p.push('Sem gatilho');
-      if (!alcance.has(n.id)) p.push('Solto');
-      if (n.tipo === 'email' && !modelo(n.dados.modelo)) p.push('Sem modelo');
-      if (n.tipo === 'desvio' && !n.dados.condicoes.length) p.push('Sem condição');
-      if (n.tipo === 'ir_fluxo' && !n.dados.fluxo) p.push('Sem fluxo de destino');
-      const soltas = saidasDe(n).filter(([s]) => !F.arestas.some((a) => a.de === n.id && a.saida === s));
-      if (soltas.length) p.push(soltas.length > 1 ? 'Saídas sem destino' : 'Saída sem destino');
-      if (p.length) lista.push({ no: n.id, textos: p });
-    });
-    return lista;
+    const ids = new Set(F.nos.map((n) => n.id));
+    return (F.problemas || []).filter((p) => ids.has(p.no));
   }
   const EXPLICA_PROBLEMA = {
     'Sem gatilho': 'o início não tem gatilho', Solto: 'cartão solto, nada leva até ele', 'Sem modelo': 'e-mail sem modelo',
     'Sem condição': 'desvio sem condição', 'Sem fluxo de destino': 'falta escolher o fluxo de destino',
     'Saída sem destino': 'saída sem destino', 'Saídas sem destino': 'saídas sem destino',
+    'Modelo arquivado': 'o modelo está arquivado', 'Modelo incompleto': 'o modelo está sem assunto ou sem texto',
+    'Sem e-mail de referência': 'falta escolher o e-mail do fluxo',
   };
 
   function desenharSituacao() {
     const probs = problemas();
     const alvo = $q('#fx-situacao');
-    const s = F.situacao;
-    const pessoas = F.dentro ? `<button class="btn sec" type="button" data-s="pessoas">Pessoas no fluxo (${int(F.dentro)})</button>` : '';
-    let estado = U().carimbo(SIT, s);
-    let nota = '';
-    let botoes = '';
-    if (s === 'rascunho') {
-      nota = `Rascunho salvo sozinho às ${F.salvoEm}. Ninguém entra até publicar.`;
-      botoes = `<button class="btn sec" type="button" data-s="testar">Testar</button><button class="btn" type="button" data-s="publicar">Publicar</button>`;
-    } else if (F.mudancas) {
-      estado += ' <span class="carimbo alerta">Mudanças não publicadas</span>';
-      nota = `Salvo às ${F.salvoEm}. O fluxo no ar segue a versão anterior até você publicar.`;
-      botoes = `${pessoas}<button class="btn sec" type="button" data-s="testar">Testar</button><button class="btn perigo" type="button" data-s="descartar">Descartar mudanças</button><button class="btn" type="button" data-s="publicar">Publicar mudanças</button>`;
-    } else if (s === 'ativo') {
-      nota = 'No ar. Quem dispara o gatilho entra; quem já está dentro ou concluiu não entra de novo.';
-      botoes = `${pessoas}<button class="btn sec" type="button" data-s="testar">Testar</button><button class="btn sec" type="button" data-s="pausar">Pausar</button>`;
-    } else {
-      nota = 'Pausado. Ninguém novo entra e quem está dentro parou onde estava.';
-      botoes = `${pessoas}<button class="btn" type="button" data-s="retomar">Retomar</button>`;
-    }
+    let estado = U().carimbo(SIT, F.situacao);
     if (probs.length) estado += ` <span class="carimbo queda">${probs.length} ${probs.length > 1 ? 'problemas' : 'problema'}</span>`;
-    alvo.innerHTML = `<div class="fx-estado">${estado}<span class="mini">${nota}</span></div><div class="ag-acoes">${botoes}</div>`;
+    const nota = salvar.erro ? `Não foi possível salvar (${esc(salvar.erro)}). Tentando de novo…`
+      : salvar.rodando || salvar.timer ? 'Salvando…'
+      : `Rascunho salvo às ${esc(F.salvoEm)}. Ninguém entra até publicar.`;
+    alvo.innerHTML = `<div class="fx-estado">${estado}<span class="mini">${nota}</span></div>`;
     const caixa = $q('#fx-problemas');
-    caixa.innerHTML = probs.length ? `<div class="aviso alerta fx-probs"><b>Para publicar, falta resolver:</b> ${probs.map((p) => `<button type="button" class="argo-faixa-chamada" data-ir-no="${p.no}">${esc(rotuloNo(no(p.no)))}: ${p.textos.map((t) => EXPLICA_PROBLEMA[t]).join(', ')}</button>`).join(' · ')}</div>` : '';
+    caixa.innerHTML = probs.length ? `<div class="aviso alerta fx-probs"><b>Para publicar, falta resolver:</b> ${probs.map((p) => `<button type="button" class="argo-faixa-chamada" data-ir-no="${p.no}">${esc(rotuloNo(no(p.no)))}: ${p.textos.map((t) => EXPLICA_PROBLEMA[t] || t).join(', ')}</button>`).join(' · ')}</div>` : '';
     caixa.querySelectorAll('[data-ir-no]').forEach((b) => { b.onclick = () => { focarNo(b.dataset.irNo); selecionar(b.dataset.irNo); }; });
-    alvo.querySelectorAll('[data-s]').forEach((b) => { b.onclick = () => acaoSituacao(b.dataset.s, b, probs); });
   }
 
   function rotuloNo(n) {
@@ -470,47 +402,9 @@
     return TIPOS[n.tipo].rotulo;
   }
 
-  function acaoSituacao(acao, b, probs) {
-    if (acao === 'publicar') {
-      if (probs.length) {
-        U().avisar(`Não dá para publicar: ${probs.length} ${probs.length > 1 ? 'problemas marcados' : 'problema marcado'} no quadro.`, 'erro');
-        focarNo(probs[0].no); selecionar(probs[0].no);
-        return;
-      }
-      const eraRascunho = F.situacao === 'rascunho';
-      F.situacao = 'ativo'; F.publicado = instantaneo(F); F.mudancas = false;
-      U().avisar(eraRascunho ? 'Fluxo publicado. Quem disparar o gatilho a partir de agora entra; quem disparou antes fica de fora.' : 'Mudanças publicadas. Quem está dentro continua do cartão em que está.');
-      desenharSituacao();
-    } else if (acao === 'descartar') {
-      ctx.pedirConfirmacao(b, 'Descartar tudo que não foi publicado?', () => {
-        restaurar(F, F.publicado); F.mudancas = false; fecharPainel(); desenharTudo();
-        U().avisar('Mudanças descartadas. O quadro voltou para a versão no ar.');
-      });
-    } else if (acao === 'pausar') {
-      F.situacao = 'pausado'; desenharSituacao(); U().avisar('Fluxo pausado.');
-    } else if (acao === 'retomar') {
-      F.situacao = 'ativo'; desenharSituacao(); U().avisar('Fluxo retomado. Cada pessoa segue de onde parou, sem receber de uma vez os e-mails da pausa.');
-    } else if (acao === 'testar') testar(probs);
-    else if (acao === 'pessoas') pessoasNoFluxo();
-  }
-
   // ---------------------------------------------------------------------------
   // Cartões
   // ---------------------------------------------------------------------------
-  const fator = () => FATOR[periodo];
-  const num = (v) => int(Math.round(v * fator()));
-  function numerosHtml(n) {
-    const s = (F.stats || {})[n.id];
-    if (!s) return F.situacao === 'rascunho' ? '' : '<div class="fx-nums fx-nums--vazio">sem dados ainda</div>';
-    const cel = (rot, v, extra = '') => `<div><span>${rot}</span><b>${v}</b>${extra ? `<small>${extra}</small>` : ''}</div>`;
-    if (n.tipo === 'email') return `<div class="fx-nums">${cel('Receberam', num(s.receberam))}${cel('Abriram', num(s.abriram), U().pct((s.abriram / s.receberam) * 100, 0))}${cel('Clicaram', num(s.clicaram), U().pct((s.clicaram / s.receberam) * 100, 0))}</div>`;
-    if (n.tipo === 'inicio') return `<div class="fx-nums">${cel('Entraram', num(s.entraram))}</div>`;
-    if (n.tipo === 'espera') return `<div class="fx-nums"><button type="button" class="fx-esperando" data-esperando="${n.id}"><b>${int(s.esperando)}</b> esperando agora</button></div>`;
-    if (n.tipo === 'objetivo') return `<div class="fx-nums">${cel('Chegaram', num(s.chegaram))}</div>`;
-    if (n.tipo === 'fim') return `<div class="fx-nums">${cel('Concluíram', num(s.concluiram))}</div>`;
-    if (n.tipo === 'ir_fluxo') return `<div class="fx-nums">${cel('Passaram', num(s.passaram))}</div>`;
-    return '';
-  }
   function corpoCartao(n) {
     const d = n.dados;
     if (n.tipo === 'inicio') {
@@ -534,8 +428,8 @@
         ? `<ul class="fx-conds">${d.condicoes.map((c) => `<li>${esc(rotuloCondicao(c))}</li>`).join(`<li class="fx-ou">${d.juncao === 'ou' ? 'ou' : 'e'}</li>`)}</ul>`
         : '<p class="fx-vazio">Nenhuma condição.</p>';
     }
-    if (n.tipo === 'objetivo') return `<p><b>${esc(EVENTOS[d.evento].rotulo)}</b>${d.filtro ? `<br><span class="mini">${esc(valorRot(EVENTOS[d.evento].filtros[0], d.filtro))}</span>` : ''}</p><p class="mini">Quem cumprir pula para cá, de onde estiver.</p>`;
-    if (n.tipo === 'ir_fluxo') { const f = FLUXOS.find((x) => x.id === d.fluxo); return f ? `<p>Vai para <b>${esc(f.nome)}</b></p>` : '<p class="fx-vazio">Escolha o fluxo de destino.</p>'; }
+    if (n.tipo === 'objetivo') return EVENTOS[d.evento] ? `<p><b>${esc(EVENTOS[d.evento].rotulo)}</b>${d.filtro ? `<br><span class="mini">${esc(valorRot(EVENTOS[d.evento].filtros[0], d.filtro))}</span>` : ''}</p><p class="mini">Quem cumprir pula para cá, de onde estiver.</p>` : '<p class="fx-vazio">Escolha a condição.</p>';
+    if (n.tipo === 'ir_fluxo') { const f = (OPC.fluxos || []).find((x) => String(x[0]) === String(d.fluxo)); return f ? `<p>Vai para <b>${esc(f[1])}</b></p>` : '<p class="fx-vazio">Escolha o fluxo de destino.</p>'; }
     if (n.tipo === 'fim') return '<p class="mini">A pessoa conclui o fluxo.</p>';
     return '';
   }
@@ -557,19 +451,16 @@
     const probs = Object.fromEntries(problemas().map((p) => [p.no, p.textos]));
     const html = F.nos.map((n) => {
       const sai = saidasDe(n);
-      const st = (F.stats || {})[n.id] || {};
       const p = probs[n.id];
       const primeiro = p && p.find((t) => !t.startsWith('Saída'));
-      return `<div class="fx-cartao fx-cartao--${n.tipo}${sel === n.id ? ' fx-sel' : ''}${primeiro ? ' fx-problema' : ''}" data-no="${n.id}" style="left:${n.x}px;top:${n.y}px">
+      return `<div class="fx-cartao fx-cartao--${n.tipo}${sel === n.id || marcados.has(n.id) ? ' fx-sel' : ''}${primeiro ? ' fx-problema' : ''}" data-no="${n.id}" style="left:${n.x}px;top:${n.y}px">
         ${n.tipo === 'inicio' ? '' : '<span class="fx-entrada" aria-hidden="true"></span>'}
         ${primeiro ? `<span class="fx-selo-problema">${esc(primeiro)}</span>` : ''}
         <div class="fx-cabeca">${IC[n.tipo]}<span>${TIPOS[n.tipo].rotulo}</span></div>
         <div class="fx-corpo">${corpoCartao(n)}</div>
-        ${numerosHtml(n)}
         ${sai.length ? `<div class="fx-saidas">${sai.map(([s, rot]) => {
           const ligada = F.arestas.some((a) => a.de === n.id && a.saida === s);
-          const v = st[s];
-          return `<div class="fx-saida"><span>${rot}${v !== undefined ? ` <b>${num(v)}</b>` : ''}</span>
+          return `<div class="fx-saida"><span>${rot}</span>
             <span class="fx-porta${ligada ? ' fx-porta--ligada' : ''}" data-porta="${s}" title="Arraste até outro cartão para ligar"></span>
             ${ligada ? '' : `<button type="button" class="fx-mais" data-mais="${s}" aria-label="Adicionar cartão depois de ${esc(rot)}">${IC.mais}</button>`}</div>`;
         }).join('')}</div>` : ''}
@@ -698,7 +589,7 @@
       const p = local(ev);
       if (item) {
         const obj = item.dataset.no ? no(item.dataset.no) : F.notas.find((o) => o.id === item.dataset.nota);
-        acao = { tipo: 'mover', item, obj, ini: p, orig: { x: obj.x, y: obj.y }, moveu: false, antes: instantaneo(F) + '\u0000' + F.nome };
+        acao = { tipo: 'mover', item, obj, ini: p, orig: { x: obj.x, y: obj.y }, moveu: false, shift: ev.shiftKey, antes: instantaneo(F) + '\u0000' + F.nome };
       } else {
         acao = { tipo: 'tela', ini: p, orig: { x: vis.x, y: vis.y }, moveu: false };
       }
@@ -766,12 +657,14 @@
         a.item.classList.remove('fx-arrastando');
         if (a.moveu) {
           desfazer.push(a.antes); refazer = []; marcarMudanca(); desenharSituacao(); desenharMapa();
-        } else if (a.item.dataset.no) selecionar(a.item.dataset.no);
+        } else if (a.item.dataset.no && a.shift) marcar(a.item.dataset.no);
+        else if (a.item.dataset.no) { marcados = new Set(); selecionar(a.item.dataset.no); }
         else editarNota(a.item.dataset.nota);
         return;
       }
       if (a.tipo === 'tela' && !a.moveu) {
         selAresta = null; desenharArestas();
+        if (marcados.size) { marcados = new Set(); desenharCartoes(); desenharArestas(); }
         if (sel) fecharPainel();
       }
     };
@@ -799,9 +692,7 @@
       const des = ev.target.closest('#fx-desligar');
       if (des) { const id = des.dataset.aresta; selAresta = null; mudar(() => { F.arestas = F.arestas.filter((a) => a.id !== id); }); U().avisar('Ligação desfeita.'); return; }
       const tirar = ev.target.closest('[data-tirar-nota]');
-      if (tirar) { mudar(() => { F.notas = F.notas.filter((o) => o.id !== tirar.dataset.tirarNota); }); U().avisar('Nota apagada.'); return; }
-      const esp = ev.target.closest('[data-esperando]');
-      if (esp) { pessoasNoFluxo(esp.dataset.esperando); }
+      if (tirar) { mudar(() => { F.notas = F.notas.filter((o) => o.id !== tirar.dataset.tirarNota); }); U().avisar('Nota apagada.'); }
     });
 
     // Mapa: clicar ou arrastar leva a tela até lá.
@@ -820,6 +711,8 @@
       const k = ev.key.toLowerCase();
       if ((ev.ctrlKey || ev.metaKey) && k === 'z') { ev.preventDefault(); voltarEstado(ev.shiftKey ? refazer : desfazer, ev.shiftKey ? desfazer : refazer); }
       else if ((ev.ctrlKey || ev.metaKey) && k === 'y') { ev.preventDefault(); voltarEstado(refazer, desfazer); }
+      else if ((ev.ctrlKey || ev.metaKey) && k === 'c') { ev.preventDefault(); copiar(); }
+      else if ((ev.ctrlKey || ev.metaKey) && k === 'v') { ev.preventDefault(); colar(); }
       else if (k === 'delete' || k === 'backspace') {
         if (selAresta) { const id = selAresta; selAresta = null; mudar(() => { F.arestas = F.arestas.filter((a) => a.id !== id); }); U().avisar('Ligação desfeita.'); }
       } else if (k === 'escape') { fecharEscolha(); if (sel) fecharPainel(); }
@@ -847,9 +740,49 @@
           mudar(() => { F.notas.push({ id, x: p.x, y: p.y, texto: 'Escreva aqui para explicar esta parte do fluxo.' }); });
           editarNota(id);
         },
+        copiar: () => copiar(),
+        colar: () => colar(),
       })[b.dataset.f]();
     });
-    $q('[data-f="periodo"]').onchange = (ev) => { periodo = ev.target.value; desenharCartoes(); desenharArestas(); if (sel) desenharPainel(); U().avisar('Números do período: ' + ev.target.selectedOptions[0].text.toLowerCase() + '.'); };
+  }
+
+  // --- Copiar e colar (Shift + clique marca vários; Ctrl+C / Ctrl+V) ---
+  // A cópia fica na memória da página: dá para abrir outro fluxo e colar lá.
+  function marcar(id) {
+    if (no(id).tipo === 'inicio') return U().avisar('O cartão de início não é copiado.');
+    if (marcados.has(id)) marcados.delete(id); else marcados.add(id);
+    if (sel) fecharPainel();
+    desenharCartoes(); desenharArestas();
+  }
+  function copiar() {
+    const ids = new Set(marcados.size ? marcados : sel ? [sel] : []);
+    const nos = F.nos.filter((n) => ids.has(n.id) && n.tipo !== 'inicio');
+    if (!nos.length) return U().avisar('Marque os cartões com Shift + clique (ou abra um) antes de copiar.', 'erro');
+    const dentro = new Set(nos.map((n) => n.id));
+    areaCopia = JSON.parse(JSON.stringify({ nos, arestas: F.arestas.filter((a) => dentro.has(a.de) && dentro.has(a.para)) }));
+    U().avisar(`${nos.length} ${nos.length > 1 ? 'cartões copiados' : 'cartão copiado'}. Cole aqui ou em outro fluxo com Ctrl+V.`);
+  }
+  function colar() {
+    if (!areaCopia) return U().avisar('Nada copiado ainda.', 'erro');
+    const novo = {};
+    areaCopia.nos.forEach((n) => { novo[n.id] = novoId('n'); });
+    const minX = Math.min(...areaCopia.nos.map((n) => n.x)), minY = Math.min(...areaCopia.nos.map((n) => n.y));
+    const q = $q('#fx-quadro');
+    const ox = Math.round((q.clientWidth / 2 - vis.x) / vis.z - 120), oy = Math.round((q.clientHeight / 2 - vis.y) / vis.z - 60);
+    const ref = (r) => novo[r] || (no(r) && no(r).tipo === 'email' ? r : '');
+    mudar(() => {
+      areaCopia.nos.forEach((n) => {
+        const dados = JSON.parse(JSON.stringify(n.dados));
+        // E-mail de referência que não veio junto (nem existe aqui) fica vazio e é apontado.
+        if ('ref' in dados) dados.ref = ref(dados.ref);
+        (dados.condicoes || []).forEach((c) => { if ('ref' in c) c.ref = ref(c.ref); });
+        F.nos.push({ id: novo[n.id], tipo: n.tipo, x: ox + (n.x - minX), y: oy + (n.y - minY), dados });
+      });
+      areaCopia.arestas.forEach((a) => F.arestas.push({ id: novoId('a'), de: novo[a.de], saida: a.saida, para: novo[a.para] }));
+    });
+    marcados = new Set(Object.values(novo));
+    desenharCartoes(); desenharArestas();
+    U().avisar(`${areaCopia.nos.length} ${areaCopia.nos.length > 1 ? 'cartões colados' : 'cartão colado'}. Ligue onde quiser.`);
   }
 
   function editarNota(id) {
@@ -955,13 +888,6 @@
   }
   const opts = (lista, atual, vazio) => (vazio ? `<option value="">${vazio}</option>` : '') + lista.map(([v, r]) => `<option value="${esc(v)}"${String(v) === String(atual) ? ' selected' : ''}>${esc(r)}</option>`).join('');
   const emailsDoFluxo = () => F.nos.filter((n) => n.tipo === 'email').map((n) => { const m = modelo(n.dados.modelo); return [n.id, m ? m.nome : 'E-mail sem modelo']; });
-  function estimativa(g) {
-    let h = 7;
-    JSON.stringify(g).split('').forEach((c) => { h = (h * 31 + c.charCodeAt(0)) % 9973; });
-    const base = EVENTOS[g.evento].base;
-    return Math.max(0, Math.round((base / Math.pow(2.6, g.filtros.length)) * (0.7 + (h % 60) / 100)));
-  }
-
   function desenharPainel() {
     const n = no(sel);
     const p = $q('#fx-painel');
@@ -978,17 +904,16 @@
             <select data-campo="fvalor" aria-label="Valor">${opts(FILTRO_VALORES[f.campo](), f.valor)}</select>
             <button type="button" class="ag-icone" data-tirar-f="${j}" aria-label="Tirar filtro">${IC.fechar}</button></div>`).join('')}
           <button type="button" class="btn sec fx-pequeno" data-add-f>+ Filtro</button>
-          <p class="fx-estimativa">Nos últimos 30 dias, <b>${int(estimativa(g))} pessoas</b> teriam entrado com essa combinação.</p>
         </div>`).join('')}
         <button type="button" class="btn sec" data-add-g>+ Adicionar gatilho</button>`;
     } else if (n.tipo === 'email') {
-      const mk = D().modelos.filter((m) => m.canal === 'marketing' && !m.arquivado);
+      const mk = MODELOS.filter((x) => x.canal === 'marketing' && (!x.arquivado || String(x.id) === String(d.modelo)));
       const m = modelo(d.modelo);
       corpo = `<label class="ag-campo"><span class="ag-campo__rotulo">Modelo</span><select data-campo="modelo">${opts(mk.map((x) => [x.id, x.nome]), d.modelo, 'Escolha um modelo')}</select></label>
         ${m ? `<div class="fx-previa-email"><span class="mini">${esc(D().config.marketing.nome)}</span><b>${esc(m.assunto)}</b><span class="mini">${esc(m.previa)}</span></div><p class="mini">Para mudar o texto, edite o modelo em Modelos.</p>` : ''}
         <details class="ag-mais" data-novo-modelo><summary>Criar modelo novo sem sair do fluxo</summary>
-          <label class="ag-campo"><span class="ag-campo__rotulo">Nome</span><input type="text" data-nm="nome" placeholder="Ex.: Boas-vindas 3"></label>
-          <label class="ag-campo"><span class="ag-campo__rotulo">Assunto</span><input type="text" data-nm="assunto" placeholder="Assunto do e-mail"></label>
+          <label class="ag-campo"><span class="ag-campo__rotulo">Nome</span><input type="text" data-nm="nome" maxlength="100" placeholder="Ex.: Boas-vindas 3"></label>
+          <p class="mini">O modelo nasce vazio e já fica escolhido aqui. Escreva o assunto e o texto em Modelos; até lá o cartão fica marcado.</p>
           <button type="button" class="btn sec" data-criar-modelo>Criar e usar aqui</button></details>`;
     } else if (n.tipo === 'espera') {
       corpo = `<fieldset class="fx-modos"><legend class="ag-campo__rotulo">Esperar</legend>
@@ -1011,28 +936,26 @@
           <div class="fx-bloco__topo"><b>Condição ${i + 1}</b><button type="button" class="ag-icone" data-tirar-c="${i}" aria-label="Tirar condição">${IC.fechar}</button></div>
           <select data-campo="ctipo" aria-label="Tipo de condição">${opts(TIPOS_C, c.tipo)}</select>
           ${['abriu', 'clicou'].includes(c.tipo) ? `<select data-campo="cref" aria-label="Qual e-mail">${opts(emailsDoFluxo(), c.ref, 'Escolha o e-mail')}</select>` : ''}
-          ${c.tipo === 'clicou' ? `<select data-campo="clink" aria-label="Link">${opts([['qualquer', 'em qualquer link'], ['/workshop-gratuito', 'no link /workshop-gratuito'], ['/grupo-workshop', 'no link /grupo-workshop']], c.link || 'qualquer')}</select>` : ''}
+          ${c.tipo === 'clicou' ? `<input type="text" data-campo="clink" value="${esc(c.link && c.link !== 'qualquer' ? c.link : '')}" placeholder="em qualquer link (ou cole o link)" aria-label="Link">` : ''}
           ${c.tipo === 'evento' ? `<select data-campo="cevento" aria-label="Acontecimento">${opts(Object.entries(EVENTOS).filter(([k]) => k !== 'segmento').map(([k, v]) => [k, v.rotulo]), c.evento)}</select>
-            <select data-campo="cvalor" aria-label="Filtro">${opts(FILTRO_VALORES[EVENTOS[c.evento].filtros[0]](), c.valor, 'qualquer ' + FILTRO_ROTULO[EVENTOS[c.evento].filtros[0]].toLowerCase())}</select>` : ''}
+            ${EVENTOS[c.evento] ? `<select data-campo="cvalor" aria-label="Filtro">${opts(FILTRO_VALORES[EVENTOS[c.evento].filtros[0]](), c.valor, 'qualquer ' + FILTRO_ROTULO[EVENTOS[c.evento].filtros[0]].toLowerCase())}</select>` : ''}` : ''}
           ${c.tipo === 'segmento' ? `<select data-campo="cvalor" aria-label="Segmento">${opts(FILTRO_VALORES.segmento(), c.valor)}</select>` : ''}
         </div>`).join('')}
         <button type="button" class="btn sec" data-add-c>+ Adicionar condição</button>`;
     } else if (n.tipo === 'objetivo') {
-      const campo = EVENTOS[d.evento].filtros[0];
+      const campo = EVENTOS[d.evento] ? EVENTOS[d.evento].filtros[0] : null;
       corpo = `<p class="mini">Quando a condição acontece, a pessoa pula direto para cá, de onde estiver no fluxo, e segue daqui.</p>
-        <label class="ag-campo"><span class="ag-campo__rotulo">Condição</span><select data-campo="evento">${opts(Object.entries(EVENTOS).map(([k, v]) => [k, v.rotulo]), d.evento)}</select></label>
-        <select data-campo="filtro" aria-label="Filtro">${opts(FILTRO_VALORES[campo](), d.filtro, 'qualquer ' + FILTRO_ROTULO[campo].toLowerCase())}</select>`;
+        <label class="ag-campo"><span class="ag-campo__rotulo">Condição</span><select data-campo="evento">${opts(Object.entries(EVENTOS).map(([k, v]) => [k, v.rotulo]), d.evento, 'Escolha a condição')}</select></label>
+        ${campo ? `<select data-campo="filtro" aria-label="Filtro">${opts(FILTRO_VALORES[campo](), d.filtro, 'qualquer ' + FILTRO_ROTULO[campo].toLowerCase())}</select>` : ''}`;
     } else if (n.tipo === 'ir_fluxo') {
-      corpo = `<label class="ag-campo"><span class="ag-campo__rotulo">Fluxo de destino</span><select data-campo="fluxo">${opts(FLUXOS.filter((f) => f.id !== F.id && !f.arquivado).map((f) => [f.id, f.nome]), d.fluxo, 'Escolha o fluxo')}</select></label>
+      corpo = `<label class="ag-campo"><span class="ag-campo__rotulo">Fluxo de destino</span><select data-campo="fluxo">${opts((OPC.fluxos || []).filter(([id]) => String(id) !== String(F.id)), d.fluxo, 'Escolha o fluxo')}</select></label>
         <p class="mini">A pessoa sai deste fluxo e entra no início do outro.</p>`;
     } else if (n.tipo === 'fim') {
       corpo = '<p class="mini">A pessoa conclui o fluxo aqui. Também saem sozinhos, sem precisar configurar, quem se descadastra, quem tem o e-mail voltando e quem denuncia spam.</p>';
     }
-    const st = (F.stats || {})[n.id];
     p.innerHTML = `<header class="fx-painel__topo">${IC[n.tipo]}<div><b>${TIPOS[n.tipo].rotulo}</b><span class="mini">${TIPOS[n.tipo].desc}</span></div>
         <button type="button" class="ag-gaveta__fechar" data-fechar-painel aria-label="Fechar">${IC.fechar}</button></header>
-      <div class="fx-painel__corpo ag-form">${corpo}
-        ${st && n.tipo === 'espera' && st.esperando ? `<button type="button" class="argo-faixa-chamada" data-ver-esperando>Ver as ${int(st.esperando)} pessoas esperando aqui</button>` : ''}</div>
+      <div class="fx-painel__corpo ag-form">${corpo}</div>
       <footer class="fx-painel__pe">${n.tipo === 'inicio' ? '<span class="mini">O início não pode ser excluído.</span>' : `<button type="button" class="btn sec" data-dup>${IC.copiar} Duplicar</button><button type="button" class="btn perigo" data-excluir>${IC.lixo} Excluir</button>`}</footer>`;
     p.hidden = false;
     ligarPainel(p, n);
@@ -1041,8 +964,6 @@
   function ligarPainel(p, n) {
     const d = n.dados;
     p.querySelector('[data-fechar-painel]').onclick = () => fecharPainel();
-    const ve = p.querySelector('[data-ver-esperando]');
-    if (ve) ve.onclick = () => pessoasNoFluxo(n.id);
     p.onchange = (ev) => {
       const c = ev.target.dataset.campo;
       if (!c) return;
@@ -1052,13 +973,13 @@
         if (n.tipo === 'inicio') {
           const gat = d.gatilhos[Number(g.dataset.g)];
           if (c === 'evento') { gat.evento = v; gat.filtros = []; }
-          if (c === 'fcampo') { const fi = gat.filtros[Number(f.dataset.f)]; fi.campo = v; fi.valor = FILTRO_VALORES[v]()[0][0]; }
+          if (c === 'fcampo') { const fi = gat.filtros[Number(f.dataset.f)]; fi.campo = v; fi.valor = primeiroValor(v); }
           if (c === 'fvalor') gat.filtros[Number(f.dataset.f)].valor = v;
         } else if (n.tipo === 'desvio' && c !== 'juncao') {
           const co = d.condicoes[Number(cc.dataset.c)];
-          if (c === 'ctipo') { Object.keys(co).forEach((k) => delete co[k]); co.tipo = v; if (v === 'evento') co.evento = 'agendou'; if (v === 'segmento') co.valor = FILTRO_VALORES.segmento()[0][0]; if (v === 'clicou') co.link = 'qualquer'; }
+          if (c === 'ctipo') { Object.keys(co).forEach((k) => delete co[k]); co.tipo = v; if (v === 'evento') co.evento = 'agendou'; if (v === 'segmento') co.valor = primeiroValor('segmento'); if (v === 'clicou') co.link = ''; }
           if (c === 'cref') co.ref = v;
-          if (c === 'clink') co.link = v;
+          if (c === 'clink') co.link = v.trim();
           if (c === 'cevento') { co.evento = v; co.valor = ''; }
           if (c === 'cvalor') co.valor = v;
         } else if (c === 'juncao') d.juncao = v;
@@ -1077,17 +998,21 @@
     const clique = (sel2, fn) => p.querySelectorAll(sel2).forEach((b) => { b.onclick = () => fn(b); });
     clique('[data-add-g]', () => mudar(() => d.gatilhos.push({ evento: 'formulario', filtros: [] })));
     clique('[data-tirar-g]', (b) => mudar(() => d.gatilhos.splice(Number(b.dataset.tirarG), 1)));
-    clique('[data-add-f]', (b) => mudar(() => { const gat = d.gatilhos[Number(b.closest('[data-g]').dataset.g)]; const campo = EVENTOS[gat.evento].filtros.find((x) => !gat.filtros.some((f) => f.campo === x)) || EVENTOS[gat.evento].filtros[0]; gat.filtros.push({ campo, valor: FILTRO_VALORES[campo]()[0][0] }); }));
+    clique('[data-add-f]', (b) => mudar(() => { const gat = d.gatilhos[Number(b.closest('[data-g]').dataset.g)]; const campo = EVENTOS[gat.evento].filtros.find((x) => !gat.filtros.some((f) => f.campo === x)) || EVENTOS[gat.evento].filtros[0]; gat.filtros.push({ campo, valor: primeiroValor(campo) }); }));
     clique('[data-tirar-f]', (b) => mudar(() => d.gatilhos[Number(b.closest('[data-g]').dataset.g)].filtros.splice(Number(b.dataset.tirarF), 1)));
     clique('[data-add-c]', () => mudar(() => d.condicoes.push({ tipo: 'abriu', ref: (emailsDoFluxo()[0] || [''])[0] })));
     clique('[data-tirar-c]', (b) => mudar(() => d.condicoes.splice(Number(b.dataset.tirarC), 1)));
-    clique('[data-criar-modelo]', () => {
-      const nome = p.querySelector('[data-nm="nome"]').value.trim(), assunto = p.querySelector('[data-nm="assunto"]').value.trim();
-      if (!nome || !assunto) return U().avisar('Dê nome e assunto ao modelo novo.', 'erro');
-      const m = { id: 'm' + Date.now(), nome, canal: 'marketing', assunto, previa: '', editado: '03/10', corpo: 'Oi, {{primeiro_nome}}!\n\n' };
-      D().modelos.unshift(m);
-      mudar(() => { d.modelo = m.id; });
-      U().avisar(`Modelo "${nome}" criado e escolhido. O texto completo se edita em Modelos.`);
+    clique('[data-criar-modelo]', (b) => {
+      const nome = p.querySelector('[data-nm="nome"]').value.trim();
+      if (!nome) return U().avisar('Dê um nome ao modelo novo.', 'erro');
+      U().ocupado(b, async () => {
+        try {
+          const r = await ctx.postJson('/api/email/modelos', { acao: 'salvar', modelo: { nome, canal: 'marketing' } });
+          MODELOS.unshift(r.modelo);
+          mudar(() => { d.modelo = r.modelo.id; });
+          U().avisar(`Modelo "${nome}" criado e escolhido. Escreva o assunto e o texto em Modelos.`);
+        } catch (e) { U().avisar(U().msgErro(e), 'erro'); }
+      });
     });
     clique('[data-dup]', () => {
       const id = novoId('n');
@@ -1103,64 +1028,4 @@
     }));
   }
 
-  // ---------------------------------------------------------------------------
-  // Pessoas no fluxo e teste
-  // ---------------------------------------------------------------------------
-  function pessoasNoFluxo(noId) {
-    const pessoas = D().contatos.filter((c) => c.situacao === 'ativo' && c.funil === 'workshop-gratuito').slice(0, noId ? 9 : 14);
-    const cartoes = F.nos.filter((n) => ['espera', 'email', 'desvio'].includes(n.tipo));
-    const ondeEsta = (i) => (noId ? no(noId) : cartoes[i % cartoes.length]);
-    const g = U().gaveta({
-      titulo: noId ? 'Esperando neste cartão' : 'Pessoas no fluxo', sub: `${esc(F.nome)} · amostra de exemplo`,
-      corpo: `<div class="tabela-wrap"><table><thead><tr><th>Pessoa</th><th>Cartão</th><th>Desde</th><th></th></tr></thead><tbody>
-        ${pessoas.map((c, i) => `<tr data-p="${c.id}"><td><button type="button" class="ag-link-linha" data-contato="${c.id}">${esc(c.nome)}</button></td>
-          <td><span class="mini">${esc(rotuloNo(ondeEsta(i)))}</span></td><td><span class="mini">${String(1 + (i % 3)).padStart(2, '0')}/10</span></td>
-          <td><button type="button" class="btn sec fx-pequeno" data-tirar-pessoa>Tirar do fluxo</button></td></tr>`).join('')}
-      </tbody></table></div>`,
-    });
-    g.addEventListener('click', (ev) => {
-      const c = ev.target.closest('[data-contato]');
-      if (c) { U().abrirContato(c.dataset.contato); return; }
-      const t = ev.target.closest('[data-tirar-pessoa]');
-      if (t) ctx.pedirConfirmacao(t, 'Tirar?', () => { const tr = t.closest('tr'); U().avisar(`${tr.querySelector('[data-contato]').textContent} saiu do fluxo. Fica registrado no histórico do contato.`); tr.remove(); });
-    });
-  }
-
-  function testar(probs) {
-    if (probs.length) { U().avisar('Resolva os problemas marcados antes de testar.', 'erro'); return; }
-    const passos = [];
-    let atual = F.nos.find((n) => n.tipo === 'inicio');
-    const g = U().gaveta({
-      titulo: 'Testar o fluxo', sub: 'a pessoa de teste percorre o fluxo pulando as esperas',
-      corpo: `<label class="ag-campo"><span class="ag-campo__rotulo">Mandar os e-mails para</span><input type="email" value="felipe@seteads.com" id="fx-teste-email"></label>
-        <ol class="ag-hist em-hist fx-teste" id="fx-teste"></ol><div id="fx-teste-acao"></div>`,
-    });
-    const lista = g.querySelector('#fx-teste'), acao = g.querySelector('#fx-teste-acao');
-    const seguir = (saida) => {
-      const a = F.arestas.find((x) => x.de === atual.id && x.saida === saida);
-      atual = a ? no(a.para) : null;
-      passo();
-    };
-    const passo = () => {
-      if (!atual) { passos.push('<li><b>Fim do teste.</b></li>'); lista.innerHTML = passos.join(''); acao.innerHTML = ''; return; }
-      const n = atual;
-      if (n.tipo === 'inicio') { passos.push(`<li><b>Entrou</b> <span class="mini">como se tivesse disparado: ${esc(resumoGatilhos(F))}</span></li>`); }
-      if (n.tipo === 'email') passos.push(`<li><b>E-mail enviado</b> <span class="mini">"${esc(modelo(n.dados.modelo).assunto)}" para ${esc(g.querySelector('#fx-teste-email').value)}</span></li>`);
-      if (n.tipo === 'espera') passos.push('<li><b>Espera pulada</b> <span class="mini">no teste não se espera</span></li>');
-      if (n.tipo === 'objetivo') passos.push('<li><b>Chegou ao objetivo</b></li>');
-      if (n.tipo === 'ir_fluxo') passos.push(`<li><b>Iria para outro fluxo</b> <span class="mini">o teste para aqui</span></li>`);
-      if (n.tipo === 'fim') passos.push('<li><b>Concluiu o fluxo</b></li>');
-      lista.innerHTML = passos.join('');
-      if (n.tipo === 'desvio' || (n.tipo === 'espera' && n.dados.modo === 'evento')) {
-        const [s1, s2] = saidasDe(n);
-        acao.innerHTML = `<p><b>${n.tipo === 'desvio' ? 'Desvio' : 'Espera por acontecimento'}:</b> ${esc(n.tipo === 'desvio' ? n.dados.condicoes.map(rotuloCondicao).join(n.dados.juncao === 'ou' ? ' ou ' : ' e ') : rotuloEsperaEvento(n.dados))}. Por onde seguir?</p>
-          <div class="ag-acoes"><button class="btn sec" type="button" data-por="${s1[0]}">${s1[1]}</button><button class="btn sec" type="button" data-por="${s2[0]}">${s2[1]}</button></div>`;
-        acao.querySelectorAll('[data-por]').forEach((b) => { b.onclick = () => { passos.push(`<li><span class="mini">seguiu por "${esc(b.textContent)}"</span></li>`); seguir(b.dataset.por); }; });
-        return;
-      }
-      if (['fim', 'ir_fluxo'].includes(n.tipo)) { atual = null; acao.innerHTML = ''; passos.push('<li><b>Fim do teste.</b> <span class="mini">Os e-mails de teste não contam nos números.</span></li>'); lista.innerHTML = passos.join(''); return; }
-      seguir(saidasDe(n)[0][0]);
-    };
-    passo();
-  }
 })();

@@ -6,6 +6,7 @@ import { CANAIS, MARCADOR, desconhecidos, sugerir } from './_email-campos.js';
 import { linksDoCorpo } from './_email-render.js';
 import { usosNaAgenda } from './_email-agenda.js';
 import { modeloEmAgendadas } from './_email-campanhas.js';
+import { modeloEmFluxos } from './_email-fluxos.js';
 
 const MAX_NOME = 100;
 const MAX_ASSUNTO = 200;
@@ -20,7 +21,7 @@ const COLUNAS = 'id, nome, canal, assunto, previa, corpo, arquivado, criado_em, 
  * campanhas 383, fluxos 385) acrescenta aqui a própria consulta:
  * async (env, id) => ['confirmação da agenda (Sessão estratégica)', ...].
  */
-export const consultasDeUso = [usosNaAgenda, modeloEmAgendadas];
+export const consultasDeUso = [usosNaAgenda, modeloEmAgendadas, modeloEmFluxos];
 
 export async function usosDoModelo(env, id) {
   const listas = await Promise.all(consultasDeUso.map((c) => c(env, Number(id))));
