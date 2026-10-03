@@ -6,6 +6,7 @@
 //
 // Prefixo "_": o Cloudflare Pages não transforma o arquivo em rota.
 import { CANAIS } from './_canal.js';
+import { campanhasEnviadas } from './_email-campanhas.js';
 
 const agora = () => Math.floor(Date.now() / 1000);
 const MAX_REGRAS = 10;
@@ -24,10 +25,10 @@ export const CAMPOS = {
 };
 
 /**
- * Campanhas enviadas que servem para "abriu"/"clicou". A 382 acrescenta aqui
- * a própria consulta: async (env) => [{ id, nome }].
+ * Campanhas enviadas que servem para "abriu"/"clicou" (a das campanhas entrou
+ * na 382): async (env) => [{ id, nome }].
  */
-export const fontesDeCampanhas = [];
+export const fontesDeCampanhas = [campanhasEnviadas];
 /**
  * Onde o segmento é usado (trava de excluir). A 383 acrescenta a consulta das
  * campanhas agendadas: async (env, id) => ['campanha agendada "X"', ...].
@@ -38,7 +39,7 @@ export class ErroSegmento extends Error {
   constructor(mensagem, status = 400) { super(mensagem); this.status = status; }
 }
 
-async function campanhasEnviadas(env) {
+async function opcoesDeCampanhas(env) {
   const listas = await Promise.all(fontesDeCampanhas.map((f) => f(env)));
   return listas.flat();
 }
@@ -71,7 +72,7 @@ export async function validarRegras(env, regras) {
     } else if (campo === 'origem') {
       if (!CANAIS.includes(valor)) throw new ErroSegmento('Escolha uma origem da lista.');
     } else if (campo === 'abriu' || campo === 'clicou') {
-      campanhas = campanhas || await campanhasEnviadas(env);
+      campanhas = campanhas || await opcoesDeCampanhas(env);
       if (!campanhas.length) throw new ErroSegmento('Ainda não há campanha enviada para usar nesta condição.');
       if (!campanhas.some((c) => String(c.id) === valor)) throw new ErroSegmento('Escolha uma campanha enviada da lista.');
     } else if (!valor || valor.length > 100) {
@@ -169,7 +170,7 @@ export async function opcoes(env) {
     env.DB.prepare("SELECT DISTINCT funil FROM email_contatos_entradas WHERE COALESCE(funil, '') <> '' ORDER BY funil").all(),
     env.DB.prepare('SELECT status, COUNT(DISTINCT task_id) AS n FROM crm_status_log GROUP BY status ORDER BY n DESC, status').all()
       .catch(() => ({ results: [] })),
-    campanhasEnviadas(env),
+    opcoesDeCampanhas(env),
   ]);
   return {
     funis: (funis.results || []).map((x) => x.funil),

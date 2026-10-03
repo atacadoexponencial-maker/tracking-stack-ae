@@ -119,12 +119,12 @@ Migration `migrations/0055_email_campanhas.sql` (só adição):
 
 ## Checklist
 
-- [ ] Migration `0055_email_campanhas.sql` aplicada no D1 remoto com `d1 execute --file`
-- [ ] `enviarLote` no `_postmark.js`
-- [ ] `_email-campanhas.js` com rascunho, público, limite, resumo, disparo único, envio em lotes, retomada e lista
-- [ ] `GET/POST /api/email/campanhas`
+- [x] Migration `0055_email_campanhas.sql` aplicada no D1 remoto com `d1 execute --file`
+- [x] `enviarLote` no `_postmark.js`
+- [x] `_email-campanhas.js` com rascunho, público, limite, resumo, disparo único, envio em lotes, retomada e lista
+- [x] `GET/POST /api/email/campanhas`
 - [ ] `POST /api/sync/email-campanhas` + cron de 5 minutos na VPS
-- [ ] Campanhas enviadas nas opções de "abriu/clicou" dos segmentos
-- [ ] Vista Campanhas ligada ao backend
-- [ ] Testes `email-campanhas` passando (`npm test`)
+- [x] Campanhas enviadas nas opções de "abriu/clicou" dos segmentos
+- [x] Vista Campanhas ligada ao backend
+- [x] Testes `email-campanhas` passando (`npm test`)
 - [ ] Usuária cria uma campanha para um segmento pequeno da equipe, vê o resumo, dispara, acompanha o percentual e vê "enviada"; clicar de novo não dispara; quem está em dois segmentos recebe uma vez

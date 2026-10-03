@@ -17,8 +17,8 @@
   'use strict';
 
   const VISTAS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
-  // Vistas já ligadas ao backend (377, 378, 380, 381); as outras seguem protótipo.
-  const VISTAS_REAIS = ['contatos', 'segmentos', 'modelos', 'configuracao'];
+  // Vistas já ligadas ao backend (377, 378, 380, 381, 382); as outras seguem protótipo.
+  const VISTAS_REAIS = ['campanhas', 'contatos', 'segmentos', 'modelos', 'configuracao'];
   const TITULO_VISTA = {
     campanhas: 'Campanhas de e-mail', relatorio: 'Resultados do e-mail', fluxos: 'Fluxos automáticos',
     contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', configuracao: 'Configuração de e-mail',
@@ -319,242 +319,212 @@
   }
 
   // ===========================================================================
-  // 375 · Campanhas
+  // 382 · Campanhas (ligada ao backend: GET/POST /api/email/campanhas)
   // ===========================================================================
+  // Público, resumo, limite do mês, bloqueios, disparo único e envio em lotes
+  // ficam no servidor; aqui só a tela. Agendar fica para a 383; o relatório
+  // segue protótipo até a 384.
   let filtroCamp = '';
-  function avisoLimite() {
-    const resta = D.limiteMes - D.usoMes;
-    const p = (D.usoMes / D.limiteMes) * 100;
+  let campEstado = null;
+  let campTimer = null;
+  const MES = (t) => new Date(t * 1000).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long' });
+
+  function avisoLimite(u) {
+    const p = u.limite ? (u.usados / u.limite) * 100 : 0;
     return `<div class="em-limite">
-      <div class="em-limite__txt"><b>${int(D.usoMes)}</b> de ${int(D.limiteMes)} e-mails usados em outubro <span class="mini">· restam ${int(resta)} · renova em 01/11</span></div>
+      <div class="em-limite__txt"><b>${int(u.usados)}</b> de ${int(u.limite)} e-mails usados em ${esc(MES(Date.now() / 1000))} <span class="mini">· restam ${int(u.restam)} · renova no dia 1º</span></div>
       <div class="regua" aria-hidden="true"><i style="width:${Math.min(100, p)}%"></i></div>
     </div>`;
   }
-  function avisoMarketing() {
-    return marketingLiberado() ? '' : `<div class="aviso alerta"><b>Disparos de marketing bloqueados.</b> O serviço de envio ainda não liberou o marketing nesta conta. Dá para montar e agendar, mas o botão de disparo só funciona depois da liberação. <a href="#mkt-email?v=configuracao">Ver configuração</a></div>`;
-  }
+  const progresso = (c) => `<span data-prog="${c.id}"><span class="em-progresso" title="${c.percentual}% enviado"><span style="width:${c.percentual}%"></span></span> <b>${c.percentual}%</b></span>`;
 
-  function campanhas(el) {
-    const lista = vazio() ? [] : D.campanhas;
-    const cont = Object.fromEntries(Object.keys(SITUACAO_CAMP).map((k) => [k, lista.filter((c) => c.situacao === k).length]));
-    const linhas = lista.filter((c) => !filtroCamp || c.situacao === filtroCamp);
-    el.innerHTML = `${seloProto()}
-      <div class="em-barra">
+  async function campanhas(el) {
+    clearTimeout(campTimer);
+    if (!campEstado) el.innerHTML = '<p class="aviso">Carregando as campanhas…</p>';
+    try {
+      campEstado = await ctx.fetchJson(`/api/email/campanhas?${filtroCamp ? `situacao=${filtroCamp}&` : ''}_=${Date.now()}`);
+    } catch (e) {
+      el.innerHTML = `<div class="aviso falha">Não foi possível carregar as campanhas (${esc(e.message)}). Tente de novo em instantes.</div>`;
+      return;
+    }
+    // Se o usuário saiu da vista enquanto carregava, não desenha por cima.
+    if (api.vista !== 'campanhas' || !document.body.contains(el)) return;
+    const S = campEstado;
+    const total = Object.values(S.por_situacao).reduce((a, b) => a + b, 0);
+    el.innerHTML = `<div class="em-barra">
         <div class="ig-vistas" role="group" aria-label="Campanhas ou visão geral">
           <button type="button" class="tipo-pill" aria-pressed="true">Campanhas</button>
           <button type="button" class="tipo-pill" aria-pressed="false" data-ir="relatorio">Visão geral do canal</button>
         </div>
         <button class="btn" type="button" data-nova>Nova campanha</button>
       </div>
-      ${avisoMarketing()}
-      ${D.usoMes / D.limiteMes > 0.75 && !vazio() ? `<div class="aviso alerta">Já foram ${pct((D.usoMes / D.limiteMes) * 100, 0)} do limite do mês. A campanha agendada de 20/10 (${int(2050)} pessoas) não cabe no que resta: ela vai ser barrada antes de sair, a não ser que o limite renove ou o segmento diminua.</div>` : ''}
-      ${avisoLimite()}
+      ${S.marketing_liberado ? '' : '<div class="aviso alerta"><b>Disparos de marketing bloqueados.</b> O marketing está marcado como não liberado. Dá para montar a campanha, mas o disparo só funciona depois de ligar a opção. <a href="#mkt-email?v=configuracao">Ver configuração</a></div>'}
+      ${avisoLimite(S.uso)}
       <div class="ag-subvistas" role="group" aria-label="Filtrar por situação">
-        <button type="button" class="ag-subvista" data-filtro="" aria-pressed="${!filtroCamp}">Todas <span class="ag-cont">${lista.length}</span></button>
-        ${Object.entries(SITUACAO_CAMP).map(([k, [r]]) => `<button type="button" class="ag-subvista" data-filtro="${k}" aria-pressed="${filtroCamp === k}">${r} <span class="ag-cont${k === 'falhou' && cont[k] ? ' alerta' : ''}">${cont[k]}</span></button>`).join('')}
+        <button type="button" class="ag-subvista" data-filtro="" aria-pressed="${!filtroCamp}">Todas <span class="ag-cont">${total}</span></button>
+        ${['rascunho', 'enviando', 'enviada', 'falhou'].map((k) => `<button type="button" class="ag-subvista" data-filtro="${k}" aria-pressed="${filtroCamp === k}">${SITUACAO_CAMP[k][0]} <span class="ag-cont${k === 'falhou' && S.por_situacao[k] ? ' alerta' : ''}">${S.por_situacao[k] || 0}</span></button>`).join('')}
       </div>
       <div class="tabela-wrap" id="em-camp-lista"></div>`;
-    ligarCenario(el, () => campanhas(el));
     el.querySelector('[data-ir="relatorio"]').onclick = () => { campanhaRelatorio = null; irPara('relatorio'); };
-    el.querySelector('[data-nova]').onclick = () => formCampanha(null);
+    el.querySelector('[data-nova]').onclick = () => formCampanha(null, el);
     el.querySelectorAll('[data-filtro]').forEach((b) => { b.onclick = () => { filtroCamp = b.dataset.filtro; campanhas(el); }; });
+    const segNome = (id) => (S.opcoes.segmentos.find((s) => s.id === id) || { nome: 'segmento excluído' }).nome;
     const alvo = el.querySelector('#em-camp-lista');
     ctx.tabela(alvo, [
       { titulo: 'Campanha', campo: 'nome', render: (c) => `<button type="button" class="ag-link-linha" data-acao="abrir" data-id="${c.id}">${esc(c.nome)}</button>` },
-      { titulo: 'Situação', campo: 'situacao', render: (c) => c.situacao === 'enviando'
-        ? `<span data-prog="${c.id}"><span class="em-progresso" title="${c.progresso}% enviado"><span style="width:${c.progresso}%"></span></span> <b>${c.progresso}%</b></span>`
-        : carimbo(SITUACAO_CAMP, c.situacao) },
-      { titulo: 'Segmentos', render: (c) => `<span class="mini">${c.segmentos.map((s) => esc((segmento(s) || {}).nome || 's')).join(' + ')}</span>` },
-      { titulo: 'Envio', render: (c) => esc(c.envio || 'sem data') },
-      { titulo: 'Destinatários', num: true, campo: 'dest', render: (c) => c.dest ? int(c.dest) : '' },
-      { titulo: 'Abertura', num: true, render: (c) => c.abertos ? taxa(c.abertos, c.entregues) : '' },
-      { titulo: 'Clique', num: true, render: (c) => c.clicados ? taxa(c.clicados, c.entregues) : '' },
+      { titulo: 'Situação', campo: 'situacao', render: (c) => (c.situacao === 'enviando' ? progresso(c) : carimbo(SITUACAO_CAMP, c.situacao)) },
+      { titulo: 'Segmentos', render: (c) => `<span class="mini">${c.segmentos.map((s) => esc(segNome(s))).join(' + ')}</span>` },
+      { titulo: 'Envio', render: (c) => esc(c.disparada_em ? quando(c.disparada_em) : 'sem data') },
+      { titulo: 'Destinatários', num: true, render: (c) => (c.total ? int(c.total) : '') },
+      { titulo: 'Enviados', num: true, render: (c) => (c.disparada_em ? int(c.enviados) : '') },
+      { titulo: 'Falhas', num: true, render: (c) => (c.falhas ? `<span class="carimbo queda">${int(c.falhas)}</span>` : '') },
       { titulo: '', render: (c) => `<div class="ag-acoes ag-acoes--linha">${menuHtml(c.nome, [
         { acao: 'abrir', id: c.id, rotulo: c.situacao === 'rascunho' ? 'Editar' : 'Abrir' },
-        c.situacao === 'enviada' && { acao: 'relatorio', id: c.id, rotulo: 'Ver relatório' },
-        c.situacao === 'agendada' && { acao: 'editar', id: c.id, rotulo: 'Editar' },
-        { acao: 'teste', id: c.id, rotulo: 'Mandar teste' },
+        c.modelo_id && { acao: 'teste', id: c.id, rotulo: 'Mandar teste' },
         { acao: 'duplicar', id: c.id, rotulo: 'Duplicar' },
-        c.situacao === 'agendada' && { acao: 'cancelar', id: c.id, rotulo: 'Cancelar envio', perigo: true },
         c.situacao === 'rascunho' && { acao: 'excluir', id: c.id, rotulo: 'Excluir rascunho', perigo: true },
       ])}</div>` },
-    ], linhas, undefined, vazio() ? 'Nenhuma campanha ainda. Comece por "Nova campanha": escolha um modelo, um ou mais segmentos e mande um teste antes de disparar.' : 'Nenhuma campanha nesta situação.');
+    ], S.campanhas, undefined, total ? 'Nenhuma campanha nesta situação.' : 'Nenhuma campanha ainda. Comece por "Nova campanha": escolha um modelo, um ou mais segmentos e mande um teste antes de disparar.');
+    const campanhaReal = (id) => S.campanhas.find((c) => String(c.id) === String(id));
     ligarAcoes(alvo, {
-      abrir: (id) => abrirCampanha(id),
-      editar: (id) => formCampanha(campanha(id)),
-      relatorio: (id) => { campanhaRelatorio = id; irPara('relatorio'); },
-      teste: (id) => avisar(`Teste de "${campanha(id).nome}" mandado para felipe@seteads.com.`),
-      duplicar: (id) => {
-        const c = campanha(id);
-        D.campanhas.unshift({ id: 'c' + Date.now(), nome: c.nome + ' (cópia)', situacao: 'rascunho', modelo: c.modelo, segmentos: [...c.segmentos], envio: '' });
-        filtroCamp = '';
-        avisar('Campanha duplicada como rascunho.');
-        campanhas(el);
+      abrir: (id) => abrirCampanha(campanhaReal(id), el),
+      teste: (id) => { const c = campanhaReal(id); const m = S.opcoes.modelos.find((x) => x.id === c.modelo_id); pedirTeste({ id: c.modelo_id, nome: m ? m.nome : c.nome, canal: 'marketing' }); },
+      duplicar: async (id) => {
+        try { const r = await ctx.postJson('/api/email/campanhas', { acao: 'duplicar', id: Number(id) }); filtroCamp = ''; avisar(`Campanha duplicada como rascunho: "${r.campanha.nome}".`); campanhas(el); }
+        catch (e) { avisar(msgErro(e), 'erro'); }
       },
-      cancelar: (id, b) => ctx.pedirConfirmacao(b, 'Cancelar o envio agendado?', () => {
-        const c = campanha(id); c.situacao = 'cancelada'; c.envio = 'era ' + c.envio;
-        fecharMenus(); avisar('Envio cancelado. Ninguém recebeu.'); campanhas(el);
-      }),
-      excluir: (id, b) => ctx.pedirConfirmacao(b, 'Excluir este rascunho?', () => {
-        D.campanhas = D.campanhas.filter((c) => c.id !== id);
-        fecharMenus(); avisar('Rascunho excluído.'); campanhas(el);
+      excluir: (id, b) => ctx.pedirConfirmacao(b, 'Excluir este rascunho?', async () => {
+        fecharMenus();
+        try { await ctx.postJson('/api/email/campanhas', { acao: 'excluir', id: Number(id) }); avisar('Rascunho excluído.'); campanhas(el); }
+        catch (e) { avisar(msgErro(e), 'erro'); }
       }),
     });
-  }
-
-  function abrirCampanha(id) {
-    const c = campanha(id);
-    if (c.situacao === 'rascunho') return formCampanha(c);
-    if (c.situacao === 'enviada') { campanhaRelatorio = id; return irPara('relatorio'); }
-    const m = modelo(c.modelo);
-    const base = `<dl class="ag-dl">
-        <dt>Situação</dt><dd>${carimbo(SITUACAO_CAMP, c.situacao)}</dd>
-        <dt>Modelo</dt><dd>${esc(m.nome)}<br><span class="mini">${esc(m.assunto)}</span></dd>
-        <dt>Segmentos</dt><dd>${c.segmentos.map((s) => esc(segmento(s).nome)).join('<br>')}</dd>
-        <dt>Envio</dt><dd>${esc(c.envio)}</dd>
-        ${c.dest ? `<dt>Destinatários</dt><dd>${int(c.dest)}</dd>` : ''}
-      </dl>`;
-    let extra = '', rodape = '';
-    if (c.situacao === 'enviando') {
-      extra = `<div class="em-andamento"><div class="em-andamento__num"><b>${c.progresso}%</b> enviado</div>
-        <span class="em-progresso em-progresso--grande"><span style="width:${c.progresso}%"></span></span>
-        <p class="mini">${int(Math.round((c.dest * c.progresso) / 100))} de ${int(c.dest)} já saíram · ${c.falhas} falhas até agora (endereço recusado na hora). O número sobe sozinho conforme o serviço confirma.</p></div>`;
-    } else if (c.situacao === 'falhou') {
-      extra = `<div class="aviso falha"><b>Motivo:</b> ${esc(c.motivo)}</div><p class="mini">Uma campanha que falha nunca sai pela metade sem aviso: ou sai inteira, ou fica parada aqui com o motivo.</p>`;
-      rodape = '<div class="ag-acoes"><button class="btn sec" type="button" data-dup>Duplicar para tentar de novo</button></div>';
-    } else if (c.situacao === 'agendada') {
-      extra = '<p class="mini">Sai sozinha no horário. O segmento é recalculado na hora do envio: quem entrar até lá também recebe, e quem se descadastrar nesse meio tempo não recebe.</p>';
-      rodape = '<div class="ag-acoes"><button class="btn" type="button" data-editar>Editar</button><button class="btn perigo" type="button" data-cancelar>Cancelar envio</button></div>';
-    } else if (c.situacao === 'cancelada') {
-      extra = '<p class="mini">Cancelada antes do horário. Ninguém recebeu.</p>';
-      rodape = '<div class="ag-acoes"><button class="btn sec" type="button" data-dup>Duplicar</button></div>';
+    // Andamento: enquanto houver campanha enviando, atualiza a cada 3 s, sem
+    // redesenhar por cima de menu, gaveta ou confirmação abertos.
+    if (S.campanhas.some((c) => c.situacao === 'enviando')) {
+      campTimer = setTimeout(() => {
+        const ocupado2 = document.querySelector('.ag-menu__lista:not([hidden]), dialog[open], .confirma');
+        if (api.vista === 'campanhas' && !ocupado2) campanhas(el);
+        else if (api.vista === 'campanhas') campTimer = setTimeout(() => campanhas(el), 3000);
+      }, 3000);
     }
-    const g = gaveta({ titulo: esc(c.nome), sub: 'campanha de marketing', corpo: base + extra, rodape });
-    const dup = g.querySelector('[data-dup]');
-    if (dup) dup.onclick = () => { D.campanhas.unshift({ id: 'c' + Date.now(), nome: c.nome + ' (cópia)', situacao: 'rascunho', modelo: c.modelo, segmentos: [...c.segmentos], envio: '' }); g.close(); avisar('Campanha duplicada como rascunho.'); ctx.rerender(); };
-    const ed = g.querySelector('[data-editar]');
-    if (ed) ed.onclick = () => formCampanha(c);
-    const ca = g.querySelector('[data-cancelar]');
-    if (ca) ca.onclick = () => ctx.pedirConfirmacao(ca, 'Cancelar o envio?', () => { c.situacao = 'cancelada'; c.envio = 'era ' + c.envio; g.close(); avisar('Envio cancelado. Ninguém recebeu.'); ctx.rerender(); });
   }
 
-  /** Quem recebe e quem fica de fora (módulo 6): segmentos somados, sem repetir pessoa. */
-  function publicoCampanha(segIds) {
-    const porPessoa = new Map();
-    segIds.forEach((s) => noSegmento(segmento(s).regras).forEach((p) => porPessoa.set(p.id, (porPessoa.get(p.id) || 0) + 1)));
-    const pessoas = [...porPessoa.keys()].map((id) => D.contatos.find((p) => p.id === id));
-    const fora = { descadastrado: 0, voltou: 0, denunciou: 0, invalido: 0 };
-    pessoas.forEach((p) => { if (p.situacao !== 'ativo') fora[p.situacao]++; });
-    return { recebem: pessoas.filter((p) => p.situacao === 'ativo').length, emDois: [...porPessoa.values()].filter((n) => n > 1).length, fora };
+  function abrirCampanha(c, el) {
+    if (c.situacao === 'rascunho') return formCampanha(c, el);
+    const S = campEstado;
+    const m = S.opcoes.modelos.find((x) => x.id === c.modelo_id);
+    const segs = c.segmentos.map((id) => (S.opcoes.segmentos.find((s) => s.id === id) || { nome: 'segmento excluído' }).nome);
+    let extra = '';
+    if (c.situacao === 'enviando') {
+      extra = `<div class="em-andamento"><div class="em-andamento__num"><b>${c.percentual}%</b> enviado</div>
+        <span class="em-progresso em-progresso--grande"><span style="width:${c.percentual}%"></span></span>
+        <p class="mini">${int(c.enviados)} de ${int(c.total)} já saíram · ${int(c.falhas)} falhas até agora. Feche e acompanhe na lista: o número sobe sozinho.</p></div>`;
+    } else if (c.situacao === 'falhou') {
+      extra = `<div class="aviso falha"><b>Motivo:</b> ${esc(c.motivo || 'sem motivo registrado')}</div><p class="mini">Uma campanha que falha nunca sai pela metade sem aviso: o que não saiu fica marcado, e nada é reenviado sozinho.</p>`;
+    } else if (c.situacao === 'enviada') {
+      extra = '<p class="mini">Entregas, aberturas e cliques chegam do serviço de envio conforme acontecem. O relatório completo da campanha vem na próxima etapa.</p>';
+    }
+    const g = gaveta({
+      titulo: esc(c.nome), sub: 'campanha de marketing',
+      corpo: `<dl class="ag-dl">
+          <dt>Situação</dt><dd>${carimbo(SITUACAO_CAMP, c.situacao)}</dd>
+          <dt>Modelo</dt><dd>${esc(m ? m.nome : 'modelo arquivado')}<br><span class="mini">${esc(c.assunto || (m ? m.assunto : ''))}</span></dd>
+          <dt>Segmentos</dt><dd>${segs.map(esc).join('<br>')}</dd>
+          <dt>Envio</dt><dd>${esc(c.disparada_em ? quando(c.disparada_em) : '')}</dd>
+          <dt>Destinatários</dt><dd>${int(c.total)} · ${int(c.enviados)} enviados · ${int(c.falhas)} falhas</dd>
+        </dl>${extra}`,
+      rodape: '<div class="ag-acoes"><button class="btn sec" type="button" data-dup>Duplicar</button></div>',
+    });
+    g.querySelector('[data-dup]').onclick = async () => {
+      try { await ctx.postJson('/api/email/campanhas', { acao: 'duplicar', id: c.id }); g.close(); filtroCamp = ''; avisar('Campanha duplicada como rascunho.'); campanhas(el); }
+      catch (e) { avisar(msgErro(e), 'erro'); }
+    };
   }
 
-  function formCampanha(c) {
-    const nova = !c;
-    c = c || { id: 'c' + Date.now(), nome: '', situacao: 'rascunho', modelo: '', segmentos: [], envio: '' };
-    const marketing = D.modelos.filter((m) => m.canal === 'marketing' && !m.arquivado);
-    const cfg = D.config.marketing;
+  function formCampanha(c, el) {
+    const S = campEstado;
     const corpo = `<form class="ag-form em-form" id="em-camp-form" novalidate>
-        <label>Nome interno<input type="text" name="nome" value="${esc(c.nome)}" placeholder="Ex.: Convite workshop 05/11" required></label>
-        <label>Modelo<select name="modelo"><option value="">Escolha um modelo</option>${marketing.map((m) => `<option value="${m.id}"${m.id === c.modelo ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
+        <label>Nome interno<input type="text" name="nome" maxlength="100" value="${esc(c ? c.nome : '')}" placeholder="Ex.: Convite workshop 05/11" required></label>
+        <label>Modelo<select name="modelo"><option value="">Escolha um modelo</option>${S.opcoes.modelos.map((m) => `<option value="${m.id}"${c && m.id === c.modelo_id ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
         <div class="em-previa-assunto" id="em-camp-assunto"></div>
         <fieldset><legend>Segmentos (um ou mais)</legend>
-          ${D.segmentos.map((s) => `<label class="marca"><input type="checkbox" name="seg" value="${s.id}"${c.segmentos.includes(s.id) ? ' checked' : ''}> ${esc(s.nome)} <span class="mini">${int(noSegmento(s.regras).filter((p) => p.situacao === 'ativo').length)} ativos</span></label>`).join('')}
+          ${S.opcoes.segmentos.length ? S.opcoes.segmentos.map((s) => `<label class="marca"><input type="checkbox" name="seg" value="${s.id}"${c && c.segmentos.includes(s.id) ? ' checked' : ''}> ${esc(s.nome)} <span class="mini">${int(s.ativos)} ativos</span></label>`).join('') : '<p class="mini">Nenhum segmento ainda. Crie um em Segmentos.</p>'}
         </fieldset>
-        <label>Remetente<input type="text" value="${esc(cfg.nome)} <${esc(cfg.endereco)}>" readonly><span class="mini">Vem da configuração de e-mail.</span></label>
-        <fieldset><legend>Quando enviar</legend>
-          <label class="marca"><input type="radio" name="quando" value="agora" checked> Agora, depois do resumo</label>
-          <label class="marca"><input type="radio" name="quando" value="agendar"> Agendar para data e hora</label>
-          <input type="datetime-local" name="data" value="2026-10-20T09:00" hidden>
-        </fieldset>
+        <label>Remetente<input type="text" value="${esc(S.remetente)}" readonly><span class="mini">Vem da configuração de e-mail.</span></label>
       </form>
+      <div class="em-erro" aria-live="polite"></div>
       <div id="em-camp-resumo"></div>`;
     const g = gaveta({
-      titulo: nova ? 'Nova campanha' : esc(c.nome || 'Rascunho'), sub: c.situacao === 'agendada' ? 'campanha agendada: dá para editar até o horário' : 'rascunho salvo sozinho a cada mudança',
+      titulo: c ? esc(c.nome) : 'Nova campanha', sub: 'rascunho: só sai quando você disparar',
       corpo,
-      rodape: `<div class="ag-acoes"><button class="btn" type="button" data-revisar>Revisar e disparar</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button></div>`,
+      rodape: '<div class="ag-acoes"><button class="btn" type="button" data-revisar>Revisar e disparar</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button></div>',
     });
     const f = g.querySelector('#em-camp-form');
-    const dados = () => ({ nome: f.nome.value.trim(), modelo: f.modelo.value, segmentos: [...f.querySelectorAll('[name="seg"]:checked')].map((i) => i.value), quando: f.quando.value, data: f.data.value });
-    const atualizar = () => {
-      const d = dados();
-      const m = modelo(d.modelo);
-      g.querySelector('#em-camp-assunto').innerHTML = m ? `<span class="mini">Assunto</span> <b>${esc(m.assunto)}</b><br><span class="mini">${esc(m.previa)}</span>` : '';
-      f.data.hidden = d.quando !== 'agendar';
-      g.querySelector('[data-revisar]').textContent = d.quando === 'agendar' ? 'Revisar e agendar' : 'Revisar e disparar';
+    const erro = g.querySelector('.em-erro');
+    let atual = c;
+    const dados = () => ({ nome: f.nome.value, modelo_id: f.modelo.value ? Number(f.modelo.value) : null, segmentos: [...f.querySelectorAll('[name="seg"]:checked')].map((i) => Number(i.value)) });
+    const mostrarAssunto = () => {
+      const m = S.opcoes.modelos.find((x) => String(x.id) === f.modelo.value);
+      g.querySelector('#em-camp-assunto').innerHTML = m ? `<span class="mini">Assunto</span> <b>${esc(m.assunto || '(sem assunto)')}</b><br><span class="mini">${esc(m.previa || '')}</span>` : '';
       g.querySelector('#em-camp-resumo').innerHTML = '';
+      erro.textContent = '';
     };
-    f.addEventListener('input', atualizar);
-    f.addEventListener('change', atualizar);
-    atualizar();
-    const salvar = () => {
-      const d = dados();
-      Object.assign(c, { nome: d.nome || 'Rascunho sem nome', modelo: d.modelo || 'm6', segmentos: d.segmentos });
-      if (nova && !D.campanhas.includes(c)) D.campanhas.unshift(c);
+    f.addEventListener('change', mostrarAssunto);
+    mostrarAssunto();
+    const salvarRascunho = async () => {
+      const r = await ctx.postJson('/api/email/campanhas', { acao: 'salvar', id: atual ? atual.id : undefined, ...dados() });
+      atual = r.campanha;
+      return atual;
     };
-    g.querySelector('[data-salvar]').onclick = () => { salvar(); g.close(); avisar('Rascunho salvo.'); ctx.rerender(); };
+    const bs = g.querySelector('[data-salvar]');
+    bs.onclick = () => ocupado(bs, async () => {
+      try { await salvarRascunho(); g.close(); avisar('Rascunho salvo.'); campanhas(el); }
+      catch (e) { erro.textContent = msgErro(e); }
+    });
     g.querySelector('[data-teste]').onclick = () => {
-      if (!f.modelo.value) return avisar('Escolha o modelo antes de mandar o teste.', 'erro');
-      avisar('Teste mandado para felipe@seteads.com. Os campos usam os dados de exemplo.');
+      const m = S.opcoes.modelos.find((x) => String(x.id) === f.modelo.value);
+      if (!m) return avisar('Escolha o modelo antes de mandar o teste.', 'erro');
+      pedirTeste({ id: m.id, nome: m.nome, canal: 'marketing' });
     };
-    g.querySelector('[data-revisar]').onclick = () => {
-      const d = dados();
-      const falta = [!d.nome && 'o nome', !d.modelo && 'o modelo', !d.segmentos.length && 'ao menos um segmento'].filter(Boolean);
-      if (falta.length) return avisar(`Falta escolher ${falta.join(', ')}.`, 'erro');
-      const pub = publicoCampanha(d.segmentos);
-      const resta = D.limiteMes - D.usoMes;
-      const passa = pub.recebem > resta;
-      const totFora = Object.values(pub.fora).reduce((a, b) => a + b, 0);
-      const bloqueio = !marketingLiberado() ? 'O marketing ainda não foi liberado pelo serviço de envio. O disparo fica bloqueado até lá.'
-        : passa ? `Este envio tem ${int(pub.recebem)} pessoas e restam ${int(resta)} e-mails no mês. Diminua o segmento ou espere o limite renovar em 01/11.` : '';
-      const agendar = d.quando === 'agendar';
-      const quandoTxt = agendar ? new Date(d.data).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'agora';
+    const br = g.querySelector('[data-revisar]');
+    br.onclick = () => ocupado(br, async () => {
+      let r;
+      try {
+        await salvarRascunho();
+        r = await ctx.postJson('/api/email/campanhas', { acao: 'resumo', modelo_id: atual.modelo_id, segmentos: atual.segmentos });
+      } catch (e) { erro.textContent = msgErro(e); return; }
+      erro.textContent = '';
+      const totFora = Object.values(r.fora).reduce((a, b) => a + b, 0);
       g.querySelector('#em-camp-resumo').innerHTML = `<div class="em-resumo">
-        <h3 class="ag-h3">Resumo antes de ${agendar ? 'agendar' : 'disparar'}</h3>
-        <div class="em-resumo__grande"><b>${int(pub.recebem)}</b> pessoas vão receber</div>
-        ${pub.emDois ? `<p class="mini">${int(pub.emDois)} estão em mais de um segmento escolhido e recebem uma vez só.</p>` : ''}
+        <h3 class="ag-h3">Resumo antes de disparar</h3>
+        <div class="em-resumo__grande"><b>${int(r.recebem)}</b> pessoas vão receber</div>
+        ${r.em_dois ? `<p class="mini">${int(r.em_dois)} estão em mais de um segmento escolhido e recebem uma vez só.</p>` : ''}
         <p><b>${int(totFora)}</b> ficam de fora:</p>
         <ul class="em-fora">
-          <li><span>Descadastrados</span><b>${int(pub.fora.descadastrado)}</b></li>
-          <li><span>Voltaram (endereço não existe)</span><b>${int(pub.fora.voltou)}</b></li>
-          <li><span>Denunciaram spam</span><b>${int(pub.fora.denunciou)}</b></li>
-          <li><span>Endereço inválido</span><b>${int(pub.fora.invalido)}</b></li>
+          <li><span>Descadastrados</span><b>${int(r.fora.descadastrado)}</b></li>
+          <li><span>Voltaram (endereço não existe)</span><b>${int(r.fora.voltou)}</b></li>
+          <li><span>Denunciaram spam</span><b>${int(r.fora.denunciou)}</b></li>
+          <li><span>Endereço inválido</span><b>${int(r.fora.invalido)}</b></li>
         </ul>
-        <p class="mini">Limite do mês: ${int(D.usoMes)} usados, restam ${int(resta)}.${agendar ? ' Na hora do envio o segmento é recalculado.' : ''}</p>
-        ${bloqueio ? `<div class="aviso alerta">${esc(bloqueio)}</div>` : ''}
-        <div class="ag-acoes"><button class="btn" type="button" data-disparar${bloqueio ? ' disabled' : ''}>${agendar ? `Agendar para ${quandoTxt}` : `Disparar para ${int(pub.recebem)} pessoas`}</button></div>
+        ${r.sem_nome ? `<div class="aviso alerta">${int(r.sem_nome)} ${r.sem_nome === 1 ? 'pessoa está' : 'pessoas estão'} sem nome no cadastro: para elas, o nome do e-mail sai em branco.</div>` : ''}
+        <p class="mini">Assunto: <b>${esc(r.assunto)}</b> · remetente ${esc(r.remetente)}. Limite do mês: ${int(r.uso.usados)} usados, restam ${int(r.uso.restam)}.</p>
+        ${r.bloqueio ? `<div class="aviso alerta">${esc(r.bloqueio)}</div>` : ''}
+        <div class="ag-acoes"><button class="btn" type="button" data-disparar${r.bloqueio ? ' disabled' : ''}>Disparar para ${int(r.recebem)} pessoas</button></div>
       </div>`;
       const corpoG = g.querySelector('.ag-gaveta__corpo');
       corpoG.scrollTop = corpoG.scrollHeight;
       const b = g.querySelector('[data-disparar]');
-      b.onclick = () => ctx.pedirConfirmacao(b, agendar ? `Agendar para ${quandoTxt}?` : `Disparar agora para ${int(pub.recebem)} pessoas? Não dá para desfazer.`, () => {
-        salvar();
-        if (agendar) { c.situacao = 'agendada'; c.envio = quandoTxt.replace(', ', ' às '); c.dest = pub.recebem; }
-        else { c.situacao = 'enviando'; c.envio = 'agora'; c.dest = pub.recebem; c.progresso = 4; c.falhas = 0; simularEnvio(c); }
-        g.close();
-        filtroCamp = '';
-        avisar(agendar ? `Agendada para ${quandoTxt}.` : `Disparo iniciado para ${int(pub.recebem)} pessoas.`);
-        ctx.rerender();
-      }, [{ valor: true, rotulo: agendar ? 'Agendar' : 'Disparar' }]);
-    };
-  }
-
-  // Andamento do envio: o percentual sobe sozinho na lista (simulado).
-  function simularEnvio(c) {
-    const t = setInterval(() => {
-      c.progresso = Math.min(100, c.progresso + 9 + Math.round(Math.random() * 8));
-      if (Math.random() < 0.3) c.falhas++;
-      if (c.progresso >= 100) {
-        clearInterval(t);
-        Object.assign(c, { situacao: 'enviada', envio: 'hoje', entregues: c.dest - c.falhas - 3, voltaram: c.falhas + 3, spam: 0, abertos: 0, clicados: 0, descad: 0 });
-        avisar(`"${c.nome}" terminou de sair.`);
-      }
-      // Só o percentual muda na tela; a lista inteira é redesenhada no fim,
-      // e só se ninguém estiver com menu ou gaveta aberta.
-      const cel = document.querySelector(`[data-prog="${c.id}"]`);
-      if (cel && c.situacao === 'enviando') cel.innerHTML = `<span class="em-progresso"><span style="width:${c.progresso}%"></span></span> <b>${c.progresso}%</b>`;
-      const ocupado = document.querySelector('.ag-menu__lista:not([hidden]), dialog[open], .confirma');
-      if (c.situacao !== 'enviando' && cel && !ocupado) campanhas(raiz());
-    }, 1400);
+      b.onclick = () => ctx.pedirConfirmacao(b, `Disparar agora para ${int(r.recebem)} pessoas? Não dá para desfazer.`, async () => {
+        try {
+          await ctx.postJson('/api/email/campanhas', { acao: 'disparar', id: atual.id });
+          g.close();
+          filtroCamp = '';
+          avisar(`Disparo iniciado para ${int(r.recebem)} pessoas.`);
+          campanhas(el);
+        } catch (e) { erro.textContent = msgErro(e); avisar(msgErro(e), 'erro'); return false; }
+      }, [{ valor: true, rotulo: 'Disparar' }]);
+    });
   }
 
   // ===========================================================================

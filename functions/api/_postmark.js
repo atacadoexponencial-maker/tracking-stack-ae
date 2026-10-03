@@ -161,3 +161,23 @@ async function supressao(env, caminho, email) {
   if (item && item.Status === 'Failed') return { ok: false, codigo: null, erro: item.Message || 'O serviço de envio recusou a supressão.' };
   return { ok: true };
 }
+
+/**
+ * Lote de mensagens (campanhas, issue 382): POST /email/batch, até 500 por
+ * chamada. O Postmark responde 200 mesmo com mensagem recusada; o resultado
+ * vem por mensagem, na mesma ordem do pedido.
+ * Devolve { ok: true, itens: [{ ok, messageId, codigo, erro }] } ou
+ * { ok: false, codigo, erro } quando o lote inteiro foi recusado.
+ * Lança SemResposta quando o serviço não respondeu.
+ */
+export async function enviarLote(env, mensagens) {
+  if (!env.POSTMARK_SERVER_TOKEN) return { ok: false, codigo: 10, erro: ERROS[10] };
+  const res = await chamar('/email/batch', { token: env.POSTMARK_SERVER_TOKEN, metodo: 'POST', corpo: mensagens });
+  if (!res.ok || !Array.isArray(res.dados)) return erroDe(res);
+  return {
+    ok: true,
+    itens: res.dados.map((r) => (r?.ErrorCode === 0 && r.MessageID
+      ? { ok: true, messageId: r.MessageID }
+      : { ok: false, codigo: r?.ErrorCode ?? null, erro: traduzirErro(r?.ErrorCode, 422) })),
+  };
+}
