@@ -122,8 +122,8 @@ Migration `migrations/0053_email_contatos.sql` (só adição):
 - [x] Supressão no Postmark (`criarSupressao`, `apagarSupressao`)
 - [x] Webhook atualiza o contato
 - [x] `GET/POST /api/email/contatos`
-- [ ] `POST /api/sync/email-contatos` + cron de 5 minutos na VPS
+- [x] `POST /api/sync/email-contatos` + cron de 5 minutos na VPS
 - [x] Vista Contatos ligada ao backend
 - [x] Testes `email-contatos` e `email-config` passando (`npm test`)
-- [ ] Primeira carga rodada na prévia: contatos antigos aparecem, nomes chegando do ClickUp
+- [x] Primeira carga rodada na prévia: 478 contatos (03/10). Nomes do ClickUp NÃO chegam na prévia (ela não tem `CLICKUP_API_TOKEN`, de propósito); passam a chegar depois do merge, em produção
 - [ ] Usuária abre Contatos, vê os leads, um lead novo de teste aparece sozinho, busca e filtros funcionam, o detalhe mostra o e-mail de teste e descadastrar muda a situação
