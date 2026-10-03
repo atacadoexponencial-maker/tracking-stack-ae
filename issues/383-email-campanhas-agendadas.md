@@ -98,6 +98,6 @@ Migration `migrations/0056_email_campanhas_agendadas.sql` (só adição):
 - [x] `POST /api/email/campanhas` com `agendar` e `cancelar`
 - [x] Travas de modelo e segmento valendo para campanha agendada
 - [x] Formulário, lista e detalhe com agendamento
-- [ ] Cron das campanhas a cada minuto na VPS
+- [x] Cron das campanhas a cada minuto na VPS
 - [x] Testes `email-campanhas` passando (`npm test`)
 - [ ] Usuária agenda uma campanha para daqui a alguns minutos, edita, cancela outra, e vê a agendada sair sozinha no horário com a lista recalculada
