@@ -31,6 +31,17 @@ export const FUNIS_MANYCHAT = {
     fluxo: 'content20260929233329_927636',
     consentimento: 'formulário da LP /workshop-gratuito',
   },
+  // Aplicação para o plano de ação ao vivo do workshop de 07/10/2026
+  // (spec-aplicacao-plano-ao-vivo.md). Não vem do /tracker: quem chama é
+  // functions/api/aplicacao-plano-ao-vivo.js, depois de gravar a linha na
+  // planilha. `tagEnviado` só entra quando o ManyChat aceitou o fluxo: quem tem
+  // a tagForm e não tem esta ficou sem a mensagem.
+  'aplicacao-plano-ao-vivo': {
+    tagForm: 98044274, // aplicou-wo07-10 (criada em 2026-10-03)
+    tagEnviado: 98044275, // aplicou-wo07-10-enviado
+    fluxo: 'content20261003121955_441447', // "Aplicação Plano de Ação ao Vivo"
+    consentimento: 'aplicação /aplicacao-plano-ao-vivo',
+  },
 };
 
 // Telefone no log só com os 4 últimos dígitos.
@@ -59,6 +70,7 @@ export async function enviarLeadAoManyChat({ leadData, env }) {
       if (existente) {
         let falha = await aplicarTag(existente, cfg.tagForm, env);
         if (!falha && cfg.fluxo) falha = await dispararFluxo(existente, cfg.fluxo, env);
+        if (!falha && cfg.fluxo && cfg.tagEnviado) falha = await aplicarTag(existente, cfg.tagEnviado, env);
         if (falha) console.error('lead-manychat —', funil, 'erro no existente', mascarar(telefone), falha);
         return falha ? 'erro' : 'ja_existia_tagueado';
       }
@@ -70,6 +82,7 @@ export async function enviarLeadAoManyChat({ leadData, env }) {
       email,
       tagId: cfg.tagForm,
       flowNs: cfg.fluxo || undefined,
+      tagEnviadoId: cfg.tagEnviado || undefined,
       consentimento: cfg.consentimento,
       env,
     });

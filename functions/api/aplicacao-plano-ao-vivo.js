@@ -5,12 +5,16 @@
 // POST → confere as respostas pelas mesmas listas da página e acrescenta uma
 //        linha na planilha. Só responde ok depois que a linha foi gravada.
 //
-// Não vira lead: nada vai para /tracker, CRM, ManyChat, GHL, Meta, GA4 ou dash.
+// Não vira lead: nada vai para /tracker, CRM, GHL, Meta, GA4 ou dash. O único
+// destino além da planilha é o ManyChat (pedido dela em 03/10): tag
+// aplicou-wo07-10 + fluxo "Aplicação Plano de Ação ao Vivo", em segundo plano,
+// depois de a linha estar gravada. Falha no ManyChat não derruba a aplicação.
 // Robô (pelas mesmas listas do /tracker) recebe ok e não vira linha.
 
 import { detectBot, detectBotPorIp } from '../_bots.js';
 import { padronizarTelefone } from '../_telefone.js';
 import { acrescentarLinha } from './_google-planilha.js';
+import { enviarLeadAoManyChat } from './_lead-manychat.js';
 import { aplicacoesAbertas, validarAplicacao, PERGUNTAS, CABECALHO } from '../../src/data/aplicacao-plano-ao-vivo.js';
 
 const PLANILHA = '1tWAeZMaAp_hSE-6vymyN8Cx3kAqVo-zKEZfGySHuOHU';
@@ -33,7 +37,7 @@ function dataHoraBrasilia(ms) {
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}:${p.second}`;
 }
 
-export async function processarAplicacao({ request, env, agoraMs = Date.now(), gravar = acrescentarLinha }) {
+export async function processarAplicacao({ request, env, waitUntil, agoraMs = Date.now(), gravar = acrescentarLinha, manychat = enviarLeadAoManyChat }) {
   if (!aplicacoesAbertas(agoraMs)) return json({ ok: false, encerrada: true }, 410);
 
   const ua = request.headers.get('user-agent') || '';
@@ -64,6 +68,12 @@ export async function processarAplicacao({ request, env, agoraMs = Date.now(), g
     console.error('[aplicacao-plano-ao-vivo] falha ao gravar na planilha:', e?.codigo || '', e?.status || '', e?.message || e);
     return json({ ok: false, erro: 'planilha' }, 502);
   }
+
+  const envio = manychat({ leadData: { funnel: 'aplicacao-plano-ao-vivo', nome: v.valores.nome, telefone: tel.digitos }, env })
+    .then((desfecho) => console.log('[aplicacao-plano-ao-vivo] manychat:', desfecho))
+    .catch(() => {});
+  if (typeof waitUntil === 'function') waitUntil(envio); else await envio;
+
   return json({ ok: true });
 }
 

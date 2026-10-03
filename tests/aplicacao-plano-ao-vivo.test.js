@@ -93,6 +93,31 @@ test('campo inválido devolve 400 com o campo; robô recebe ok sem gravar', asyn
   assert.equal(gravou, false);
 });
 
+test('depois de gravar, manda ao ManyChat com o funil da aplicação e o telefone padronizado', async () => {
+  const enviados = [];
+  const r = await processarAplicacao({
+    request: pedido({ respostas: RESPOSTAS }), env: {}, agoraMs: ANTES,
+    gravar: async () => {}, manychat: async (a) => { enviados.push(a.leadData); return 'inscrito'; },
+  });
+  assert.equal(r.status, 200);
+  assert.deepEqual(enviados, [{ funnel: 'aplicacao-plano-ao-vivo', nome: 'Maria Silva', telefone: '5511987654321' }]);
+});
+
+test('ManyChat não é chamado quando a planilha falha, e falha do ManyChat não derruba o ok', async () => {
+  let chamou = false;
+  const r1 = await processarAplicacao({
+    request: pedido({ respostas: RESPOSTAS }), env: {}, agoraMs: ANTES,
+    gravar: async () => { throw new Error('fora'); }, manychat: async () => { chamou = true; },
+  });
+  assert.equal(r1.status, 502);
+  assert.equal(chamou, false);
+  const r2 = await processarAplicacao({
+    request: pedido({ respostas: RESPOSTAS }), env: {}, agoraMs: ANTES,
+    gravar: async () => {}, manychat: async () => { throw new Error('manychat fora'); },
+  });
+  assert.equal(r2.status, 200);
+});
+
 test('falha do Google vira 502 para a página pedir de novo', async () => {
   const r = await processarAplicacao({ request: pedido({ respostas: RESPOSTAS }), env: {}, agoraMs: ANTES, gravar: async () => { throw new Error('fora'); } });
   assert.equal(r.status, 502);
