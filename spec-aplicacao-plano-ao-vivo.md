@@ -16,8 +16,8 @@ para comparar as marcas e escolher as 2. O escolhido recebe o aviso pelo WhatsAp
 na quarta, 07/10, até o meio-dia.
 
 **Fica de fora, por decisão:**
-- A aplicação **não vira lead**: não vai ao CRM (ClickUp, Supabase), ao ManyChat
-  nem ao GHL.
+- A aplicação **não vira lead**: não vai ao CRM (ClickUp, Supabase) nem ao GHL.
+  O ManyChat entrou depois (decisão de 03/10, ver "Mensagem no ManyChat").
 - **Não aparece no dash**: não conta em nenhum número, funil ou painel.
 - **Não vai ao Meta nem ao GA4**: nenhum evento de conversão.
 - Nenhuma outra página, formulário ou integração existente muda.
@@ -154,8 +154,24 @@ página nunca fala direto com o Google: quem grava é o servidor do site.
 - **Google fora do ar ou acesso negado:** o envio falha para a pessoa, com o
   pedido de tentar de novo, e a falha fica registrada para a equipe ver. Nada
   some em silêncio.
-- **Nada além da planilha:** a aplicação não gera lead, evento no Meta ou no GA4,
-  card no CRM, contagem no dash nem mensagem automática.
+- **Nada além da planilha e do ManyChat:** a aplicação não gera lead, evento no
+  Meta ou no GA4, card no CRM nem contagem no dash.
+
+### Mensagem no ManyChat (decisão de 03/10)
+
+**Descrição:** depois que a linha foi gravada, a pessoa entra no ManyChat e
+recebe a mensagem do fluxo "Aplicação Plano de Ação ao Vivo".
+
+**Comportamentos:**
+- **Pessoa nova no ManyChat:** vira contato pelo WhatsApp, com a tag
+  `aplicou-wo07-10`, e recebe o fluxo.
+- **Pessoa que já está no ManyChat** (com ou sem o nono dígito): não vira
+  contato duplicado. Ganha a tag e recebe o fluxo.
+- **Fluxo aceito pelo ManyChat:** a pessoa ganha também a tag
+  `aplicou-wo07-10-enviado`. Quem tem a primeira tag e não tem esta ficou sem a
+  mensagem.
+- **ManyChat fora do ar:** a aplicação continua gravada e a pessoa vê o
+  agradecimento normalmente. A falha fica no log.
 
 ### Encerramento das aplicações
 
