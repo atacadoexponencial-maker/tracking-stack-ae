@@ -77,13 +77,15 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
       <div class="aplicacao__etapa apv-obrigado" data-etapa="fim" hidden>
         <span class="apv-obrigado__check" aria-hidden="true">✓</span>
         <p class="apv-obrigado__titulo">{TEXTOS.obrigado.titulo}</p>
-        <div class="apv-obrigado__bloco">
-          <p class="apv-obrigado__rotulo">{TEXTOS.obrigado.escolhidaRotulo}</p>
-          <p>{TEXTOS.obrigado.escolhida}</p>
-        </div>
-        <div class="apv-obrigado__bloco">
-          <p class="apv-obrigado__rotulo">{TEXTOS.obrigado.naoEscolhidaRotulo}</p>
-          <p>{TEXTOS.obrigado.naoEscolhida}</p>
+        <div class="apv-obrigado__blocos">
+          <div class="apv-obrigado__bloco">
+            <p class="apv-obrigado__rotulo">{TEXTOS.obrigado.escolhidaRotulo}</p>
+            <p>{TEXTOS.obrigado.escolhida}</p>
+          </div>
+          <div class="apv-obrigado__bloco">
+            <p class="apv-obrigado__rotulo">{TEXTOS.obrigado.naoEscolhidaRotulo}</p>
+            <p>{TEXTOS.obrigado.naoEscolhida}</p>
+          </div>
         </div>
         <span class="rosto__pilula apv-obrigado__data">{TEXTOS.obrigado.data}</span>
         <p class="apv-obrigado__link">{TEXTOS.obrigado.link}</p>
@@ -208,10 +210,10 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
   }
   .apv-obrigado .apv-obrigado__titulo { margin-top: 0.9rem; font-size: 1.6rem; font-weight: 700; line-height: 1.15; color: var(--apv-texto); }
   .apv-obrigado__bloco {
-    margin-top: 0.75rem; width: 100%; text-align: left;
+    width: 100%; text-align: left;
     border: 1px solid var(--apv-linha); border-radius: 0.75rem; padding: 1rem 1.1rem;
   }
-  .apv-obrigado__titulo + .apv-obrigado__bloco { margin-top: 1.5rem; }
+  .apv-obrigado__blocos { margin-top: 1.5rem; width: 100%; display: grid; gap: 0.75rem; }
   .apv-obrigado__bloco p { font-size: 1rem; line-height: 1.5; color: var(--apv-texto); }
   .apv-obrigado__bloco .apv-obrigado__rotulo {
     margin-bottom: 0.35rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apv-suave);
@@ -265,7 +267,10 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
     .rosto__titulo { margin-top: 1rem; }
     .rosto__abertura { margin-top: 1.1rem; padding-top: 1rem; }
     .rosto__cta { margin-top: 1.1rem; }
-    .apv-obrigado__titulo + .apv-obrigado__bloco { margin-top: 1.1rem; }
+    .apv-obrigado__blocos { margin-top: 1.1rem; grid-template-columns: 1fr 1fr; }
+    .aplicacao__inner:has(.aplicacao__rosto:not([hidden])),
+    .aplicacao__inner:has(.apv-obrigado:not([hidden])) { max-width: 42rem; }
+    .apv-obrigado__check { width: 2.5rem; height: 2.5rem; font-size: 1.25rem; }
     .apv-obrigado__data { margin-top: 1.1rem; }
   }
 </style>
