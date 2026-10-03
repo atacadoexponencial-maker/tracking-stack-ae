@@ -32,11 +32,11 @@ function pedido(corpo, ua = UA) {
   });
 }
 
-test('13 perguntas, names únicos, 4 etapas', () => {
+test('13 perguntas, names únicos, etapa 1 com os dados e uma pergunta por tela depois', () => {
   assert.equal(PERGUNTAS.length, 13);
   assert.equal(new Set(PERGUNTAS.map((p) => p.name)).size, 13);
-  assert.deepEqual([...new Set(PERGUNTAS.map((p) => p.etapa))], [1, 2, 3, 4]);
-  assert.equal(TOTAL_ETAPAS, 4);
+  assert.deepEqual(PERGUNTAS.map((p) => p.etapa), [1, 1, 1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.equal(TOTAL_ETAPAS, 10);
   assert.equal(CABECALHO.length, 15);
 });
 

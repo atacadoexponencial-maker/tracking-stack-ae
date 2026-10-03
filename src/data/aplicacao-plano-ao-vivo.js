@@ -16,7 +16,9 @@ export function aplicacoesAbertas(agoraMs = Date.now()) {
   return agoraMs < ENCERRA_EM_MS;
 }
 
-export const TOTAL_ETAPAS = 4;
+// Etapa 1 junta os dados da marca; da pergunta 5 em diante, uma por tela
+// (pedido dela em 03/10: a etapa de 5 perguntas ficou longa demais).
+export const TOTAL_ETAPAS = 10;
 
 export const PERGUNTAS = [
   { name: 'nome', etapa: 1, tipo: 'texto', rotulo: 'Seu nome', coluna: 'Nome', placeholder: 'Nome', autocomplete: 'name' },
@@ -28,32 +30,32 @@ export const PERGUNTAS = [
     opcoes: ['Até R$ 30 mil', 'R$ 30 a 70 mil', 'R$ 70 a 150 mil', 'R$ 150 a 300 mil', 'Acima de R$ 300 mil'],
   },
   {
-    name: 'publico', etapa: 2, tipo: 'varias', rotulo: 'Para quem você vende principalmente?', dica: 'Pode marcar mais de uma.', coluna: 'Para quem vende',
+    name: 'publico', etapa: 3, tipo: 'varias', rotulo: 'Para quem você vende principalmente?', dica: 'Pode marcar mais de uma.', coluna: 'Para quem vende',
     opcoes: ['Lojista', 'Revendedora/sacoleira', 'Empreendedora começando', 'Distribuidor'],
   },
   {
-    name: 'entrada', etapa: 2, tipo: 'varias', rotulo: 'Como chegam os seus revendedores novos hoje?', dica: 'Pode marcar mais de uma.', coluna: 'Como chegam os revendedores',
+    name: 'entrada', etapa: 4, tipo: 'varias', rotulo: 'Como chegam os seus revendedores novos hoje?', dica: 'Pode marcar mais de uma.', coluna: 'Como chegam os revendedores',
     opcoes: ['Anúncio pago', 'Instagram orgânico', 'Indicação', 'Vendedor ou representante', 'Outro'],
   },
   {
-    name: 'investimento', etapa: 2, tipo: 'uma', rotulo: 'Quanto você investe em anúncio por mês?', coluna: 'Investimento em anúncio',
+    name: 'investimento', etapa: 5, tipo: 'uma', rotulo: 'Quanto você investe em anúncio por mês?', coluna: 'Investimento em anúncio',
     opcoes: ['Não invisto', 'Até R$ 3 mil', 'R$ 3 a 10 mil', 'Acima de R$ 10 mil'],
   },
   {
-    name: 'comercial', etapa: 2, tipo: 'uma', rotulo: 'Quantas pessoas atendem no comercial?', coluna: 'Pessoas no comercial',
+    name: 'comercial', etapa: 6, tipo: 'uma', rotulo: 'Quantas pessoas atendem no comercial?', coluna: 'Pessoas no comercial',
     opcoes: ['Só eu', '1 pessoa', '2 a 4', '5 ou mais'],
   },
   {
-    name: 'recompra', etapa: 3, tipo: 'uma', rotulo: 'Quanto do seu faturamento vem de quem já comprou antes?', coluna: 'Recompra',
+    name: 'recompra', etapa: 7, tipo: 'uma', rotulo: 'Quanto do seu faturamento vem de quem já comprou antes?', coluna: 'Recompra',
     opcoes: ['Menos da metade', 'Mais ou menos metade', 'Mais da metade', 'Não sei'],
   },
-  { name: 'trava', etapa: 3, tipo: 'caixa', rotulo: 'O que mais trava o crescimento do seu atacado hoje?', coluna: 'O que trava', placeholder: 'Conte com as suas palavras' },
+  { name: 'trava', etapa: 8, tipo: 'caixa', rotulo: 'O que mais trava o crescimento do seu atacado hoje?', coluna: 'O que trava', placeholder: 'Conte com as suas palavras' },
   {
-    name: 'ao_vivo', etapa: 4, tipo: 'uma', rotulo: 'Se a sua marca for escolhida, você topa mostrar ao vivo o anúncio, o perfil e os números?', coluna: 'Topa mostrar ao vivo',
+    name: 'ao_vivo', etapa: 9, tipo: 'uma', rotulo: 'Se a sua marca for escolhida, você topa mostrar ao vivo o anúncio, o perfil e os números?', coluna: 'Topa mostrar ao vivo',
     opcoes: ['Sim', 'Sim, mas sem números exatos', 'Não'],
   },
   {
-    name: 'disponivel', etapa: 4, tipo: 'uma', rotulo: 'Você consegue estar ao vivo na quarta, 07/10, às 19h, com câmera e microfone?', coluna: 'Disponível 07/10 19h',
+    name: 'disponivel', etapa: 10, tipo: 'uma', rotulo: 'Você consegue estar ao vivo na quarta, 07/10, às 19h, com câmera e microfone?', coluna: 'Disponível 07/10 19h',
     opcoes: ['Sim', 'Não'],
   },
 ];
@@ -72,12 +74,15 @@ export const TEXTOS = {
   abertura: 'Preencha para concorrer a uma das 2 vagas do plano de ação ao vivo. O preenchimento não garante a vaga.',
   cta: 'Quero aplicar a minha marca',
   nota: 'Leva uns 3 minutos.',
-  agradecimento: [
-    'Recebemos sua aplicação. Se a sua marca for escolhida, avisamos pelo WhatsApp na quarta, 07/10, até o meio-dia.',
-    'Se a sua não for escolhida, você assiste ao plano sendo montado do zero e leva o raciocínio para o seu atacado. E quem ficar até o fim ainda tem uma surpresa que só liberamos ao vivo.',
-    'Quarta, 07/10, às 19h, no Google Meet. O link chega no grupo de WhatsApp e por aqui.',
-    'Equipe Atacado Exponencial',
-  ],
+  obrigado: {
+    titulo: 'Aplicação recebida',
+    escolhidaRotulo: 'Se a sua marca for escolhida',
+    escolhida: 'Avisamos pelo WhatsApp na quarta, 07/10, até o meio-dia.',
+    naoEscolhidaRotulo: 'Se não for',
+    naoEscolhida: 'Você assiste ao plano sendo montado do zero e leva o raciocínio para o seu atacado. Quem ficar até o fim ainda tem uma surpresa que só liberamos ao vivo.',
+    data: 'Quarta, 07/10 · 19h · Google Meet',
+    link: 'O link chega no grupo de WhatsApp e por aqui.',
+  },
   encerradas: 'As aplicações foram encerradas.',
   encerradasLembrete: 'Quarta, 07/10, às 19h, no Google Meet. O link chega no grupo de WhatsApp.',
 };
