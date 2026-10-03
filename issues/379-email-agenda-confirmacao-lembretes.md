@@ -131,7 +131,7 @@ Migration `migrations/0052_email_agenda.sql` (só adição):
 - [x] `_email-agenda.js` com configuração padrão, programação, fila, histórico, uso do modelo e falhas
 - [x] Ganchos em confirmar, reunião do lead, reuniões da equipe e rodada do Google
 - [x] `GET/POST /api/agenda/emails`
-- [ ] `POST /api/sync/email-agenda` + cron de 5 minutos na VPS
+- [x] `POST /api/sync/email-agenda` + cron de 5 minutos na VPS
 - [x] Condição `email_agenda_falha` no aviso de integrações
 - [x] Trava "em uso" dos modelos ligada à agenda
 - [x] Agenda › E-mails ligada ao backend
