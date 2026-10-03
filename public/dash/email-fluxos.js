@@ -10,7 +10,8 @@
 //
 // O rascunho é salvo sozinho a cada mudança (com versão, para duas abas não se
 // atropelarem) e os problemas que impedem publicar vêm do servidor. Publicar,
-// testar e os números nos cartões chegam nas issues 386–388.
+// pausar e retomar (386) também; testar e editar ativo (387) e os números nos
+// cartões (388) chegam depois.
 (() => {
   'use strict';
 
@@ -172,6 +173,8 @@
       ] : [
         { acao: 'abrir', id: f.id, rotulo: 'Abrir quadro' },
         { acao: 'duplicar', id: f.id, rotulo: 'Duplicar' },
+        f.situacao === 'ativo' && { acao: 'pausar', id: f.id, rotulo: 'Pausar' },
+        f.situacao === 'pausado' && { acao: 'retomar', id: f.id, rotulo: 'Retomar' },
         { acao: 'arquivar', id: f.id, rotulo: 'Arquivar', perigo: true },
       ])}</div>` },
     ], d.fluxos, undefined, verArquivados ? 'Nenhum fluxo arquivado.' : 'Nenhum fluxo ainda. Um fluxo junta gatilho, e-mails, esperas e desvios num quadro, como no ManyChat.');
@@ -182,6 +185,8 @@
       abrir: (id) => abrir(Number(id)),
       duplicar: (id) => acao({ acao: 'duplicar', id: Number(id) }, 'Fluxo duplicado como rascunho.')(),
       desarquivar: (id) => acao({ acao: 'desarquivar', id: Number(id) }, 'Fluxo de volta na lista.')(),
+      pausar: (id) => acao({ acao: 'pausar', id: Number(id) }, 'Fluxo pausado. Ninguém novo entra e quem está dentro parou onde estava.')(),
+      retomar: (id) => acao({ acao: 'retomar', id: Number(id) }, 'Fluxo retomado. Cada pessoa segue de onde parou.')(),
       arquivar: (id, b) => ctx.pedirConfirmacao(b, 'Arquivar o fluxo?', () => { U().fecharMenus(); acao({ acao: 'arquivar', id: Number(id) }, 'Fluxo arquivado.')(); }),
     });
   }
@@ -390,10 +395,43 @@
     const nota = salvar.erro ? `Não foi possível salvar (${esc(salvar.erro)}). Tentando de novo…`
       : salvar.rodando || salvar.timer ? 'Salvando…'
       : `Rascunho salvo às ${esc(F.salvoEm)}. Ninguém entra até publicar.`;
-    alvo.innerHTML = `<div class="fx-estado">${estado}<span class="mini">${nota}</span></div>`;
+    const s = F.situacao;
+    const notaSit = s === 'ativo' ? 'No ar. Quem dispara o gatilho entra; quem já esteve não entra de novo. Mudanças feitas aqui ficam no rascunho, sem afetar quem está dentro.'
+      : s === 'pausado' ? 'Pausado. Ninguém novo entra e quem está dentro parou onde estava.' : nota;
+    const botoes = s === 'rascunho' ? '<button class="btn" type="button" data-s="publicar">Publicar</button>'
+      : s === 'ativo' ? '<button class="btn sec" type="button" data-s="pausar">Pausar</button>'
+      : '<button class="btn" type="button" data-s="retomar">Retomar</button>';
+    alvo.innerHTML = `<div class="fx-estado">${estado}<span class="mini">${s === 'rascunho' ? nota : `${notaSit}${salvar.erro ? ` ${nota}` : ''}`}</span></div><div class="ag-acoes">${botoes}</div>`;
+    alvo.querySelectorAll('[data-s]').forEach((b) => { b.onclick = () => acaoSituacao(b.dataset.s, b); });
     const caixa = $q('#fx-problemas');
     caixa.innerHTML = probs.length ? `<div class="aviso alerta fx-probs"><b>Para publicar, falta resolver:</b> ${probs.map((p) => `<button type="button" class="argo-faixa-chamada" data-ir-no="${p.no}">${esc(rotuloNo(no(p.no)))}: ${p.textos.map((t) => EXPLICA_PROBLEMA[t] || t).join(', ')}</button>`).join(' · ')}</div>` : '';
     caixa.querySelectorAll('[data-ir-no]').forEach((b) => { b.onclick = () => { focarNo(b.dataset.irNo); selecionar(b.dataset.irNo); }; });
+  }
+
+  // Publicar (só rascunho sem problemas), pausar e retomar: o servidor decide.
+  function acaoSituacao(acao, b) {
+    const PERGUNTA = {
+      publicar: 'Publicar? Quem disparar o gatilho a partir de agora entra; quem disparou antes fica de fora.',
+      pausar: 'Pausar? Ninguém novo entra e quem está dentro para onde está.',
+      retomar: 'Retomar? Cada pessoa segue de onde parou, sem receber de uma vez o que acumulou.',
+    };
+    const AVISO = { publicar: 'Fluxo publicado.', pausar: 'Fluxo pausado.', retomar: 'Fluxo retomado.' };
+    ctx.pedirConfirmacao(b, PERGUNTA[acao], async () => {
+      try {
+        clearTimeout(salvar.timer);
+        if (salvar.rodando || salvar.pendente || salvar.erro || salvar.timer) await salvarAgora();
+        const r = await postFluxos({ acao, id: F.id });
+        F.situacao = r.fluxo.situacao;
+        F.problemas = r.fluxo.problemas;
+        desenharSituacao();
+        U().avisar(AVISO[acao]);
+      } catch (e) {
+        U().avisar(U().msgErro(e), 'erro');
+        const p = problemas();
+        if (acao === 'publicar' && p.length) { focarNo(p[0].no); selecionar(p[0].no); }
+        return false;
+      }
+    }, [{ valor: true, rotulo: { publicar: 'Publicar', pausar: 'Pausar', retomar: 'Retomar' }[acao] }]);
   }
 
   function rotuloNo(n) {
@@ -904,6 +942,7 @@
             <select data-campo="fvalor" aria-label="Valor">${opts(FILTRO_VALORES[f.campo](), f.valor)}</select>
             <button type="button" class="ag-icone" data-tirar-f="${j}" aria-label="Tirar filtro">${IC.fechar}</button></div>`).join('')}
           <button type="button" class="btn sec fx-pequeno" data-add-f>+ Filtro</button>
+          <p class="fx-estimativa" data-estimativa="${i}">Contando quantas pessoas teriam entrado nos últimos 30 dias…</p>
         </div>`).join('')}
         <button type="button" class="btn sec" data-add-g>+ Adicionar gatilho</button>`;
     } else if (n.tipo === 'email') {
@@ -959,6 +998,21 @@
       <footer class="fx-painel__pe">${n.tipo === 'inicio' ? '<span class="mini">O início não pode ser excluído.</span>' : `<button type="button" class="btn sec" data-dup>${IC.copiar} Duplicar</button><button type="button" class="btn perigo" data-excluir>${IC.lixo} Excluir</button>`}</footer>`;
     p.hidden = false;
     ligarPainel(p, n);
+    if (n.tipo === 'inicio') estimar(p, d.gatilhos);
+  }
+
+  // Contagem do gatilho (contatos ativos nos últimos 30 dias), feita no servidor.
+  let estimativaTimer = null;
+  function estimar(p, gatilhos) {
+    clearTimeout(estimativaTimer);
+    estimativaTimer = setTimeout(() => gatilhos.forEach(async (g, i) => {
+      const alvo = p.querySelector(`[data-estimativa="${i}"]`);
+      if (!alvo) return;
+      try {
+        const r = await postFluxos({ acao: 'estimar', gatilho: g });
+        if (alvo.isConnected) alvo.innerHTML = `Nos últimos 30 dias, <b>${int(r.pessoas)} ${r.pessoas === 1 ? 'pessoa' : 'pessoas'}</b> teriam entrado com essa combinação.`;
+      } catch { if (alvo.isConnected) alvo.textContent = 'Não foi possível contar agora.'; }
+    }), 400);
   }
 
   function ligarPainel(p, n) {

@@ -148,13 +148,13 @@ Migration `migrations/0058_email_fluxos_rodando.sql` (só adição):
 
 ## Checklist
 
-- [ ] Migration `0058_email_fluxos_rodando.sql` aplicada no D1 remoto com `d1 execute --file`
-- [ ] Coleta de acontecimentos de todas as fontes, com cursor e ligação ao e-mail
-- [ ] Contagem dos últimos 30 dias no gatilho
-- [ ] Publicar, pausar e retomar
-- [ ] Motor: entrada, e-mail, as três esperas com janela, desvio, objetivo, ir para outro fluxo, fim
-- [ ] Saída automática (descadastro, voltou, spam) e manual
+- [x] Migration `0058_email_fluxos_rodando.sql` aplicada no D1 remoto com `d1 execute --file`
+- [x] Coleta de acontecimentos de todas as fontes, com cursor e ligação ao e-mail
+- [x] Contagem dos últimos 30 dias no gatilho
+- [x] Publicar, pausar e retomar
+- [x] Motor: entrada, e-mail, as três esperas com janela, desvio, objetivo, ir para outro fluxo, fim
+- [x] Saída automática (descadastro, voltou, spam) e manual
 - [ ] `POST /api/sync/email-fluxos` + cron a cada minuto na VPS
-- [ ] Barra com publicar/pausar/retomar, contagem no painel e "Fluxos em que está" no contato
-- [ ] Testes `email-acontecimentos` e `email-motor` passando (`npm test`)
+- [x] Barra com publicar/pausar/retomar, contagem no painel e "Fluxos em que está" no contato
+- [x] Testes `email-acontecimentos` e `email-motor` passando (`npm test`)
 - [ ] Usuária publica um fluxo com gatilho "preencheu formulário" filtrado, envia um lead de teste, ele entra, recebe o e-mail 1, segue pelo desvio certo conforme abriu ou não, pula para o objetivo quando a condição acontece, e pausar segura quem está dentro

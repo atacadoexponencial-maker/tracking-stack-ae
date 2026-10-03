@@ -811,6 +811,8 @@
     el.querySelector('#em-cont-lista').addEventListener('click', (ev) => { const b = ev.target.closest('[data-contato]'); if (b) detalheContatoReal(b.dataset.contato, () => contatos(el)); });
   }
 
+  const SITUACAO_NO_FLUXO = { andando: ['Andando', 'alta'], esperando: ['Esperando', 'neutro'], concluiu: ['Concluiu', 'alta'], saiu: ['Saiu', 'neutro'] };
+
   async function detalheContatoReal(id, aoMudar) {
     let d;
     try { d = await ctx.fetchJson(`/api/email/contatos?id=${encodeURIComponent(id)}&_=${Date.now()}`); }
@@ -831,12 +833,24 @@
         </dl>
         <h3 class="ag-h3">Segmentos em que está</h3>
         ${(d.segmentos || []).length ? `<div class="ag-etiquetas">${d.segmentos.map((x) => `<span class="ag-etiqueta">${esc(x.nome)}</span>`).join('')}</div>` : '<p class="mini">Não está em nenhum segmento agora.</p>'}
+        <h3 class="ag-h3">Fluxos</h3>
+        ${(d.fluxos || []).length ? `<ol class="ag-hist em-hist">${d.fluxos.map((x) => `<li class="em-hist__item"><div><b>${esc(x.nome)}</b> <span class="mini">entrou em ${esc(dataLonga(x.entrou_em))}${x.motivo_saida ? ` · ${esc(x.motivo_saida)}` : ''}</span></div>
+          <div>${carimbo(SITUACAO_NO_FLUXO, x.situacao)}${['andando', 'esperando'].includes(x.situacao) ? ` <button type="button" class="btn sec fx-pequeno" data-tirar-fluxo="${x.fluxo_id}">Tirar do fluxo</button>` : ''}</div></li>`).join('')}</ol>` : '<p class="mini">Não passou por nenhum fluxo.</p>'}
         <h3 class="ag-h3">Formulários preenchidos</h3>
         ${d.entradas.length ? `<ol class="ag-hist em-hist">${d.entradas.map((x) => `<li><b>${esc(x.funil ? nomeFunil(x.funil) : 'Sem funil')}</b> <span class="mini">${esc(dataLonga(x.entrou_em))} · ${esc(nomeOrigem(x.origem))}${x.material ? ` · material ${esc(x.material)}` : ''}</span></li>`).join('')}</ol>` : '<p class="mini">Nenhum formulário registrado.</p>'}
         <h3 class="ag-h3">E-mails recebidos</h3>
         ${d.envios.length ? `<ol class="ag-hist em-hist">${d.envios.map((x) => `<li class="em-hist__item"><div><b>${esc(x.assunto || '(sem assunto)')}</b><br><span class="mini">${esc(ORIGEM_ENVIO[x.origem] || x.origem)} · ${esc(quando(x.enviado_em))}${x.erro ? ` · ${esc(x.erro)}` : ''}</span></div>${carimbo(SITUACAO_ENVIO, x.situacao)}</li>`).join('')}</ol>` : '<p class="mini">Nenhum e-mail ainda.</p>'}
         <div id="em-contato-confirma"></div>`,
       rodape: acao ? `<div class="ag-acoes">${acao}</div>` : `<p class="mini">${p.situacao === 'ativo' ? '' : 'Quem denunciou spam ou tem endereço inválido não pode ser reativado pela equipe.'}</p>`,
+    });
+    g.querySelectorAll('[data-tirar-fluxo]').forEach((b) => {
+      b.onclick = () => ctx.pedirConfirmacao(b, 'Tirar do fluxo?', async () => {
+        try {
+          await ctx.postJson('/api/email/contatos', { acao: 'tirar_do_fluxo', id: p.id, fluxo_id: Number(b.dataset.tirarFluxo) });
+          avisar('Tirado do fluxo. Fica registrado no histórico.');
+          detalheContatoReal(p.id, aoMudar);
+        } catch (e) { avisar(msgErro(e), 'erro'); return false; }
+      });
     });
     const des = g.querySelector('[data-descad]');
     if (des) des.onclick = () => ctx.pedirConfirmacao(des, p.situacao === 'ativo' ? 'Descadastrar a pedido da pessoa?' : 'Tentar de novo no serviço de envio?', async () => {

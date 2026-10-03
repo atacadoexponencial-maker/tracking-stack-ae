@@ -210,7 +210,7 @@ export async function problemas(env, grafo, fluxoId) {
 
 const GRAFO_NOVO = () => ({ nos: [{ id: 'n1', tipo: 'inicio', x: 60, y: 140, dados: { gatilhos: [] } }], arestas: [], notas: [] });
 const daLinha = (l) => ({
-  id: l.id, nome: l.nome, situacao: l.situacao, arquivado: l.arquivado, versao: l.versao,
+  id: l.id, nome: l.nome, situacao: l.situacao, arquivado: l.arquivado, versao: l.versao, publicado_em: l.publicado_em || null,
   grafo: JSON.parse(l.rascunho_json), criado_em: l.criado_em, atualizado_em: l.atualizado_em,
 });
 
@@ -353,4 +353,46 @@ export async function opcoes(env, t = agora()) {
     acao: [['abriu', 'abriu'], ['clicou', 'clicou']],
     fluxos,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Publicar, pausar e retomar (issue 386)
+// ---------------------------------------------------------------------------
+
+/**
+ * Rascunho → ativo. Só sem problemas. A hora da publicação fica gravada:
+ * quem disparou o gatilho antes não entra (o motor compara com ela).
+ * Publicar mudanças num fluxo já ativo é da 387.
+ */
+export async function publicarFluxo(env, id, t = agora()) {
+  const f = await linhaDoFluxo(env, id);
+  if (f.arquivado) throw new ErroFluxo('Tire o fluxo do arquivo antes de publicar.', 409);
+  if (f.situacao !== 'rascunho') throw new ErroFluxo('Este fluxo já está publicado.', 409);
+  const grafo = JSON.parse(f.rascunho_json);
+  const probs = await problemas(env, grafo, f.id);
+  if (probs.length) throw new ErroFluxo(`Não dá para publicar: ${probs.length} ${probs.length > 1 ? 'problemas marcados' : 'problema marcado'} no quadro.`, 409);
+  const r = await env.DB.prepare("UPDATE email_fluxos SET situacao = 'ativo', publicado_json = rascunho_json, publicado_em = ?, atualizado_em = ? WHERE id = ? AND situacao = 'rascunho'")
+    .bind(t, t, f.id).run();
+  if (r.meta.changes !== 1) throw new ErroFluxo('Este fluxo já está publicado.', 409);
+  return lerFluxo(env, f.id);
+}
+
+/** Ninguém novo entra e quem está dentro para onde está. */
+export async function pausarFluxo(env, id, t = agora()) {
+  const f = await linhaDoFluxo(env, id);
+  const r = await env.DB.prepare("UPDATE email_fluxos SET situacao = 'pausado', pausado_em = ?, atualizado_em = ? WHERE id = ? AND situacao = 'ativo'")
+    .bind(t, t, f.id).run();
+  if (r.meta.changes !== 1) throw new ErroFluxo('Só fluxo ativo pode ser pausado.', 409);
+  return lerFluxo(env, f.id);
+}
+
+/** Volta a rodar; as esperas são empurradas pelo tempo da pausa (sem rajada de acumulados). */
+export async function retomarFluxo(env, id, t = agora()) {
+  const f = await linhaDoFluxo(env, id);
+  if (f.situacao !== 'pausado') throw new ErroFluxo('Só fluxo pausado pode ser retomado.', 409);
+  const pausa = Math.max(0, t - (f.pausado_em || t));
+  await env.DB.prepare("UPDATE email_fluxo_pessoas SET espera_ate = espera_ate + ?, atualizado_em = ? WHERE fluxo_id = ? AND situacao = 'esperando' AND espera_ate IS NOT NULL")
+    .bind(pausa, t, f.id).run();
+  await env.DB.prepare("UPDATE email_fluxos SET situacao = 'ativo', pausado_em = NULL, atualizado_em = ? WHERE id = ? AND situacao = 'pausado'").bind(t, f.id).run();
+  return lerFluxo(env, f.id);
 }
