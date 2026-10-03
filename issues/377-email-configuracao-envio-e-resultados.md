@@ -132,7 +132,7 @@ Migration `migrations/0050_email.sql`:
 - [x] Testes `email-eventos` e `email-config` passando (`npm test`)
 - [x] Usuária gera server token novo e account token; secrets gravados na prévia sem BOM (conferir sha256)
 - [x] Migration aplicada no D1 remoto com `d1 execute --file`
-- [ ] "Conectar resultados" na prévia; teste para o e-mail dela: entregue, aberto e clicado no dash
+- [x] "Conectar resultados" na prévia; teste para o e-mail dela: entregue, aberto e clicado no dash
 - [x] Chamada ao webhook sem senha devolve 401
 
 ## Implementação (03/10/2026)
