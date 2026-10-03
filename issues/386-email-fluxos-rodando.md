@@ -154,7 +154,7 @@ Migration `migrations/0058_email_fluxos_rodando.sql` (só adição):
 - [x] Publicar, pausar e retomar
 - [x] Motor: entrada, e-mail, as três esperas com janela, desvio, objetivo, ir para outro fluxo, fim
 - [x] Saída automática (descadastro, voltou, spam) e manual
-- [ ] `POST /api/sync/email-fluxos` + cron a cada minuto na VPS
+- [x] `POST /api/sync/email-fluxos` + cron a cada minuto na VPS
 - [x] Barra com publicar/pausar/retomar, contagem no painel e "Fluxos em que está" no contato
 - [x] Testes `email-acontecimentos` e `email-motor` passando (`npm test`)
 - [ ] Usuária publica um fluxo com gatilho "preencheu formulário" filtrado, envia um lead de teste, ele entra, recebe o e-mail 1, segue pelo desvio certo conforme abriu ou não, pula para o objetivo quando a condição acontece, e pausar segura quem está dentro
