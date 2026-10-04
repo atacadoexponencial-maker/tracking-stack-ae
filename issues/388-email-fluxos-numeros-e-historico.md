@@ -84,10 +84,10 @@ A usuária abre um fluxo publicado e vê os números em cada cartão, clica numa
 
 ## Checklist
 
-- [ ] `_email-fluxos-numeros.js` com números por cartão, quem está dentro, totais da lista e caminho do contato
-- [ ] Rotas de números, pessoas e tirar do fluxo; totais na lista; caminho no detalhe do contato
-- [ ] Números nos cartões com período, "esperando agora" e gaveta de quem está dentro
-- [ ] Colunas da lista de fluxos
-- [ ] Caminho do fluxo no histórico do contato
-- [ ] Testes `email-fluxos-numeros` passando (`npm test`)
+- [x] `_email-fluxos-numeros.js` com números por cartão, quem está dentro, totais da lista e caminho do contato
+- [x] Rotas de números, pessoas e tirar do fluxo; totais na lista; caminho no detalhe do contato
+- [x] Números nos cartões com período, "esperando agora" e gaveta de quem está dentro
+- [x] Colunas da lista de fluxos
+- [x] Caminho do fluxo no histórico do contato
+- [x] Testes `email-fluxos-numeros` passando (`npm test`)
 - [ ] Usuária abre um fluxo publicado e vê os números em cada cartão, clica numa espera e vê quem está lá, abre um contato e vê o caminho que ele fez no fluxo

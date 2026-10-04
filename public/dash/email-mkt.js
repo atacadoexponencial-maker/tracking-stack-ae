@@ -300,7 +300,7 @@
     // Para o quadro dos fluxos (email-fluxos.js).
     util: {
       esc, int, pct, avisar, gaveta, fecharGaveta, menuHtml, ligarAcoes, carimbo, chave, seloProto, ICONE, fecharMenus,
-      abrirContato: (id) => detalheContato(id),
+      abrirContato: (id) => detalheContatoReal(id),
       // Fluxos (385): mesma trava de duplo clique e mesma mensagem de erro das outras vistas.
       ocupado: (b, fn) => ocupado(b, fn), msgErro: (e) => msgErro(e),
     },
@@ -811,6 +811,18 @@
     el.querySelector('#em-cont-lista').addEventListener('click', (ev) => { const b = ev.target.closest('[data-contato]'); if (b) detalheContatoReal(b.dataset.contato, () => contatos(el)); });
   }
 
+  // Um passo do caminho no fluxo, em texto (388).
+  function passoTxt(c) {
+    if (c.tipo === 'entrou') return `entrou (${c.detalhe || 'gatilho'})`;
+    if (c.tipo === 'email') return c.message_id ? `recebeu "${c.assunto || ''}"${c.clicado ? ', abriu e clicou' : c.aberto ? ', abriu' : ''}` : `e-mail não saiu${c.detalhe ? `: ${c.detalhe}` : ''}`;
+    if (c.tipo === 'espera') return c.saida ? `saiu da espera${c.saida === 'aconteceu' ? ' (aconteceu)' : c.saida === 'nao_aconteceu' ? ' (não aconteceu no prazo)' : ''}` : 'começou a esperar';
+    if (c.tipo === 'desvio') return `desvio: seguiu por "${c.saida === 'sim' ? 'sim' : 'não'}"`;
+    if (c.tipo === 'objetivo') return 'chegou ao objetivo';
+    if (c.tipo === 'ir_fluxo') return c.detalhe || 'foi para outro fluxo';
+    if (c.tipo === 'fim') return 'concluiu o fluxo';
+    if (c.tipo === 'saiu') return `saiu: ${c.detalhe || ''}`;
+    return c.tipo;
+  }
   const SITUACAO_NO_FLUXO = { andando: ['Andando', 'alta'], esperando: ['Esperando', 'neutro'], concluiu: ['Concluiu', 'alta'], saiu: ['Saiu', 'neutro'] };
 
   async function detalheContatoReal(id, aoMudar) {
@@ -834,8 +846,9 @@
         <h3 class="ag-h3">Segmentos em que está</h3>
         ${(d.segmentos || []).length ? `<div class="ag-etiquetas">${d.segmentos.map((x) => `<span class="ag-etiqueta">${esc(x.nome)}</span>`).join('')}</div>` : '<p class="mini">Não está em nenhum segmento agora.</p>'}
         <h3 class="ag-h3">Fluxos</h3>
-        ${(d.fluxos || []).length ? `<ol class="ag-hist em-hist">${d.fluxos.map((x) => `<li class="em-hist__item"><div><b>${esc(x.nome)}</b> <span class="mini">entrou em ${esc(dataLonga(x.entrou_em))}${x.motivo_saida ? ` · ${esc(x.motivo_saida)}` : ''}</span></div>
-          <div>${carimbo(SITUACAO_NO_FLUXO, x.situacao)}${['andando', 'esperando'].includes(x.situacao) ? ` <button type="button" class="btn sec fx-pequeno" data-tirar-fluxo="${x.fluxo_id}">Tirar do fluxo</button>` : ''}</div></li>`).join('')}</ol>` : '<p class="mini">Não passou por nenhum fluxo.</p>'}
+        ${(d.fluxos || []).length ? `<ol class="ag-hist em-hist">${d.fluxos.map((x) => `<li><div class="em-hist__item"><div><b>${esc(x.nome)}</b> <span class="mini">entrou em ${esc(dataLonga(x.entrou_em))}${x.motivo_saida ? ` · ${esc(x.motivo_saida)}` : ''}</span></div>
+          <div>${carimbo(SITUACAO_NO_FLUXO, x.situacao)}${['andando', 'esperando'].includes(x.situacao) ? ` <button type="button" class="btn sec fx-pequeno" data-tirar-fluxo="${x.fluxo_id}">Tirar do fluxo</button>` : ''}</div></div>
+          ${(x.caminho || []).length ? `<details class="ag-mais"><summary>Caminho no fluxo (${x.caminho.length} passos)</summary><ol class="mini">${x.caminho.map((c) => `<li>${esc(quando(c.em))} · ${esc(passoTxt(c))}</li>`).join('')}</ol></details>` : ''}</li>`).join('')}</ol>` : '<p class="mini">Não passou por nenhum fluxo.</p>'}
         <h3 class="ag-h3">Formulários preenchidos</h3>
         ${d.entradas.length ? `<ol class="ag-hist em-hist">${d.entradas.map((x) => `<li><b>${esc(x.funil ? nomeFunil(x.funil) : 'Sem funil')}</b> <span class="mini">${esc(dataLonga(x.entrou_em))} · ${esc(nomeOrigem(x.origem))}${x.material ? ` · material ${esc(x.material)}` : ''}</span></li>`).join('')}</ol>` : '<p class="mini">Nenhum formulário registrado.</p>'}
         <h3 class="ag-h3">E-mails recebidos</h3>

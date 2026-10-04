@@ -11,7 +11,7 @@
 // O rascunho é salvo sozinho a cada mudança (com versão, para duas abas não se
 // atropelarem) e os problemas que impedem publicar vêm do servidor. Publicar,
 // pausar e retomar (386), descartar e publicar mudanças e o teste passo a passo
-// (387) também. Os números nos cartões (388) chegam depois.
+// (387), e os números nos cartões com quem está dentro (388) também.
 (() => {
   'use strict';
 
@@ -116,6 +116,8 @@
   let marcados = new Set();         // cartões marcados com Shift + clique
   let areaCopia = null;             // cartões copiados (vale para outro fluxo)
   let salvar = { timer: null, rodando: false, pendente: false, erro: null };
+  let NUM = null;                   // números por cartão da versão no ar (388)
+  let periodo = '30';
 
   const $q = (s) => el.querySelector(s);
   const no = (id) => F.nos.find((n) => n.id === id);
@@ -167,6 +169,9 @@
       { titulo: 'Fluxo', campo: 'nome', render: (f) => `<button type="button" class="ag-link-linha" data-acao="abrir" data-id="${f.id}">${esc(f.nome)}</button>` },
       { titulo: 'Gatilhos', render: (f) => `<span class="mini">${esc(resumoGatilhos(f))}</span>` },
       { titulo: 'Situação', campo: 'situacao', render: (f) => U().carimbo(SIT, f.situacao) },
+      { titulo: 'Dentro agora', num: true, render: (f) => (f.situacao === 'rascunho' ? '' : int(f.totais.dentro)) },
+      { titulo: 'Concluíram', num: true, render: (f) => (f.situacao === 'rascunho' ? '' : int(f.totais.concluiram)) },
+      { titulo: 'Clique', num: true, render: (f) => (f.totais.clique == null ? '' : U().pct(f.totais.clique * 100)) },
       { titulo: 'Editado', render: (f) => esc(quandoCurto(f.atualizado_em)) },
       { titulo: '', render: (f) => `<div class="ag-acoes ag-acoes--linha">${U().menuHtml(f.nome, f.arquivado ? [
         { acao: 'desarquivar', id: f.id, rotulo: 'Tirar do arquivo' }, { acao: 'duplicar', id: f.id, rotulo: 'Duplicar' },
@@ -203,10 +208,24 @@
     F = { id: f.id, nome: f.nome, situacao: f.situacao, versao: f.versao, nos: f.grafo.nos, arestas: f.grafo.arestas, notas: f.grafo.notas, problemas: f.problemas, salvoEm: quandoCurto(f.atualizado_em).slice(-5), mudancas: f.mudancas, saem: f.saem_ao_publicar };
     sel = null; selAresta = null; desfazer = []; refazer = []; marcados = new Set();
     salvar = { timer: null, rodando: false, pendente: false, erro: null };
+    NUM = null;
     quadro();
     centralizar();
     if (abrirNo) selecionar(abrirNo);
     window.scrollTo(0, 0);
+    carregarNumeros();
+  }
+
+  // Números da versão no ar, no período da barra (388). Falha não atrapalha o quadro.
+  async function carregarNumeros() {
+    if (!F || F.situacao === 'rascunho') return;
+    const fluxo = F;
+    try {
+      const r = await ctx.fetchJson(`/api/email/fluxos?id=${fluxo.id}&numeros=${periodo}&_=${Date.now()}`);
+      if (F !== fluxo) return;
+      NUM = r.cartoes;
+    } catch { if (F === fluxo) NUM = { erro: true }; }
+    desenharCartoes(); desenharArestas(); desenharSituacao();
   }
 
   // Salvamento sozinho: 1 s depois da última mudança; uma chamada por vez.
@@ -273,6 +292,7 @@
           <button type="button" class="fx-ferr fx-ferr--txt" data-f="nota">${IC.nota} Nota</button>
           <button type="button" class="fx-ferr fx-ferr--txt" data-f="copiar" title="Copiar os cartões marcados (Shift + clique marca vários; Ctrl+C)">${IC.copiar} Copiar</button>
           <button type="button" class="fx-ferr fx-ferr--txt" data-f="colar" title="Colar (Ctrl+V), também em outro fluxo">${IC.copiar} Colar</button>
+          ${F.situacao === 'rascunho' ? '' : `<select data-periodo aria-label="Período dos números">${[['7', '7 dias'], ['30', '30 dias'], ['tudo', 'Desde o início']].map(([v, r]) => `<option value="${v}"${v === periodo ? ' selected' : ''}>${r}</option>`).join('')}</select>`}
         </div>
         <div class="fx-mapa" id="fx-mapa" aria-label="Mapa em miniatura"><svg id="fx-mapa-svg"></svg></div>
         <aside class="fx-painel" id="fx-painel" hidden></aside>
@@ -287,6 +307,8 @@
     $q('.fx-nome').onchange = (ev) => { mudar(() => { F.nome = ev.target.value.trim() || 'Fluxo sem nome'; }); };
     ligarFerramentas();
     ligarGestos();
+    const sp = $q('[data-periodo]');
+    if (sp) sp.onchange = () => { periodo = sp.value; carregarNumeros(); };
     desenharTudo();
     aplicarVista();
   }
@@ -402,7 +424,7 @@
     const notaSit = s !== 'rascunho' && F.mudancas ? `Rascunho salvo às ${esc(F.salvoEm)}. O fluxo no ar segue a versão anterior até você publicar.`
       : s === 'ativo' ? 'No ar. Quem dispara o gatilho entra; quem já esteve não entra de novo.'
       : s === 'pausado' ? 'Pausado. Ninguém novo entra e quem está dentro parou onde estava.' : nota;
-    const testar = '<button class="btn sec" type="button" data-s="testar">Testar</button>';
+    const testar = `${s !== 'rascunho' ? '<button class="btn sec" type="button" data-s="pessoas">Pessoas no fluxo</button>' : ''}<button class="btn sec" type="button" data-s="testar">Testar</button>`;
     const botoes = s === 'rascunho' ? `${testar}<button class="btn" type="button" data-s="publicar">Publicar</button>`
       : `${testar}${F.mudancas ? '<button class="btn perigo" type="button" data-s="descartar">Descartar mudanças</button><button class="btn" type="button" data-s="publicar">Publicar mudanças</button>' : ''}${s === 'ativo' ? '<button class="btn sec" type="button" data-s="pausar">Pausar</button>' : '<button class="btn" type="button" data-s="retomar">Retomar</button>'}`;
     alvo.innerHTML = `<div class="fx-estado">${estado}<span class="mini">${s === 'rascunho' ? nota : `${notaSit}${salvar.erro ? ` ${nota}` : ''}`}</span></div><div class="ag-acoes">${botoes}</div>`;
@@ -415,6 +437,7 @@
   // Publicar (só rascunho sem problemas), pausar e retomar: o servidor decide.
   function acaoSituacao(acao, b) {
     if (acao === 'testar') return testarFluxo();
+    if (acao === 'pessoas') return pessoasNoFluxo();
     const mudancas = F.situacao !== 'rascunho';
     const PERGUNTA = {
       publicar: mudancas
@@ -444,6 +467,47 @@
         return false;
       }
     }, [{ valor: true, rotulo: { publicar: mudancas ? 'Publicar mudanças' : 'Publicar', descartar: 'Descartar', pausar: 'Pausar', retomar: 'Retomar' }[acao] }]);
+  }
+
+  // --- Quem está dentro (388): do fluxo todo ou de um cartão ---
+  async function pessoasNoFluxo(noId) {
+    const fluxo = F;
+    const g = U().gaveta({
+      titulo: noId ? 'Esperando neste cartão' : 'Pessoas no fluxo', sub: esc(fluxo.nome),
+      corpo: '<div class="tabela-wrap" id="fx-pessoas"><p class="aviso">Carregando…</p></div><div class="paginacao" id="fx-pessoas-mais"></div>',
+    });
+    let pagina = 1, linhas = [];
+    const carregar = async (p) => {
+      let d;
+      try { d = await ctx.fetchJson(`/api/email/fluxos?id=${fluxo.id}&pessoas=1${noId ? `&no=${encodeURIComponent(noId)}` : ''}&pagina=${p}&_=${Date.now()}`); }
+      catch (e) { g.querySelector('#fx-pessoas').innerHTML = `<div class="aviso falha">${esc(U().msgErro(e))}</div>`; return; }
+      pagina = p;
+      linhas = p === 1 ? d.pessoas : linhas.concat(d.pessoas);
+      const cartao = (id) => { const n = fluxo.nos.find((x) => x.id === id); return n ? rotuloNo(n) : 'cartão excluído no rascunho'; };
+      g.querySelector('#fx-pessoas').innerHTML = linhas.length ? `<table><thead><tr><th>Pessoa</th><th>Cartão</th><th>Desde</th><th></th></tr></thead><tbody>
+        ${linhas.map((c) => `<tr><td>${c.email ? `<button type="button" class="ag-link-linha" data-contato="${c.contato_id}">${esc(c.nome || c.email)}</button>` : '<span class="mini">contato removido</span>'}</td>
+          <td><span class="mini">${esc(cartao(c.no_atual))}${c.situacao === 'esperando' ? ' · esperando' : ''}</span></td><td><span class="mini">${esc(quandoCurto(c.atualizado_em))}</span></td>
+          <td><button type="button" class="btn sec fx-pequeno" data-tirar-pessoa="${c.contato_id}">Tirar do fluxo</button></td></tr>`).join('')}</tbody></table>`
+        : '<p class="aviso">Ninguém aqui agora.</p>';
+      const mais = g.querySelector('#fx-pessoas-mais');
+      mais.innerHTML = d.total > linhas.length ? `<span class="mini">mostrando ${int(linhas.length)} de ${int(d.total)}</span><button class="btn sec" type="button">Mostrar mais ${d.por_pagina}</button>` : '';
+      const b = mais.querySelector('button');
+      if (b) b.onclick = () => carregar(pagina + 1);
+    };
+    g.addEventListener('click', (ev) => {
+      const c = ev.target.closest('[data-contato]');
+      if (c) { U().abrirContato(c.dataset.contato); return; }
+      const t = ev.target.closest('[data-tirar-pessoa]');
+      if (t) ctx.pedirConfirmacao(t, 'Tirar do fluxo?', async () => {
+        try {
+          await postFluxos({ acao: 'tirar', id: fluxo.id, contato_id: Number(t.dataset.tirarPessoa) });
+          U().avisar('Tirado do fluxo. Fica registrado no histórico do contato.');
+          carregar(1);
+          carregarNumeros();
+        } catch (e) { U().avisar(U().msgErro(e), 'erro'); return false; }
+      });
+    });
+    carregar(1);
   }
 
   // --- Teste passo a passo (387): o servidor anda um cartão do rascunho por vez ---
@@ -534,6 +598,27 @@
     return `${ev.rotulo}${c.valor ? ` (${valorRot(ev.filtros[0], c.valor)})` : ''}`;
   }
 
+  // Números no cartão (388).
+  function numerosHtml(n) {
+    if (!F || F.situacao === 'rascunho' || !NUM) return '';
+    if (NUM.erro) return '<div class="fx-nums fx-nums--vazio">sem números agora</div>';
+    const s = NUM[n.id];
+    if (!s) return '<div class="fx-nums fx-nums--vazio">só no rascunho</div>';
+    const tx = (a, b) => (b ? U().pct((a / b) * 100, 0) : '–');
+    const cel = (rot, v, extra = '') => `<div><span>${rot}</span><b>${int(v)}</b>${extra ? `<small>${extra}</small>` : ''}</div>`;
+    if (n.tipo === 'email') return `<div class="fx-nums">${cel('Receberam', s.receberam)}${cel('Abriram', s.abriram, tx(s.abriram, s.receberam))}${cel('Clicaram', s.clicaram, tx(s.clicaram, s.receberam))}</div>`;
+    if (n.tipo === 'inicio') return `<div class="fx-nums">${cel('Entraram', s.entraram)}</div>`;
+    if (n.tipo === 'espera') return `<div class="fx-nums"><button type="button" class="fx-esperando" data-esperando="${n.id}"><b>${int(s.esperando)}</b> esperando agora</button></div>`;
+    if (n.tipo === 'objetivo') return `<div class="fx-nums">${cel('Chegaram', s.chegaram)}</div>`;
+    if (n.tipo === 'fim') return `<div class="fx-nums">${cel('Concluíram', s.concluiram)}</div>`;
+    if (n.tipo === 'ir_fluxo') return `<div class="fx-nums">${cel('Passaram', s.passaram)}</div>`;
+    return '';
+  }
+  const numeroDaSaida = (n, saida) => {
+    const s = NUM && !NUM.erro && F.situacao !== 'rascunho' ? NUM[n.id] : null;
+    return s && s[saida] !== undefined ? ` <b>${int(s[saida])}</b>` : '';
+  };
+
   function desenharCartoes() {
     const probs = Object.fromEntries(problemas().map((p) => [p.no, p.textos]));
     const html = F.nos.map((n) => {
@@ -545,9 +630,10 @@
         ${primeiro ? `<span class="fx-selo-problema">${esc(primeiro)}</span>` : ''}
         <div class="fx-cabeca">${IC[n.tipo]}<span>${TIPOS[n.tipo].rotulo}</span></div>
         <div class="fx-corpo">${corpoCartao(n)}</div>
+        ${numerosHtml(n)}
         ${sai.length ? `<div class="fx-saidas">${sai.map(([s, rot]) => {
           const ligada = F.arestas.some((a) => a.de === n.id && a.saida === s);
-          return `<div class="fx-saida"><span>${rot}</span>
+          return `<div class="fx-saida"><span>${rot}${numeroDaSaida(n, s)}</span>
             <span class="fx-porta${ligada ? ' fx-porta--ligada' : ''}" data-porta="${s}" title="Arraste até outro cartão para ligar"></span>
             ${ligada ? '' : `<button type="button" class="fx-mais" data-mais="${s}" aria-label="Adicionar cartão depois de ${esc(rot)}">${IC.mais}</button>`}</div>`;
         }).join('')}</div>` : ''}
@@ -779,7 +865,9 @@
       const des = ev.target.closest('#fx-desligar');
       if (des) { const id = des.dataset.aresta; selAresta = null; mudar(() => { F.arestas = F.arestas.filter((a) => a.id !== id); }); U().avisar('Ligação desfeita.'); return; }
       const tirar = ev.target.closest('[data-tirar-nota]');
-      if (tirar) { mudar(() => { F.notas = F.notas.filter((o) => o.id !== tirar.dataset.tirarNota); }); U().avisar('Nota apagada.'); }
+      if (tirar) { mudar(() => { F.notas = F.notas.filter((o) => o.id !== tirar.dataset.tirarNota); }); U().avisar('Nota apagada.'); return; }
+      const esp = ev.target.closest('[data-esperando]');
+      if (esp) pessoasNoFluxo(esp.dataset.esperando);
     });
 
     // Mapa: clicar ou arrastar leva a tela até lá.

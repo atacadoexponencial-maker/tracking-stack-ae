@@ -7,16 +7,20 @@
 import { ErroContato, listar, detalhe, descadastrar, reativar } from '../_email-contatos.js';
 import { segmentosDoContato } from '../_email-segmentos.js';
 import { tirarManual } from '../_email-motor.js';
+import { caminhoDoContato } from '../_email-fluxos-numeros.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 
 /** Fluxos em que o contato está ou esteve (386). */
 async function fluxosDoContato(env, contatoId) {
   try {
-    return (await env.DB.prepare(
-      `SELECT p.fluxo_id, f.nome, p.situacao, p.motivo_saida, p.entrou_em FROM email_fluxo_pessoas p JOIN email_fluxos f ON f.id = p.fluxo_id
+    const r = (await env.DB.prepare(
+      `SELECT p.id AS pessoa_id, p.fluxo_id, f.nome, p.situacao, p.no_atual, p.motivo_saida, p.entrou_em FROM email_fluxo_pessoas p JOIN email_fluxos f ON f.id = p.fluxo_id
         WHERE p.contato_id = ? ORDER BY p.entrou_em DESC`,
     ).bind(Number(contatoId)).all()).results || [];
+    // O caminho de cada fluxo (388): entrou, cartões por onde passou, como terminou.
+    const caminho = await caminhoDoContato(env, contatoId);
+    return r.map((x) => ({ ...x, caminho: caminho[x.pessoa_id] || [] }));
   } catch {
     return []; // migration 0058 ainda não aplicada
   }
