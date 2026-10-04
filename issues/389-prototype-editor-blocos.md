@@ -21,4 +21,8 @@ O que dá para fazer: adicionar bloco no fim e entre blocos (7 tipos), seleciona
 
 Conferido no navegador (1440 e 390 px), com gravações bloqueadas: nenhuma tentativa de gravar, sem rolagem lateral no celular.
 
+Ajustes pedidos por ela (04/10):
+- "Subir imagem" visível no bloco (botão principal), área "Arraste uma imagem aqui" quando o bloco não tem imagem, e "+ Subir imagem" como primeiro quadrado da biblioteca. Formato, 1 MB e largura acima de 1200 px conferidos.
+- Arrastar e soltar no próprio e-mail (prévia): reordenar blocos, arrastar bloco novo da paleta "Arraste para o e-mail" (clique põe no fim) e soltar imagem do computador (em cima de uma imagem troca; entre blocos cria bloco de imagem).
+
 Falta: aprovação dela na prévia.
