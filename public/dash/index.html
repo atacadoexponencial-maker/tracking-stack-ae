@@ -21,10 +21,16 @@
   --font-sans: 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif;
   /* Paleta da spec (Módulo 0). */
   --papel: #f3f1ec; --etiqueta: #fbfaf7; --papel-escuro: #ebe8e1;
-  --tinta: #161513; --tinta-2: #4f4b45; --apagado: #8b857c;
+  --tinta: #161513; --tinta-2: #4f4b45;
+  /* Texto de apoio: 5,3:1 sobre o papel e 4,9:1 sobre o papel escuro (antes
+     #8b857c, 3,2:1, abaixo do mínimo de leitura). Crítica de UX de 04/10. */
+  --apagado: #68625a;
   --fio: #d9d3c9; --fio-forte: #161513;
   --carvao: #1e1e1e; --bege: #f5f0eb; --taupe: #b8ada1;
   --alta: #2f9a5d; --queda: #d24a3f; --info: #2f6db3; --alerta: #b7791f;
+  /* Mesma cor de estado, escurecida para TEXTO pequeno (carimbo, selo): passa de
+     4,5:1 no papel. As cores de cima seguem para linha, barra e gráfico. */
+  --alta-texto: #1f6e41; --queda-texto: #a8352c; --alerta-texto: #8a5a12;
   --serie-area: rgba(22,21,19,0.12);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -42,11 +48,21 @@ body { font-family: var(--font-sans); background: var(--papel); color: var(--tin
 .marca { padding: 0 0.55rem; }
 /* Logo branco sem fundo; largura e altura no HTML reservam o espaço antes de carregar. */
 .marca-logo { display: block; width: 160px; height: auto; }
-.marca small { display: block; color: var(--taupe); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.45rem; }
+.marca small { display: block; color: var(--taupe); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.45rem; }
 .nav { display: flex; flex-direction: column; gap: 1rem; }
+/* SONDA (02/10): seletor de apps. */
+.apps { display: grid; gap: 0.15rem; padding: 0.3rem; background: rgba(245,240,235,0.06); border-radius: 4px; }
+.apps a { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.6rem; border-radius: 3px; color: rgba(245,240,235,0.66); text-decoration: none; font-size: 0.86rem; font-weight: 700; min-width: 0; }
+.apps span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apps a:hover { color: var(--bege); background: rgba(245,240,235,0.08); }
+.apps a[aria-current="true"] { background: var(--bege); color: var(--carvao); }
+.apps svg { flex: none; width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav-grupo[hidden] { display: none; }
+.nav-rotulo--sub { margin-top: 0.9rem; }
+body[data-app="agenda"] #secao-agenda > .ig-vistas { display: none; }
 .nav-grupo { display: flex; flex-direction: column; gap: 0.1rem; }
 .nav-grupo + .nav-grupo { border-top: 1px solid rgba(245,240,235,0.14); padding-top: 0.9rem; }
-.nav-rotulo { color: var(--taupe); font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; padding: 0 0.55rem 0.45rem; }
+.nav-rotulo { color: var(--taupe); font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; padding: 0 0.55rem 0.45rem; }
 .nav a { color: rgba(245,240,235,0.72); text-decoration: none; padding: 0.42rem 0.55rem; border-radius: 3px; font-size: 0.9rem; display: block; }
 .nav a:hover { color: var(--bege); background: rgba(245,240,235,0.06); }
 .nav a.ativo { color: var(--carvao); background: var(--bege); font-weight: 700; }
@@ -60,7 +76,7 @@ body { font-family: var(--font-sans); background: var(--papel); color: var(--tin
 .filtros { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 
 /* ---------- Campos e botões: mesma altura, canto de 2px, contorno na tinta ---------- */
-select, input[type="date"], input[type="text"], input[type="password"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="search"], textarea {
+select, input[type="date"], input[type="text"], input[type="password"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="search"], input[type="url"], input[type="time"], textarea {
   background: var(--etiqueta); color: var(--tinta); border: 1px solid var(--fio-forte);
   border-radius: 2px; padding: 0.45rem 0.7rem; font: inherit; font-size: 0.86rem; line-height: 1.3;
 }
@@ -83,7 +99,7 @@ a.btn { display: inline-block; text-decoration: none; }
 .grid-etiquetas, .grid-kpi, .grid-heroi { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem; margin-bottom: 1.6rem; }
 .etiqueta, .kpi { position: relative; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px 2px 3px 3px; padding: 2rem 1.1rem 1rem; min-width: 0; container-type: inline-size; box-shadow: 0 1px 0 rgba(22,21,19,0.06), 0 6px 14px -10px rgba(22,21,19,0.25); }
 .etiqueta::before { content: ""; position: absolute; top: 0.7rem; left: 50%; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--papel); box-shadow: inset 0 0 0 2px var(--fio-forte); }
-.etiqueta .ref, .kpi .rotulo { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--apagado); }
+.etiqueta .ref, .kpi .rotulo { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--apagado); }
 /* O valor encolhe com a largura da etiqueta (cqw) em vez de quebrar "R$ 23.620,00" em duas linhas. */
 .etiqueta .valor, .kpi .valor { font-size: min(2.2rem, 13cqw); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 0.25rem 0 0.5rem; white-space: nowrap; }
 .etiqueta.heroi .valor { font-size: min(2.9rem, 15cqw); }
@@ -94,8 +110,9 @@ a.btn { display: inline-block; text-decoration: none; }
 /* Carimbo: moldura fina na cor do estado, levemente inclinado; o neutro fica
    reto e tracejado, porque não julga. Sinal ▲ ▼ sempre junto da cor. */
 .carimbo, .delta { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; padding: 0.15rem 0.45rem; border: 1.5px solid currentColor; border-radius: 2px; font-variant-numeric: tabular-nums; transform: rotate(-2deg); white-space: nowrap; }
-.carimbo.alta, .delta.up { color: var(--alta); }
-.carimbo.queda, .delta.down { color: var(--queda); }
+.carimbo.alta, .delta.up { color: var(--alta-texto); }
+.carimbo.queda, .delta.down { color: var(--queda-texto); }
+.carimbo.alerta { color: var(--alerta-texto); }
 .carimbo.neutro, .delta.neutro { color: var(--apagado); transform: none; border-style: dashed; }
 
 /* ---------- Manchete ---------- */
@@ -132,10 +149,11 @@ a.btn { display: inline-block; text-decoration: none; }
 .tabela-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 th, td { text-align: left; white-space: nowrap; }
-th { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); font-weight: 700; padding: 0.4rem 0.6rem 0.5rem 0; border-bottom: 1px solid var(--fio-forte); }
+th { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); font-weight: 700; padding: 0.4rem 0.6rem 0.5rem 0; border-bottom: 1px solid var(--fio-forte); }
 td { padding: 0.55rem 0.6rem 0.55rem 0; border-bottom: 1px solid var(--fio); font-variant-numeric: tabular-nums; }
 th.num, td.num { text-align: right; }
 th.ordenavel { cursor: pointer; user-select: none; }
+.th-ordenar { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; min-height: 24px; }
 th.ordenavel:hover, th[aria-sort] { color: var(--tinta); }
 tbody tr:hover td { background: rgba(22,21,19,0.03); }
 tbody tr.clicavel { cursor: pointer; }
@@ -155,7 +173,7 @@ td .mini, .mini { color: var(--apagado); font-size: 0.72rem; }
 /* .explica: explicação permanente, em papel mais escuro. O âmbar de .alerta
    fica só para o que pede ação. */
 .aviso.explica { background: var(--papel-escuro); color: var(--tinta-2); padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; border-radius: 2px; }
-.aviso.alerta { color: #8a5a12; border-left: 1px solid var(--alerta); padding: 0.4rem 0 0.4rem 0.9rem; margin-bottom: 0.8rem; }
+.aviso.alerta { color: var(--alerta-texto); border-left: 1px solid var(--alerta); padding: 0.4rem 0 0.4rem 0.9rem; margin-bottom: 0.8rem; }
 .aviso.falha, .erro-carga p { color: var(--queda); }
 .selo { display: inline-block; margin-left: 0.3rem; padding: 0 0.45rem; border: 1px solid var(--fio); border-radius: 999px; color: #234f82; font-size: 0.72rem; white-space: nowrap; }
 .selo.ar { color: var(--alta); }
@@ -234,7 +252,7 @@ td .mini, .mini { color: var(--apagado); font-size: 0.72rem; }
 /* O logo é branco: mora numa faixa carvão no alto da etiqueta, como na barra lateral. */
 .gate .gate-marca { background: var(--carvao); margin: 0 -1.6rem 0.6rem; padding: 1.3rem 1.6rem 1.1rem; display: grid; gap: 0.4rem; }
 .gate .gate-marca img { display: block; width: 170px; height: auto; }
-.gate .gate-marca small { color: var(--taupe); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.gate .gate-marca small { color: var(--taupe); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .gate .mini.falha { color: var(--queda); }
 
 /* ---------- Modal ---------- */
@@ -253,11 +271,13 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 /* ---------- Faixa de estado (Saúde, Argo) ---------- */
 .faixa-estado { display: flex; gap: 0.9rem; align-items: center; border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); border-radius: 2px; padding: 1rem 1.2rem; margin-bottom: 1.1rem; background: var(--etiqueta); }
 .faixa-estado .selo-estado { font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; padding: 0.3rem 0.65rem; border-radius: 2px; border: 1.5px solid currentColor; white-space: nowrap; }
-.faixa-estado.saudavel .selo-estado { color: var(--alta); }
-.faixa-estado.atencao .selo-estado { color: var(--alerta); }
+.faixa-estado.saudavel .selo-estado { color: var(--alta-texto); }
+.faixa-estado.atencao .selo-estado { color: var(--alerta-texto); }
 .faixa-estado.incidente { border-top-color: var(--queda); }
-.faixa-estado.incidente .selo-estado { color: var(--queda); }
+.faixa-estado.incidente .selo-estado { color: var(--queda-texto); }
 .faixa-estado p { margin: 0; }
+.faixa-estado > :last-child { min-width: 0; }
+@media (max-width: 900px) { .faixa-estado { flex-direction: column; align-items: flex-start; } }
 .saude-filtros { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; }
 .saude-acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 
@@ -280,7 +300,10 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
   .nav-grupo { flex-direction: row; }
   .nav-grupo + .nav-grupo { border-top: 0; padding-top: 0; border-left: 1px solid rgba(245,240,235,0.14); padding-left: 0.5rem; margin-left: 0.2rem; }
   .nav-rotulo { display: none; }
+  .apps { flex: none; grid-template-columns: repeat(4, auto); }
+  .apps span { display: none; }
   .nav a { white-space: nowrap; font-size: 0.82rem; }
+  .sidebar { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); }
   .conteudo { padding: 1.2rem 1rem 3rem; }
   .duas, .duas-colunas { grid-template-columns: 1fr; }
   .manchete { font-size: 1.2rem; }
@@ -316,7 +339,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .balao img, .balao video { width: 100%; border-radius: 2px; display: block; background: var(--papel); }
 .balao .arquivo { display: flex; gap: 0.5rem; align-items: center; padding: 0.6rem; background: var(--papel); border-radius: 2px; font-size: 0.82rem; }
 .balao .corpo { font-size: 0.86rem; white-space: pre-wrap; word-break: break-word; margin-top: 0.4rem; }
-.balao .hora { font-size: 0.68rem; color: var(--apagado); text-align: right; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+.balao .hora { font-size: 0.6875rem; color: var(--apagado); text-align: right; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
 .previa-nota { font-size: 0.72rem; color: var(--apagado); margin-top: 0.5rem; }
 
 /* Semana em sete colunas. Grade de hora × dia ficaria quase toda vazia com dois
@@ -329,7 +352,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
    padrão, e o número do dia acabava colado no rodapé da célula vazia. */
 .dia { background: var(--etiqueta); border: 1px solid var(--fio); border-top: 2px solid var(--fio); border-radius: 2px; padding: 0.5rem 0.45rem; min-height: 6.5rem; text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
 .dia:hover { border-color: var(--tinta); }
-.dia .cab { font-size: 0.68rem; color: var(--apagado); text-transform: uppercase; letter-spacing: 0.06em; }
+.dia .cab { font-size: 0.6875rem; color: var(--apagado); text-transform: uppercase; letter-spacing: 0.06em; }
 .dia .num { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* "hoje" leva a palavra além da cor: o bege é quase branco, e a regra da casa
    é que nada se comunique só por cor. */
@@ -356,7 +379,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-faixa-meta b { color: var(--tinta); font-weight: 400; }
 
 .argo-grupo + .argo-grupo, .argo-bloco { margin-top: 1.6rem; }
-.argo-grupo-titulo, .argo-bloco h3 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); margin-bottom: 0.35rem; }
+.argo-grupo-titulo, .argo-bloco h3 { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); margin-bottom: 0.35rem; }
 .argo-grupo-nota { color: var(--apagado); font-size: 0.78rem; margin-bottom: 0.4rem; max-width: 70ch; }
 .argo-acao { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem 1.4rem; align-items: center; padding: 0.85rem 0; border-top: 1px solid var(--fio); }
 .argo-acao:first-of-type { border-top: 0; }
@@ -447,7 +470,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-veredito.falha { color: var(--queda); border-color: var(--queda); font-weight: 700; }
 .argo-veredito.alerta { color: var(--alerta); border-color: var(--alerta); }
 .argo-veredito.neutro { color: var(--apagado); }
-.argo-origem-manual { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); margin-right: 0.3rem; }
+.argo-origem-manual { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); margin-right: 0.3rem; }
 /* O summary da ação NÃO herda o grid do summary da rodada (`.argo-rodada
    summary` alcança os dois): aqui é linha corrida, como o <li> sem detalhe. */
 .argo-rodada .argo-acao-detalhe { display: block; }
@@ -459,7 +482,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-veredito-motivo { margin: 0.6rem 0 0.4rem; font-size: 0.84rem; color: var(--tinta); max-width: 80ch; }
 .argo-veredito-meta { display: block; margin-top: 0.45rem; font-size: 0.74rem; color: var(--apagado); }
 .argo-antes-depois { width: 100%; border-collapse: collapse; margin-top: 0.3rem; font-size: 0.84rem; }
-.argo-antes-depois th { text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); font-weight: 400; padding: 0.25rem 0.6rem 0.25rem 0; }
+.argo-antes-depois th { text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); font-weight: 400; padding: 0.25rem 0.6rem 0.25rem 0; }
 .argo-antes-depois td { padding: 0.35rem 0.6rem 0.35rem 0; border-top: 1px solid var(--fio); font-variant-numeric: tabular-nums; vertical-align: top; }
 .argo-antes-depois td.num { font-weight: 700; }
 .argo-antes-depois td.num.semdado { font-weight: 400; }
@@ -475,7 +498,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-placar-periodo { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
 .argo-placar-periodo select, .argo-placar-periodo input { background: var(--papel); color: var(--tinta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.35rem 0.6rem; font: inherit; font-size: 0.84rem; }
 .argo-placar-grupos { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 2.4fr) minmax(0, 1.1fr); gap: 0.9rem; align-items: start; }
-.argo-placar-grupo h4 { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); font-weight: 400; margin-bottom: 0.45rem; }
+.argo-placar-grupo h4 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); font-weight: 400; margin-bottom: 0.45rem; }
 .argo-placar-grupo .grid-kpi { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; margin-bottom: 0; }
 .argo-cartao { font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; }
 .argo-cartao[aria-pressed="true"] { border-color: var(--tinta); }
@@ -504,11 +527,11 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .metas-nota { font-size: 0.76rem; color: var(--apagado); margin-bottom: 0.6rem; }
 .metas-avisos { display: grid; gap: 0.3rem; margin-bottom: 0.6rem; }
 .metas-funil + .metas-funil { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--fio); }
-.metas-funil-nome { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); margin-bottom: 0.45rem; display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.metas-funil-nome { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); margin-bottom: 0.45rem; display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
 .metas-funil-nome span { text-transform: none; letter-spacing: 0; color: var(--apagado); }
 .metas-linha { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.7rem; }
 .meta-ind { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem 0.75rem; min-width: 0; display: grid; gap: 0.2rem; align-content: start; }
-.meta-ind .rotulo { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
+.meta-ind .rotulo { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
 .meta-ind .valor { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .meta-ind .valor.semdado { color: var(--apagado); font-weight: 400; font-size: 1rem; }
 .meta-ind .alvo { font-size: 0.76rem; color: var(--apagado); font-variant-numeric: tabular-nums; }
@@ -542,8 +565,8 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
   .argo-antes-depois thead { display: none; }
   .argo-antes-depois tr { display: grid; grid-template-columns: 1fr 1fr; gap: 0 0.6rem; padding: 0.35rem 0; border-top: 1px solid var(--fio); }
   .argo-antes-depois td { border-top: 0; padding: 0.1rem 0; }
-  .argo-antes-depois td.rotulo { grid-column: 1 / -1; color: var(--apagado); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; }
-  .argo-antes-depois td.num::before { content: attr(data-coluna); display: block; font-size: 0.68rem; color: var(--apagado); font-weight: 400; }
+  .argo-antes-depois td.rotulo { grid-column: 1 / -1; color: var(--apagado); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .argo-antes-depois td.num::before { content: attr(data-coluna); display: block; font-size: 0.6875rem; color: var(--apagado); font-weight: 400; }
 }
 
 /* Régua: cada regra numa linha — texto à esquerda, controle à direita. A
@@ -576,6 +599,120 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 /* Abas internas: Controle (o que ele pode fazer) e Propostas (o que ele
    pede). Trocar entre elas só esconde e mostra — a grade não é redesenhada,
    para não perder alteração ainda não salva. */
+/* Agenda (public/dash/agenda.js) */
+input[type="time"] { font: inherit; padding: 0.35rem 0.45rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); color: var(--tinta); }
+.ag-form { display: grid; gap: 0.75rem; max-width: 760px; }
+.ag-form .linha { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; }
+.ag-form label { display: grid; gap: 0.25rem; font-size: 0.8rem; color: var(--tinta-2); }
+.ag-form label.marca { display: flex; gap: 0.5rem; align-items: center; color: var(--tinta); font-size: 0.86rem; }
+.ag-form fieldset { border: 1px solid var(--fio); border-radius: 2px; padding: 0.7rem 0.9rem; display: grid; gap: 0.5rem; }
+.ag-form legend { font-size: 0.8rem; color: var(--tinta-2); padding: 0 0.3rem; }
+.ag-dia { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.6rem; align-items: start; padding: 0.45rem 0; border-bottom: 1px solid var(--fio); }
+.ag-dia:last-child { border-bottom: none; }
+.ag-faixas { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.ag-faixa { display: inline-flex; gap: 0.25rem; align-items: center; }
+.ag-acoes { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+.ag-saude-ok { color: var(--alta); }
+.ag-saude-erro { color: var(--queda); }
+.ag-hist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.35rem; font-size: 0.84rem; }
+.ag-slots { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.ag-slots .btn { font-weight: 400; }
+.ag-menu { position: relative; display: inline-block; }
+.ag-engrenagem { width: 2rem; height: 2rem; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--tinta-2); cursor: pointer; }
+.ag-engrenagem:hover, .ag-engrenagem[aria-expanded="true"] { border-color: var(--fio); background: var(--etiqueta); color: var(--tinta); }
+.ag-engrenagem svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ag-menu__lista { position: fixed; z-index: 30; min-width: 12rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; box-shadow: 0 6px 18px rgba(22,21,19,0.12); padding: 0.3rem 0; display: grid; }
+.ag-menu__lista[hidden] { display: none; }
+.ag-menu__lista > button { text-align: left; background: none; border: none; font: inherit; font-size: 0.86rem; padding: 0.45rem 0.9rem; color: var(--tinta); cursor: pointer; }
+.ag-menu__lista > button:hover, .ag-menu__lista > button:focus-visible { background: var(--papel-escuro); outline: none; }
+.ag-menu__lista > button.perigo { color: var(--queda); border-top: 1px solid var(--fio); margin-top: 0.2rem; padding-top: 0.55rem; }
+.ag-menu__lista .confirma { padding: 0.45rem 0.9rem; }
+.ag-gaveta { overflow: hidden; margin: 0 0 0 auto; height: 100dvh; max-height: 100dvh; width: min(30rem, 100vw); max-width: 100vw; padding: 0; border: none; border-left: 1px solid var(--fio); background: var(--papel); color: var(--tinta); }
+.ag-gaveta::backdrop { background: rgba(22,21,19,0.32); }
+.ag-gaveta[open] { animation: ag-entra 0.18s ease-out; }
+@keyframes ag-entra { from { transform: translateX(2rem); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ag-gaveta[open] { animation: none; } }
+.ag-gaveta__form { height: 100%; display: grid; grid-template-rows: auto auto 1fr auto; grid-template-columns: minmax(0, 1fr); }
+.ag-gaveta__form--simples { grid-template-rows: auto 1fr auto; }
+.ag-gaveta__topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 1.1rem 1.25rem 0.6rem; }
+.ag-gaveta__topo h2 { margin: 0; font-size: 1.1rem; }
+.ag-gaveta__topo p { margin: 0.2rem 0 0; }
+.ag-gaveta__fechar { background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: var(--tinta-2); padding: 0.1rem 0.3rem; }
+.ag-abas { display: flex; gap: 0.2rem; padding: 0 1.25rem; border-bottom: 1px solid var(--fio); }
+.ag-abas button { background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-size: 0.86rem; padding: 0.55rem 0.6rem; color: var(--tinta-2); cursor: pointer; margin-bottom: -1px; }
+.ag-abas button[aria-selected="true"] { color: var(--tinta); border-bottom-color: var(--tinta); font-weight: 700; }
+.ag-gaveta__corpo { overflow-y: auto; overflow-x: hidden; min-width: 0; padding: 1.1rem 1.25rem; max-width: none; align-content: start; }
+.ag-gaveta__corpo section { display: grid; gap: 0.85rem; }
+.ag-gaveta__form--simples .ag-gaveta__corpo { display: grid; gap: 0.85rem; align-content: start; }
+.ag-gaveta__corpo section[hidden] { display: none; }
+.ag-gaveta__corpo .linha { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+/* Só rolagem vertical na gaveta: campo nenhum pode passar da largura dela
+   (a lista de grades tem opções longas que esticariam o select). */
+.ag-gaveta__form, .ag-gaveta__corpo section, .ag-gaveta__corpo label { min-width: 0; }
+.ag-gaveta__corpo input:not([type="checkbox"]), .ag-gaveta__corpo select, .ag-gaveta__corpo textarea { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+.ag-gaveta__corpo select { text-overflow: ellipsis; }
+.ag-gaveta__corpo label.marca { overflow-wrap: anywhere; }
+/* Navegação da Agenda (crítica de UX de 02/10) */
+.ag-subvistas { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 1rem; }
+.ag-subvista { font: inherit; font-size: 0.86rem; padding: 0.35rem 0.8rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); color: var(--tinta-2); cursor: pointer; display: inline-flex; align-items: center; gap: 0.45rem; }
+.ag-subvista:hover { border-color: var(--tinta-2); color: var(--tinta); }
+.ag-subvista[aria-pressed="true"] { background: var(--tinta); border-color: var(--tinta); color: var(--papel); font-weight: 700; }
+.ag-cont { font-size: 0.74rem; font-variant-numeric: tabular-nums; min-width: 1.4em; text-align: center; padding: 0 0.35rem; border-radius: 999px; background: var(--papel-escuro); color: var(--tinta); font-weight: 700; }
+.ag-subvista[aria-pressed="true"] .ag-cont { background: var(--papel); color: var(--tinta); }
+.ag-cont.alerta { background: var(--alerta); color: #fff; }
+.ag-subvistas select { margin-left: auto; }
+.ag-subvistas select + select { margin-left: 0; }
+.ag-link-linha { background: none; border: none; padding: 2px 0; min-height: 24px; font: inherit; font-weight: 700; color: var(--tinta); cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: var(--fio); text-underline-offset: 3px; }
+.ag-link-linha:hover { text-decoration-color: var(--tinta); }
+.ag-acoes--linha { justify-content: flex-end; flex-wrap: nowrap; }
+.ag-icone { width: 1.9rem; height: 1.9rem; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--tinta-2); cursor: pointer; padding: 0; }
+.ag-icone:hover:not(:disabled) { border-color: var(--fio); background: var(--etiqueta); color: var(--tinta); }
+.ag-icone:disabled { opacity: 0.35; cursor: default; }
+.ag-icone svg, .ag-gaveta__fechar svg, .ag-etiqueta button svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ag-gaveta__fechar { display: inline-grid; place-items: center; width: 2rem; height: 2rem; }
+.ag-etiqueta button { display: inline-grid; place-items: center; }
+.ag-etiqueta button svg { width: 0.85rem; height: 0.85rem; }
+.ag-copiavel { display: inline-flex; align-items: center; gap: 0.25rem; }
+.ag-dl { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 0.45rem 0.9rem; margin: 0.4rem 0 0; font-size: 0.88rem; }
+.ag-dl dt { color: var(--apagado); font-size: 0.8rem; padding-top: 0.05rem; }
+.ag-dl dd { margin: 0; overflow-wrap: anywhere; }
+.ag-dl a { color: var(--tinta); text-underline-offset: 3px; }
+.ag-h3 { font-size: 0.86rem; font-weight: 700; margin: 1.2rem 0 0.3rem; padding-top: 0.6rem; border-top: 1px solid var(--fio); }
+ol.ag-hist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; font-size: 0.86rem; }
+.ag-slots { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.ag-slot { font: inherit; font-size: 0.86rem; font-variant-numeric: tabular-nums; padding: 0.4rem 0.7rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); color: var(--tinta); cursor: pointer; }
+.ag-slot:hover { border-color: var(--tinta); }
+.ag-slot[aria-pressed="true"] { background: var(--tinta); border-color: var(--tinta); color: var(--papel); font-weight: 700; }
+.ag-slot--leitura { cursor: default; }
+.ag-slot--leitura:hover { border-color: var(--fio); }
+.ag-dia-livre { display: grid; gap: 0.4rem; padding: 0.7rem 0; border-bottom: 1px solid var(--fio); }
+.ag-dia-livre b { font-size: 0.86rem; }
+.ag-dia-livre b::first-letter { text-transform: uppercase; }
+.ag-mais { border-top: 1px solid var(--fio); padding-top: 0.6rem; }
+.ag-mais summary { cursor: pointer; font-size: 0.86rem; color: var(--tinta-2); margin-bottom: 0.6rem; }
+.ag-mais[open] summary { color: var(--tinta); font-weight: 700; }
+.ag-mais .linha + .linha { margin-top: 0.75rem; }
+.ag-pergunta { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem; padding: 0.7rem 0; border-bottom: 1px solid var(--fio); }
+.ag-pergunta__ordem { display: grid; gap: 0.2rem; align-content: start; }
+.ag-pergunta__campos { display: grid; gap: 0.45rem; min-width: 0; }
+.ag-copiar { background: var(--papel-escuro); padding: 0.6rem 0.8rem; border-radius: 2px; }
+.ag-gaveta__corpo .ag-dia { grid-template-columns: 5.2rem minmax(0, 1fr); }
+.ag-faixa input[type="time"] { width: auto; }
+.ag-toast { position: fixed; left: 50%; bottom: 1.4rem; transform: translate(-50%, 0.6rem); opacity: 0; pointer-events: none; z-index: 100; max-width: min(34rem, calc(100vw - 2rem)); background: var(--tinta); color: var(--papel); padding: 0.65rem 1rem; border-radius: 2px; font-size: 0.88rem; box-shadow: 0 6px 18px rgba(22,21,19,0.18); transition: opacity 0.18s ease-out, transform 0.18s ease-out; }
+.ag-toast.visivel { opacity: 1; transform: translate(-50%, 0); }
+.ag-toast[data-tipo="erro"] { background: var(--queda); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .ag-toast { transition: none; } }
+.ag-campo { display: grid; gap: 0.35rem; min-width: 0; }
+.ag-campo__rotulo { font-size: 0.8rem; color: var(--tinta-2); }
+.ag-etiquetas { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; min-width: 0; }
+.ag-etiqueta { display: inline-flex; align-items: center; gap: 0.3rem; max-width: 100%; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.25rem 0.3rem 0.25rem 0.6rem; font-size: 0.84rem; overflow-wrap: anywhere; }
+.ag-etiqueta button { background: none; border: none; cursor: pointer; font-size: 1rem; line-height: 1; color: var(--tinta-2); padding: 0 0.2rem; }
+.ag-etiqueta button:hover { color: var(--queda); }
+.ag-etiquetas select { width: auto !important; flex: 1 1 12rem; }
+.ag-sair { background: var(--papel-escuro); border: 1px solid var(--alerta); border-radius: 2px; padding: 0.6rem 0.8rem; display: grid; gap: 0.5rem; }
+.ag-sair[hidden] { display: none; }
+.ag-sair p { margin: 0; font-size: 0.86rem; }
+.ag-gaveta__rodape { border-top: 1px solid var(--fio); padding: 0.8rem 1.25rem; background: var(--etiqueta); display: grid; gap: 0.5rem; }
 .argo-vistas, .ig-vistas { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.1rem; }
 .argo-vistas .tipo-pill, .ig-vistas .tipo-pill { font-size: 0.86rem; padding: 0.4rem 0.95rem; display: inline-flex; align-items: center; gap: 0.45rem; }
 .argo-contador { background: var(--tinta); color: var(--papel); font-weight: 700; font-size: 0.72rem; border-radius: 999px; padding: 0 0.45rem; min-width: 1.3rem; text-align: center; font-variant-numeric: tabular-nums; }
@@ -585,7 +722,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-propostas-lista { display: grid; gap: 0.8rem; }
 .argo-proposta { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 1.1rem 1.25rem; display: grid; gap: 0.75rem; }
 .argo-proposta-topo { display: flex; gap: 0.8rem; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
-.argo-proposta-acao { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
+.argo-proposta-acao { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
 .argo-proposta-alvo { font-size: 1.02rem; font-weight: 700; margin-top: 0.15rem; }
 .argo-proposta-alvo small { font-weight: 400; color: var(--apagado); font-size: 0.8rem; margin-left: 0.4rem; }
 .argo-proposta-prazo { color: var(--apagado); font-size: 0.78rem; font-variant-numeric: tabular-nums; text-align: right; }
@@ -595,7 +732,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-ver-tudo { background: none; border: 0; padding: 0; font: inherit; font-size: 0.78rem; color: var(--tinta); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; justify-self: start; }
 .argo-numeros { display: flex; flex-wrap: wrap; gap: 0.6rem 1.8rem; }
 .argo-numero { display: grid; gap: 0.1rem; }
-.argo-numero span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
+.argo-numero span { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
 .argo-numero strong { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
 .argo-numero small { color: var(--apagado); font-size: 0.74rem; }
 .argo-verificacao { font-size: 0.8rem; color: var(--apagado); border-top: 1px solid var(--fio); padding-top: 0.7rem; }
@@ -654,7 +791,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .grafico .barra.neg { fill: var(--queda); }
 .grafico .barra.apagada { opacity: 0.45; }
 .ig-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 0.9rem; }
-.ig-trio span { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
+.ig-trio span { display: block; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
 .ig-trio b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
 .ig-cabeca { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
 .ig-cabeca h2 { margin-bottom: 0; }
@@ -705,6 +842,455 @@ td.pago, th.pago { color: var(--alerta); }
   .ig-trio b { font-size: 1.05rem; }
   .ig-barra-h { grid-template-columns: minmax(70px, 38%) minmax(0, 1fr) 56px; }
 }
+/* ---------- E-mail próprio (public/dash/email-mkt.js e email-fluxos.js) · PROTÓTIPOS 373–376 ---------- */
+.em-proto { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; align-items: center; font-size: 0.78rem; color: var(--tinta-2); border: 1px dashed var(--fio); border-radius: 2px; padding: 0.4rem 0.7rem; margin-bottom: 1.1rem; }
+.em-proto__selo { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--alerta); border: 1.5px solid currentColor; border-radius: 2px; padding: 0.05rem 0.4rem; transform: rotate(-2deg); }
+.em-proto__cen { margin-left: auto; display: inline-flex; gap: 0.4rem; align-items: center; color: var(--apagado); }
+.em-proto__cen select { font-size: 0.78rem; padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.em-barra { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.em-barra .ig-vistas, .em-barra .ag-subvistas { margin-bottom: 0; }
+.em-barra > p { max-width: 60ch; margin: 0; }
+.em-voltar { display: inline-flex; align-items: center; gap: 0.3rem; }
+.em-voltar svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.em-limite { display: grid; gap: 0.2rem; margin-bottom: 1.1rem; max-width: 560px; }
+.em-limite__txt { font-size: 0.84rem; font-variant-numeric: tabular-nums; }
+.em-limite .regua { margin: 0.2rem 0 0; }
+.em-metas { grid-template-columns: 1fr; }
+.em-progresso { display: inline-block; width: 70px; height: 6px; background: var(--papel-escuro); border-radius: 1px; vertical-align: middle; overflow: hidden; }
+.em-progresso span { display: block; height: 100%; background: var(--alerta); }
+.em-progresso--grande { width: 100%; height: 12px; }
+.em-andamento { display: grid; gap: 0.4rem; }
+.em-andamento__num b { font-size: 2rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.em-previa-assunto { font-size: 0.84rem; }
+.em-previa-assunto:empty { display: none; }
+.em-resumo { display: grid; gap: 0.6rem; }
+.em-resumo__grande b { font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-right: 0.3rem; }
+.em-fora { list-style: none; display: grid; gap: 0.2rem; font-size: 0.86rem; }
+.em-fora li { display: flex; justify-content: space-between; border-bottom: 1px solid var(--fio); padding: 0.25rem 0; font-variant-numeric: tabular-nums; }
+.em-rel-cabeca { margin-bottom: 1.2rem; }
+.em-rel-cabeca h2 { font-size: 1.25rem; }
+.em-numeros { display: flex; flex-wrap: wrap; gap: 0.6rem 2rem; margin: -0.4rem 0 1.8rem; padding: 0.8rem 0; border-top: 1px solid var(--fio); border-bottom: 1px solid var(--fio); }
+.em-numeros div { display: grid; gap: 0.05rem; }
+.em-numeros span { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); }
+.em-numeros b { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.em-numeros small { color: var(--apagado); font-size: 0.74rem; }
+td.em-link-url { white-space: normal; overflow-wrap: anywhere; }
+.em-filtros { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+.em-filtros input[type="search"] { flex: 1 1 16rem; min-width: 0; }
+.em-contagem { margin-bottom: 0.4rem; }
+.em-explica-sit { font-size: 0.82rem; }
+.em-hist li { border-bottom: 1px solid var(--fio); padding-bottom: 0.45rem; }
+.em-hist__item { display: flex; justify-content: space-between; gap: 0.8rem; align-items: flex-start; }
+.em-regra-curta { white-space: normal; display: inline-block; min-width: 14rem; max-width: 26rem; }
+.em-regras { display: grid; gap: 0.5rem; }
+.em-regra { display: grid; grid-template-columns: 2.6rem minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1.3fr) auto; gap: 0.4rem; align-items: center; }
+.em-regra__e { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--apagado); }
+.em-mais { justify-self: start; }
+.em-contagem-viva { background: var(--papel-escuro); padding: 0.7rem 0.9rem; border-radius: 2px; font-size: 0.9rem; }
+.em-contagem-viva b { font-size: 1.5rem; font-variant-numeric: tabular-nums; margin-right: 0.2rem; }
+.em-assunto-curto { display: inline-block; max-width: 22rem; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.em-gaveta--larga { width: min(42rem, 100vw); }
+.em-gaveta .ag-gaveta__corpo input[type="radio"] { width: auto; flex: none; }
+.em-gaveta .ag-form label.marca { display: flex; gap: 0.5rem; align-items: center; color: var(--tinta); font-size: 0.86rem; padding: 0; }
+.em-chave { position: relative; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.8rem; color: var(--apagado); }
+.em-chave input { position: absolute; opacity: 0; width: 38px; height: 22px; margin: 0; cursor: pointer; }
+.em-chave__trilho { width: 38px; height: 22px; border-radius: 999px; background: var(--papel); border: 1px solid var(--fio); position: relative; flex: none; }
+.em-chave__trilho::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--apagado); transition: transform 0.18s ease-out; }
+.em-chave input:checked + .em-chave__trilho { background: var(--tinta); border-color: var(--tinta); }
+.em-chave input:checked + .em-chave__trilho::after { transform: translateX(16px); background: var(--papel); }
+.em-chave input:checked ~ .em-chave__rot { color: var(--tinta); font-weight: 700; }
+.em-chave input:focus-visible + .em-chave__trilho { outline: 2px solid var(--tinta); outline-offset: 2px; }
+.em-agenda-tab select { max-width: 15rem; }
+.em-lembrete-novo { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin: 0.4rem 0 0.8rem; }
+.em-regras-agenda { padding-left: 1.1rem; display: grid; gap: 0.2rem; font-size: 0.78rem; }
+.em-canal h3 { font-size: 0.9rem; margin-bottom: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline; }
+.em-canal .ag-form label > .mini { font-size: 0.72rem; }
+.em-canal input { width: 100%; }
+.em-erro { color: var(--queda); font-size: 0.82rem; }
+.em-erro:empty { display: none; }
+.em-nota { margin-top: 0.6rem; }
+/* Editor de modelo */
+.em-editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
+.em-editor__form { max-width: none; }
+.em-editor__form input, .em-editor__form textarea { width: 100%; }
+.em-editor__form textarea { font-family: ui-monospace, Consolas, monospace; font-size: 0.82rem; line-height: 1.5; }
+.em-editor__previa { position: sticky; top: 1rem; min-width: 0; }
+.em-barra--previa { margin-bottom: 0.5rem; }
+.em-ferramentas { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.em-ferramentas .btn { padding: 0.25rem 0.6rem; font-size: 0.78rem; }
+.em-campo { font: inherit; font-family: ui-monospace, Consolas, monospace; font-size: 0.76rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.2rem 0.45rem; cursor: pointer; color: var(--tinta); }
+.em-campo:hover { border-color: var(--tinta); }
+.em-tamanho { display: inline-flex; gap: 0.2rem; }
+.em-tamanho [aria-pressed="true"] { border-color: var(--tinta); background: var(--etiqueta); color: var(--tinta); }
+mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); border-bottom: 1.5px dashed var(--queda); padding: 0 0.1rem; }
+.em-email { margin: 0 auto; background: var(--papel-escuro); border: 1px solid var(--fio); border-radius: 2px; padding: 0.8rem; transition: max-width 0.2s ease-out; }
+.em-email--computador { max-width: 640px; }
+.em-email--celular { max-width: 360px; }
+.em-email__caixa { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.55rem 0.7rem; font-size: 0.82rem; margin-bottom: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.em-email--celular .em-email__caixa { white-space: normal; }
+.em-email__assunto { font-weight: 700; }
+.em-email__folha { background: #fff; border: 1px solid var(--fio); border-radius: 2px; font-family: Arial, Helvetica, sans-serif; color: #222; }
+.em-email__cabeca { background: var(--carvao); padding: 0.9rem 1.2rem; }
+.em-email__cabeca img { display: block; width: 120px; height: auto; }
+.em-email__corpo { padding: 1.3rem 1.4rem; font-size: 15px; line-height: 1.55; display: grid; gap: 0.9rem; }
+.em-email--celular .em-email__corpo { padding: 1rem; font-size: 14px; }
+.em-email__corpo a { color: #2f6db3; text-decoration: underline; }
+.em-email__botao a { display: inline-block; background: var(--carvao); color: var(--bege) !important; text-decoration: none !important; padding: 0.65rem 1.2rem; border-radius: 3px; font-weight: 700; }
+.em-email--celular .em-email__botao a { display: block; text-align: center; }
+.em-email__rodape { border-top: 1px solid #e5e5e5; padding: 0.9rem 1.4rem; font-size: 11px; color: #888; line-height: 1.5; }
+.em-email__rodape a { color: #888; text-decoration: underline; }
+@media (max-width: 1100px) { .em-editor { grid-template-columns: minmax(0, 1fr); } .em-editor__previa { position: static; } }
+
+/* Editor por blocos (email-blocos.js) · PROTÓTIPO 389 */
+.eb { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 2rem; align-items: start; }
+.eb-editor { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.3rem; }
+.eb-editor > *, .eb-card__corpo > *, .eb-pilha > * { min-width: 0; }
+.eb-card__corpo { grid-template-columns: minmax(0, 1fr); }
+.eb-editor .ag-form { max-width: none; }
+.eb-editor .ag-form input { width: 100%; }
+.eb-secao { border-top: 2px solid var(--fio-forte); padding-top: 0.7rem; display: grid; gap: 0.7rem; }
+.eb-secao .ag-h3 { margin: 0; display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; }
+.eb-duas { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.8rem 1rem; }
+.eb-sujo { color: var(--alerta-texto); font-weight: 700; }
+.eb-avisos__caixa ul { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.eb-avisos__caixa .ag-link-linha { font-weight: 400; color: inherit; display: inline; min-height: 0; padding: 0; vertical-align: baseline; }
+/* Pilha */
+.eb-pilha { list-style: none; margin: 0; padding: 0; display: grid; }
+.eb-card { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; position: relative; transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out; }
+.eb-card--aberto { border-color: var(--tinta); box-shadow: 0 0 0 1px var(--tinta); }
+.eb-card--aviso:not(.eb-card--aberto) { border-color: var(--alerta); }
+.eb-card--arrastando { opacity: 0.45; }
+.eb-card--cab { margin-bottom: 0.7rem; border-style: solid; border-color: var(--fio-forte); }
+.eb-card--cab.eb-card--sem { border-style: dashed; border-color: var(--taupe); }
+.eb-card--sem .eb-card__resumo { font-style: italic; }
+.eb-alca--fixa { cursor: default; color: var(--tinta-2); }
+.eb-zona { list-style: none; margin: -0.5rem 0 0.9rem 1.2rem; padding: 0.4rem 0 0.2rem 0.8rem; border-left: 2px solid var(--fio-forte); }
+.eb-zona__lista { list-style: none; margin: 0; padding: 0; display: grid; }
+.eb-zona__lista > * { min-width: 0; }
+.eb-fim--cab { padding-top: 0.5rem; }
+.eb-zona__rotulo { list-style: none; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); padding: 0.2rem 0 0.1rem; }
+.eb-cab-volta { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+.eb-alvo-antes { box-shadow: 0 -3px 0 var(--tinta); }
+.eb-alvo-depois { box-shadow: 0 3px 0 var(--tinta); }
+.eb-card__topo { display: flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.4rem 0.3rem 0.2rem; min-height: 2.9rem; }
+.eb-alca { display: inline-grid; place-items: center; width: 1.4rem; height: 2rem; color: var(--apagado); cursor: grab; flex: none; }
+.eb-alca:active { cursor: grabbing; }
+.eb-card__abrir { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 0.6rem; background: none; border: 0; padding: 0.35rem 0.2rem; font: inherit; color: var(--tinta); text-align: left; cursor: pointer; }
+.eb-card__abrir:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
+.eb-card__tipo { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 700; white-space: nowrap; flex: none; }
+.eb-card__resumo { color: var(--apagado); font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.eb-card__selo { flex: none; transform: none; }
+.eb-card__acoes { display: inline-flex; gap: 0.05rem; flex: none; }
+.eb-card__corpo { border-top: 1px dashed var(--fio); padding: 0.9rem 0.9rem 1rem 1.6rem; display: grid; gap: 0.8rem; }
+.eb-card__corpo label { display: grid; gap: 0.3rem; }
+.eb-card__corpo input[type="text"], .eb-card__corpo input[type="url"] { width: 100%; }
+.eb-card__avisos { margin: 0; padding: 0.5rem 0.7rem 0.5rem 1.6rem; background: rgba(183,121,31,0.08); border-left: 2px solid var(--alerta); color: var(--alerta-texto); font-size: 0.82rem; }
+.eb-inserir { height: 0.7rem; display: grid; place-items: center; position: relative; }
+.eb-inserir__b { position: absolute; z-index: 2; width: 1.6rem; height: 1.6rem; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--fio); background: var(--papel); color: var(--tinta-2); cursor: pointer; opacity: 0; transition: opacity 0.12s ease-out; }
+.eb-inserir:hover .eb-inserir__b, .eb-inserir__b:focus-visible, .eb-inserir:has(.eb-tipos) .eb-inserir__b { opacity: 1; }
+.eb-inserir__b:hover { border-color: var(--tinta); color: var(--tinta); }
+@media (hover: none) { .eb-inserir { height: 1.9rem; } .eb-inserir__b { opacity: 1; } }
+.eb-fim { padding-top: 0.8rem; position: relative; }
+.eb-tipos { position: absolute; z-index: 20; top: 100%; left: 0; width: min(22rem, 100%); background: var(--etiqueta); border: 1px solid var(--tinta); border-radius: 2px; box-shadow: 0 8px 20px -10px rgba(22,21,19,0.4); padding: 0.4rem; display: grid; gap: 0.1rem; }
+.eb-inserir .eb-tipos { top: 1.1rem; left: 50%; transform: translateX(-50%); }
+.eb-tipos > .mini { padding: 0.2rem 0.5rem 0.3rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; }
+.eb-tipos button { display: flex; gap: 0.6rem; align-items: flex-start; text-align: left; background: none; border: 0; border-radius: 2px; padding: 0.45rem 0.5rem; font: inherit; color: var(--tinta); cursor: pointer; }
+.eb-tipos button svg { margin-top: 0.15rem; flex: none; }
+.eb-tipos button span { display: grid; }
+.eb-tipos button:hover, .eb-tipos button:focus-visible { background: var(--papel-escuro); outline: none; }
+/* Texto rico */
+.eb-rico__barra { display: flex; gap: 0.15rem; flex-wrap: wrap; border: 1px solid var(--fio); border-bottom: 0; border-radius: 2px 2px 0 0; padding: 0.2rem; background: var(--papel); }
+.eb-fmt--txt { width: auto; padding: 0 0.5rem; font-size: 0.8rem; }
+.eb-rico { min-height: 6rem; border: 1px solid var(--fio); border-radius: 0 0 2px 2px; background: #fff; padding: 0.6rem 0.75rem; line-height: 1.55; overflow-wrap: anywhere; }
+.eb-rico:focus { outline: 2px solid var(--tinta); outline-offset: -1px; }
+.eb-rico p { margin: 0 0 0.6rem; } .eb-rico ul { margin: 0 0 0.6rem; padding-left: 1.2rem; } .eb-rico a { color: var(--tinta); text-decoration: underline; }
+.eb-link { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin-top: 0.4rem; }
+.eb-link input { flex: 1 1 12rem; }
+/* Cor */
+.eb-cor__linha { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.eb-cor input[type="color"] { width: 2.4rem; height: 2.1rem; padding: 0.15rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); cursor: pointer; }
+.eb-cor__hex { width: 6.5rem !important; font-variant-numeric: tabular-nums; text-transform: lowercase; }
+.eb-cor__amostras { display: flex; gap: 0.3rem; align-items: center; flex-wrap: wrap; margin-top: 0.35rem; }
+.eb-cor__amostras .mini { margin-right: 0.1rem; }
+.eb-cor__amostras .mini:not(:first-child) { margin-left: 0.4rem; }
+.eb-amostra { width: 1.5rem; height: 1.5rem; border-radius: 2px; border: 1px solid var(--fio); cursor: pointer; padding: 0; }
+.eb-amostra:hover, .eb-amostra:focus-visible { outline: 2px solid var(--tinta); outline-offset: 1px; }
+/* Imagem */
+.eb-img-escolhida { display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap; }
+.eb-img-escolhida img { width: 4.5rem; height: 3rem; object-fit: contain; border: 1px solid var(--fio); border-radius: 2px; background: var(--papel-escuro); }
+.eb-img-escolhida > span { display: grid; flex: 1 1 10rem; min-width: 0; }
+.eb-img-acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.eb-img-acoes .btn { display: inline-flex; align-items: center; gap: 0.35rem; }
+.eb-solta { display: flex; gap: 0.8rem; align-items: center; padding: 1rem; border: 1.5px dashed var(--taupe); border-radius: 2px; background: var(--papel); color: var(--tinta-2); transition: border-color 0.12s ease-out, background 0.12s ease-out; }
+.eb-solta > span { display: grid; gap: 0.15rem; }
+.eb-solta svg { width: 1.6rem; height: 1.6rem; flex: none; }
+.eb-solta--sobre, .eb-img-escolhida.eb-solta--sobre { border-color: var(--tinta); background: var(--papel-escuro); }
+.eb-img-escolhida { border: 1.5px dashed transparent; border-radius: 2px; }
+.eb-biblio__subir { place-items: center; align-content: center; min-height: 6.5rem; border-style: dashed; border-color: var(--taupe); color: var(--tinta); font-weight: 700; text-align: center; }
+.eb-biblio__subir svg { width: 1.4rem; height: 1.4rem; }
+.eb-biblio { margin-top: 0.5rem; border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem; background: var(--papel); }
+.eb-biblio__topo { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.eb-biblio__grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0.5rem; }
+.eb-biblio__item { display: grid; gap: 0.25rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.3rem; font: inherit; font-size: 0.75rem; color: var(--tinta); text-align: left; cursor: pointer; }
+.eb-biblio__item img { width: 100%; aspect-ratio: 3 / 2; object-fit: contain; background: var(--papel-escuro); border-radius: 1px; }
+.eb-biblio__item:hover, .eb-biblio__item:focus-visible { border-color: var(--tinta); outline: none; }
+.eb-biblio__item--atual { border-color: var(--tinta); box-shadow: 0 0 0 1px var(--tinta); }
+/* Prévia */
+.eb-previa { position: sticky; top: 1rem; min-width: 0; }
+.eb-entrada { display: grid; gap: 0.15rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.55rem 0.7rem; font-size: 0.82rem; margin-bottom: 0.6rem; }
+.eb-entrada > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eb-moldura { background: var(--papel-escuro); border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem; max-height: calc(100dvh - 9rem); overflow: auto; }
+.eb-moldura iframe { display: block; width: 100%; border: 0; min-height: 420px; overflow: hidden; margin: 0 auto; background: #fff; transition: max-width 0.2s ease-out; }
+.eb-moldura--celular iframe { max-width: 375px; }
+/* Campanha com e-mail escrito · PROTÓTIPO 391 */
+.eb-camp { display: grid; gap: 1rem; margin-bottom: 1.6rem; padding-bottom: 1.4rem; border-bottom: 2px solid var(--fio-forte); }
+.eb-camp__grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1.2rem 2rem; }
+.eb-camp__col { max-width: none; }
+.eb-camp .em-resumo { max-width: 40rem; }
+.eb-camp__titulo-email { margin: 0 0 0.2rem; }
+.eb-salvar-modelo { display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap; }
+.eb-salvar-modelo label { flex: 1 1 12rem; }
+.em-rel-email { display: block; width: 100%; min-height: 420px; border: 1px solid var(--fio); border-radius: 2px; background: #fff; }
+.eb--so-previa { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
+.eb--so-previa .eb-editor { display: none; }
+/* Biblioteca de imagens · PROTÓTIPO 390 */
+.eb-bib { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.eb-bib:has(.eb-bib__painel:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 22rem); }
+.eb-bib__principal { min-width: 0; display: grid; gap: 0.9rem; }
+.eb-bib__topo { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+.eb-bib__topo input { flex: 1 1 16rem; min-width: 0; }
+.eb-bib__solta--grande { padding: 3rem 1.5rem; justify-content: center; }
+.eb-bib__fila { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.eb-bib__fila:empty { display: none; }
+.eb-bib__envio { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; padding: 0.5rem 0.7rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; font-size: 0.86rem; }
+.eb-bib__envio--erro { border-left: 3px solid var(--queda); }
+.eb-bib__envio--aviso { border-left: 3px solid var(--alerta); }
+.eb-bib__envio-nome { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.eb-bib__barra { flex: 1 1 8rem; height: 6px; background: var(--papel-escuro); border-radius: 3px; overflow: hidden; }
+.eb-bib__barra i { display: block; height: 100%; background: var(--tinta); transition: width 0.12s linear; }
+.eb-bib__erro { color: var(--queda-texto); flex: 1 1 12rem; }
+.eb-bib__aviso { color: var(--alerta-texto); flex: 1 1 12rem; }
+.eb-bib__grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 0.8rem; }
+.eb-bib__item { display: grid; gap: 0.3rem; align-content: start; text-align: left; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.5rem; font: inherit; color: var(--tinta); cursor: pointer; }
+.eb-bib__item:hover, .eb-bib__item:focus-visible { border-color: var(--tinta); outline: none; }
+.eb-bib__item--aberta { border-color: var(--tinta); box-shadow: 0 0 0 1px var(--tinta); }
+.eb-bib__mini { display: grid; place-items: center; aspect-ratio: 4 / 3; background: var(--papel-escuro); border-radius: 1px; overflow: hidden; }
+.eb-bib__mini img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.eb-bib__nome { font-weight: 700; font-size: 0.86rem; overflow-wrap: anywhere; }
+.eb-bib__uso { justify-self: start; transform: none; }
+.eb-bib__livre { font-style: italic; }
+.eb-bib__painel { position: sticky; top: 1rem; display: grid; gap: 0.9rem; background: var(--etiqueta); border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); border-radius: 2px; padding: 0.9rem; min-width: 0; }
+.eb-bib__painel-topo { display: flex; justify-content: space-between; align-items: center; }
+.eb-bib__grande { display: grid; place-items: center; background: var(--papel-escuro); border-radius: 1px; padding: 0.5rem; }
+.eb-bib__grande img { max-width: 100%; max-height: 16rem; object-fit: contain; }
+.eb-bib__campo { display: grid; gap: 0.3rem; font-size: 0.8rem; color: var(--tinta-2); }
+.eb-bib__end { display: flex; gap: 0.4rem; }
+.eb-bib__end input { flex: 1; min-width: 0; font-size: 0.78rem; }
+.eb-bib__usos { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.eb-bib__apagar { border-top: 1px dashed var(--fio); padding-top: 0.8rem; display: grid; gap: 0.4rem; justify-items: start; }
+.eb-cab-intro { display: grid; gap: 0.4rem; border-top: 2px solid var(--fio-forte); padding-top: 0.7rem; }
+.eb-cab-intro .ag-h3 { margin: 0; }
+@media (max-width: 900px) { .eb-bib:has(.eb-bib__painel:not([hidden])) { grid-template-columns: minmax(0, 1fr); } .eb-bib__painel { position: static; } }
+.eb-paleta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-bottom: 0.6rem; }
+.eb-paleta > .mini { margin-right: 0.2rem; }
+.eb-paleta__item { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.3rem 0.55rem; font: inherit; font-size: 0.8rem; color: var(--tinta); cursor: grab; }
+.eb-paleta__item:hover, .eb-paleta__item:focus-visible { border-color: var(--tinta); }
+.eb-paleta__item:active { cursor: grabbing; }
+.eb-dica { margin: 0 0 0.5rem; text-align: center; }
+.eb-texto { margin: 0; white-space: pre-wrap; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; line-height: 1.55; background: #fff; border: 1px solid var(--fio); padding: 1rem; color: var(--tinta); }
+@media (max-width: 1100px) { .eb { grid-template-columns: minmax(0, 1fr); } .eb-previa { position: static; } .eb-moldura { max-height: none; } }
+@media (max-width: 640px) { .eb-card__resumo { display: none; } .eb-card__corpo { padding-left: 0.9rem; } }
+.em-so-cel { display: none; }
+/* Só para leitor de tela. */
+.so-leitor { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.em-acoes-contato { width: 100%; align-items: center; }
+.em-acao-canto { margin-left: auto; }
+.em-tipos-sel { display: none; }
+.ag-toast__acao { font: inherit; font-weight: 700; color: inherit; background: none; border: 0; border-bottom: 1.5px solid currentColor; padding: 0 0 1px; margin-left: 0.5rem; cursor: pointer; min-height: 24px; }
+.em-lembrete-escolha { display: inline-flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+@media (max-width: 640px) {
+  .em-proto__cen { margin-left: 0; }
+  /* Contatos: nome (com o e-mail embaixo) e situação; o resto fica no detalhe. */
+  .em-cont-lista th:nth-child(n+2):nth-child(-n+4), .em-cont-lista td:nth-child(n+2):nth-child(-n+4) { display: none; }
+  .em-so-cel { display: block; overflow-wrap: anywhere; }
+  /* Agenda › E-mails: tipo num seletor e cada e-mail como um bloco empilhado. */
+  .em-tipos-pilulas { display: none; }
+  .em-tipos-sel { display: block; width: 100%; }
+  .em-agenda-tab thead { display: none; }
+  .em-agenda-tab, .em-agenda-tab tbody, .em-agenda-tab tr, .em-agenda-tab td { display: block; width: 100%; }
+  .em-agenda-tab tr { border-bottom: 1px solid var(--fio); padding: 0.6rem 0; }
+  .em-agenda-tab td { border: 0; padding: 0.25rem 0; }
+  .em-agenda-tab td[data-rot]::before { content: attr(data-rot); display: block; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
+  .em-agenda-tab select { width: 100%; }
+  .em-agenda-tab .em-acoes-agenda { justify-content: flex-start; }
+  .em-cont-lista table { min-width: 0; }
+  .em-cont-lista .ag-link-linha { overflow-wrap: anywhere; word-break: break-word; text-align: left; white-space: normal; }
+  /* Números do topo em duas colunas, mais baixos. */
+  .em .grid-etiquetas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+  .em-regra { grid-template-columns: minmax(0, 1fr) auto; }
+  .em-regra__e { grid-column: 1 / -1; }
+  .em-regra select { grid-column: 1; }
+  .em-regra [data-tirar] { grid-column: 2; grid-row: 2; }
+}
+
+/* Quadro dos fluxos (email-fluxos.js) */
+.fx-topo { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; margin-bottom: 0.7rem; }
+.fx-nome { font: inherit; font-size: 1.1rem !important; font-weight: 700; border-color: transparent !important; background: transparent !important; padding-left: 0.3rem !important; flex: 1 1 14rem; min-width: 0; }
+.fx-nome:hover, .fx-nome:focus { border-color: var(--fio) !important; background: var(--etiqueta) !important; }
+.fx-situacao { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; justify-content: space-between; width: 100%; padding: 0.6rem 0.8rem; background: var(--etiqueta); border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); border-radius: 2px; }
+.fx-estado { display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; align-items: center; min-width: 0; }
+.fx-probs { margin-bottom: 0.7rem; }
+.fx-probs .argo-faixa-chamada { font-size: 0.82rem; color: #8a5a12; }
+.fx-area { position: relative; height: max(440px, calc(100dvh - 300px)); border: 1px solid var(--fio); border-radius: 2px; overflow: hidden; background: var(--papel); }
+.fx-quadro { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
+  background-color: var(--papel); background-image: radial-gradient(circle, var(--fio) 1.1px, transparent 1.3px); background-size: 22px 22px; }
+.fx-quadro:active { cursor: grabbing; }
+.fx-quadro:focus-visible { outline: 2px solid var(--tinta); outline-offset: -2px; }
+.fx-mundo { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.fx-ligacoes { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.fx-aresta { fill: none; stroke: var(--tinta-2); stroke-width: 1.6; }
+.fx-aresta--sel { stroke: var(--tinta); stroke-width: 2.6; }
+.fx-aresta--temp { stroke: var(--tinta); stroke-dasharray: 6 5; stroke-width: 2; }
+.fx-aresta-alvo { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
+.fx-seta { fill: var(--tinta-2); }
+.fx-seta--sel { fill: var(--tinta); }
+.fx-cartoes { position: absolute; left: 0; top: 0; }
+.fx-cartao { position: absolute; width: 248px; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px 2px 3px 3px; box-shadow: 0 1px 0 rgba(22,21,19,0.06), 0 6px 14px -10px rgba(22,21,19,0.25); cursor: pointer; font-size: 0.82rem; }
+.fx-cartao:hover { border-color: var(--tinta-2); }
+.fx-cartao.fx-sel { border-color: var(--tinta); box-shadow: 0 0 0 1px var(--tinta), 0 12px 22px -12px rgba(22,21,19,0.35); }
+.fx-cartao.fx-alvo { box-shadow: 0 0 0 3px rgba(22,21,19,0.25); border-color: var(--tinta); }
+.fx-cartao.fx-arrastando { cursor: grabbing; box-shadow: 0 16px 28px -14px rgba(22,21,19,0.45); }
+/* Cartão incompleto é pendência, não falha: âmbar, com o texto escurecido. */
+.fx-cartao.fx-problema { border-color: var(--alerta); box-shadow: 0 0 0 1px var(--alerta); }
+/* Selecionado com problema: o vermelho fica no cartão e a seleção vem num
+   segundo contorno, em tinta, por fora (antes a seleção sumia). */
+.fx-cartao.fx-sel.fx-problema { box-shadow: 0 0 0 1px var(--alerta), 0 0 0 4px var(--papel), 0 0 0 6px var(--tinta), 0 12px 22px -12px rgba(22,21,19,0.35); }
+.fx-cartao:focus-visible { outline: 2px solid var(--tinta); outline-offset: 5px; }
+/* Fluxo arquivado: só leitura, sem "+" e sem pontos de ligação. */
+.fx-leitura .fx-mais, .fx-leitura .fx-porta { display: none; }
+.fx-leitura .fx-cartao { cursor: pointer; }
+.fx-ferr:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Agenda › E-mails: a vaga do "×" mantém "Mandar teste" alinhado em todas as linhas. */
+.em-acoes-agenda { justify-content: flex-end; }
+.em-vaga { visibility: hidden; }
+.em-remetente { line-height: 1.4; }
+/* Sem cara de navegador: link na tinta com sublinhado em fio, rádio e caixa na
+   tinta, grupo sem moldura. Vale para as telas de e-mail, da agenda e as gavetas. */
+.em a, .ag-gaveta a, #secao-agenda a { color: var(--tinta); text-decoration: underline; text-decoration-color: var(--fio-forte); text-underline-offset: 3px; }
+.em a:hover, .ag-gaveta a:hover, #secao-agenda a:hover { text-decoration-color: var(--tinta); text-decoration-thickness: 2px; }
+.em input[type="radio"], .em input[type="checkbox"], .ag-gaveta input[type="radio"], .ag-gaveta input[type="checkbox"] { accent-color: var(--tinta); }
+.em fieldset, .ag-gaveta fieldset { border: 0; padding: 0; margin: 0 0 0.9rem; min-width: 0; }
+.em legend, .ag-gaveta legend { padding: 0; margin-bottom: 0.4rem; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
+.em-passos { list-style: none; margin: 0 0 1rem; padding: 0.7rem 0.9rem; border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); background: var(--etiqueta); display: grid; gap: 0.45rem; }
+.em-passos:empty { display: none; }
+.em-passos .carimbo { margin-right: 0.35rem; }
+.em-pendencias { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.em-pendencias button { text-align: left; }
+.em input[type="checkbox"] { min-height: 24px; }
+/* Subseções do e-mail num seletor, só no celular (a barra vira faixa de rolar). */
+.em-subnav { display: none; margin-bottom: 1rem; }
+.em-subnav select { width: 100%; }
+@media (max-width: 900px) { .em-subnav { display: block; } }
+.fx-selo-problema { position: absolute; top: -0.7rem; right: 0.6rem; background: var(--etiqueta); color: var(--alerta-texto); border: 1.5px solid currentColor; border-radius: 2px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.05rem 0.4rem; transform: rotate(-2deg); white-space: nowrap; }
+.fx-cabeca { display: flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--fio); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tinta-2); }
+.fx-cabeca svg, .fx-escolha svg, .fx-painel__topo > svg, .fx-nota__cabeca svg { width: 0.95rem; height: 0.95rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.fx-cartao--inicio .fx-cabeca { background: var(--tinta); color: var(--papel); border-bottom-color: var(--tinta); border-radius: 1px 1px 0 0; }
+.fx-cartao--fim { width: 168px; }
+.fx-cartao--objetivo .fx-cabeca { border-bottom: 2px solid var(--fio-forte); }
+.fx-corpo { padding: 0.6rem 0.75rem; display: grid; gap: 0.3rem; line-height: 1.35; }
+.fx-corpo p { margin: 0; }
+.fx-assunto { font-weight: 700; }
+.fx-previa { color: var(--apagado); font-size: 0.76rem; }
+.fx-vazio { color: var(--apagado); font-style: italic; }
+.fx-cartao.fx-problema .fx-vazio { color: var(--alerta-texto); }
+.fx-gatilhos, .fx-conds { list-style: none; display: grid; gap: 0.25rem; }
+.fx-ou { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); }
+.fx-nums { display: flex; gap: 0.2rem 0.9rem; flex-wrap: wrap; padding: 0.45rem 0.75rem; border-top: 1px dashed var(--fio); }
+.fx-nums div { display: grid; }
+.fx-nums span { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--apagado); }
+.fx-nums b { font-size: 1rem; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.fx-nums small { font-size: 0.6875rem; color: var(--apagado); font-variant-numeric: tabular-nums; }
+.fx-nums--vazio { font-size: 0.72rem; color: var(--apagado); }
+.fx-esperando { background: none; border: 0; font: inherit; font-size: 0.78rem; color: var(--tinta); cursor: pointer; padding: 0; text-decoration: underline; text-decoration-color: var(--fio); text-underline-offset: 3px; }
+.fx-esperando b { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.fx-saidas { border-top: 1px solid var(--fio); }
+.fx-saida { position: relative; display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem; min-height: 2rem; padding: 0.3rem 1.1rem 0.3rem 0.75rem; font-size: 0.76rem; color: var(--tinta-2); text-align: right; }
+.fx-saida + .fx-saida { border-top: 1px dashed var(--fio); }
+.fx-saida b { color: var(--tinta); font-variant-numeric: tabular-nums; margin-left: 0.2rem; }
+.fx-porta { position: absolute; right: -7px; top: 50%; width: 13px; height: 13px; margin-top: -6.5px; border-radius: 50%; background: var(--etiqueta); border: 2px solid var(--tinta); cursor: crosshair; z-index: 2; touch-action: none; }
+.fx-porta::after { content: ""; position: absolute; inset: -9px; }
+.fx-porta:hover { transform: scale(1.25); }
+.fx-porta--ligada { background: var(--tinta); }
+.fx-mais { position: absolute; right: -40px; top: 50%; margin-top: -12px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; border: 1px dashed var(--tinta-2); background: var(--etiqueta); color: var(--tinta); cursor: pointer; padding: 0; }
+.fx-mais:hover { border-style: solid; background: var(--tinta); color: var(--papel); }
+.fx-mais svg { width: 0.85rem; height: 0.85rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.fx-cartao.fx-problema .fx-mais { border-color: var(--alerta); color: var(--alerta-texto); }
+.fx-entrada { position: absolute; left: -6px; top: 15px; width: 11px; height: 11px; border-radius: 50%; background: var(--papel); border: 2px solid var(--tinta-2); }
+.fx-desligar { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--queda); background: var(--etiqueta); color: var(--queda); cursor: pointer; padding: 0; z-index: 3; }
+.fx-desligar[hidden] { display: none; }
+.fx-desligar svg { width: 0.8rem; height: 0.8rem; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.fx-nota { position: absolute; width: 230px; background: var(--papel-escuro); border: 1px dashed var(--tinta-2); border-radius: 2px; font-size: 0.8rem; color: var(--tinta-2); cursor: move; }
+.fx-nota__cabeca { display: flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.4rem 0.2rem 0.6rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); }
+.fx-nota__tirar { margin-left: auto; background: none; border: 0; color: var(--apagado); cursor: pointer; display: grid; place-items: center; width: 1.4rem; height: 1.4rem; padding: 0; }
+.fx-nota__tirar:hover { color: var(--queda); }
+.fx-nota__tirar svg { width: 0.75rem; height: 0.75rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.fx-nota__texto { padding: 0 0.6rem 0.6rem; line-height: 1.4; white-space: pre-wrap; outline: none; }
+.fx-nota__texto[contenteditable="true"] { background: var(--etiqueta); box-shadow: inset 0 0 0 1px var(--tinta); margin: 0 0.3rem 0.3rem; padding: 0.3rem; cursor: text; user-select: text; -webkit-user-select: text; }
+.fx-ferramentas { position: absolute; left: 0.6rem; top: 0.6rem; right: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; pointer-events: none; }
+.fx-ferramentas > * { pointer-events: auto; }
+.fx-ferr { height: 2rem; min-width: 2rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; color: var(--tinta); cursor: pointer; font: inherit; font-size: 0.8rem; padding: 0 0.35rem; }
+.fx-ferr:hover { border-color: var(--tinta); }
+.fx-ferr svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.fx-ferr--txt { padding: 0 0.6rem; }
+.fx-zoom { min-width: 3rem; text-align: center; font-size: 0.78rem; font-variant-numeric: tabular-nums; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; height: 2rem; line-height: 2rem; }
+.fx-sep { width: 0.4rem; }
+.fx-ferramentas select { height: 2rem; font-size: 0.8rem; padding-top: 0; padding-bottom: 0; border-color: var(--fio); }
+.fx-mapa { position: absolute; right: 0.6rem; bottom: 0.6rem; width: 190px; height: 120px; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; cursor: pointer; touch-action: none; box-shadow: 0 6px 14px -10px rgba(22,21,19,0.25); }
+.fx-mapa svg { width: 100%; height: 100%; display: block; }
+.fx-mapa-no { fill: var(--fio); }
+.fx-mapa-no--inicio { fill: var(--tinta); }
+.fx-mapa-no--nota { fill: none; stroke: var(--fio); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 2; }
+.fx-mapa-no--prob { fill: var(--queda); }
+.fx-mapa-vista { fill: rgba(22,21,19,0.05); stroke: var(--tinta); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.fx-painel { position: absolute; right: 0; top: 0; bottom: 0; width: 350px; max-width: 100%; background: var(--papel); border-left: 1px solid var(--fio); display: grid; grid-template-rows: auto 1fr auto; z-index: 6; box-shadow: -10px 0 24px -18px rgba(22,21,19,0.4); }
+.fx-painel[hidden] { display: none; }
+.fx-painel__topo { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.9rem 1rem 0.7rem; border-bottom: 2px solid var(--fio-forte); }
+.fx-painel__topo > svg { margin-top: 0.2rem; }
+.fx-painel__topo > div { display: grid; flex: 1; min-width: 0; }
+.fx-painel__topo b { font-size: 1rem; }
+.fx-painel__corpo { overflow-y: auto; padding: 0.9rem 1rem; display: grid; gap: 0.7rem; align-content: start; max-width: none; }
+.fx-painel__corpo select, .fx-painel__corpo input:not([type="checkbox"]):not([type="radio"]) { width: 100%; min-width: 0; }
+.fx-painel__pe { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0.7rem 1rem; border-top: 1px solid var(--fio); background: var(--etiqueta); }
+.fx-painel__pe .btn { display: inline-flex; align-items: center; gap: 0.35rem; }
+.fx-painel__pe svg { width: 0.9rem; height: 0.9rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.fx-bloco { display: grid; gap: 0.45rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem 0.7rem; }
+.fx-bloco__topo { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+.fx-filtro { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto; gap: 0.3rem; align-items: center; }
+.fx-pequeno { padding: 0.25rem 0.6rem; font-size: 0.78rem; justify-self: start; }
+.fx-estimativa { font-size: 0.76rem; color: var(--tinta-2); background: var(--papel-escuro); padding: 0.4rem 0.55rem; border-radius: 2px; }
+.fx-previa-email { display: grid; gap: 0.15rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem 0.7rem; }
+.fx-modos { border: 0; padding: 0; display: grid; gap: 0.35rem; }
+.fx-linha { display: flex; gap: 0.4rem; align-items: center; }
+.fx-linha input[type="number"] { width: 5rem !important; }
+.fx-linha input[type="time"] { width: auto !important; }
+.fx-seg { justify-self: start; }
+.fx-escolha { position: absolute; z-index: 8; width: 270px; background: var(--etiqueta); border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); border-radius: 2px; box-shadow: 0 12px 26px -14px rgba(22,21,19,0.45); padding: 0.3rem 0; display: grid; }
+.fx-escolha[hidden] { display: none; }
+.fx-escolha__titulo { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); padding: 0.35rem 0.8rem 0.25rem; }
+.fx-escolha button { display: flex; gap: 0.6rem; align-items: flex-start; text-align: left; background: none; border: 0; font: inherit; padding: 0.45rem 0.8rem; cursor: pointer; color: var(--tinta); }
+.fx-escolha button:hover, .fx-escolha button:focus-visible { background: var(--papel-escuro); outline: none; }
+.fx-escolha button svg { margin-top: 0.15rem; }
+.fx-escolha button span { display: grid; }
+.fx-escolha small { color: var(--apagado); font-size: 0.74rem; }
+.fx-dica { margin-top: 0.5rem; }
+.fx-teste li { list-style: none; }
+@media (max-width: 700px) {
+  .fx-area { height: 68dvh; min-height: 420px; }
+  .fx-painel { position: fixed; left: 0; right: 0; top: auto; bottom: 0; width: 100%; max-height: 72dvh; border-left: 0; border-top: 1px solid var(--fio); z-index: 40; box-shadow: 0 -10px 24px -14px rgba(22,21,19,0.45); }
+  .fx-mapa { width: 120px; height: 78px; }
+  .fx-ferr--txt { padding: 0 0.45rem; }
+  .fx-situacao .ag-acoes { width: 100%; }
+}
 </style>
 </head>
 <body>
@@ -723,8 +1309,24 @@ td.pago, th.pago { color: var(--alerta); }
 <div class="layout" id="app" hidden>
   <aside class="sidebar">
     <div class="marca"><img class="marca-logo" src="/dash/logo-atacado-exponencial.png" alt="Atacado Exponencial" width="957" height="261"><small>Tracking interno</small></div>
+    <!-- SONDA (02/10): ecossistema de apps. Cada app mostra só o próprio menu. -->
+    <nav class="apps" id="apps" aria-label="Apps">
+      <a href="#visao" data-app-ir="numeros" aria-label="Números"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Números</span></a>
+      <a href="#agenda?v=agendamentos" data-app-ir="agenda" aria-label="Agenda"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Agenda</span></a>
+      <a href="#disparos" data-app-ir="operacao" aria-label="Operação"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg><span>Operação</span></a>
+      <a href="#instagram" data-app-ir="marketing" aria-label="Marketing"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg><span>Marketing</span></a>
+    </nav>
     <nav class="nav" id="nav" aria-label="Seções do painel">
-      <div class="nav-grupo" role="group" aria-labelledby="nav-resultados">
+      <div class="nav-grupo" role="group" aria-labelledby="nav-agenda-app" data-app="agenda">
+        <span class="nav-rotulo" id="nav-agenda-app">Agenda</span>
+        <a href="#agenda?v=agendamentos" data-agenda-nav="agendamentos">Agendamentos</a>
+        <span class="nav-rotulo nav-rotulo--sub">Configuração</span>
+        <a href="#agenda?v=tipos" data-agenda-nav="tipos">Tipos de reunião</a>
+        <a href="#agenda?v=grades" data-agenda-nav="grades">Grades de horário</a>
+        <a href="#agenda?v=agendas" data-agenda-nav="agendas">Agendas conectadas</a>
+        <a href="#agenda-emails" data-secao="agenda-emails">E-mails</a>
+      </div>
+      <div class="nav-grupo" role="group" aria-labelledby="nav-resultados" data-app="numeros">
         <span class="nav-rotulo" id="nav-resultados">Resultados</span>
         <a href="#visao" data-secao="visao">Visão geral</a>
         <a href="#leads" data-secao="leads">Leads</a>
@@ -736,7 +1338,7 @@ td.pago, th.pago { color: var(--alerta); }
         <a href="#workshops" data-secao="workshops">Workshops</a>
         <a href="#grupos" data-secao="grupos">Grupos</a>
       </div>
-      <div class="nav-grupo" role="group" aria-labelledby="nav-operacao">
+      <div class="nav-grupo" role="group" aria-labelledby="nav-operacao" data-app="operacao">
         <span class="nav-rotulo" id="nav-operacao">Operação</span>
         <a href="#disparos" data-secao="disparos">Disparos</a>
         <a href="#links" data-secao="links">Links</a>
@@ -744,16 +1346,26 @@ td.pago, th.pago { color: var(--alerta); }
         <a href="#funis-relatorio" data-secao="funis-relatorio">Funis do relatório</a>
         <a href="#ab" data-secao="ab">Testes A/B</a>
       </div>
-      <div class="nav-grupo" role="group" aria-labelledby="nav-diagnostico">
+      <div class="nav-grupo" role="group" aria-labelledby="nav-diagnostico" data-app="numeros">
         <span class="nav-rotulo" id="nav-diagnostico">Diagnóstico</span>
         <a href="#jornada" data-secao="jornada">Jornada</a>
         <a href="#eventos" data-secao="eventos">Eventos</a>
         <a href="#saude-meta" data-secao="saude-meta">Saúde das integrações</a>
         <a href="#argo" data-secao="argo">Argo</a>
       </div>
-      <div class="nav-grupo" role="group" aria-labelledby="nav-marketing">
+      <div class="nav-grupo" role="group" aria-labelledby="nav-marketing" data-app="marketing">
         <span class="nav-rotulo" id="nav-marketing">Marketing</span>
         <a href="#instagram" data-secao="instagram">Instagram</a>
+        <!-- E-mail próprio (spec-email-proprio.md, protótipos 373–376): public/dash/email-mkt.js -->
+        <span class="nav-rotulo nav-rotulo--sub">E-mail</span>
+        <a href="#mkt-email?v=campanhas" data-email-nav="campanhas">Campanhas</a>
+        <a href="#mkt-email?v=relatorio" data-email-nav="relatorio">Resultados</a>
+        <a href="#mkt-email?v=fluxos" data-email-nav="fluxos">Fluxos</a>
+        <a href="#mkt-email?v=contatos" data-email-nav="contatos">Contatos</a>
+        <a href="#mkt-email?v=segmentos" data-email-nav="segmentos">Segmentos</a>
+        <a href="#mkt-email?v=modelos" data-email-nav="modelos">Modelos</a>
+        <a href="#mkt-email?v=imagens" data-email-nav="imagens">Imagens</a>
+        <a href="#mkt-email?v=configuracao" data-email-nav="configuracao">Configuração</a>
       </div>
     </nav>
   </aside>
@@ -779,9 +1391,13 @@ td.pago, th.pago { color: var(--alerta); }
 
     <section class="secao" id="secao-visao">
       <p class="manchete" id="visao-manchete" data-esqueleto="manchete"></p>
-      <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:5:heroi"></div>
+      <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:9:heroi"></div>
+      <!-- Taxas de passagem (pedido de 02/10): Lead → MQL → RA → RR e no-show. Carga própria. -->
+      <div class="bloco" id="visao-taxas"></div>
       <!-- Painel por funil: os mesmos números do geral, um bloco por funil. Some com o filtro de funil ativo. -->
       <div id="visao-por-funil"></div>
+      <!-- Funil da agenda (spec-conversao-agenda.md): desenhado por public/dash/agenda.js. -->
+      <div id="visao-agenda"></div>
       <!-- Metas (issue 332): sempre o mês corrente até ontem, não segue o filtro. -->
       <div class="metas" id="visao-metas" data-esqueleto="metas"></div>
       <div class="grid-etiquetas" id="visao-kpis" data-esqueleto="etiquetas:4"></div>
@@ -1282,6 +1898,24 @@ td.pago, th.pago { color: var(--alerta); }
       </div>
     </section>
 
+    <!-- Agenda própria (spec-agenda-propria.md, issues 356–363). Desenhada por
+         public/dash/agenda.js; o backend (/api/agenda/*) decide tudo. -->
+    <section class="secao" id="secao-agenda">
+      <div class="ig-vistas" role="group" aria-label="Parte da aba Agenda">
+        <button type="button" class="tipo-pill" data-agenda-vista="agendamentos" aria-pressed="true">Agendamentos</button>
+        <button type="button" class="tipo-pill" data-agenda-vista="tipos" aria-pressed="false">Tipos de reunião</button>
+        <button type="button" class="tipo-pill" data-agenda-vista="grades" aria-pressed="false">Grades de horário</button>
+        <button type="button" class="tipo-pill" data-agenda-vista="agendas" aria-pressed="false">Agendas conectadas</button>
+      </div>
+      <div id="agenda-conteudo"></div>
+    </section>
+
+    <!-- E-mail próprio (spec-email-proprio.md). PROTÓTIPOS 373–376: só front,
+         dados de exemplo. Desenhados por public/dash/email-mkt.js (e o quadro
+         dos fluxos por public/dash/email-fluxos.js). -->
+    <section class="secao" id="secao-mkt-email"><div id="mkt-email-conteudo"></div></section>
+    <section class="secao" id="secao-agenda-emails"><div id="agenda-emails-conteudo"></div></section>
+
     <section class="secao" id="secao-eventos">
       <div class="bloco"><h2>Saúde da captura <small>recuperação de rastreio</small></h2><div class="grid-etiquetas" id="ev-saude"></div></div>
       <div class="bloco"><h2>Eventos recentes</h2><div class="tabela-wrap" id="ev-tabela"></div></div>
@@ -1299,6 +1933,10 @@ td.pago, th.pago { color: var(--alerta); }
   </div>
 </div>
 
+<script src="/dash/agenda.js"></script>
+<script src="/dash/email-mkt.js"></script>
+<script src="/dash/email-fluxos.js"></script>
+<script src="/dash/email-blocos.js"></script>
 <script>
 (() => {
 'use strict';
@@ -1493,8 +2131,12 @@ function tabela(el, colunas, linhas, aoClicar, vazio) {
         return ordem.asc ? cmp : -cmp;
       });
     }
-    const sort = (c) => (c.campo && c.campo === ordem.campo ? ` aria-sort="${ordem.asc ? 'ascending' : 'descending'}"` : '');
-    const ths = colunas.map((c, i) => `<th class="${c.num ? 'num' : ''}${c.campo ? ' ordenavel' : ''}" data-i="${i}"${c.campo ? ' tabindex="0"' : ''}${sort(c)}>${esc(c.titulo)}${c.campo === ordem.campo ? (ordem.asc ? ' ↑' : ' ↓') : ''}</th>`).join('');
+    // Coluna ordenável: o botão dentro do cabeçalho anuncia que ordena, e o
+    // aria-sort diz a ordem atual (leitor de tela). Crítica de UX de 04/10.
+    const sort = (c) => (!c.campo ? '' : c.campo === ordem.campo ? ` aria-sort="${ordem.asc ? 'ascending' : 'descending'}"` : ' aria-sort="none"');
+    const ths = colunas.map((c, i) => `<th class="${c.num ? 'num' : ''}${c.campo ? ' ordenavel' : ''}" data-i="${i}"${sort(c)}>${c.campo
+      ? `<button type="button" class="th-ordenar" data-i="${i}">${esc(c.titulo)}${c.campo === ordem.campo ? (ordem.asc ? ' ↑' : ' ↓') : ''}</button>`
+      : esc(c.titulo)}</th>`).join('');
     const trs = dados.map((l) => `<tr class="${aoClicar ? 'clicavel' : ''}" data-k="${linhas.indexOf(l)}"${aoClicar ? ' tabindex="0"' : ''}>${colunas.map((c) => `<td class="${c.num ? 'num' : ''}">${c.render(l)}</td>`).join('')}</tr>`).join('');
     el.innerHTML = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
   };
@@ -1504,17 +2146,17 @@ function tabela(el, colunas, linhas, aoClicar, vazio) {
       const campo = colunas[Number(th.dataset.i)].campo;
       if (ordem.campo === campo) ordem.asc = !ordem.asc; else { ordem.campo = campo; ordem.asc = false; }
       desenhar();
-      // Redesenhar troca o HTML; o foco volta ao mesmo cabeçalho para quem usa teclado.
-      if (ev.detail === 0) { const novo = el.querySelector(`th[data-i="${th.dataset.i}"]`); if (novo) novo.focus(); }
+      // Redesenhar troca o HTML; o foco volta ao mesmo botão para quem usa teclado.
+      if (ev.detail === 0) { const novo = el.querySelector(`.th-ordenar[data-i="${th.dataset.i}"]`); if (novo) novo.focus(); }
       return;
     }
     const tr = ev.target.closest('tr[data-k]');
     if (tr && aoClicar) aoClicar(linhas[Number(tr.dataset.k)]);
   };
-  // Enter ou espaço num cabeçalho ordenável ou numa linha clicável = clique.
+  // Enter ou espaço numa linha clicável = clique (o cabeçalho já é botão).
   el.onkeydown = (ev) => {
     if (ev.key !== 'Enter' && ev.key !== ' ') return;
-    const alvo = ev.target.closest('th.ordenavel, tr.clicavel');
+    const alvo = ev.target.closest('tr.clicavel');
     if (!alvo || ev.target !== alvo) return;
     ev.preventDefault();
     alvo.click();
@@ -1946,6 +2588,56 @@ document.addEventListener('click', async (ev) => {
 // (`by=funnel`); aqui só se escolhe o que mostrar e se desenha.
 // Fica de fora o `aquisicao` (impulsionamento): não gera lead direto, o CPL
 // dele seria sempre vazio. "sem-funil" vai por último e só se tiver número.
+// Taxas de passagem (pedido de 02/10). `a`/`b`: saída de calcularTaxas ou null.
+// No-show é taxa ruim: sobe = alerta (invertido), como o CPL.
+function tilesTaxas(a, b, crmLido) {
+  const pct = (v) => (v === null || v === undefined ? null : fmtPct(v * 100, 1));
+  const d = (x, y) => (x !== null && x !== undefined && y ? delta(x, y) : undefined);
+  const semCrm = crmLido === false ? 'CRM não lido agora' : '';
+  return [
+    { rotulo: 'Lead → MQL', valor: pct(a && a.lead_mql), delta: a && b ? d(a.lead_mql, b.lead_mql) : undefined, nota: a && a.lead_mql !== null ? `${fmtInt(a.mqls)} MQLs de ${fmtInt(a.leads_novos)} leads novos` : (semCrm || 'nenhum lead novo') },
+    { rotulo: 'MQL → RA', valor: pct(a && a.mql_ra), delta: a && b ? d(a.mql_ra, b.mql_ra) : undefined, nota: a && a.mql_ra !== null ? `${fmtInt(a.agendadas)} reuniões de ${fmtInt(a.mqls)} MQLs` : (semCrm || 'nenhum MQL') },
+    { rotulo: 'RA → RR', valor: pct(a && a.ra_rr), delta: a && b ? d(a.ra_rr, b.ra_rr) : undefined, nota: a && a.ra_rr !== null ? `${fmtInt(a.realizadas)} de ${fmtInt(a.ocorridas)} que já passaram` : 'nenhuma reunião passou da data' },
+    { rotulo: 'No-show', valor: pct(a && a.no_show), delta: a && b ? d(a.no_show, b.no_show) : undefined, invertido: true, nota: a && a.no_show !== null ? `${fmtInt(a.faltas)} faltas` : 'nenhuma presença lida' },
+  ];
+}
+
+async function desenharTaxas(p, fSel) {
+  const alvo = $('#visao-taxas');
+  alvo.innerHTML = '<h2>Taxas de passagem <small>carregando…</small></h2>';
+  let t;
+  try {
+    // Sem cache-buster: período fechado vem do cache (o CRM é lido uma vez só).
+    t = await fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}`);
+  } catch {
+    alvo.innerHTML = '<h2>Taxas de passagem</h2><div class="aviso">Taxas indisponíveis agora.</div>';
+    return;
+  }
+  const doRecorte = (r) => (!r ? null : fSel ? (r.por_funil[fSel] || null) : r.total);
+  const a = doRecorte(t.atual), b = doRecorte(t.anterior);
+  alvo.innerHTML = `<h2>Taxas de passagem <small>${fSel ? 'do funil' : 'funis que agendam reunião'} · MQL pelo status atual no CRM</small></h2>
+    <div class="grid-etiquetas">${tilesTaxas(a, b, t.atual.crm_lido).map((k) => tile(k)).join('')}</div>`;
+  // As mesmas taxas dentro de cada funil do painel por funil.
+  document.querySelectorAll('[data-taxas-funil]').forEach((el) => {
+    const f = el.dataset.taxasFunil;
+    const fa = t.atual.por_funil[f], fb = t.anterior ? t.anterior.por_funil[f] : null;
+    el.innerHTML = fa ? tilesTaxas(fa, fb, t.atual.crm_lido).map((k) => tile(k)).join('') : '';
+  });
+}
+
+// Os quatro números de reunião (spec-conversao-agenda.md, módulo 4).
+// `a`/`b`: { agendadas, realizadas, custo_agendada, custo_realizada, spend } ou null.
+function tilesReunioes(a, b, notaCusto) {
+  const d = (x, y) => (x !== null && x !== undefined && y ? delta(x, y) : undefined);
+  const semCusto = (r, qtd) => (!r ? 'agenda não respondeu' : r.spend > 0 ? (qtd ? '' : 'nenhuma reunião') : 'sem investimento');
+  return [
+    { rotulo: 'Reuniões agendadas', valor: a ? fmtInt(a.agendadas) : null, delta: a && b ? d(a.agendadas, b.agendadas) : undefined, nota: a ? 'pela data em que agendou' : 'agenda não respondeu' },
+    { rotulo: 'Reuniões realizadas', valor: a ? fmtInt(a.realizadas) : null, delta: a && b ? d(a.realizadas, b.realizadas) : undefined, nota: a ? 'pela data da reunião' : 'agenda não respondeu' },
+    { rotulo: 'Custo por reunião agendada', valor: a && a.custo_agendada !== null ? money(a.custo_agendada) : null, delta: a && b ? d(a.custo_agendada, b.custo_agendada) : undefined, invertido: true, nota: a && a.custo_agendada !== null ? notaCusto : semCusto(a, a && a.agendadas) },
+    { rotulo: 'Custo por reunião realizada', valor: a && a.custo_realizada !== null ? money(a.custo_realizada) : null, delta: a && b ? d(a.custo_realizada, b.custo_realizada) : undefined, invertido: true, nota: a && a.custo_realizada !== null ? notaCusto : semCusto(a, a && a.realizadas) },
+  ];
+}
+
 function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
   const alvo = $('#visao-por-funil');
   if (fSel) { alvo.innerHTML = ''; return; }
@@ -1971,7 +2663,12 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
         { rotulo: 'Conversão', valor: txA === null ? null : fmtPct(txA, 2), delta: d(txA, txB), nota: txA === null ? (cA ? 'sem visitas no período' : 'sem página de captação') : '' },
         { rotulo: 'CPL', valor: r.cpl === null ? null : money(r.cpl), delta: d(r.cpl, ant.cpl), invertido: true, nota: r.cpl === null ? (r.spend > 0 ? 'nenhum lead' : 'sem investimento') : '' },
         { rotulo: 'CPL lead novo', valor: r.cpl_novos === null ? null : money(r.cpl_novos), delta: d(r.cpl_novos, ant.cpl_novos), invertido: true, nota: r.cpl_novos === null ? semGasto : '' },
-      ].map((k) => tile(k)).join('')}</div></div>`;
+        // Só nos funis que agendam reunião (têm tipo comercial ou reunião no período).
+        ...(cplA.reunioes && cplA.reunioes.por_funil[r.funnel]
+          ? tilesReunioes(cplA.reunioes.por_funil[r.funnel], cplB && cplB.reunioes ? cplB.reunioes.por_funil[r.funnel] : null, 'investimento do funil')
+          : []),
+      ].map((k) => tile(k)).join('')}</div>
+      ${cplA.reunioes && cplA.reunioes.por_funil[r.funnel] ? `<div class="grid-etiquetas" data-taxas-funil="${esc(r.funnel)}"></div>` : ''}</div>`;
   }).join('');
 }
 
@@ -2001,6 +2698,13 @@ R.visao = async () => {
     fetchJson(`/api/cpl?${q(p.de, p.ate)}${mapaQ}`).catch(() => null),
     fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}`).catch(() => null),
   ]);
+  // Reuniões e custo por reunião (spec-conversao-agenda.md, módulo 4): vêm
+  // prontos do /api/cpl, com o mesmo investimento por funil do CPL.
+  const reunioesDe = (cpl) => {
+    const r = cpl && cpl.reunioes;
+    if (!r) return null;
+    return fSel ? (r.por_funil[fSel] || { agendadas: 0, realizadas: 0, custo_agendada: null, custo_realizada: null, spend: 0 }) : r.total;
+  };
   // funnelCounts sempre traz TODOS os funis; com filtro ativo, usa só o dele.
   const soma = (fc) => (fc || [])
     .filter((c) => !fSel || (c.funnel || '') === fSel)
@@ -2038,6 +2742,7 @@ R.visao = async () => {
     + (cplA !== null ? `, com CPL de <strong>${money(cplA)}</strong>` : '') + '.';
 
   const semGasto = fSel ? 'sem investimento no funil' : 'precisa do sync de investimento';
+  const reA = reunioesDe(cplA_), reB = reunioesDe(cplB_);
   $('#visao-herois').innerHTML = [
     { rotulo: 'Leads', valor: fmtInt(totalLeads), conta: { v: totalLeads, fmt: 'int' }, delta: delta(totalLeads, totalLeadsAnt) },
     // Lead novo = a ponte criou o card no CRM (quem já tinha card e voltou não conta).
@@ -2047,10 +2752,17 @@ R.visao = async () => {
     // o da aba Meta Ads é só do canal pago — por isso o subtítulo.
     { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), conta: { v: cplA, fmt: 'money' }, delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, invertido: true, nota: cplA === null ? semGasto : 'todos os canais' },
     { rotulo: 'CPL lead novo', valor: cplNovoA === null ? null : money(cplNovoA), conta: { v: cplNovoA, fmt: 'money' }, delta: cplNovoA !== null && cplNovoB !== null ? delta(cplNovoA, cplNovoB) : undefined, invertido: true, nota: cplNovoA === null ? (gastoA ? 'nenhum lead novo' : semGasto) : '' },
+    // Reuniões e custo por reunião (spec-conversao-agenda.md, módulo 4), na
+    // mesma linha do total de leads e do CPL: é a soma de todos os funis.
+    ...tilesReunioes(reA, reB, fSel ? 'investimento do funil' : 'só funis que agendam reunião'),
   ].map((k) => tile(k, true)).join('');
   contarNumeros($('#visao-herois'));
 
   desenharPainelPorFunil({ fSel, cplA: cplA_, cplB: cplB_, convA, convB });
+  // Taxas de passagem: leem o CRM (lento); não seguram a Visão geral.
+  desenharTaxas(p, fSel);
+  // Funil da agenda: carga própria, falha nele não derruba a Visão geral.
+  window.AgendaDash.funilVisao(R.agendaCtx(), $('#visao-agenda'), { de: p.de, ate: p.ate, funil: fSel });
 
   $('#visao-kpis').innerHTML = [
     // `visitors` de /api/conversion conta sessões pela PRIMEIRA visita (first-touch
@@ -5571,8 +6283,37 @@ R.instagram = async () => {
   await Promise.all([cabecalho, vista]);
 };
 
+// ---------- Agenda (public/dash/agenda.js) ----------
+// A aba vive em arquivo próprio; aqui só a ponte com o que o dash já tem.
+R.agendaCtx = () => ({
+  $, esc, fmtInt, fmtPct, money, fetchJson, tabela, tile, pedirConfirmacao, intervalo, delta, deltaChip,
+  key: () => key,
+});
+// POST com a chave do dash; erro do backend vira `mensagemUsuario`.
+const postJson = async (rota, corpo) => {
+  const r = await fetch(`${rota}?key=${encodeURIComponent(key)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.error || 'Não foi possível salvar. Tente de novo.'), { mensagemUsuario: d.error, dados: d });
+  return d;
+};
+R.agenda = () => window.AgendaDash.render({
+  $, esc, fmtInt, fmtPct, fetchJson, tabela, tile, pedirConfirmacao, intervalo,
+  key: () => key,
+  postJson,
+  rerender: () => render(),
+  escreverUrl: () => escreverUrl(),
+});
+
+// ---------- E-mail próprio (public/dash/email-mkt.js) ----------
+// Protótipos 373–376 com dados de exemplo; a vista Configuração (377) já usa a API.
+const emailCtx = () => ({ $, esc, fmtInt, fmtPct, tabela, tile, pedirConfirmacao, fetchJson, postJson, rerender: () => render(), escreverUrl: () => escreverUrl() });
+R['mkt-email'] = () => window.EmailMkt.render(emailCtx());
+R['agenda-emails'] = () => window.EmailMkt.renderAgenda(emailCtx());
+
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', argo: 'Argo', instagram: 'Instagram' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
@@ -5597,6 +6338,12 @@ const FILTROS = {
   argo: { nota: 'últimas rodadas · não usa o filtro de datas' },
   // Público é o retrato atual e avisa na própria sub-aba que não segue as datas.
   instagram: { periodo: true, compara: true },
+  // Só a vista Agendamentos usa o período; as outras são cadastro (agenda.js
+  // troca a nota do subtítulo conforme a vista).
+  agenda: { periodo: true },
+  // Protótipos do e-mail: email-mkt.js escreve a nota de cada vista.
+  'mkt-email': { nota: '' },
+  'agenda-emails': { nota: '' },
 };
 let secao = 'visao';
 let renderAtual = 0;
@@ -5630,6 +6377,8 @@ function escreverUrl() {
   if ($('#funil').value) ps.set('f', $('#funil').value);
   if (secao === 'argo' && argoVista === 'propostas') ps.set('v', 'propostas');
   if (secao === 'instagram' && igVista !== 'crescimento') ps.set('v', igVista);
+  if (secao === 'agenda' && window.AgendaDash && window.AgendaDash.vista !== 'agendamentos') ps.set('v', window.AgendaDash.vista);
+  if (secao === 'mkt-email' && window.EmailMkt && window.EmailMkt.vista !== 'campanhas') ps.set('v', window.EmailMkt.vista);
   const qs = ps.toString();
   history.replaceState(null, '', location.pathname + location.search + '#' + secao + (qs ? '?' + qs : ''));
 }
@@ -5642,6 +6391,8 @@ function lerUrl() {
   // A aba Instagram abre em Crescimento, a não ser que o link peça outra sub-aba.
   const vIg = new URLSearchParams(qs || '').get('v');
   igVista = IG_VISTAS.includes(vIg) ? vIg : 'crescimento';
+  if (window.AgendaDash) window.AgendaDash.lerVista(vIg);
+  if (window.EmailMkt && aba === 'mkt-email') window.EmailMkt.lerVista(vIg);
   // Hash sem parâmetros (clique na navegação) mantém os filtros que já estão na tela.
   if (!qs) return;
   const ps = new URLSearchParams(qs);
@@ -5663,6 +6414,27 @@ function lerUrl() {
   funilQ = funil ? '&funnel=' + encodeURIComponent(funil) : '';
 }
 
+// SONDA (02/10): o app aberto sai da aba. Cada app mostra só os grupos dele.
+const APP_DA_SECAO = { agenda: 'agenda', disparos: 'operacao', links: 'operacao', bloqueios: 'operacao', 'funis-relatorio': 'operacao', ab: 'operacao', instagram: 'marketing', 'mkt-email': 'marketing', 'agenda-emails': 'agenda' };
+function aplicarApp() {
+  const app = APP_DA_SECAO[secao] || 'numeros';
+  document.body.dataset.app = app;
+  document.querySelectorAll('#nav .nav-grupo').forEach((g) => { g.hidden = g.dataset.app !== app; });
+  document.querySelectorAll('#apps [data-app-ir]').forEach((a) => a.setAttribute('aria-current', String(a.dataset.appIr === app)));
+  const vista = window.AgendaDash ? window.AgendaDash.vista : 'agendamentos';
+  document.querySelectorAll('[data-agenda-nav]').forEach((a) => {
+    const ativo = secao === 'agenda' && a.dataset.agendaNav === vista;
+    a.classList.toggle('ativo', ativo);
+    if (ativo) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  const vistaEmail = window.EmailMkt ? window.EmailMkt.vista : 'campanhas';
+  document.querySelectorAll('[data-email-nav]').forEach((a) => {
+    const ativo = secao === 'mkt-email' && a.dataset.emailNav === vistaEmail;
+    a.classList.toggle('ativo', ativo);
+    if (ativo) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+}
+
 async function render() {
   $('#titulo').textContent = TITULOS[secao];
   aplicarFiltrosDaAba();
@@ -5673,6 +6445,7 @@ async function render() {
     a.classList.toggle('ativo', ativo);
     if (ativo) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
+  aplicarApp();
   const el = $('#secao-' + secao);
   // Só a chamada mais recente mexe no estado: trocar de período duas vezes
   // seguidas não pode deixar a primeira resposta apagar o "atualizando…".

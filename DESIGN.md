@@ -7,7 +7,7 @@ colors:
   etiqueta: "#fbfaf7"
   tinta: "#161513"
   tinta-2: "#4f4b45"
-  apagado: "#8b857c"
+  apagado: "#68625a"
   fio: "#d9d3c9"
   fio-forte: "#161513"
   carvao: "#1e1e1e"
@@ -150,7 +150,7 @@ Paleta quase monocromática e quente. O papel e a tinta fazem o trabalho; as cor
 - **Etiqueta** (`etiqueta`): fundo de etiqueta, campo de formulário, modal, tooltip, balão de prévia, cartões de dia e de formato.
 - **Tinta** (`tinta`): texto principal, valores, linha do gráfico, barra de proporção, botão primário, pílula ativa, foco de teclado, fio forte.
 - **Tinta 2** (`tinta-2`): a manchete (os números dentro dela voltam à tinta) e o texto do aviso `explica`.
-- **Apagado** (`apagado`): rótulos "REF." em caixa alta, cabeçalhos de tabela, subtítulos, notas, estado vazio, "—" sem dado.
+- **Apagado** (`apagado`): rótulos "REF." em caixa alta, cabeçalhos de tabela, subtítulos, notas, estado vazio, "—" sem dado. Tom #68625a (5,3:1 no papel, 4,9:1 no papel escuro): nunca clarear, porque é o texto de apoio que se lê o tempo todo. Nenhum texto abaixo de 0.6875rem (11px).
 - **Fio** (`fio`): divisória de linha de tabela, contorno de etiqueta, grade do gráfico, rodapé tracejado da etiqueta, esqueleto de carga.
 - **Fio Forte** (`fio-forte`): fio de 2px sob o topo da aba e acima de cada bloco; fio sob o cabeçalho da tabela; dia de hoje na semana; líder por formato.
 

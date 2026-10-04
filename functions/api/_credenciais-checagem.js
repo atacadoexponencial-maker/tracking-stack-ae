@@ -45,6 +45,20 @@ async function testarClickUp(env, fetchImpl) {
   }
 }
 
+// Postmark: dados do próprio servidor com o server token. Sem efeito colateral.
+async function testarPostmark(env, fetchImpl) {
+  try {
+    const r = await comTempoLimite(fetchImpl('https://api.postmarkapp.com/server', {
+      headers: { Accept: 'application/json', 'X-Postmark-Server-Token': String(env.POSTMARK_SERVER_TOKEN).trim() },
+    }));
+    if (r.ok) return 'aceita';
+    if (r.status >= 500 || r.status === 429) return 'sem_resposta';
+    return 'recusada';
+  } catch {
+    return 'sem_resposta';
+  }
+}
+
 /**
  * Executa uma rodada. `origem`: 'automatica' | 'manual'.
  * Devolve { executada, motivo?, total, problemas, mudancas: [{nome, de, para}] }.
@@ -80,6 +94,9 @@ export async function executarChecagem(env, { origem = 'automatica', agora = Mat
   }
   if (limpa('CLICKUP_API_TOKEN')) {
     aceitacao.clickup = await testarClickUp(env, fetchImpl);
+  }
+  if (limpa('POSTMARK_SERVER_TOKEN')) {
+    aceitacao.postmark = await testarPostmark(env, fetchImpl);
   }
 
   let problemas = 0;

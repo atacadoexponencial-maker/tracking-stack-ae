@@ -152,6 +152,12 @@ export const TITULOS_CONDICAO = {
   // spec-protecoes-integracoes.md
   credencial_problema: 'Credencial de integração com problema',
   horario_suspeito: 'Horário suspeito numa integração',
+  // spec-agenda-propria.md, módulo 1
+  agenda_problema: 'Agenda do Google sem leitura',
+  // spec-email-proprio.md, módulo 3
+  email_agenda_falha: 'E-mail da agenda com problema',
+  // spec-email-proprio.md, módulo 7
+  email_reputacao: 'Reputação do e-mail acima do limite',
 };
 
 /**

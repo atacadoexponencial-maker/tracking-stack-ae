@@ -1,0 +1,381 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo-horizontal-preto.png';
+
+// Página pública de agendamento (spec-agenda-propria.md, módulos 4 e 5).
+// Servida em /agendar/<tipo> por functions/agendar/[slug].js, que devolve
+// este HTML; o tipo sai do endereço.
+//
+// Só exibe e coleta. Horários livres, validação, conferência de conflito,
+// bloqueio de robô, criação da reunião, CRM e conversão moram no servidor
+// (/api/agenda/publico/*).
+//
+// Tipo comercial: só abre com o convite (?c=) que o /tracker cria quando o
+// lead envia o formulário da LP. Os dados dele chegam preenchidos; ele só
+// escolhe o horário e confirma. Sem convite, a página manda para a LP.
+---
+
+<BaseLayout
+  title="Agendar reunião | Atacado Exponencial"
+  description="Escolha o melhor dia e horário para a sua reunião com o Atacado Exponencial."
+  showHeader={false}
+  showFooter={false}
+  noindex
+>
+  <section class="ag">
+    <div class="ag__inner">
+      <div id="ag-carregando" class="ag__cartao ag__aviso">
+        <Image src={logo} alt="Atacado Exponencial" width={939} height={253} loading="eager" class="ag__logo" />
+        <p>Carregando a agenda…</p>
+      </div>
+
+      <div id="ag-indisponivel" class="ag__cartao ag__aviso" hidden>
+        <h1 class="ag__titulo">Agenda indisponível</h1>
+        <p id="ag-indisponivel-texto">Esta agenda não está recebendo novos agendamentos agora.</p>
+      </div>
+
+      <!-- Painel único, como o Calendly: no computador, o evento à esquerda e o
+           calendário com a coluna de horários à direita, tudo numa tela. No
+           celular, empilha: evento, calendário, horários. -->
+      <div id="ag-app" class="ag__painel" hidden>
+        <aside class="ag__info">
+          <Image src={logo} alt="Atacado Exponencial" width={939} height={253} loading="eager" class="ag__logo" />
+          <h1 class="ag__titulo" id="ag-nome"></h1>
+          <ul class="ag__meta">
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <span><span id="ag-duracao"></span> min</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>
+              <span>Google Meet. O link chega no convite.</span>
+            </li>
+            <li id="ag-info-quando" class="ag__meta-quando" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+              <span id="ag-info-quando-texto"></span>
+            </li>
+          </ul>
+          <p class="ag__descricao" id="ag-descricao" hidden></p>
+          <button type="button" class="ag__link ag__ler-mais" id="ag-ler-mais" hidden>Ler mais</button>
+        </aside>
+
+        <div class="ag__principal">
+          <div id="ag-passo-horario">
+            <h2 class="ag__subtitulo">Escolha o dia e o horário</h2>
+            <p class="ag__ultimos" id="ag-ultimos" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              Últimos horários disponíveis
+            </p>
+            <div id="ag-calendario"></div>
+          </div>
+
+          <form id="ag-passo-dados" hidden novalidate>
+            <button type="button" class="ag__voltar" id="ag-voltar">‹ Trocar horário</button>
+            <h2 class="ag__subtitulo ag__escolhido" id="ag-escolhido"></h2>
+
+            <div id="ag-resumo" class="ag__resumo" hidden>
+              <p class="ag__rotulo">Seus dados</p>
+              <p><strong id="ag-r-nome"></strong></p>
+              <p id="ag-r-email"></p>
+              <p id="ag-r-telefone"></p>
+              <button type="button" class="ag__link" id="ag-corrigir">Corrigir meus dados</button>
+            </div>
+
+            <div id="ag-campos" class="ag__campos">
+              <label>Nome <input name="nome" autocomplete="name" required></label>
+              <span class="ag__erro" data-erro="nome"></span>
+              <label>E-mail <input name="email" type="email" autocomplete="email" required></label>
+              <span class="ag__erro" data-erro="email"></span>
+              <label>WhatsApp <input name="telefone" type="tel" autocomplete="tel" placeholder="(11) 98765-4321" required></label>
+              <span class="ag__erro" data-erro="telefone"></span>
+            </div>
+
+            <div id="ag-perguntas" class="ag__campos"></div>
+
+            <div id="ag-erro-geral" class="ag__falha" role="alert" hidden></div>
+            <button type="submit" class="btn-cta ag__cta" id="ag-confirmar">Confirmar reunião</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { montarCalendario, dataLonga, horaNoFuso } from '../scripts/agenda-calendario.js';
+
+  const $ = (s: string) => document.querySelector(s) as HTMLElement;
+  const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[c]);
+  const slug = decodeURIComponent(location.pathname.replace(/^\/agendar\/?/, '').replace(/\/$/, ''));
+  const convite = new URLSearchParams(location.search).get('c') || '';
+  let escolhido: number | null = null;
+  let fusoEscolhido = 'America/Sao_Paulo';
+  let tipo: any = null;
+  let cal: any = null;
+
+  // Etapas do funil da agenda (spec-conversao-agenda.md): só com convite, só
+  // tipo comercial. Quem decide se conta (teste, robô, repetido) é o servidor.
+  const etapasEnviadas = new Set<string>();
+  function registrarEtapa(etapa: 'abriu' | 'escolheu') {
+    if (!convite || !tipo || !tipo.comercial || etapasEnviadas.has(etapa)) return;
+    etapasEnviadas.add(etapa);
+    fetch('/api/agenda/publico/etapa', {
+      method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ c: convite, etapa }),
+    }).catch(() => { /* medição nunca atrapalha o agendamento */ });
+  }
+
+  function indisponivel(texto: string) {
+    $('#ag-carregando').hidden = true;
+    $('#ag-app').hidden = true;
+    $('#ag-indisponivel').hidden = false;
+    if (texto) $('#ag-indisponivel-texto').textContent = texto;
+  }
+
+  async function horarios() {
+    const qs = new URLSearchParams({ slug });
+    if (convite) qs.set('c', convite);
+    const r = await fetch('/api/agenda/publico/horarios?' + qs);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Não foi possível carregar os horários.');
+    $('#ag-ultimos').hidden = !d.ultimos;
+    return d.dias || {};
+  }
+
+  function mostrarPasso(passo: 'horario' | 'dados') {
+    $('#ag-passo-horario').hidden = passo !== 'horario';
+    $('#ag-passo-dados').hidden = passo !== 'dados';
+    // No celular o passo novo começa abaixo do texto do evento: rola até ele.
+    if (window.matchMedia('(max-width: 899px)').matches) {
+      $('.ag__principal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function campo(nome: string) { return document.querySelector(`[name="${nome}"]`) as HTMLInputElement; }
+
+  function preencherResumo() {
+    $('#ag-r-nome').textContent = campo('nome').value;
+    $('#ag-r-email').textContent = campo('email').value;
+    $('#ag-r-telefone').textContent = campo('telefone').value;
+  }
+
+  function mostrarErros(campos: Record<string, string>) {
+    document.querySelectorAll('[data-erro]').forEach((e) => { (e as HTMLElement).textContent = ''; });
+    for (const [k, msg] of Object.entries(campos || {})) {
+      const el = document.querySelector(`[data-erro="${k}"]`);
+      if (el) el.textContent = msg;
+    }
+    // Erro num dado que veio do formulário: abre os campos para corrigir.
+    if (['nome', 'email', 'telefone'].some((k) => campos && campos[k])) {
+      $('#ag-resumo').hidden = true;
+      $('#ag-campos').hidden = false;
+    }
+  }
+
+  async function iniciar() {
+    if (!slug) return indisponivel('Endereço de agenda inválido.');
+    const qs = new URLSearchParams({ slug });
+    if (convite) qs.set('c', convite);
+    const r = await fetch('/api/agenda/publico/tipo?' + qs);
+    if (r.status === 404) return indisponivel('Esta agenda não existe.');
+    tipo = await r.json().catch(() => null);
+    if (!tipo) return indisponivel('Não foi possível abrir a agenda agora. Tente de novo em instantes.');
+    if (tipo.estado === 'sem_convite') { location.replace(tipo.destino + location.search.replace(/([?&])c=[^&]*&?/, '$1').replace(/[?&]$/, '')); return; }
+    if (tipo.estado === 'pausado') return indisponivel(tipo.contato ? `Esta agenda não está recebendo novos agendamentos agora. Fale com a gente: ${tipo.contato}` : '');
+
+    $('#ag-nome').textContent = tipo.nome;
+    if (tipo.descricao) {
+      const d = $('#ag-descricao');
+      d.textContent = tipo.descricao;
+      d.hidden = false;
+      // No celular o texto começa recolhido, para o calendário aparecer logo.
+      d.classList.add('recolhida');
+      const mais = $('#ag-ler-mais');
+      mais.hidden = !(d.scrollHeight > d.clientHeight + 2);
+      mais.onclick = () => { d.classList.remove('recolhida'); mais.hidden = true; };
+    }
+    $('#ag-duracao').textContent = tipo.duracao_min;
+    if (tipo.lead) {
+      campo('nome').value = tipo.lead.nome || '';
+      campo('email').value = tipo.lead.email || '';
+      campo('telefone').value = tipo.lead.telefone || '';
+      preencherResumo();
+      $('#ag-resumo').hidden = false;
+      $('#ag-campos').hidden = true;
+    }
+    $('#ag-perguntas').innerHTML = (tipo.perguntas || []).map((p: any, i: number) => `
+      <label>${esc(p.texto)}${p.obrigatoria ? '' : ' <span class="ag__opcional">(opcional)</span>'}
+        ${p.tipo === 'escolha'
+          ? `<select name="p${i}"><option value="">Escolha uma opção</option>${p.opcoes.map((o: string) => `<option>${esc(o)}</option>`).join('')}</select>`
+          : `<textarea name="p${i}" rows="3"></textarea>`}
+      </label><span class="ag__erro" data-erro="p${i}"></span>`).join('');
+
+    let dias;
+    try { dias = await horarios(); }
+    catch (e: any) { return indisponivel(e.message); }
+    $('#ag-carregando').hidden = true;
+    $('#ag-app').hidden = false;
+    registrarEtapa('abriu');
+    cal = montarCalendario($('#ag-calendario'), {
+      dias,
+      aoEscolher(t: number, fuso: string) {
+        escolhido = t;
+        fusoEscolhido = fuso;
+        registrarEtapa('escolheu');
+        // O fuso aparece junto: quem trocou de fuso confirma no horário dele.
+        const texto = `${dataLonga(t, fuso)}, às ${horaNoFuso(t, fuso)} (${cal.nomeDoFuso()})`;
+        const ocupado = document.getElementById('ag-aviso-ocupado');
+        if (ocupado) ocupado.remove();
+        $('#ag-escolhido').textContent = texto;
+        $('#ag-info-quando-texto').textContent = texto;
+        $('#ag-info-quando').hidden = false;
+        $('#ag-erro-geral').hidden = true;
+        mostrarPasso('dados');
+      },
+    });
+  }
+
+  $('#ag-voltar').addEventListener('click', () => { $('#ag-info-quando').hidden = true; mostrarPasso('horario'); });
+  $('#ag-corrigir').addEventListener('click', () => { $('#ag-resumo').hidden = true; $('#ag-campos').hidden = false; });
+
+  $('#ag-passo-dados').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const botao = $('#ag-confirmar') as HTMLButtonElement;
+    botao.disabled = true;
+    botao.textContent = 'Confirmando…';
+    $('#ag-erro-geral').hidden = true;
+    const respostas = (tipo.perguntas || []).map((_: any, i: number) => (document.querySelector(`[name="p${i}"]`) as HTMLInputElement)?.value || '');
+    let r: Response, d: any;
+    try {
+      r = await fetch('/api/agenda/publico/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug, c: convite, inicio: escolhido, fuso: fusoEscolhido,
+          nome: campo('nome').value, email: campo('email').value, telefone: campo('telefone').value, respostas,
+        }),
+      });
+      d = await r.json().catch(() => ({}));
+    } catch {
+      r = new Response(null, { status: 599 });
+      d = { error: 'Sem conexão. Confira a internet e tente de novo.' };
+    }
+    if (r.ok) {
+      // Espelho do Schedule no pixel com o mesmo event_id do servidor (dedup).
+      try { if (d.schedule_event_id && typeof (window as any).fbq === 'function') (window as any).fbq('track', 'Schedule', {}, { eventID: d.schedule_event_id }); } catch { /* nunca bloqueia */ }
+      location.href = d.pagina_pos || `/reuniao/${encodeURIComponent(d.gestao)}?novo=1`;
+      return;
+    }
+    botao.disabled = false;
+    botao.textContent = 'Confirmar reunião';
+    if (d.campos) mostrarErros(d.campos);
+    const geral = $('#ag-erro-geral');
+    geral.textContent = d.error || 'Não foi possível confirmar agora. Tente de novo.';
+    geral.hidden = false;
+    if (d.codigo === 'horario_ocupado') {
+      // Alguém pegou o horário: volta para a escolha com os dados preservados.
+      try { cal.definirDias(await horarios()); } catch { /* mantém os horários que já estavam */ }
+      mostrarPasso('horario');
+      document.getElementById('ag-aviso-ocupado')?.remove();
+      const aviso = document.createElement('p');
+      aviso.id = 'ag-aviso-ocupado';
+      aviso.setAttribute('role', 'alert');
+      aviso.className = 'ag__falha';
+      aviso.textContent = 'O horário que você escolheu acabou de ser ocupado. Escolha outro.';
+      $('#ag-passo-horario').prepend(aviso);
+      $('#ag-info-quando').hidden = true;
+    }
+    if (d.codigo === 'sem_convite') indisponivel(d.error);
+  });
+
+  iniciar();
+</script>
+
+<style>
+  .ag {
+    min-height: 100dvh;
+    background: hsl(var(--light-bg));
+    color: hsl(var(--light-fg));
+    padding: clamp(1rem, 4vh, 3rem) 1rem;
+    display: flex;
+    align-items: center;
+  }
+  .ag__inner { width: 100%; max-width: 58rem; margin-inline: auto; }
+  .ag__cartao, .ag__painel {
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(30, 30, 30, 0.08);
+  }
+  .ag__cartao { max-width: 34rem; margin-inline: auto; padding: clamp(1.25rem, 4vw, 2rem); }
+  .ag__aviso { text-align: center; }
+  .ag__aviso p { margin: 0.75rem 0 0; }
+  .ag__logo { height: auto; width: 9.5rem; }
+  .ag__aviso .ag__logo { margin-inline: auto; display: block; }
+
+  .ag__painel { display: grid; overflow: hidden; }
+  .ag__painel[hidden] { display: none; }
+  .ag__info {
+    padding: 1.5rem 1.25rem 1.25rem;
+    border-bottom: 1px solid rgba(30, 30, 30, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .ag__titulo { margin: 0; font-size: clamp(1.45rem, 4.5vw, 1.85rem); line-height: 1.15; }
+  .ag__meta { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; color: rgba(30, 30, 30, 0.75); font-size: 0.95rem; }
+  .ag__meta li { display: flex; gap: 0.6rem; align-items: flex-start; }
+  .ag__meta li[hidden] { display: none; }
+  .ag__meta svg { width: 1.15rem; height: 1.15rem; flex: none; margin-top: 0.1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ag__meta-quando { color: #1e1e1e; font-weight: 700; }
+  .ag__meta-quando span::first-letter { text-transform: uppercase; }
+  .ag__descricao { margin: 0.25rem 0 0; white-space: pre-line; line-height: 1.55; color: rgba(30, 30, 30, 0.8); font-size: 0.95rem; }
+  .ag__principal { padding: 1.25rem; min-width: 0; }
+  .ag__ler-mais { align-self: flex-start; font-size: 0.9rem; }
+  @media (max-width: 899px) {
+    .ag__descricao.recolhida { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  }
+  @media (min-width: 900px) { .ag__ler-mais { display: none; } }
+  /* O aviso de cookies fica preso no rodapé do celular: espaço para o fim da página não ficar embaixo dele. */
+  @media (max-width: 899px) { .ag { padding-bottom: 9rem; } }
+  .ag__subtitulo { margin: 0 0 1.1rem; font-size: 1.1rem; }
+  .ag__ultimos {
+    display: inline-flex; align-items: center; gap: 0.45rem; margin: -0.4rem 0 1rem;
+    padding: 0.4rem 0.8rem; border-radius: 9999px; background: #dff3e6; color: #1b6b3c;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .ag__ultimos[hidden] { display: none; }
+  .ag__ultimos svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  @media (min-width: 900px) {
+    .ag__painel { grid-template-columns: 18rem minmax(0, 1fr); min-height: 30rem; }
+    .ag__info { padding: 2rem 1.75rem; border-bottom: none; border-right: 1px solid rgba(30, 30, 30, 0.1); }
+    .ag__principal { padding: 1.75rem 2rem; }
+    #ag-passo-dados { max-width: 30rem; }
+  }
+
+  .ag__voltar, .ag__link {
+    background: none; border: none; padding: 0; font: inherit; color: rgba(30, 30, 30, 0.7);
+    text-decoration: underline; cursor: pointer;
+  }
+  .ag__escolhido { margin: 0.75rem 0 1.25rem; }
+  .ag__escolhido::first-letter { text-transform: uppercase; }
+  .ag__resumo { background: hsl(var(--light-bg)); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; }
+  .ag__resumo p { margin: 0 0 0.25rem; }
+  .ag__rotulo { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(30, 30, 30, 0.6); }
+  .ag__campos { display: grid; gap: 0.4rem; margin-bottom: 0.75rem; }
+  .ag__campos label { display: grid; gap: 0.3rem; font-size: 0.85rem; font-weight: 700; }
+  .ag__campos input, .ag__campos select, .ag__campos textarea {
+    font: inherit; font-weight: 400; font-size: 1rem; padding: 0.75rem 0.9rem;
+    border-radius: 0.6rem; border: 1px solid rgba(30, 30, 30, 0.25); background: #fff; color: #1e1e1e;
+  }
+  .ag__opcional { font-weight: 400; color: rgba(30, 30, 30, 0.55); }
+  .ag__erro { color: hsl(var(--destructive)); font-size: 0.8rem; }
+  .ag__erro:empty { display: none; }
+  .ag__falha {
+    background: rgba(220, 38, 38, 0.08); color: #9b1c1c; border-radius: 0.6rem;
+    padding: 0.75rem 1rem; margin: 0 0 1rem; font-size: 0.9rem;
+  }
+  .ag__cta { width: 100%; justify-content: center; }
+  .ag__cta:disabled { opacity: 0.6; }
+</style>
