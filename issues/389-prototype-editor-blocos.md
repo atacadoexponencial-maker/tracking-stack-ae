@@ -24,5 +24,6 @@ Conferido no navegador (1440 e 390 px), com gravações bloqueadas: nenhuma tent
 Ajustes pedidos por ela (04/10):
 - "Subir imagem" visível no bloco (botão principal), área "Arraste uma imagem aqui" quando o bloco não tem imagem, e "+ Subir imagem" como primeiro quadrado da biblioteca. Formato, 1 MB e largura acima de 1200 px conferidos.
 - Arrastar e soltar no próprio e-mail (prévia): reordenar blocos, arrastar bloco novo da paleta "Arraste para o e-mail" (clique põe no fim) e soltar imagem do computador (em cima de uma imagem troca; entre blocos cria bloco de imagem).
+- Cabeçalho como primeiro cartão da lista ("Cabeçalho e blocos"), com lixeira para tirar e "Pôr de volta"; clicar na logo dentro do e-mail abre as opções (padrão, outra imagem, sem). Sem cabeçalho, a prévia mostra uma faixa tracejada só no editor.
 
 Falta: aprovação dela na prévia.
