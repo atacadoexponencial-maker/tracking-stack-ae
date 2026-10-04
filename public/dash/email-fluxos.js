@@ -141,7 +141,8 @@
   function resumoGatilhos(f) {
     const g = f.grafo.nos.find((n) => n.tipo === 'inicio').dados.gatilhos;
     if (!g.length) return 'sem gatilho';
-    return g.map((x) => (EVENTOS[x.evento] || { curto: x.evento }).curto + (x.filtros[0] ? ` (${x.filtros[0].valor})` : '')).join(' ou ');
+    const valor = (fl) => (['funil', 'formulario'].includes(fl.campo) ? U().nomeFunil(fl.valor) : fl.valor);
+    return g.map((x) => (EVENTOS[x.evento] || { curto: x.evento }).curto + (x.filtros[0] ? ` (${valor(x.filtros[0])})` : '')).join(' ou ');
   }
   const SIT = { rascunho: ['Rascunho', 'neutro'], ativo: ['Ativo', 'alta'], pausado: ['Pausado', 'alerta'] };
 
@@ -171,7 +172,7 @@
     ctx.tabela(alvo, [
       { titulo: 'Fluxo', campo: 'nome', render: (f) => `<button type="button" class="ag-link-linha" data-acao="abrir" data-id="${f.id}">${esc(f.nome)}</button>` },
       { titulo: 'Gatilhos', render: (f) => `<span class="mini">${esc(resumoGatilhos(f))}</span>` },
-      { titulo: 'Situação', campo: 'situacao', render: (f) => U().carimbo(SIT, f.situacao) },
+      { titulo: 'Situação', campo: 'situacao', render: (f) => (f.arquivado ? '<span class="carimbo neutro">Arquivado</span>' : U().carimbo(SIT, f.situacao)) },
       { titulo: 'Dentro agora', num: true, render: (f) => (f.situacao === 'rascunho' ? '–' : int(f.totais.dentro)) },
       { titulo: 'Concluíram', num: true, render: (f) => (f.situacao === 'rascunho' ? '–' : int(f.totais.concluiram)) },
       { titulo: 'Clique', num: true, render: (f) => (f.totais.clique == null ? '–' : U().pct(f.totais.clique * 100)) },
@@ -670,7 +671,7 @@
       const primeiro = p && p.find((t) => !t.startsWith('Saída'));
       const nome = `${rotuloNo(n)}${p ? `, problema: ${p.map((t) => EXPLICA_PROBLEMA[t] || t).join(', ')}` : ''}`;
       return `<div class="fx-cartao fx-cartao--${n.tipo}${sel === n.id || marcados.has(n.id) ? ' fx-sel' : ''}${primeiro ? ' fx-problema' : ''}" data-no="${n.id}" style="left:${n.x}px;top:${n.y}px"
-        tabindex="0" role="button" aria-label="${esc(nome)}. Enter abre para editar."${sel === n.id ? ' aria-pressed="true"' : ''}>
+        tabindex="0" role="button" aria-label="${esc(nome)}. Enter abre para ${F.arquivado ? 'ver' : 'editar'}."${sel === n.id ? ' aria-pressed="true"' : ''}>
         ${n.tipo === 'inicio' ? '' : '<span class="fx-entrada" aria-hidden="true"></span>'}
         ${primeiro ? `<span class="fx-selo-problema">${esc(primeiro)}</span>` : ''}
         <div class="fx-cabeca">${IC[n.tipo]}<span>${esc(rotuloTipo(n))}</span></div>

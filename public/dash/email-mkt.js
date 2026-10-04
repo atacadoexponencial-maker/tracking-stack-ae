@@ -496,7 +496,8 @@
   function formCampanha(c, el) {
     const S = campEstado;
     const agendada = !!(c && c.situacao === 'agendada');
-    const corpo = `<form class="ag-form em-form" id="em-camp-form" novalidate>
+    const corpo = `<ol class="em-passos" id="em-camp-passos" aria-label="O que falta para disparar"></ol>
+      <form class="ag-form em-form" id="em-camp-form" novalidate>
         <label>Nome interno<input type="text" name="nome" maxlength="100" value="${esc(c ? c.nome : '')}" placeholder="Ex.: Convite workshop 05/11" required></label>
         ${S.opcoes.modelos.length
           ? `<label>Modelo<select name="modelo"><option value="">Escolha um modelo</option>${S.opcoes.modelos.map((m) => `<option value="${m.id}"${c && m.id === c.modelo_id ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>`
@@ -524,7 +525,7 @@
       corpo,
       rodape: agendada
         ? '<div class="ag-acoes"><button class="btn" type="button" data-salvar>Salvar alterações</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn perigo" type="button" data-cancelar>Cancelar envio</button></div>'
-        : '<div class="ag-acoes"><button class="btn" type="button" data-revisar>Revisar e disparar</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button></div>',
+        : '<div class="ag-acoes"><button class="btn" type="button" data-revisar>Revisar e disparar</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button><span class="mini" data-motivo></span></div>',
     });
     const f = g.querySelector('#em-camp-form');
     const erro = g.querySelector('.em-erro');
@@ -540,6 +541,18 @@
       g.querySelector('[data-quando-campos]').hidden = !agendar();
       const br2 = g.querySelector('[data-revisar]');
       if (br2) br2.textContent = agendar() ? 'Revisar e agendar' : 'Revisar e disparar';
+      // O que falta, em passos; sem modelo ou segmento o botão espera, com o motivo ao lado.
+      const temModelo = !!f.modelo.value;
+      const temSeg = !!f.querySelector('[name="seg"]:checked');
+      const passo = (ok, txt, falta) => `<li class="${ok ? 'feito' : 'falta'}"><span class="carimbo ${ok ? 'alta' : 'neutro'}">${ok ? 'Feito' : 'Falta'}</span> ${ok ? txt : falta}</li>`;
+      g.querySelector('#em-camp-passos').innerHTML = temModelo && temSeg ? ''
+        : passo(temModelo, 'Modelo escolhido', S.opcoes.modelos.length ? 'Escolher o modelo' : 'Criar um modelo de marketing em <a href="#mkt-email?v=modelos">Modelos</a>')
+          + passo(temSeg, 'Segmento escolhido', S.opcoes.segmentos.length ? 'Marcar um ou mais segmentos' : 'Criar um segmento em <a href="#mkt-email?v=segmentos">Segmentos</a>')
+          + '<li class="falta"><span class="carimbo neutro">Conselho</span> Mandar um teste para você antes de disparar</li>';
+      if (br2) {
+        br2.disabled = !temModelo || !temSeg;
+        g.querySelector('[data-motivo]').textContent = !temModelo ? 'Falta o modelo.' : !temSeg ? 'Falta o segmento.' : '';
+      }
     };
     f.addEventListener('change', mostrarAssunto);
     mostrarAssunto();
@@ -586,6 +599,9 @@
           <li><span>Denunciaram spam</span><b>${int(r.fora.denunciou)}</b></li>
           <li><span>Endereço inválido</span><b>${int(r.fora.invalido)}</b></li>
         </ul>
+        ${r.ultimo_teste && !r.ultimo_teste.antes_da_mudanca
+          ? `<p class="mini">Último teste deste modelo: ${esc(quando(r.ultimo_teste.em))} para ${esc(r.ultimo_teste.para)}.</p>`
+          : `<div class="aviso alerta">${r.ultimo_teste ? 'Este modelo mudou depois do último teste.' : 'Este modelo ainda não foi testado.'} Vale mandar um teste para você antes (botão Mandar teste, aqui embaixo).</div>`}
         ${r.sem_nome ? `<div class="aviso alerta">${int(r.sem_nome)} ${r.sem_nome === 1 ? 'pessoa está' : 'pessoas estão'} sem nome no cadastro: para elas, o nome do e-mail sai em branco.</div>` : ''}
         <p class="mini">Assunto: <b>${esc(r.assunto)}</b> · remetente ${esc(r.remetente)}. Limite do mês: ${int(r.uso.usados)} usados, restam ${int(r.uso.restam)}.</p>
         ${r.bloqueio ? `<div class="aviso alerta">${esc(r.bloqueio)}</div>` : ''}
@@ -1706,8 +1722,8 @@
           <td><b>${esc(e.nome)}</b></td>
           <td data-rot="Quando sai"><span class="mini">${esc(e.quando)}</span></td>
           <td data-rot="Modelo">${selModelo(e)}</td>
-          <td data-rot="Situação">${chave(!!e.ligado, 'data-ligar')}</td>
-          <td><div class="ag-acoes ag-acoes--linha em-acoes-agenda"><button class="btn sec" type="button" data-teste>Mandar teste</button>${e.evento === 'lembrete' ? `<button class="ag-icone" type="button" data-tirar aria-label="Tirar lembrete">${ICONE.fechar}</button>` : '<span class="ag-icone em-vaga" aria-hidden="true"></span>'}</div></td>
+          <td data-rot="Situação">${chave(!!e.ligado, `data-ligar aria-label="${esc(e.nome)} ligado"`)}</td>
+          <td><div class="ag-acoes ag-acoes--linha em-acoes-agenda"><button class="btn sec" type="button" data-teste aria-label="Mandar teste do ${esc(e.nome)}">Mandar teste</button>${e.evento === 'lembrete' ? `<button class="ag-icone" type="button" data-tirar aria-label="Tirar lembrete">${ICONE.fechar}</button>` : '<span class="ag-icone em-vaga" aria-hidden="true"></span>'}</div></td>
         </tr>`).join('')}
         </tbody></table></div>
         ${livres.length ? `<div class="em-lembrete-novo">

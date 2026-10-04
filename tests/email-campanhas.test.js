@@ -112,6 +112,21 @@ test('resumo: soma sem repetir, quem fica de fora por quê, sem nome e limite', 
   assert.equal((await camp({ acao: 'resumo', modelo_id: 3, segmentos: [s1] })).corpo.sem_nome, 0, 'modelo sem campo de nome');
 });
 
+test('resumo: último teste do modelo, e se veio antes da última mudança', async () => {
+  await contatos([['ana@x.com', 'Ana', 'workshop']]);
+  const s = await segmento('Workshop', 'workshop');
+  assert.equal((await camp({ acao: 'resumo', modelo_id: 1, segmentos: [s] })).corpo.ultimo_teste, null, 'sem teste');
+  db.prepare("UPDATE email_modelos SET atualizado_em = 100 WHERE id = 1").run();
+  const ins = db.prepare("INSERT INTO email_envios (message_id, canal, origem, ref_id, destinatario, situacao, enviado_em) VALUES (?, 'marketing', 'teste', ?, ?, 'enviado', ?)");
+  ins.run('t1', 'modelo:1', 'eu@x.com', 50);
+  ins.run('t2', 'modelo:3', 'outro@x.com', 500);
+  let t = (await camp({ acao: 'resumo', modelo_id: 1, segmentos: [s] })).corpo.ultimo_teste;
+  assert.deepEqual(t, { para: 'eu@x.com', em: 50, antes_da_mudanca: true }, 'teste de outro modelo não conta');
+  ins.run('t3', 'modelo:1', 'eu@x.com', 200);
+  t = (await camp({ acao: 'resumo', modelo_id: 1, segmentos: [s] })).corpo.ultimo_teste;
+  assert.deepEqual(t, { para: 'eu@x.com', em: 200, antes_da_mudanca: false });
+});
+
 test('bloqueios: marketing não liberado, lista vazia, limite do mês e modelo inválido', async () => {
   await contatos([['ana@x.com', 'Ana', 'workshop']]);
   const s = await segmento('Workshop', 'workshop');

@@ -173,7 +173,7 @@ td .mini, .mini { color: var(--apagado); font-size: 0.72rem; }
 /* .explica: explicação permanente, em papel mais escuro. O âmbar de .alerta
    fica só para o que pede ação. */
 .aviso.explica { background: var(--papel-escuro); color: var(--tinta-2); padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; border-radius: 2px; }
-.aviso.alerta { color: #8a5a12; border-left: 1px solid var(--alerta); padding: 0.4rem 0 0.4rem 0.9rem; margin-bottom: 0.8rem; }
+.aviso.alerta { color: var(--alerta-texto); border-left: 1px solid var(--alerta); padding: 0.4rem 0 0.4rem 0.9rem; margin-bottom: 0.8rem; }
 .aviso.falha, .erro-carga p { color: var(--queda); }
 .selo { display: inline-block; margin-left: 0.3rem; padding: 0 0.45rem; border: 1px solid var(--fio); border-radius: 999px; color: #234f82; font-size: 0.72rem; white-space: nowrap; }
 .selo.ar { color: var(--alta); }
@@ -276,6 +276,8 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .faixa-estado.incidente { border-top-color: var(--queda); }
 .faixa-estado.incidente .selo-estado { color: var(--queda-texto); }
 .faixa-estado p { margin: 0; }
+.faixa-estado > :last-child { min-width: 0; }
+@media (max-width: 900px) { .faixa-estado { flex-direction: column; align-items: flex-start; } }
 .saude-filtros { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; }
 .saude-acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 
@@ -998,10 +1000,11 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .fx-cartao.fx-sel { border-color: var(--tinta); box-shadow: 0 0 0 1px var(--tinta), 0 12px 22px -12px rgba(22,21,19,0.35); }
 .fx-cartao.fx-alvo { box-shadow: 0 0 0 3px rgba(22,21,19,0.25); border-color: var(--tinta); }
 .fx-cartao.fx-arrastando { cursor: grabbing; box-shadow: 0 16px 28px -14px rgba(22,21,19,0.45); }
-.fx-cartao.fx-problema { border-color: var(--queda); box-shadow: 0 0 0 1px var(--queda); }
+/* Cartão incompleto é pendência, não falha: âmbar, com o texto escurecido. */
+.fx-cartao.fx-problema { border-color: var(--alerta); box-shadow: 0 0 0 1px var(--alerta); }
 /* Selecionado com problema: o vermelho fica no cartão e a seleção vem num
    segundo contorno, em tinta, por fora (antes a seleção sumia). */
-.fx-cartao.fx-sel.fx-problema { box-shadow: 0 0 0 1px var(--queda), 0 0 0 4px var(--papel), 0 0 0 6px var(--tinta), 0 12px 22px -12px rgba(22,21,19,0.35); }
+.fx-cartao.fx-sel.fx-problema { box-shadow: 0 0 0 1px var(--alerta), 0 0 0 4px var(--papel), 0 0 0 6px var(--tinta), 0 12px 22px -12px rgba(22,21,19,0.35); }
 .fx-cartao:focus-visible { outline: 2px solid var(--tinta); outline-offset: 5px; }
 /* Fluxo arquivado: só leitura, sem "+" e sem pontos de ligação. */
 .fx-leitura .fx-mais, .fx-leitura .fx-porta { display: none; }
@@ -1011,7 +1014,16 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .em-acoes-agenda { justify-content: flex-end; }
 .em-vaga { visibility: hidden; }
 .em-remetente { line-height: 1.4; }
-.em a:visited, .em-barra a:visited { color: inherit; }
+/* Sem cara de navegador: link na tinta com sublinhado em fio, rádio e caixa na
+   tinta, grupo sem moldura. Vale para as telas de e-mail, da agenda e as gavetas. */
+.em a, .ag-gaveta a, #secao-agenda a { color: var(--tinta); text-decoration: underline; text-decoration-color: var(--fio-forte); text-underline-offset: 3px; }
+.em a:hover, .ag-gaveta a:hover, #secao-agenda a:hover { text-decoration-color: var(--tinta); text-decoration-thickness: 2px; }
+.em input[type="radio"], .em input[type="checkbox"], .ag-gaveta input[type="radio"], .ag-gaveta input[type="checkbox"] { accent-color: var(--tinta); }
+.em fieldset, .ag-gaveta fieldset { border: 0; padding: 0; margin: 0 0 0.9rem; min-width: 0; }
+.em legend, .ag-gaveta legend { padding: 0; margin-bottom: 0.4rem; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
+.em-passos { list-style: none; margin: 0 0 1rem; padding: 0.7rem 0.9rem; border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); background: var(--etiqueta); display: grid; gap: 0.45rem; }
+.em-passos:empty { display: none; }
+.em-passos .carimbo { margin-right: 0.35rem; }
 .em-pendencias { margin: 0.4rem 0 0; padding-left: 1.1rem; }
 .em-pendencias button { text-align: left; }
 .em input[type="checkbox"] { min-height: 24px; }
@@ -1019,7 +1031,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .em-subnav { display: none; margin-bottom: 1rem; }
 .em-subnav select { width: 100%; }
 @media (max-width: 900px) { .em-subnav { display: block; } }
-.fx-selo-problema { position: absolute; top: -0.7rem; right: 0.6rem; background: var(--etiqueta); color: var(--queda); border: 1.5px solid currentColor; border-radius: 2px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.05rem 0.4rem; transform: rotate(-2deg); white-space: nowrap; }
+.fx-selo-problema { position: absolute; top: -0.7rem; right: 0.6rem; background: var(--etiqueta); color: var(--alerta-texto); border: 1.5px solid currentColor; border-radius: 2px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.05rem 0.4rem; transform: rotate(-2deg); white-space: nowrap; }
 .fx-cabeca { display: flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--fio); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tinta-2); }
 .fx-cabeca svg, .fx-escolha svg, .fx-painel__topo > svg, .fx-nota__cabeca svg { width: 0.95rem; height: 0.95rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .fx-cartao--inicio .fx-cabeca { background: var(--tinta); color: var(--papel); border-bottom-color: var(--tinta); border-radius: 1px 1px 0 0; }
@@ -1030,7 +1042,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .fx-assunto { font-weight: 700; }
 .fx-previa { color: var(--apagado); font-size: 0.76rem; }
 .fx-vazio { color: var(--apagado); font-style: italic; }
-.fx-cartao.fx-problema .fx-vazio { color: var(--queda); }
+.fx-cartao.fx-problema .fx-vazio { color: var(--alerta-texto); }
 .fx-gatilhos, .fx-conds { list-style: none; display: grid; gap: 0.25rem; }
 .fx-ou { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); }
 .fx-nums { display: flex; gap: 0.2rem 0.9rem; flex-wrap: wrap; padding: 0.45rem 0.75rem; border-top: 1px dashed var(--fio); }
@@ -1052,7 +1064,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .fx-mais { position: absolute; right: -40px; top: 50%; margin-top: -12px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; border: 1px dashed var(--tinta-2); background: var(--etiqueta); color: var(--tinta); cursor: pointer; padding: 0; }
 .fx-mais:hover { border-style: solid; background: var(--tinta); color: var(--papel); }
 .fx-mais svg { width: 0.85rem; height: 0.85rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
-.fx-cartao.fx-problema .fx-mais { border-color: var(--queda); color: var(--queda); }
+.fx-cartao.fx-problema .fx-mais { border-color: var(--alerta); color: var(--alerta-texto); }
 .fx-entrada { position: absolute; left: -6px; top: 15px; width: 11px; height: 11px; border-radius: 50%; background: var(--papel); border: 2px solid var(--tinta-2); }
 .fx-desligar { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--queda); background: var(--etiqueta); color: var(--queda); cursor: pointer; padding: 0; z-index: 3; }
 .fx-desligar[hidden] { display: none; }
@@ -1139,10 +1151,10 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
     <div class="marca"><img class="marca-logo" src="/dash/logo-atacado-exponencial.png" alt="Atacado Exponencial" width="957" height="261"><small>Tracking interno</small></div>
     <!-- SONDA (02/10): ecossistema de apps. Cada app mostra só o próprio menu. -->
     <nav class="apps" id="apps" aria-label="Apps">
-      <a href="#visao" data-app-ir="numeros"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Números</span></a>
-      <a href="#agenda?v=agendamentos" data-app-ir="agenda"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Agenda</span></a>
-      <a href="#disparos" data-app-ir="operacao"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg><span>Operação</span></a>
-      <a href="#instagram" data-app-ir="marketing"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg><span>Marketing</span></a>
+      <a href="#visao" data-app-ir="numeros" aria-label="Números"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Números</span></a>
+      <a href="#agenda?v=agendamentos" data-app-ir="agenda" aria-label="Agenda"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Agenda</span></a>
+      <a href="#disparos" data-app-ir="operacao" aria-label="Operação"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg><span>Operação</span></a>
+      <a href="#instagram" data-app-ir="marketing" aria-label="Marketing"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg><span>Marketing</span></a>
     </nav>
     <nav class="nav" id="nav" aria-label="Seções do painel">
       <div class="nav-grupo" role="group" aria-labelledby="nav-agenda-app" data-app="agenda">

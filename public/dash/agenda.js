@@ -289,6 +289,12 @@
       b.setAttribute('aria-pressed', String(b.dataset.agendaVista === api.vista));
       b.onclick = () => { api.vista = b.dataset.agendaVista; ctx.escreverUrl(); ctx.rerender(); };
     });
+    // O título acompanha a parte da agenda (como o item marcado na barra).
+    const TITULO = { agendamentos: 'Agendamentos', tipos: 'Tipos de reunião', grades: 'Grades de horário', agendas: 'Agendas conectadas' };
+    ctx.$('#titulo').textContent = TITULO[api.vista] || 'Agenda';
+    let h2 = document.getElementById('ag-titulo-vista');
+    if (!h2) { h2 = document.createElement('h2'); h2.id = 'ag-titulo-vista'; h2.className = 'so-leitor'; el().parentNode.insertBefore(h2, el()); }
+    h2.textContent = TITULO[api.vista] || 'Agenda';
     el().innerHTML = '<div class="aviso">Carregando…</div>';
     el().onclick = null;
     el().onchange = null;
@@ -549,7 +555,7 @@
     ctx.$('#ag-novo-tipo').onclick = () => formTipo(null, d.opcoes);
     ligarTestes(el(), tipos);
     ctx.tabela(ctx.$('#ag-tipos'), [
-      { titulo: 'Nome', campo: 'nome', render: (t) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${t.id}">${ctx.esc(t.nome)}</button><br><span class="mini">${t.comercial ? 'Comercial · ' + ctx.esc(t.funil) : 'Não comercial (RH, entrevistas)'}${t.teste ? ' · teste' : ''}</span>` },
+      { titulo: 'Nome', campo: 'nome', render: (t) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${t.id}">${ctx.esc(t.nome)}</button><br><span class="mini">${t.comercial ? 'Comercial · ' + ctx.esc(window.EmailMkt ? window.EmailMkt.util.nomeFunil(t.funil) : t.funil) : 'Não comercial (RH, entrevistas)'}${t.teste ? ' · teste' : ''}</span>` },
       { titulo: 'Duração', num: true, campo: 'duracao_min', render: (t) => `${t.duracao_min} min` },
       { titulo: 'Link', campo: 'slug', render: (t) => t.comercial
         ? `<span class="mini">/agendar/${ctx.esc(t.slug)}<br>abre depois do formulário da LP</span>`

@@ -212,7 +212,11 @@ export async function resumo(env, { modelo_id: modeloId, segmentos }) {
   const m = await modeloDaCampanha(env, modeloId, { exigir: true });
   const segs = await segmentosValidos(env, segmentos, { exigir: true });
   const p = await publico(env, segs);
-  const [uso, cfg] = await Promise.all([usoDoMes(env), lerConfig(env)]);
+  // Último teste deste modelo (Modelos › Mandar teste grava ref_id "modelo:<id>").
+  // É conselho, não trava: o resumo avisa quando não houve teste depois da última mudança.
+  const [uso, cfg, teste] = await Promise.all([usoDoMes(env), lerConfig(env), env.DB.prepare(
+    "SELECT destinatario, enviado_em FROM email_envios WHERE origem = 'teste' AND ref_id = ? AND message_id IS NOT NULL ORDER BY id DESC LIMIT 1",
+  ).bind(`modelo:${m.id}`).first()]);
   const recebem = p.ativos.length;
   const bloqueio = cfg.marketing_liberado !== '1' ? 'O marketing está marcado como não liberado na configuração. O disparo fica bloqueado até ligar a opção.'
     : !env.POSTMARK_SERVER_TOKEN ? SEM_ACESSO
@@ -228,6 +232,7 @@ export async function resumo(env, { modelo_id: modeloId, segmentos }) {
     remetente: remetente(cfg, 'marketing'),
     uso,
     bloqueio,
+    ultimo_teste: teste ? { para: teste.destinatario, em: teste.enviado_em, antes_da_mudanca: teste.enviado_em < (m.atualizado_em || 0) } : null,
   };
 }
 
