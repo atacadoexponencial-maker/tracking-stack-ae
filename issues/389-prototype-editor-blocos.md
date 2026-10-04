@@ -10,3 +10,15 @@ Desenhar no dash, no estilo "Etiqueta", o editor por blocos: pilha de blocos com
 ## Pronto quando
 
 Na prévia, ela monta um e-mail de exemplo com todos os tipos de bloco, troca cores, troca o cabeçalho, vê a prévia mudar e os avisos aparecerem, no computador e no celular, e aprova o desenho. Nada é salvo nem enviado (selo "Protótipo").
+
+## Implementação (04/10/2026)
+
+Protótipo só de front, com dados de exemplo no navegador: nada chama a API de gravação, nada é salvo nem enviado (selo "Protótipo"). Código novo em `public/dash/email-blocos.js` (vira a base do editor de verdade na 394); em `public/dash/email-mkt.js` só o botão "Ver o editor novo" em Modelos; em `public/dash/index.html` o `<script>` e o CSS prefixado `eb-`. A prévia do protótipo é montada no navegador; no editor de verdade quem monta é o servidor.
+
+Como abrir: https://email-proprio.tracking-ae.pages.dev/dash/#mkt-email?v=modelos → faixa "Protótipo" → "Ver o editor novo".
+
+O que dá para fazer: adicionar bloco no fim e entre blocos (7 tipos), selecionar, subir, descer, arrastar pela alça, duplicar, apagar, desfazer e refazer (botões e Ctrl+Z/Ctrl+Y); editar título, texto rico (negrito, itálico, link, tirar link, lista), imagem da biblioteca de exemplo (texto alternativo, largura, alinhamento, link), botão (estilo, alinhamento, cores), imagem com texto, divisória e espaço; cor por paleta, código, atalhos da marca e últimas usadas; fundo do e-mail; cabeçalho do modelo (padrão, outra imagem, sem); campos no cursor; avisos no bloco e no topo (campo desconhecido, link inválido, imagem sem texto alternativo, contraste baixo no botão, bloco vazio, modelo sem bloco); prévia ao vivo em computador, celular e só texto, com clique na prévia selecionando o bloco; aviso ao sair sem salvar.
+
+Conferido no navegador (1440 e 390 px), com gravações bloqueadas: nenhuma tentativa de gravar, sem rolagem lateral no celular.
+
+Falta: aprovação dela na prévia.
