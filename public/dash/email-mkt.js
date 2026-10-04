@@ -1148,6 +1148,7 @@
   // ficam lá. Aqui só a tela.
   let filtroModelo = 'todos';
   let modeloAberto = null;
+  let protoBlocos = false; // 389: protótipo do editor por blocos (email-blocos.js)
   let modelosEstado = null; // { modelos, campos }
   let paraTeste = '';
 
@@ -1179,6 +1180,9 @@
         return;
       }
     }
+    if (protoBlocos && window.EmailBlocos) {
+      return window.EmailBlocos.prototipo(el, { ctx, util: api.util, voltar: () => { protoBlocos = false; listaModelos(el); } });
+    }
     if (modeloAberto) return editorModelo(el, modeloAberto);
     listaModelos(el);
   }
@@ -1192,9 +1196,11 @@
         <div class="ag-subvistas" role="group" aria-label="Filtrar modelos">${FILTROS_M.map(([k, r]) => `<button type="button" class="ag-subvista" data-fm="${k}" aria-pressed="${k === filtroModelo}">${r} <span class="ag-cont">${todos.filter((m) => casaFiltro(m, k)).length}</span></button>`).join('')}</div>
         <div class="ag-acoes"><button class="btn" type="button" data-novo="marketing">Novo modelo de marketing</button><button class="btn sec" type="button" data-novo="transacional">Novo transacional</button></div>
       </div>
+      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Editor novo por blocos, com imagens, cores e cabeçalho editável.</span><button class="btn sec" type="button" data-proto-blocos>Ver o editor novo</button></div>
       <div class="tabela-wrap" id="em-mod-lista"></div>`;
     el.querySelectorAll('[data-fm]').forEach((b) => { b.onclick = () => { filtroModelo = b.dataset.fm; listaModelos(el); }; });
     el.querySelectorAll('[data-novo]').forEach((b) => { b.onclick = () => novoModelo(el, b.dataset.novo); });
+    el.querySelector('[data-proto-blocos]').onclick = () => { protoBlocos = true; modelos(el); window.scrollTo(0, 0); };
     const alvo = el.querySelector('#em-mod-lista');
     ctx.tabela(alvo, [
       { titulo: 'Modelo', campo: 'nome', render: (m) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${m.id}">${esc(m.nome)}</button>` },
