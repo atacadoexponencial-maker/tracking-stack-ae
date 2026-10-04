@@ -33,6 +33,7 @@
 - **Tipos de item:** `prioridade` (ex.: "SE é o funil principal em outubro"), `oferta` (ex.: "workshop pago a R$ 47"), `evento` (ex.: "workshop ao vivo em 07/10", com data de início e fim), `restrição` (ex.: "não mexer na campanha de remarketing até o fim do mês"), `observação` (texto livre).
 - **Indicador de validade:** cada item mostra há quantos dias foi revisado. Passado o prazo de validade, aparece como `revisar`.
 - **Formulário de item:** título, texto, tipo, funil (opcional), datas (só para `evento`) e prazo de validade (padrão de 30 dias).
+- **Quadro "o que o relatório já sabe sozinho":** lista das fontes que o relatório lê sem ninguém escrever (resultados por funil e anúncio, metas, funis e páginas ativos, testes A/B de página, propostas, aprovações e recusas, vereditos, pausas manuais, relatórios e reações anteriores), com a regra prática: vai no contexto o que explica um número e não está em nenhum sistema.
 
 **Comportamentos:**
 - **Criar item de contexto:** a gestora preenche o formulário e o item entra na lista como `em dia`.
@@ -43,6 +44,7 @@
 - **Item vencido:** um item que passou do prazo de validade aparece como `revisar`, e o próximo relatório lista esse item no aviso de contexto velho.
 - **Evento terminado:** um item do tipo `evento` cuja data de fim já passou sai sozinho do contexto atual. A semana em que ele aconteceu continua marcada como atípica no histórico.
 - **Contexto vazio:** sem nenhum item ativo, o relatório é gerado mesmo assim e avisa que está sem contexto do negócio.
+- **Ver o que o relatório já sabe:** ao preencher o contexto, a gestora consulta o quadro para não repetir o que os sistemas já informam.
 
 ---
 

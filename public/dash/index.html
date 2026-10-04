@@ -1377,6 +1377,92 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
   #argo-vista-relatorio .argo-acao { grid-template-columns: minmax(0, 1fr); }
   .ar-acao-lado { flex-direction: row; align-items: center; justify-content: flex-start; }
 }
+/* ---------- Contexto do negócio do Argo (issue 400, PROTÓTIPO, argo-contexto.js) ---------- */
+.ac-topo { display: flex; flex-wrap: wrap; gap: 0.8rem 1.2rem; justify-content: space-between; align-items: flex-end; border-top: 2px solid var(--fio-forte); padding-top: 0.7rem; margin-bottom: 1rem; }
+.ac-topo__titulo { font-size: 1.15rem; font-weight: 700; }
+.ac-topo .mini { font-size: 0.8rem; margin-top: 0.2rem; }
+.ac-topo .mini b { color: var(--alerta-texto); }
+.ac-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem); gap: 1.6rem; align-items: start; }
+.ac-filtros { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.9rem; }
+.ac-filtros .tipo-pill { font-size: 0.8rem; padding: 0.3rem 0.8rem; }
+.ac-lista { display: grid; gap: 0.7rem; }
+.ac-item { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.85rem 1rem; display: grid; gap: 0.4rem; min-width: 0; }
+.ac-item--revisar { border-left: 3px solid var(--alerta); }
+.ac-item__topo { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.ac-item__meta { font-size: 0.72rem; color: var(--apagado); font-variant-numeric: tabular-nums; }
+.ac-item__titulo { font-size: 0.98rem; font-weight: 700; }
+.ac-item__texto { font-size: 0.86rem; color: var(--tinta-2); max-width: 70ch; }
+.ac-item__nota { max-width: 70ch; }
+.ac-item__acoes { display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; align-items: center; margin-top: 0.2rem; }
+.ac-vazio { border: 1px dashed var(--fio); border-radius: 2px; padding: 1.4rem 1.2rem; display: grid; gap: 0.6rem; justify-items: start; max-width: 62ch; }
+.ac-vazio h3 { font-size: 1rem; }
+.ac-vazio p { color: var(--tinta-2); font-size: 0.88rem; line-height: 1.5; }
+.ac-sabe { border-top: 2px solid var(--fio-forte); padding-top: 0.6rem; }
+.ac-sabe__dobra { display: none; }
+.ac-sabe__dobra summary { cursor: pointer; font-size: 0.86rem; font-weight: 700; padding: 0.3rem 0; }
+.ac-sabe__lista { list-style: none; display: grid; gap: 0.5rem; margin: 0.5rem 0 0.8rem; padding: 0; }
+.ac-sabe__lista li { display: grid; gap: 0.05rem; font-size: 0.84rem; padding-bottom: 0.45rem; border-bottom: 1px solid var(--fio); }
+.ac-sabe__regra { font-size: 0.84rem; background: var(--papel-escuro); padding: 0.6rem 0.75rem; border-radius: 2px; color: var(--tinta-2); }
+.ac-tipos { border: 0; padding: 0; margin: 0; display: grid; gap: 0.35rem; }
+.ac-tipos legend { margin-bottom: 0.35rem; }
+.ac-tipo { display: flex; gap: 0.55rem; align-items: flex-start; padding: 0.45rem 0.6rem; border: 1px solid var(--fio); border-radius: 2px; cursor: pointer; }
+.ac-tipo:has(input:checked) { border-color: var(--tinta); background: var(--etiqueta); }
+.ac-tipo input { margin-top: 0.2rem; width: auto; flex: none; }
+.ac-tipo > span { display: grid; gap: 0.1rem; font-size: 0.86rem; }
+.ac-datas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.6rem; }
+.ac-datas[hidden] { display: none; }
+.ac-datas .ac-erro, .ac-datas__nota { grid-column: 1 / -1; }
+.ac-erro { color: var(--queda-texto); font-size: 0.78rem; }
+.ac-erro[hidden] { display: none; }
+.ac-rodape { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+@media (max-width: 900px) {
+  .ac-grade { grid-template-columns: minmax(0, 1fr); }
+  .ac-sabe { order: -1; border-top: 1px solid var(--fio); }
+  .ac-sabe__dobra { display: block; }
+  .ac-sabe__fixo { display: none; }
+}
+/* ---------- Registro de testes do Argo (issue 401, PROTÓTIPO, argo-testes.js) ---------- */
+.at-filtros { display: grid; grid-template-columns: minmax(14rem, 1fr) repeat(3, auto); gap: 0.5rem; margin-bottom: 0.7rem; }
+.at-filtros input[type="search"] { min-width: 0; }
+.at-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.8rem; }
+.at-cartao { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.85rem 1rem; display: grid; gap: 0.4rem; align-content: start; cursor: pointer; min-width: 0; }
+.at-cartao:hover { border-color: var(--tinta); }
+.at-cartao--pronto { border-left: 3px solid var(--alerta); }
+.at-cartao__topo { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.at-cartao__nome { background: none; border: 0; padding: 0; font: inherit; font-size: 0.98rem; font-weight: 700; color: var(--tinta); text-align: left; cursor: pointer; }
+.at-cartao__nome:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
+.at-cartao__res { font-size: 0.84rem; color: var(--tinta-2); }
+.at-leitura { display: grid; gap: 0.35rem; padding-top: 0.45rem; border-top: 1px dashed var(--fio); }
+.at-leitura b { color: var(--alerta-texto); }
+.at-regua { display: grid; grid-template-columns: 3.6rem minmax(0, 1fr) auto; gap: 0.6rem; align-items: center; font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+.at-regua__rot { color: var(--apagado); }
+.at-regua__barra { height: 8px; border: 1px solid var(--fio-forte); border-radius: 2px; overflow: hidden; background: var(--papel); }
+.at-regua__barra i { display: block; height: 100%; background: var(--tinta); }
+.at-regua__num { color: var(--tinta-2); }
+.at-ficha { display: grid; gap: 0.8rem; align-content: start; }
+.at-ficha__sit { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.at-ficha__hip { font-weight: 700; line-height: 1.45; }
+.at-ficha__aprend { background: var(--papel-escuro); padding: 0.6rem 0.75rem; border-radius: 2px; color: var(--tinta-2); }
+.at-lados { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.6rem; }
+.at-lado { border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem 0.7rem; display: grid; gap: 0.2rem; font-size: 0.84rem; min-width: 0; overflow-wrap: anywhere; }
+.at-hist { list-style: none; padding: 0; display: grid; gap: 0.35rem; font-size: 0.82rem; }
+.at-hist li { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); gap: 0.5rem; }
+.at-hist__data { color: var(--apagado); font-variant-numeric: tabular-nums; }
+.at-hist--destaque { color: var(--alerta-texto); font-weight: 700; }
+.at-mini-form { display: grid; gap: 0.6rem; width: 100%; }
+.at-resultados { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.86rem; }
+.at-resultados legend { width: 100%; margin-bottom: 0.3rem; }
+.at-resultados input { width: auto; }
+.at-escolha { border: 0; padding: 0; margin: 0 0 0.6rem; display: grid; gap: 0.2rem; }
+.at-escolha legend { margin-bottom: 0.3rem; }
+.at-escolha__item { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.84rem; padding: 0.2rem 0; }
+.at-escolha__item input { width: auto; flex: none; margin-top: 0.2rem; }
+.at-escolha__item > span { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .at-filtros { grid-template-columns: minmax(0, 1fr); }
+  .at-lista { grid-template-columns: minmax(0, 1fr); }
+  .at-lados { grid-template-columns: minmax(0, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -1896,10 +1982,16 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
         <button type="button" class="tipo-pill" data-argo-vista="controle" aria-pressed="true">Controle</button>
         <button type="button" class="tipo-pill" data-argo-vista="propostas" aria-pressed="false">Propostas <span class="argo-contador" id="argo-contador" hidden></span></button>
         <button type="button" class="tipo-pill" data-argo-vista="relatorio" aria-pressed="false">Relatório</button>
+        <button type="button" class="tipo-pill" data-argo-vista="contexto" aria-pressed="false">Contexto</button>
+        <button type="button" class="tipo-pill" data-argo-vista="testes" aria-pressed="false">Testes</button>
       </div>
       <div id="argo-vista-propostas" hidden></div>
       <!-- Relatório semanal (issue 399): PROTÓTIPO em public/dash/argo-relatorio.js. -->
       <div id="argo-vista-relatorio" hidden></div>
+      <!-- Contexto do negócio (issue 400): PROTÓTIPO em public/dash/argo-contexto.js. -->
+      <div id="argo-vista-contexto" hidden></div>
+      <!-- Registro de testes (issue 401): PROTÓTIPO em public/dash/argo-testes.js. -->
+      <div id="argo-vista-testes" hidden></div>
       <div id="argo-vista-controle">
       <div class="bloco argo-comando">
         <h2>O que ele pode fazer <small>vale a partir da próxima rodada</small></h2>
@@ -2027,6 +2119,8 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/email-fluxos.js"></script>
 <script src="/dash/email-blocos.js"></script>
 <script src="/dash/argo-relatorio.js"></script>
+<script src="/dash/argo-contexto.js"></script>
+<script src="/dash/argo-testes.js"></script>
 <script>
 (() => {
 'use strict';
@@ -5303,7 +5397,7 @@ function desenharRegistroArgo(rodadas) {
 // sobreviver ao recarregar e para o Slack poder mandar link direto.
 let argoVista = 'controle';
 let argoPendentes = 0;
-const ARGO_VISTAS = ['controle', 'propostas', 'relatorio'];
+const ARGO_VISTAS = ['controle', 'propostas', 'relatorio', 'contexto', 'testes'];
 
 // Só esconde e mostra: redesenhar a grade aqui apagaria alteração não salva.
 function mostrarVistaArgo() {
@@ -5311,6 +5405,10 @@ function mostrarVistaArgo() {
   $('#argo-vista-propostas').hidden = argoVista !== 'propostas';
   $('#argo-vista-relatorio').hidden = argoVista !== 'relatorio';
   if (argoVista === 'relatorio' && window.ArgoRelatorio) window.ArgoRelatorio.abrir($('#argo-vista-relatorio'));
+  $('#argo-vista-contexto').hidden = argoVista !== 'contexto';
+  if (argoVista === 'contexto' && window.ArgoContexto) window.ArgoContexto.abrir($('#argo-vista-contexto'));
+  $('#argo-vista-testes').hidden = argoVista !== 'testes';
+  if (argoVista === 'testes' && window.ArgoTestes) window.ArgoTestes.abrir($('#argo-vista-testes'));
   document.querySelectorAll('.argo-vistas [data-argo-vista]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.argoVista === argoVista));
   });
@@ -6479,7 +6577,7 @@ function escreverUrl() {
 function lerUrl() {
   const [aba, qs] = location.hash.replace('#', '').split('?');
   secao = TITULOS[aba] ? aba : 'visao';
-  // A aba Argo abre em Controle, a não ser que o link peça Propostas ou Relatório.
+  // A aba Argo abre em Controle, a não ser que o link peça outra parte (ARGO_VISTAS).
   const vArgo = new URLSearchParams(qs || '').get('v');
   argoVista = ARGO_VISTAS.includes(vArgo) ? vArgo : 'controle';
   // A aba Instagram abre em Crescimento, a não ser que o link peça outra sub-aba.
