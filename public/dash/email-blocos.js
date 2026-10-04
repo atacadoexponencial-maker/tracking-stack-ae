@@ -582,7 +582,34 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
     if (!bt) return;
     bt.onclick = () => { caixa.hidden = !caixa.hidden; if (!caixa.hidden) caixa.querySelector('.eb-biblio__item').focus(); };
     alvo.querySelectorAll(`[data-img-${chave}]`).forEach((b) => { b.onclick = () => { guardar(); fn(b.getAttribute(`data-img-${chave}`)); mudou(); }; });
-    alvo.querySelector(`[data-subir-${chave}]`).onclick = () => U.avisar('Protótipo: subir imagem abre o seletor de arquivos; a imagem entra na biblioteca e já fica escolhida aqui (desenho da biblioteca na issue 390).');
+    // Subir direto do bloco: a imagem entra na biblioteca e já fica escolhida.
+    // No protótipo ela fica só neste navegador (não sobe para o servidor).
+    alvo.querySelector(`[data-subir-${chave}]`).onclick = () => {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/jpeg,image/png,image/gif,image/webp';
+      inp.onchange = () => {
+        const f = inp.files[0];
+        if (!f) return;
+        if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) return U.avisar('Formato não aceito. Use JPG, PNG, GIF ou WebP.', 'erro');
+        if (f.size > 1024 * 1024) return U.avisar(`A imagem tem ${(f.size / 1024 / 1024).toFixed(1).replace('.', ',')} MB e o limite é 1 MB. Exporte menor e tente de novo.`, 'erro');
+        const leitor = new FileReader();
+        leitor.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const nova = { id: novoId(), nome: f.name.replace(/\.[^.]+$/, ''), url: leitor.result, w: img.naturalWidth, h: img.naturalHeight, peso: `${Math.max(1, Math.round(f.size / 1024))} KB`, gif: f.type === 'image/gif' };
+            BIBLIOTECA.unshift(nova);
+            guardar(); fn(nova.id);
+            if (chave === 'cab') desenharCabecalho();
+            mudou();
+            U.avisar(nova.w > 1200 ? `Imagem na biblioteca e escolhida. Ela tem ${nova.w} px de largura: acima de 1200 px, vale reduzir (no e-mail ela aparece reduzida).` : 'Imagem na biblioteca e escolhida.');
+          };
+          img.src = leitor.result;
+        };
+        leitor.readAsDataURL(f);
+      };
+      inp.click();
+    };
   }
 
   function textoRico(html, chave) {
