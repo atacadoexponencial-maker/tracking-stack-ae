@@ -11,8 +11,9 @@ import { montarEmail } from '../_email-render.js';
 import { lerConfig } from '../_email-config.js';
 import {
   ErroModelo, listarModelos, obterModelo, criarModelo, salvarModelo, duplicarModelo,
-  arquivarModelo, desarquivarModelo, validarModelo,
+  arquivarModelo, desarquivarModelo, validarModelo, converterModelos,
 } from '../_email-modelos.js';
+import { lerDocumento, textosDoDocumento } from '../_email-blocos.js';
 import { enviarTeste } from './config.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
@@ -27,12 +28,14 @@ export async function onRequestGet({ request, env }) {
 async function previa(env, request, m) {
   const canal = CANAIS.includes(m?.canal) ? m.canal : null;
   if (!canal) throw new ErroModelo('Escolha o canal do modelo: transacional ou marketing.');
-  const rasc = { canal, assunto: String(m.assunto ?? ''), previa: String(m.previa ?? ''), corpo: String(m.corpo ?? '') };
+  // O corpo vem do editor de blocos (objeto) ou como texto; a prévia monta os dois.
+  const corpo = m.corpo && typeof m.corpo === 'object' ? m.corpo : String(m.corpo ?? '');
+  const rasc = { canal, assunto: String(m.assunto ?? ''), previa: String(m.previa ?? ''), corpo };
   const cfg = await lerConfig(env);
   const e = montarEmail(rasc, cfg, { valores: exemplos(canal), marcar: true, site: new URL(request.url).origin, descadastro: '#' });
   return {
     assunto: e.assunto, previa: e.previa, html: e.html, avisos: e.avisos,
-    desconhecidos: desconhecidos(`${rasc.assunto}\n${rasc.previa}\n${rasc.corpo}`, canal),
+    desconhecidos: desconhecidos(`${rasc.assunto}\n${rasc.previa}\n${textosDoDocumento(lerDocumento(corpo))}`, canal),
   };
 }
 
@@ -61,6 +64,8 @@ export async function onRequestPost({ request, env }) {
       case 'duplicar': return json({ ok: true, modelo: await duplicarModelo(env, corpo.id) });
       case 'arquivar': return json({ ok: true, modelo: await arquivarModelo(env, corpo.id) });
       case 'desarquivar': return json({ ok: true, modelo: await desarquivarModelo(env, corpo.id) });
+      // Conversão única do formato antigo para blocos (issue 393); repetir não muda nada.
+      case 'converter_formato': return json({ ok: true, ...(await converterModelos(env)) });
       default: return json({ error: 'Ação desconhecida.' }, 400);
     }
   } catch (e) {

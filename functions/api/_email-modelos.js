@@ -3,7 +3,7 @@
 //
 // Prefixo "_": o Cloudflare Pages não transforma o arquivo em rota.
 import { CANAIS, MARCADOR, desconhecidos, sugerir } from './_email-campos.js';
-import { linksDoCorpo } from './_email-render.js';
+import { lerDocumento, ehDocumento, linksDoDocumento, textosDoDocumento, blocosDoCorpo } from './_email-blocos.js';
 import { usosNaAgenda } from './_email-agenda.js';
 import { modeloEmAgendadas } from './_email-campanhas.js';
 import { modeloEmFluxos } from './_email-fluxos.js';
@@ -11,7 +11,7 @@ import { modeloEmFluxos } from './_email-fluxos.js';
 const MAX_NOME = 100;
 const MAX_ASSUNTO = 200;
 const MAX_PREVIA = 200;
-const MAX_CORPO = 20000;
+const MAX_CORPO = 200000; // documento de blocos em JSON (issue 393)
 
 const agora = () => Math.floor(Date.now() / 1000);
 const COLUNAS = 'id, nome, canal, assunto, previa, corpo, arquivado, criado_em, atualizado_em';
@@ -70,12 +70,13 @@ function validarCampos(texto, canal) {
   throw new ErroModelo(`O campo {{${nome}}} não existe no canal ${canal}.${s ? ` Você quis dizer {{${s}}}?` : ''}`);
 }
 
-/** Link precisa começar com https:// ou ser só um campo, como {{link_reuniao}}. */
-function validarLinks(corpo) {
-  for (const { trecho, url } of linksDoCorpo(corpo)) {
+/** Link precisa começar com https:// (ou mailto:) ou ser só um campo, como {{link_reuniao}}. */
+function validarLinks(doc) {
+  for (const { trecho, url } of linksDoDocumento(doc)) {
+    if (!url) throw new ErroModelo(`${trecho}: o botão precisa de um link.`);
     const soCampo = url.replace(MARCADOR, '') === '' && /\{\{/.test(url);
-    if (!soCampo && !/^https:\/\/[^\s]+\.[^\s]+/i.test(url)) {
-      throw new ErroModelo(`Link sem https:// em "${trecho}". Use o endereço completo, começando com https://.`);
+    if (!soCampo && !/^https:\/\/[^\s]+\.[^\s]+/i.test(url) && !/^mailto:[^\s@]+@[^\s@]+$/i.test(url)) {
+      throw new ErroModelo(`${trecho}: link sem https:// ("${url}"). Use o endereço completo, começando com https://.`);
     }
   }
 }
@@ -86,15 +87,19 @@ export function validarModelo(dados) {
   const nome = validarNome(dados.nome);
   const assunto = limpo(dados.assunto).trim();
   const previa = limpo(dados.previa).trim();
-  const corpo = limpo(dados.corpo).trim();
+  // O corpo chega como documento de blocos (objeto ou JSON) ou, de código antigo,
+  // como texto; o que se guarda é sempre o documento, limpo (issue 393).
+  const bruto = dados.corpo && typeof dados.corpo === 'object' ? dados.corpo : limpo(dados.corpo).trim();
+  const doc = lerDocumento(bruto);
+  const corpo = JSON.stringify(doc);
   if (!assunto) throw new ErroModelo('O modelo precisa de assunto.');
   if (assunto.length > MAX_ASSUNTO) throw new ErroModelo(`O assunto passa de ${MAX_ASSUNTO} caracteres.`);
   if (/\n/.test(assunto) || /\n/.test(previa)) throw new ErroModelo('Assunto e pré-visualização ficam numa linha só.');
   if (previa.length > MAX_PREVIA) throw new ErroModelo(`A pré-visualização passa de ${MAX_PREVIA} caracteres.`);
-  if (!corpo) throw new ErroModelo('O modelo precisa de corpo.');
-  if (corpo.length > MAX_CORPO) throw new ErroModelo(`O corpo passa de ${MAX_CORPO} caracteres.`);
-  validarCampos(`${assunto}\n${previa}\n${corpo}`, canal);
-  validarLinks(corpo);
+  if (!blocosDoCorpo(doc).length) throw new ErroModelo('O modelo precisa de pelo menos um bloco no corpo do e-mail.');
+  if (corpo.length > MAX_CORPO) throw new ErroModelo('O e-mail ficou grande demais. Divida em dois modelos ou tire alguns blocos.');
+  validarCampos(`${assunto}\n${previa}\n${textosDoDocumento(doc)}`, canal);
+  validarLinks(doc);
   return { nome, canal, assunto, previa, corpo };
 }
 
@@ -169,4 +174,20 @@ export async function desarquivarModelo(env, id) {
   const m = await obterModelo(env, id);
   await env.DB.prepare('UPDATE email_modelos SET arquivado = 0, atualizado_em = ? WHERE id = ?').bind(agora(), m.id).run();
   return obterModelo(env, m.id);
+}
+
+/**
+ * Conversão única do formato antigo (texto) para o documento de blocos (393).
+ * Idempotente: modelo que já é documento fica como está. Não mexe em
+ * `atualizado_em` (o conteúdo é o mesmo).
+ */
+export async function converterModelos(env) {
+  const { results } = await env.DB.prepare('SELECT id, corpo FROM email_modelos').all();
+  let convertidos = 0;
+  for (const m of results || []) {
+    if (ehDocumento(m.corpo) || !String(m.corpo || '').trim()) continue;
+    await env.DB.prepare('UPDATE email_modelos SET corpo = ? WHERE id = ?').bind(JSON.stringify(lerDocumento(m.corpo)), m.id).run();
+    convertidos += 1;
+  }
+  return { total: (results || []).length, convertidos };
 }

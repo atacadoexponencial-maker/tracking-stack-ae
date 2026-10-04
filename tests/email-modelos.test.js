@@ -85,7 +85,10 @@ test('criar e salvar: grava e aparece na lista', async () => {
   const m = await criar();
   assert.equal(m.canal, 'transacional');
   assert.equal(m.arquivado, 0);
-  assert.equal(m.corpo, CONTEUDO.corpo);
+  // O corpo é guardado como documento de blocos (393), convertido do texto.
+  const doc = JSON.parse(m.corpo);
+  assert.equal(doc.formato, 'blocos');
+  assert.deepEqual(doc.blocos.map((b) => b.tipo), ['texto', 'botao', 'texto']);
   const r = await dash();
   assert.deepEqual(r.corpo.modelos.map((x) => x.nome), ['Confirmação']);
 });
@@ -118,7 +121,7 @@ test('link sem https é recusado apontando o trecho; campo como link é aceito',
   const salvar = (corpo) => dash({ acao: 'salvar', id: c.corpo.modelo.id, modelo: { nome: 'L', canal: 'transacional', assunto: 'Oi', corpo } });
   let r = await salvar('Veja [aqui](www.site.com)');
   assert.equal(r.status, 400);
-  assert.match(r.corpo.error, /\[aqui\]\(www\.site\.com\)/);
+  assert.match(r.corpo.error, /^Texto: link sem https:\/\/ \("www\.site\.com"\)/);
   r = await salvar('[[Ir | http://site.com]]');
   assert.equal(r.status, 400);
   assert.equal((await salvar('[[Ir | https://site.com/x]]')).status, 200);

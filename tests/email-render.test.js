@@ -14,7 +14,7 @@ test('formatação: negrito, link, botão e parágrafos', () => {
   const { html } = montarEmail(modelo('transacional', corpo), cfg, { valores: exemplos('transacional') });
   assert.match(html, /<p style="margin:0 0 16px">Oi, <b>Ana<\/b>!<br>Segunda linha\.<\/p>/);
   assert.match(html, /<a href="https:\/\/atacadoexponencial\.com" style="[^"]*">o site<\/a>/);
-  assert.match(html, /<a href="https:\/\/meet\.google\.com\/abc-defg-hij" style="display:inline-block[^"]*">Entrar<\/a>/);
+  assert.match(html, /<a href="https:\/\/meet\.google\.com\/abc-defg-hij" target="_blank" style="display:inline-block[^"]*">Entrar<\/a>/);
 });
 
 test('HTML digitado vira texto (escape antes da formatação)', () => {
@@ -77,8 +77,9 @@ test('campos: desconhecidos por canal e sugestão do mais parecido', () => {
 });
 
 test('links do corpo com o trecho', () => {
+  // O trecho agora é o bloco onde o link está (393).
   assert.deepEqual(linksDoCorpo('a [x](http://a.com) b\n\n[[Ir | www.b.com ]]'), [
-    { trecho: '[x](http://a.com)', url: 'http://a.com' },
-    { trecho: '[[Ir | www.b.com ]]', url: 'www.b.com' },
+    { trecho: 'Texto', url: 'http://a.com' },
+    { trecho: 'Botão', url: 'www.b.com' },
   ]);
 });
