@@ -62,7 +62,10 @@
   ];
   const imagem = (id) => BIBLIOTECA.find((i) => i.id === id) || null;
 
-  const CAB_PADRAO = { img: 'logo', largura: 150, alinh: 'esquerda', fundo: '', link: 'https://atacadoexponencial.com' };
+  // Cabeçalho: uma faixa no topo montada com os mesmos blocos do corpo. O padrão
+  // vem da Configuração (desenhado na 390); "Personalizado" usa os blocos do
+  // próprio modelo, marcados com zona "cab" (sempre no começo da lista).
+  const CAB_PADRAO = { fundo: '', blocos: [{ tipo: 'imagem', img: 'logo', alt: 'Atacado Exponencial', largura: 'px', px: 150, alinh: 'esquerda', link: 'https://atacadoexponencial.com' }] };
 
   let seq = 0;
   const novoId = () => `b${Date.now().toString(36)}${(seq++).toString(36)}`;
@@ -70,7 +73,7 @@
     const b = { id: novoId(), tipo };
     if (tipo === 'titulo') Object.assign(b, { texto: '', tam: 'grande', alinh: 'esquerda', cor: '#161513' });
     if (tipo === 'texto') Object.assign(b, { html: '', alinh: 'esquerda', cor: '#222222', corLink: '#161513' });
-    if (tipo === 'imagem') Object.assign(b, { img: null, alt: '', largura: 'toda', alinh: 'centro', link: '' });
+    if (tipo === 'imagem') Object.assign(b, { img: null, alt: '', largura: 'toda', px: 200, alinh: 'centro', link: '' });
     if (tipo === 'botao') Object.assign(b, { texto: 'Quero minha vaga', link: '', estilo: 'cheio', alinh: 'esquerda', fundo: '#161513', corTexto: '#ffffff' });
     if (tipo === 'imgtexto') Object.assign(b, { img: null, alt: '', html: '', lado: 'esquerda', link: '', cor: '#222222', corLink: '#161513' });
     if (tipo === 'divisoria') Object.assign(b, { cor: '#e5e2da' });
@@ -82,7 +85,7 @@
     const b = (tipo, extra) => Object.assign(blocoNovo(tipo), extra);
     return {
       nome: 'Convite workshop 05/11', assunto: '{{primeiro_nome}}, sua vaga no workshop de quarta', previa: 'Três horas para destravar a primeira compra do seu atacado.',
-      cab: { modo: 'padrao', ...CAB_PADRAO },
+      cab: { modo: 'padrao', fundo: '' },
       fundo: { fora: '#f3f1ec', conteudo: '#ffffff' },
       blocos: [
         b('imagem', { img: 'workshop', alt: 'Workshop ao vivo no dia 05/11', link: 'https://atacadoexponencial.com/workshop-gratuito' }),
@@ -120,7 +123,7 @@
   function imagemHtml(b, maxW) {
     const im = imagem(b.img);
     if (!im) return `<div style="border:1px dashed #c9c2b6;padding:28px 12px;text-align:center;${FONTE};font-size:13px;color:#8a837a">Escolha uma imagem</div>`;
-    const w = b.largura === 'metade' ? Math.round(maxW / 2) : b.largura === 'original' ? Math.min(im.w, maxW) : maxW;
+    const w = b.largura === 'metade' ? Math.round(maxW / 2) : b.largura === 'original' ? Math.min(im.w, maxW) : b.largura === 'px' ? Math.min(Number(b.px) || 200, maxW) : maxW;
     const img = `<img src="${esc(im.url)}" width="${w}" alt="${esc(preencherTexto(b.alt))}" style="display:block;width:100%;max-width:${w}px;height:auto;border:0;${b.alinh === 'centro' ? 'margin:0 auto' : b.alinh === 'direita' ? 'margin-left:auto' : ''}">`;
     return b.link ? `<a href="${esc(b.link)}" target="_blank">${img}</a>` : img;
   }
@@ -145,24 +148,37 @@
     return '<td></td>';
   }
 
+  const doCab = (b) => b.zona === 'cab';
+  // Blocos que aparecem: os do cabeçalho só quando ele é personalizado.
+  const visiveis = () => E.blocos.filter((b) => !doCab(b) || E.cab.modo === 'proprio');
+  const blocosCab = () => E.blocos.filter(doCab);
+  const blocosCorpo = () => E.blocos.filter((b) => !doCab(b));
+  function ordenar() { E.blocos = [...blocosCab(), ...blocosCorpo()]; }
+
+  const linhaBloco = (b, sel) => `<tr data-b="${b.id}" draggable="true" class="${b.id === sel ? 'eb-sel' : ''}">${blocoHtml(b)}</tr>`;
   function cabecalhoHtml(E, sel) {
-    const c = E.cab.modo === 'padrao' ? CAB_PADRAO : E.cab;
-    if (E.cab.modo === 'sem') return `<tr data-cabeca class="eb-sem-cab${sel === 'cab' ? ' eb-sel' : ''}"><td style="padding:8px 28px;${FONTE};font-size:12px;color:#8a837a;text-align:center;border-bottom:1px dashed #d9d3c9">Sem cabeçalho · clique para pôr de volta (esta faixa só aparece na prévia)</td></tr>`;
-    const im = imagem(c.img);
-    if (!im) return '';
-    const img = `<img src="${esc(im.url)}" width="${c.largura}" alt="${esc(im.nome)}" style="display:inline-block;width:${c.largura}px;max-width:100%;height:auto;border:0">`;
-    return `<tr data-cabeca class="${sel === 'cab' ? 'eb-sel' : ''}"><td style="padding:22px 28px;text-align:${ALINH[c.alinh]};${c.fundo ? `background:${c.fundo};` : ''}">${c.link ? `<a href="${esc(c.link)}" target="_blank">${img}</a>` : img}</td></tr><tr><td style="height:12px;font-size:0">&nbsp;</td></tr>`;
+    const marca = sel === 'cab' ? ' eb-sel' : '';
+    if (E.cab.modo === 'sem') return `<tr data-cabeca class="eb-sem-cab${marca}"><td style="padding:8px 28px;${FONTE};font-size:12px;color:#8a837a;text-align:center;border-bottom:1px dashed #d9d3c9">Sem cabeçalho · clique para mudar (esta faixa só aparece na prévia)</td></tr>`;
+    const proprio = E.cab.modo === 'proprio';
+    const fundo = proprio ? E.cab.fundo : CAB_PADRAO.fundo;
+    const bg = fundo ? `background:${fundo};` : '';
+    const blocos = proprio ? blocosCab() : CAB_PADRAO.blocos;
+    // A faixa: respiro em cima, os blocos (com o fundo da faixa) e respiro embaixo.
+    const linhas = blocos.map((b) => (proprio ? linhaBloco(b, sel) : `<tr data-cabeca class="${marca.trim()}">${blocoHtml(b)}</tr>`))
+      .map((tr) => tr.replace(/<td style="/g, `<td style="${bg}`)).join('');
+    const vazio = proprio && !blocos.length ? `<tr data-vazio-cab><td style="${bg}padding:18px 28px;${FONTE};font-size:13px;color:#8a837a;text-align:center;border:1px dashed #d9d3c9">Cabeçalho vazio: arraste um bloco para cá ou use o "+" na lista</td></tr>` : '';
+    return `<tr data-cabeca class="${marca.trim()}"><td style="${bg}height:20px;font-size:0;line-height:0">&nbsp;</td></tr>${linhas}${vazio}<tr><td style="${bg}height:4px;font-size:0;line-height:0">&nbsp;</td></tr><tr><td style="height:16px;font-size:0;line-height:0">&nbsp;</td></tr>`;
   }
 
   function montar(E, sel) {
-    const blocos = E.blocos.map((b) => `<tr data-b="${b.id}" draggable="true" class="${b.id === sel ? 'eb-sel' : ''}">${blocoHtml(b)}</tr>`).join('');
+    const blocos = blocosCorpo().map((b) => linhaBloco(b, sel)).join('');
     return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{margin:0}[data-b]{cursor:pointer}[data-b]:hover>td{outline:1px dashed #b8ada1;outline-offset:-1px}.eb-sel>td{outline:2px solid #161513!important;outline-offset:-2px}
+<style>body{margin:0}[data-b],[data-cabeca]{cursor:pointer}[data-b]:hover>td{outline:1px dashed #b8ada1;outline-offset:-1px}.eb-sel>td{outline:2px solid #161513!important;outline-offset:-2px}
 [data-b]{cursor:grab}.eb-antes>td{box-shadow:inset 0 4px 0 #161513}.eb-depois>td{box-shadow:inset 0 -4px 0 #161513}.eb-troca img{outline:4px solid #161513;outline-offset:-4px}.eb-arrastando{opacity:.4}
 .eb-vazio-alvo td{outline:2px dashed #161513;outline-offset:-6px}
 @media (max-width:480px){.eb-col{display:block!important;width:100%!important;padding:0 0 12px!important}}</style></head>
 <body style="background:${E.fundo.fora}"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${E.fundo.fora}"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${E.fundo.conteudo};border:1px solid #e5e2da;border-radius:4px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${E.fundo.conteudo};border:1px solid #e5e2da;border-radius:4px;overflow:hidden">
 ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text-align:center;${FONTE};color:#8a837a">Nenhum bloco ainda. Arraste um bloco da paleta para cá.</td></tr>`}
 <tr><td style="padding:16px 28px 24px;border-top:1px solid #eeeae2;${FONTE};font-size:12px;line-height:1.5;color:#888888">Atacado Exponencial · rodapé comum da Configuração<br><br><a href="#" style="color:#888888">Não quero mais receber estes e-mails</a></td></tr>
 </table></td></tr></table></body></html>`;
@@ -171,7 +187,8 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   // Versão só texto, gerada dos blocos (spec, módulo 5).
   function soTexto(E) {
     const txt = (html) => { const d = document.createElement('div'); d.innerHTML = limpar(html).replace(/<\/p>|<br>|<\/li>/g, '\n').replace(/<li>/g, '• '); d.querySelectorAll('a').forEach((a) => { a.textContent = `${a.textContent} (${a.getAttribute('href')})`; }); return d.textContent.trim(); };
-    const partes = E.blocos.map((b) => {
+    const cab = E.cab.modo === 'proprio' ? blocosCab() : E.cab.modo === 'padrao' ? CAB_PADRAO.blocos : [];
+    const partes = [...cab, ...blocosCorpo()].map((b) => {
       if (b.tipo === 'titulo') return preencherTexto(b.texto).toUpperCase();
       if (b.tipo === 'texto') return preencherTexto(txt(b.html));
       if (b.tipo === 'imagem') return b.img ? `[${preencherTexto(b.alt) || 'imagem'}]${b.link ? ` ${b.link}` : ''}` : '';
@@ -317,7 +334,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       ctx.pedirConfirmacao(ev.currentTarget, 'Sair sem salvar? As mudanças deste modelo se perdem.', () => { voltarLista(); return true; }, [{ valor: true, rotulo: 'Descartar e sair' }]);
     };
     el.querySelector('[data-salvar]').onclick = () => {
-      if (!E.blocos.length) return U.avisar('Não dá para salvar um modelo sem nenhum bloco. Adicione pelo menos um.', 'erro');
+      if (!blocosCorpo().length) return U.avisar('Não dá para salvar um modelo sem nenhum bloco. Adicione pelo menos um.', 'erro');
       salvo = snap(); mudou({ pilha: false });
       U.avisar('Protótipo: nada foi salvo. No editor de verdade, este modelo é usado em "Boas-vindas do workshop" (fluxo) e o aviso aparece antes de salvar.');
     };
@@ -336,7 +353,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       if (!doc) return;
       doc.addEventListener('click', (ev) => {
         ev.preventDefault();
-        if (ev.target.closest('[data-cabeca]')) { selecionar('cab'); const c = raiz.querySelector('[data-card="cab"]'); if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+        if (ev.target.closest('[data-cabeca], [data-vazio-cab]')) { selecionar('cab'); const c = raiz.querySelector('[data-card="cab"]'); if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
         const tr = ev.target.closest('[data-b]');
         if (tr) { selecionar(tr.dataset.b); const card = raiz.querySelector(`[data-card="${tr.dataset.b}"]`); if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
       });
@@ -351,7 +368,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     el.querySelectorAll('[data-paleta]').forEach((b) => {
       b.addEventListener('dragstart', (ev) => { ev.dataTransfer.effectAllowed = 'copy'; ev.dataTransfer.setData('text/plain', 'bloco:' + b.dataset.paleta); arrastandoTipo = b.dataset.paleta; });
       b.addEventListener('dragend', () => { arrastandoTipo = null; });
-      b.onclick = () => { inserirBloco(b.dataset.paleta, E.blocos.length); };
+      b.onclick = () => { inserirBloco(b.dataset.paleta, E.blocos.length, { zona: 'corpo' }); };
     });
 
     desenharCabecalho();
@@ -387,28 +404,25 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const alvo = raiz.querySelector('#eb-cab');
     if (!alvo) return;
     const c = E.cab;
-    const MODOS = [['padrao', 'Cabeçalho padrão'], ['outra', 'Outra imagem'], ['sem', 'Sem cabeçalho']];
+    const MODOS = [['padrao', 'Padrão da Configuração'], ['proprio', 'Personalizado'], ['sem', 'Sem cabeçalho']];
     alvo.innerHTML = `<div class="ag-subvistas" role="radiogroup" aria-label="Cabeçalho deste modelo">${MODOS.map(([k, r]) => `<button type="button" class="ag-subvista" role="radio" data-cab-modo="${k}" aria-checked="${c.modo === k}" aria-pressed="${c.modo === k}">${r}</button>`).join('')}</div>
-      ${c.modo === 'padrao' ? `<p class="mini">Usa o cabeçalho da Configuração: ${esc(imagem(CAB_PADRAO.img).nome)}, ${CAB_PADRAO.largura} px, à esquerda. Mudar lá muda todos os modelos que usam o padrão.</p>` : ''}
-      ${c.modo === 'sem' ? '<p class="mini">O e-mail começa direto no primeiro bloco.</p>' : ''}
-      ${c.modo === 'outra' ? `<div class="eb-campos-bloco">
-        ${escolhaImagem(c.img, 'cab')}
-        <label>Largura da imagem <span class="mini" data-cab-larg-rot>${c.largura} px</span><input type="range" min="60" max="544" step="2" value="${c.largura}" data-cab-campo="largura"></label>
-        ${alinhamento(c.alinh, 'cab-alinh', ['esquerda', 'centro'])}
-        ${seletorCor('Fundo da faixa', c.fundo || '', 'cab-fundo', true)}
-        <label>Link ao clicar <span class="mini">opcional</span><input type="url" value="${esc(c.link)}" data-cab-campo="link" placeholder="https://"></label></div>` : ''}`;
-    alvo.querySelectorAll('[data-cab-modo]').forEach((b) => { b.onclick = () => { guardar(); E.cab.modo = b.dataset.cabModo; if (E.cab.modo === 'outra' && !E.cab.img) Object.assign(E.cab, CAB_PADRAO); mudou(); }; });
-    alvo.querySelectorAll('[data-cab-campo]').forEach((i) => {
-      i.addEventListener('input', () => {
-        guardarDigitando();
-        E.cab[i.dataset.cabCampo] = i.type === 'range' ? Number(i.value) : i.value;
-        if (i.type === 'range') alvo.querySelector('[data-cab-larg-rot]').textContent = `${i.value} px`;
-        mudou({ pilha: false });
-      });
+      ${c.modo === 'padrao' ? '<p class="mini">Usa o cabeçalho da Configuração (hoje, a logo à esquerda). Mudar lá muda todos os modelos que usam o padrão.</p><div><button type="button" class="btn sec" data-cab-personalizar>Personalizar a partir do padrão</button></div>' : ''}
+      ${c.modo === 'sem' ? '<p class="mini">O e-mail começa direto no primeiro bloco do corpo.</p>' : ''}
+      ${c.modo === 'proprio' ? `<p class="mini">Monte a faixa com os mesmos blocos do corpo: logo, texto, links, botão, imagem com texto. Os blocos do cabeçalho aparecem logo abaixo deste cartão; arraste blocos entre o cabeçalho e o corpo à vontade.</p>
+        ${seletorCor('Fundo da faixa', c.fundo || '', 'cab-fundo', true)}` : ''}`;
+    const personalizar = () => {
+      if (!blocosCab().length) {
+        E.blocos.unshift(...CAB_PADRAO.blocos.map((b) => ({ ...JSON.parse(JSON.stringify(b)), id: novoId(), zona: 'cab' })));
+        if (!c.fundo) c.fundo = CAB_PADRAO.fundo;
+      }
+      c.modo = 'proprio';
+    };
+    alvo.querySelectorAll('[data-cab-modo]').forEach((b) => {
+      b.onclick = () => { guardar(); if (b.dataset.cabModo === 'proprio') personalizar(); else c.modo = b.dataset.cabModo; mudou(); };
     });
-    ligarAlinhamento(alvo, 'cab-alinh', (v) => { E.cab.alinh = v; });
-    ligarCor(alvo, 'cab-fundo', (v) => { E.cab.fundo = v; });
-    ligarEscolhaImagem(alvo, 'cab', (id) => { E.cab.img = id; });
+    const bp = alvo.querySelector('[data-cab-personalizar]');
+    if (bp) bp.onclick = () => { guardar(); personalizar(); mudou(); U.avisar('Cabeçalho personalizado: começou igual ao padrão. Edite, adicione ou tire blocos.'); };
+    ligarCor(alvo, 'cab-fundo', (v) => { c.fundo = v; });
   }
 
   function desenharFundo() {
@@ -431,26 +445,14 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     return '';
   }
   const rotuloBloco = (b) => {
-    const iguais = E.blocos.filter((x) => x.tipo === b.tipo);
+    const iguais = visiveis().filter((x) => x.tipo === b.tipo);
     return iguais.length > 1 ? `${TIPOS[b.tipo].rotulo} ${iguais.indexOf(b) + 1}` : TIPOS[b.tipo].rotulo;
   };
 
-  function desenharPilha() {
-    const p = raiz.querySelector('#eb-pilha');
-    const inserir = (i) => `<li class="eb-inserir"><button type="button" class="eb-inserir__b" data-inserir="${i}" aria-label="Adicionar bloco na posição ${i + 1}">${ic('mais')}</button></li>`;
-    const cab = E.cab;
-    const resumoCab = cab.modo === 'sem' ? 'sem cabeçalho' : cab.modo === 'padrao' ? `padrão · ${imagem(CAB_PADRAO.img).nome}` : `outra imagem · ${imagem(cab.img) ? imagem(cab.img).nome : 'sem imagem'}`;
-    const cartaoCab = `<li class="eb-card eb-card--cab${sel === 'cab' ? ' eb-card--aberto' : ''}${cab.modo === 'sem' ? ' eb-card--sem' : ''}" data-card="cab">
-        <div class="eb-card__topo"><span class="eb-alca eb-alca--fixa" aria-hidden="true" title="O cabeçalho fica sempre no topo">${ic('imagem')}</span>
-          <button type="button" class="eb-card__abrir" data-sel="cab" aria-expanded="${sel === 'cab'}"><span class="eb-card__tipo">Cabeçalho</span><span class="eb-card__resumo">${esc(resumoCab)}</span></button>
-          <span class="eb-card__acoes">${cab.modo === 'sem'
-            ? '<button type="button" class="btn sec eb-cab-volta" data-cab-volta>Pôr de volta</button>'
-            : `<button type="button" class="ag-icone" data-cab-tirar aria-label="Tirar o cabeçalho deste e-mail" title="Tirar o cabeçalho">${ic('apagar')}</button>`}</span></div>
-        ${sel === 'cab' ? '<div class="eb-card__corpo"><div id="eb-cab"></div></div>' : ''}</li>`;
-    p.innerHTML = cartaoCab + E.blocos.map((b, i) => {
-      const av = avisosDoBloco(b);
-      const aberto = b.id === sel;
-      return `${inserir(i)}<li class="eb-card${aberto ? ' eb-card--aberto' : ''}${av.length ? ' eb-card--aviso' : ''}" data-card="${b.id}">
+  function cartaoBloco(b, primeiro, ultimo) {
+    const av = avisosDoBloco(b);
+    const aberto = b.id === sel;
+    return `<li class="eb-card${aberto ? ' eb-card--aberto' : ''}${av.length ? ' eb-card--aviso' : ''}${doCab(b) ? ' eb-card--do-cab' : ''}" data-card="${b.id}">
         <div class="eb-card__topo" draggable="true" data-arrastar="${b.id}">
           <span class="eb-alca" aria-hidden="true" title="Arraste para mudar de lugar">${ic('alca')}</span>
           <button type="button" class="eb-card__abrir" data-sel="${b.id}" aria-expanded="${aberto}">
@@ -458,14 +460,37 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
             <span class="eb-card__resumo">${esc(preencherTexto(resumo(b)))}</span></button>
           ${av.length ? `<span class="carimbo alerta eb-card__selo" title="${esc(av.join(' · '))}">Revisar</span>` : ''}
           <span class="eb-card__acoes">
-            <button type="button" class="ag-icone" data-mover="-1" data-id="${b.id}" aria-label="Subir ${esc(rotuloBloco(b))}"${i === 0 ? ' disabled' : ''}>${ic('subir')}</button>
-            <button type="button" class="ag-icone" data-mover="1" data-id="${b.id}" aria-label="Descer ${esc(rotuloBloco(b))}"${i === E.blocos.length - 1 ? ' disabled' : ''}>${ic('descer')}</button>
+            <button type="button" class="ag-icone" data-mover="-1" data-id="${b.id}" aria-label="Subir ${esc(rotuloBloco(b))}"${primeiro ? ' disabled' : ''}>${ic('subir')}</button>
+            <button type="button" class="ag-icone" data-mover="1" data-id="${b.id}" aria-label="Descer ${esc(rotuloBloco(b))}"${ultimo ? ' disabled' : ''}>${ic('descer')}</button>
             <button type="button" class="ag-icone" data-duplicar="${b.id}" aria-label="Duplicar ${esc(rotuloBloco(b))}">${ic('copiar')}</button>
             <button type="button" class="ag-icone" data-apagar="${b.id}" aria-label="Apagar ${esc(rotuloBloco(b))}">${ic('apagar')}</button></span>
         </div>
         ${aberto ? `<div class="eb-card__corpo">${av.length ? `<ul class="eb-card__avisos">${av.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}${campos(b)}</div>` : ''}
       </li>`;
-    }).join('') + `<li class="eb-fim"><button type="button" class="btn sec" data-inserir="${E.blocos.length}">${ic('mais')} Adicionar bloco</button></li>`;
+  }
+
+  function desenharPilha() {
+    const p = raiz.querySelector('#eb-pilha');
+    const inserir = (pos, zona) => `<li class="eb-inserir"><button type="button" class="eb-inserir__b" data-inserir="${pos}" data-zona="${zona}" aria-label="Adicionar bloco ${zona === 'cab' ? 'no cabeçalho' : 'no corpo'}">${ic('mais')}</button></li>`;
+    const cab = E.cab;
+    const proprio = cab.modo === 'proprio';
+    const nCab = blocosCab().length;
+    const resumoCab = cab.modo === 'sem' ? 'sem cabeçalho' : cab.modo === 'padrao' ? 'padrão da Configuração · logo' : `personalizado · ${nCab} ${nCab === 1 ? 'bloco' : 'blocos'}`;
+    const cartaoCab = `<li class="eb-card eb-card--cab${sel === 'cab' ? ' eb-card--aberto' : ''}${cab.modo === 'sem' ? ' eb-card--sem' : ''}" data-card="cab">
+        <div class="eb-card__topo"><span class="eb-alca eb-alca--fixa" aria-hidden="true" title="O cabeçalho fica sempre no topo">${ic('imagem')}</span>
+          <button type="button" class="eb-card__abrir" data-sel="cab" aria-expanded="${sel === 'cab'}"><span class="eb-card__tipo">Cabeçalho</span><span class="eb-card__resumo">${esc(resumoCab)}</span></button>
+          <span class="eb-card__acoes">${cab.modo === 'sem'
+            ? '<button type="button" class="btn sec eb-cab-volta" data-cab-volta>Pôr de volta</button>'
+            : `<button type="button" class="ag-icone" data-cab-tirar aria-label="Tirar o cabeçalho deste e-mail" title="Tirar o cabeçalho">${ic('apagar')}</button>`}</span></div>
+        ${sel === 'cab' ? '<div class="eb-card__corpo"><div id="eb-cab"></div></div>' : ''}</li>`;
+    const lista = (blocos, zona) => blocos.map((b, i) => inserir(E.blocos.indexOf(b), zona) + cartaoBloco(b, i === 0, i === blocos.length - 1)).join('');
+    const cabs = blocosCab(), corpo = blocosCorpo();
+    const fimCab = cabs.length ? E.blocos.indexOf(cabs[cabs.length - 1]) + 1 : 0;
+    p.innerHTML = cartaoCab
+      + (proprio ? `<li class="eb-zona eb-zona--cab"><ol class="eb-zona__lista">${lista(cabs, 'cab')}<li class="eb-fim eb-fim--cab"><button type="button" class="btn sec" data-inserir="${fimCab}" data-zona="cab">${ic('mais')} Adicionar ao cabeçalho</button></li></ol></li>` : '')
+      + '<li class="eb-zona__rotulo">Corpo do e-mail</li>'
+      + lista(corpo, 'corpo')
+      + `<li class="eb-fim"><button type="button" class="btn sec" data-inserir="${E.blocos.length}" data-zona="corpo">${ic('mais')} Adicionar bloco</button></li>`;
 
     p.querySelectorAll('[data-sel]').forEach((b) => { b.onclick = () => selecionar(sel === b.dataset.sel ? null : b.dataset.sel); });
     const tirar = p.querySelector('[data-cab-tirar]');
@@ -476,7 +501,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     p.querySelectorAll('[data-mover]').forEach((b) => { b.onclick = () => mover(b.dataset.id, Number(b.dataset.mover)); });
     p.querySelectorAll('[data-duplicar]').forEach((b) => { b.onclick = () => { guardar(); const i = E.blocos.findIndex((x) => x.id === b.dataset.duplicar); const c = { ...JSON.parse(JSON.stringify(E.blocos[i])), id: novoId() }; E.blocos.splice(i + 1, 0, c); sel = c.id; mudou(); U.avisar('Bloco duplicado logo abaixo.'); }; });
     p.querySelectorAll('[data-apagar]').forEach((b) => { b.onclick = () => { guardar(); const i = E.blocos.findIndex((x) => x.id === b.dataset.apagar); const nome = rotuloBloco(E.blocos[i]); E.blocos.splice(i, 1); if (sel === b.dataset.apagar) sel = null; mudou(); U.avisar(`${nome} apagado. Ctrl+Z desfaz.`); }; });
-    p.querySelectorAll('[data-inserir]').forEach((b) => { b.onclick = (ev) => abrirTipos(ev.currentTarget, Number(b.dataset.inserir)); });
+    p.querySelectorAll('[data-inserir]').forEach((b) => { b.onclick = (ev) => abrirTipos(ev.currentTarget, Number(b.dataset.inserir), b.dataset.zona); });
     ligarArrastar(p);
     const b = E.blocos.find((x) => x.id === sel);
     if (b) ligarCampos(p.querySelector(`[data-card="${b.id}"] .eb-card__corpo`), b);
@@ -484,9 +509,11 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
 
   function selecionar(id) { sel = id; desenharPilha(); agendarPrevia(); }
   function mover(id, d) {
-    const i = E.blocos.findIndex((x) => x.id === id);
-    const j = i + d;
-    if (j < 0 || j >= E.blocos.length) return;
+    const b = E.blocos.find((x) => x.id === id);
+    const zona = doCab(b) ? blocosCab() : blocosCorpo();
+    const k = zona.indexOf(b) + d;
+    if (k < 0 || k >= zona.length) return;
+    const i = E.blocos.indexOf(b), j = E.blocos.indexOf(zona[k]);
     guardar();
     [E.blocos[i], E.blocos[j]] = [E.blocos[j], E.blocos[i]];
     mudou();
@@ -500,7 +527,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       h.addEventListener('dragstart', (ev) => { arrastando = h.dataset.arrastar; ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', arrastando); h.closest('.eb-card').classList.add('eb-card--arrastando'); });
       h.addEventListener('dragend', () => { arrastando = null; p.querySelectorAll('.eb-card').forEach((c) => c.classList.remove('eb-card--arrastando', 'eb-alvo-antes', 'eb-alvo-depois')); });
     });
-    p.querySelectorAll('.eb-card').forEach((c) => {
+    p.querySelectorAll('.eb-card:not(.eb-card--cab), .eb-card--cab').forEach((c) => {
       c.addEventListener('dragover', (ev) => {
         if (!arrastando) return;
         ev.preventDefault();
@@ -516,21 +543,25 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
         guardar();
         const de = E.blocos.findIndex((x) => x.id === arrastando);
         const [b] = E.blocos.splice(de, 1);
-        let para = E.blocos.findIndex((x) => x.id === c.dataset.card);
+        if (c.dataset.card === 'cab') { b.zona = 'cab'; E.blocos.unshift(b); if (E.cab.modo !== 'proprio') E.cab.modo = 'proprio'; ordenar(); mudou(); return; }
+        const alvoB = E.blocos.find((x) => x.id === c.dataset.card);
+        if (doCab(alvoB)) b.zona = 'cab'; else delete b.zona;
+        let para = E.blocos.indexOf(alvoB);
         if (!antes) para += 1;
         E.blocos.splice(para, 0, b);
+        ordenar();
         mudou();
       });
     });
   }
 
   // Lista de tipos para adicionar bloco (no lugar do botão, como o menu do dash).
-  function abrirTipos(botao, pos) {
+  function abrirTipos(botao, pos, zona = 'corpo') {
     fecharTipos();
     const m = document.createElement('div');
     m.className = 'eb-tipos';
     m.setAttribute('role', 'menu');
-    m.innerHTML = `<p class="mini">Adicionar bloco</p>${Object.entries(TIPOS).map(([k, t]) => `<button type="button" role="menuitem" data-tipo="${k}">${ic(k)}<span><b>${t.rotulo}</b><span class="mini">${t.desc}</span></span></button>`).join('')}`;
+    m.innerHTML = `<p class="mini">Adicionar ${zona === 'cab' ? 'ao cabeçalho' : 'bloco'}</p>${Object.entries(TIPOS).map(([k, t]) => `<button type="button" role="menuitem" data-tipo="${k}">${ic(k)}<span><b>${t.rotulo}</b><span class="mini">${t.desc}</span></span></button>`).join('')}`;
     botao.closest('li').appendChild(m);
     m.querySelector('button').focus();
     m.addEventListener('keydown', (ev) => {
@@ -541,14 +572,16 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       if (ev.key === 'ArrowUp') { ev.preventDefault(); itens[(i - 1 + itens.length) % itens.length].focus(); }
     });
     m.querySelectorAll('[data-tipo]').forEach((b) => {
-      b.onclick = () => { fecharTipos(); inserirBloco(b.dataset.tipo, pos, { focar: true }); };
+      b.onclick = () => { fecharTipos(); inserirBloco(b.dataset.tipo, pos, { focar: true, zona }); };
     });
     setTimeout(() => document.addEventListener('click', foraTipos), 0);
   }
-  function inserirBloco(tipo, pos, { focar = false, extra = null } = {}) {
+  function inserirBloco(tipo, pos, { focar = false, extra = null, zona = 'corpo' } = {}) {
     guardar();
     const n = Object.assign(blocoNovo(tipo), extra || {});
+    if (zona === 'cab') { n.zona = 'cab'; E.cab.modo = 'proprio'; }
     E.blocos.splice(pos, 0, n);
+    ordenar();
     sel = n.id;
     mudou();
     const card = raiz.querySelector(`[data-card="${n.id}"]`);
@@ -567,19 +600,23 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const alvo = (ev) => {
       const tr = ev.target.closest && ev.target.closest('[data-b]');
       if (!tr) {
+        const vazioCab = ev.target.closest && ev.target.closest('[data-vazio-cab]');
+        if (vazioCab) return { pos: 0, zona: 'cab', tr: vazioCab, vazio: true };
         const vazio = ev.target.closest && ev.target.closest('[data-vazio]');
-        if (vazio) return { pos: 0, tr: vazio, vazio: true };
-        // Acima do primeiro bloco (cabeçalho) entra no começo; abaixo, no fim.
+        if (vazio) return { pos: E.blocos.length, zona: 'corpo', tr: vazio, vazio: true };
+        // Em cima da faixa do cabeçalho padrão ou acima de tudo: começo do corpo.
         const primeiro = doc.querySelector('[data-b]');
         const antesDoPrimeiro = primeiro && ev.clientY < primeiro.getBoundingClientRect().top;
-        return { pos: antesDoPrimeiro ? 0 : E.blocos.length, tr: antesDoPrimeiro ? primeiro : doc.querySelector('[data-b]:last-of-type'), antes: antesDoPrimeiro };
+        if (antesDoPrimeiro) { const b0 = E.blocos.find((b) => b.id === primeiro.dataset.b); return { pos: E.blocos.indexOf(b0), zona: doCab(b0) ? 'cab' : 'corpo', tr: primeiro, antes: true }; }
+        const ultimos = doc.querySelectorAll('[data-b]');
+        return { pos: E.blocos.length, zona: 'corpo', tr: ultimos[ultimos.length - 1], antes: false };
       }
       const r = tr.getBoundingClientRect();
       const antes = ev.clientY < r.top + r.height / 2;
-      const i = E.blocos.findIndex((b) => b.id === tr.dataset.b);
-      const b = E.blocos[i];
+      const b = E.blocos.find((x) => x.id === tr.dataset.b);
+      const i = E.blocos.indexOf(b);
       const sobreImagem = ev.target.tagName === 'IMG' && (b.tipo === 'imagem' || b.tipo === 'imgtexto');
-      return { pos: antes ? i : i + 1, tr, antes, bloco: b, sobreImagem };
+      return { pos: antes ? i : i + 1, zona: doCab(b) ? 'cab' : 'corpo', tr, antes, bloco: b, sobreImagem };
     };
     const tipoDoArraste = (ev) => {
       const tipos = [...(ev.dataTransfer?.types || [])];
@@ -619,11 +656,14 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
         const de = E.blocos.findIndex((b) => b.id === movendo);
         let para = a.pos;
         movendo = null;
-        if (de < 0 || para === de || para === de + 1) return;
+        const mesmaFaixa = de >= 0 && (doCab(E.blocos[de]) ? 'cab' : 'corpo') === a.zona;
+        if (de < 0 || (mesmaFaixa && (para === de || para === de + 1))) return;
         guardar();
         const [b] = E.blocos.splice(de, 1);
         if (para > de) para -= 1;
+        if (a.zona === 'cab') b.zona = 'cab'; else delete b.zona;
         E.blocos.splice(para, 0, b);
+        ordenar();
         sel = b.id;
         mudou();
         return;
@@ -631,13 +671,13 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       if (t === 'paleta') {
         const tipo = (ev.dataTransfer.getData('text/plain') || '').replace(/^bloco:/, '') || arrastandoTipo;
         arrastandoTipo = null;
-        if (TIPOS[tipo]) inserirBloco(tipo, a.pos, { focar: true });
+        if (TIPOS[tipo]) inserirBloco(tipo, a.pos, { focar: true, zona: a.zona });
         return;
       }
       const f = ev.dataTransfer.files[0];
       lerImagem(f, (nova) => {
         if (a.sobreImagem) { guardar(); a.bloco.img = nova.id; sel = a.bloco.id; mudou(); return; }
-        inserirBloco('imagem', a.pos, { extra: { img: nova.id } });
+        inserirBloco('imagem', a.pos, { extra: { img: nova.id }, zona: a.zona });
       });
     });
   }
@@ -810,7 +850,8 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       <div class="eb-duas">${seletorCor('Cor do texto', b.cor, 'b-cor')}${seletorCor('Cor dos links', b.corLink, 'b-corlink')}</div>`;
     if (b.tipo === 'imagem') return `${escolhaImagem(b.img, 'b-img')}
       <label>Texto alternativo <span class="mini">o que aparece se a imagem não carregar e o que o leitor de tela lê</span><input type="text" data-b-campo="alt" value="${esc(b.alt)}" maxlength="200"></label>
-      ${opcoesRadio('Largura', b.largura, 'b-larg', [['toda', 'Largura toda'], ['metade', 'Metade'], ['original', 'Tamanho original']])}
+      ${opcoesRadio('Largura', b.largura, 'b-larg', [['toda', 'Largura toda'], ['metade', 'Metade'], ['original', 'Tamanho original'], ['px', 'Personalizada']])}
+      ${b.largura === 'px' ? `<label>Largura <span class="mini" data-b-px-rot>${b.px} px</span><input type="range" min="40" max="544" step="2" value="${b.px}" data-b-px></label>` : ''}
       ${b.largura === 'toda' ? '' : alinhamento(b.alinh, 'b-alinh', ['esquerda', 'centro', 'direita'])}
       <label>Link ao clicar <span class="mini">opcional</span><input type="url" data-b-campo="link" value="${esc(b.link)}" placeholder="https://"></label>`;
     if (b.tipo === 'botao') return `${inp('Texto do botão', 'texto', 'maxlength="60"')}
@@ -851,6 +892,8 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
         };
       });
     };
+    const px = corpo.querySelector('[data-b-px]');
+    if (px) px.addEventListener('input', () => { guardarDigitando(); b.px = Number(px.value); corpo.querySelector('[data-b-px-rot]').textContent = `${px.value} px`; mudou({ pilha: false }); });
     radio('b-tam', 'tam'); radio('b-larg', 'largura', true); radio('b-estilo', 'estilo', true); radio('b-lado', 'lado'); radio('b-altura', 'altura');
     ligarAlinhamento(corpo, 'b-alinh', (v) => { b.alinh = v; });
     ligarCor(corpo, 'b-cor', (v) => { b.cor = v; });
@@ -880,9 +923,9 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   function desenharAvisos() {
     const alvo = raiz.querySelector('#eb-avisos');
     const itens = [];
-    if (!E.blocos.length) itens.push({ txt: 'O modelo não tem nenhum bloco. Sem bloco, não dá para salvar.', id: null });
+    if (!blocosCorpo().length) itens.push({ txt: 'O corpo do e-mail não tem nenhum bloco. Sem bloco, não dá para salvar.', id: null });
     camposRuins(E.assunto, E.previa).forEach((c) => itens.push({ txt: `Assunto ou pré-visualização: campo desconhecido {{${c}}}`, id: null }));
-    E.blocos.forEach((b) => avisosDoBloco(b).forEach((a) => itens.push({ txt: `${rotuloBloco(b)}: ${a}`, id: b.id })));
+    visiveis().forEach((b) => avisosDoBloco(b).forEach((a) => itens.push({ txt: `${doCab(b) ? 'Cabeçalho, ' : ''}${rotuloBloco(b)}: ${a}`, id: b.id })));
     alvo.innerHTML = itens.length ? `<div class="aviso alerta eb-avisos__caixa"><b>Antes de salvar, confira:</b><ul>${itens.map((i) => `<li>${i.id ? `<button type="button" class="ag-link-linha" data-ir-bloco="${i.id}">${esc(i.txt)}</button>` : esc(i.txt)}</li>`).join('')}</ul></div>` : '';
     alvo.querySelectorAll('[data-ir-bloco]').forEach((b) => { b.onclick = () => { selecionar(b.dataset.irBloco); raiz.querySelector(`[data-card="${b.dataset.irBloco}"]`).scrollIntoView({ block: 'center', behavior: 'smooth' }); }; });
   }
