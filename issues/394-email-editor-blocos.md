@@ -10,3 +10,39 @@ Trocar a caixa de texto do corpo pelo editor de blocos: adicionar no fim e entre
 ## Pronto quando
 
 Ela abre um modelo, monta e reordena blocos, vê a prévia mudar na hora, salva, manda teste e recebe igual à prévia; os avisos aparecem no bloco certo e modelo sem bloco não salva.
+
+## Cenários
+
+### Happy Path
+1. Em Modelos, abrir um modelo abre o editor por blocos (o mesmo desenho aprovado no protótipo 389), com o documento do modelo.
+2. Cada mudança redesenha a prévia, que é o e-mail **montado pelo servidor** (`acao: 'previa'` com `editor: true`): o mesmo HTML que sai, com cada bloco marcado para clicar, arrastar e soltar na prévia.
+3. Salvar manda o documento; o servidor limpa e valida (393). Se o modelo é usado pela agenda, por fluxo ou por campanha agendada, o editor avisa onde antes de salvar.
+4. "Mandar teste" manda o que está na tela, mesmo sem salvar (`enviar_teste` com o rascunho).
+5. Imagens vêm da biblioteca de verdade (392): escolher, subir do bloco e soltar arquivo na prévia.
+
+### Edge Cases
+- Modelo novo (sem corpo): abre com um bloco de texto vazio.
+- Modelo ainda em texto antigo: o servidor converte na leitura; a conversão única roda junto desta entrega.
+- Resposta de prévia atrasada não sobrescreve uma mais nova.
+- Sair com mudanças não salvas pede confirmação.
+
+### Cenário de Erro
+- Erro de validação ao salvar: mensagem do servidor no topo e no aviso; nada é perdido na tela.
+- Prévia falhou (rede): aviso no lugar da prévia; o editor segue.
+
+## Arquivos
+
+- **Modificar:** `functions/api/_email-blocos.js` — opção `editor` marca as linhas (`data-b`, `data-cabeca`, vazios) e mostra blocos vazios como lugar marcado.
+- **Modificar:** `functions/api/_email-render.js` — repassa `editor`.
+- **Modificar:** `functions/api/email/modelos.js` — prévia com `editor` devolvendo também o texto puro; `enviar_teste` com rascunho; lista com onde cada modelo é usado.
+- **Modificar:** `public/dash/email-blocos.js` — modo real do editor: dados do modelo, campos do canal, prévia do servidor, imagens da biblioteca e salvar/testar/duplicar pela API.
+- **Modificar:** `public/dash/email-mkt.js` — Modelos abre o editor novo; `pedirTeste` aceita rascunho; sai o editor de texto antigo e o botão do protótipo.
+- **Modificar:** `tests/email-modelos.test.js` — teste com rascunho, prévia marcada e usos na lista.
+
+## Checklist
+
+- [ ] Prévia do servidor marcada para o editor
+- [ ] Teste com rascunho e usos na lista
+- [ ] Editor real ligado em Modelos
+- [ ] Conversão única rodada no remoto e conferida
+- [ ] Testes passando e conferido no navegador
