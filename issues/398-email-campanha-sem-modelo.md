@@ -10,3 +10,51 @@ Deixar a campanha escolher entre usar um modelo e escrever o e-mail nela com o e
 ## Pronto quando
 
 Ela cria uma campanha sem modelo, manda teste, agenda ou dispara com o resumo de sempre, salva o e-mail como modelo novo, e o relatório mostra o e-mail que saiu.
+
+## Cenários
+
+### Happy Path
+1. "Nova campanha" (e abrir um rascunho ou uma agendada) abre a tela inteira aprovada no protótipo 391: painel da campanha (nome, conteúdo, segmentos, quando enviar, passos) e, embaixo, o editor de blocos.
+2. "Usar um modelo": escolhe o modelo de marketing; a prévia mostra o modelo (só leitura); "Escrever a partir deste modelo" copia o conteúdo para a campanha.
+3. "Escrever o e-mail aqui": assunto, pré-visualização, cabeçalho e blocos ficam guardados na própria campanha (`assunto`, `previa`, `corpo`).
+4. Mandar teste: com modelo, o teste do modelo; com e-mail escrito, o teste sai do que está na tela (`ref_id = campanha:<id>`), e o resumo mostra o último teste.
+5. Revisar e disparar / agendar: o mesmo resumo de hoje (quem recebe, quem fica de fora, sem nome, último teste, limite) e a mesma confirmação.
+6. No disparo (agora ou na hora agendada), o conteúdo é **congelado na campanha**: os lotes e o relatório usam o e-mail que saiu, mesmo que o modelo mude depois.
+7. "Salvar como modelo" cria um modelo de marketing novo com uma cópia do e-mail escrito (a campanha continua com o próprio e-mail).
+8. Relatório da campanha mostra o e-mail que saiu.
+
+### Edge Cases
+- Trocar de "Escrever o e-mail aqui" para "Usar um modelo" com e-mail escrito: pede confirmação de descarte.
+- Duplicar: com modelo, a cópia aponta para o modelo; com e-mail escrito, a cópia leva o e-mail.
+- Campanha enviada: o e-mail fica como saiu; só abre o detalhe e o relatório (sem editar).
+- Nome de modelo repetido em "Salvar como modelo": erro do servidor, a tela continua.
+- Campanhas antigas (com modelo, sem conteúdo congelado): continuam saindo do modelo.
+
+### Cenário de Erro
+- E-mail escrito inválido (campo desconhecido, link sem https, sem bloco): o resumo e o agendar recusam com o motivo, como hoje com modelo.
+- Falha ao salvar: mensagem no topo, nada se perde na tela.
+
+## Banco de Dados
+
+- Tabela: `email_campanhas` (migration `0061_email_campanhas_conteudo.sql`)
+  - `previa` (TEXT) — texto de pré-visualização do e-mail da campanha
+  - `corpo` (TEXT) — documento de blocos do e-mail da campanha (escrito nela ou congelado no disparo)
+  - (`assunto` já existe)
+
+## Arquivos
+
+- **Criar:** `migrations/0061_email_campanhas_conteudo.sql`.
+- **Modificar:** `functions/api/_email-campanhas.js` — conteúdo do modelo ou da campanha (`conteudoDe`), salvar e duplicar com conteúdo, resumo e agendar com conteúdo, congelar no disparo, envio pelo conteúdo congelado, teste da campanha, salvar como modelo.
+- **Modificar:** `functions/api/email/campanhas.js` — resumo por campanha, `enviar_teste`, `salvar_como_modelo`.
+- **Modificar:** `functions/api/_email-relatorios.js` — relatório devolve o e-mail que saiu.
+- **Modificar:** `public/dash/email-blocos.js` — modo campanha de verdade.
+- **Modificar:** `public/dash/email-mkt.js` — campanhas abrem a tela nova; resumo e disparo reaproveitados; relatório com "Ver o e-mail que saiu"; sai o botão do protótipo.
+- **Modificar:** `tests/email-campanhas.test.js` — e-mail escrito, congelamento, duplicar, teste, salvar como modelo.
+
+## Checklist
+
+- [ ] Migration 0061 aplicada no remoto
+- [ ] Servidor: conteúdo da campanha, congelamento, teste e salvar como modelo
+- [ ] Tela da campanha de verdade
+- [ ] Relatório com o e-mail que saiu
+- [ ] Testes passando e conferido na prévia (sem disparar)
