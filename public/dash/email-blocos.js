@@ -337,6 +337,9 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
         if (tr) { selecionar(tr.dataset.b); const card = raiz.querySelector(`[data-card="${tr.dataset.b}"]`); if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
       });
       ajustarAltura();
+      // A altura acompanha o e-mail (imagens carregando, celular): sem rolagem dupla.
+      const RO = frame.contentWindow && frame.contentWindow.ResizeObserver;
+      if (RO && doc.body) new RO(ajustarAltura).observe(doc.body);
     });
     document.removeEventListener('keydown', teclas);
     document.addEventListener('keydown', teclas);
@@ -577,7 +580,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
     const bt = alvo.querySelector(`[data-escolher-${chave}]`);
     const caixa = alvo.querySelector(`[data-biblio-${chave}]`);
     if (!bt) return;
-    bt.onclick = () => { caixa.hidden = !caixa.hidden; if (!caixa.hidden) caixa.querySelector('button').focus(); };
+    bt.onclick = () => { caixa.hidden = !caixa.hidden; if (!caixa.hidden) caixa.querySelector('.eb-biblio__item').focus(); };
     alvo.querySelectorAll(`[data-img-${chave}]`).forEach((b) => { b.onclick = () => { guardar(); fn(b.getAttribute(`data-img-${chave}`)); mudou(); }; });
     alvo.querySelector(`[data-subir-${chave}]`).onclick = () => U.avisar('Protótipo: subir imagem abre o seletor de arquivos; a imagem entra na biblioteca e já fica escolhida aqui (desenho da biblioteca na issue 390).');
   }
@@ -735,7 +738,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
   function ajustarAltura() {
     const frame = raiz.querySelector('#eb-frame');
     const doc = frame.contentDocument;
-    if (doc && doc.body) frame.style.height = Math.max(420, doc.documentElement.scrollHeight) + 'px';
+    if (doc && doc.body) frame.style.height = Math.max(420, doc.body.scrollHeight) + 'px';
   }
 
   window.EmailBlocos = { prototipo };

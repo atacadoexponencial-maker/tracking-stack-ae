@@ -943,7 +943,9 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 
 /* Editor por blocos (email-blocos.js) · PROTÓTIPO 389 */
 .eb { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 2rem; align-items: start; }
-.eb-editor { min-width: 0; display: grid; gap: 1.3rem; }
+.eb-editor { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.3rem; }
+.eb-editor > *, .eb-card__corpo > *, .eb-pilha > * { min-width: 0; }
+.eb-card__corpo { grid-template-columns: minmax(0, 1fr); }
 .eb-editor .ag-form { max-width: none; }
 .eb-editor .ag-form input { width: 100%; }
 .eb-secao { border-top: 2px solid var(--fio-forte); padding-top: 0.7rem; display: grid; gap: 0.7rem; }
@@ -1005,13 +1007,13 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .eb-amostra:hover, .eb-amostra:focus-visible { outline: 2px solid var(--tinta); outline-offset: 1px; }
 /* Imagem */
 .eb-img-escolhida { display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap; }
-.eb-img-escolhida img { width: 4.5rem; height: 3rem; object-fit: cover; border: 1px solid var(--fio); border-radius: 2px; background: var(--papel-escuro); }
+.eb-img-escolhida img { width: 4.5rem; height: 3rem; object-fit: contain; border: 1px solid var(--fio); border-radius: 2px; background: var(--papel-escuro); }
 .eb-img-escolhida > span { display: grid; flex: 1 1 10rem; min-width: 0; }
 .eb-biblio { margin-top: 0.5rem; border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem; background: var(--papel); }
 .eb-biblio__topo { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
 .eb-biblio__grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0.5rem; }
 .eb-biblio__item { display: grid; gap: 0.25rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.3rem; font: inherit; font-size: 0.75rem; color: var(--tinta); text-align: left; cursor: pointer; }
-.eb-biblio__item img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 1px; }
+.eb-biblio__item img { width: 100%; aspect-ratio: 3 / 2; object-fit: contain; background: var(--papel-escuro); border-radius: 1px; }
 .eb-biblio__item:hover, .eb-biblio__item:focus-visible { border-color: var(--tinta); outline: none; }
 .eb-biblio__item--atual { border-color: var(--tinta); box-shadow: 0 0 0 1px var(--tinta); }
 /* Prévia */
@@ -1019,7 +1021,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .eb-entrada { display: grid; gap: 0.15rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.55rem 0.7rem; font-size: 0.82rem; margin-bottom: 0.6rem; }
 .eb-entrada > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .eb-moldura { background: var(--papel-escuro); border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem; max-height: calc(100dvh - 9rem); overflow: auto; }
-.eb-moldura iframe { display: block; width: 100%; border: 0; min-height: 420px; margin: 0 auto; background: #fff; transition: max-width 0.2s ease-out; }
+.eb-moldura iframe { display: block; width: 100%; border: 0; min-height: 420px; overflow: hidden; margin: 0 auto; background: #fff; transition: max-width 0.2s ease-out; }
 .eb-moldura--celular iframe { max-width: 375px; }
 .eb-texto { margin: 0; white-space: pre-wrap; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; line-height: 1.55; background: #fff; border: 1px solid var(--fio); padding: 1rem; color: var(--tinta); }
 @media (max-width: 1100px) { .eb { grid-template-columns: minmax(0, 1fr); } .eb-previa { position: static; } .eb-moldura { max-height: none; } }
