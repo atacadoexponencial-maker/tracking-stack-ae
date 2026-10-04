@@ -53,8 +53,17 @@ Ela cria uma campanha sem modelo, manda teste, agenda ou dispara com o resumo de
 
 ## Checklist
 
-- [ ] Migration 0061 aplicada no remoto
-- [ ] Servidor: conteúdo da campanha, congelamento, teste e salvar como modelo
-- [ ] Tela da campanha de verdade
-- [ ] Relatório com o e-mail que saiu
-- [ ] Testes passando e conferido na prévia (sem disparar)
+- [x] Migration 0061 aplicada no remoto
+- [x] Servidor: conteúdo da campanha, congelamento, teste e salvar como modelo
+- [x] Tela da campanha de verdade
+- [x] Relatório com o e-mail que saiu
+- [x] Testes passando e conferido na prévia (sem disparar)
+
+## Execução (04/10/2026)
+
+- Migration 0061 aplicada no remoto antes do código (colunas `previa` e `corpo` conferidas).
+- Servidor: e-mail escrito na campanha, conteúdo congelado no disparo (agora e agendado), envio pelo congelado, teste do e-mail escrito (`campanha:<id>`), salvar como modelo (confere antes de criar), duplicar, relatório com o e-mail que saiu. 4 testes novos; 1098 passando.
+- Tela: Nova campanha, rascunho e agendada abrem a tela inteira; o formulário antigo em gaveta saiu (o resumo e o disparo foram reaproveitados em `mostrarResumo`). Campanha enviada segue no detalhe e no relatório, agora com "Ver o e-mail que saiu".
+- Conferido na prévia: campanha nova com e-mail escrito, passos, "Revisar" travado sem segmento (não há segmento cadastrado), salvar, voltar e reabrir com o e-mail guardado. O rascunho de teste foi apagado. Disparo, agendamento, teste e salvar como modelo ficaram bloqueados na conferência (cobertos pelos testes).
+
+Pendente (limpeza): o código só de protótipo em `public/dash/email-blocos.js` (dados de exemplo, prévia montada no navegador, painel do protótipo) não é mais chamado e pode sair.
