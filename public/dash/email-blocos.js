@@ -155,13 +155,15 @@
   }
 
   function montar(E, sel) {
-    const blocos = E.blocos.map((b) => `<tr data-b="${b.id}" class="${b.id === sel ? 'eb-sel' : ''}">${blocoHtml(b)}</tr>`).join('');
+    const blocos = E.blocos.map((b) => `<tr data-b="${b.id}" draggable="true" class="${b.id === sel ? 'eb-sel' : ''}">${blocoHtml(b)}</tr>`).join('');
     return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>body{margin:0}[data-b]{cursor:pointer}[data-b]:hover>td{outline:1px dashed #b8ada1;outline-offset:-1px}.eb-sel>td{outline:2px solid #161513!important;outline-offset:-2px}
+[data-b]{cursor:grab}.eb-antes>td{box-shadow:inset 0 4px 0 #161513}.eb-depois>td{box-shadow:inset 0 -4px 0 #161513}.eb-troca img{outline:4px solid #161513;outline-offset:-4px}.eb-arrastando{opacity:.4}
+.eb-vazio-alvo td{outline:2px dashed #161513;outline-offset:-6px}
 @media (max-width:480px){.eb-col{display:block!important;width:100%!important;padding:0 0 12px!important}}</style></head>
 <body style="background:${E.fundo.fora}"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${E.fundo.fora}"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${E.fundo.conteudo};border:1px solid #e5e2da;border-radius:4px">
-${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:center;${FONTE};color:#8a837a">Nenhum bloco ainda</td></tr>`}
+${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text-align:center;${FONTE};color:#8a837a">Nenhum bloco ainda. Arraste um bloco da paleta para cá.</td></tr>`}
 <tr><td style="padding:16px 28px 24px;border-top:1px solid #eeeae2;${FONTE};font-size:12px;line-height:1.5;color:#888888">Atacado Exponencial · rodapé comum da Configuração<br><br><a href="#" style="color:#888888">Não quero mais receber estes e-mails</a></td></tr>
 </table></td></tr></table></body></html>`;
   }
@@ -246,6 +248,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
   // ---------------------------------------------------------------------------
   let E, salvo, sel, desfazer, refazer, tamanho, ctx, U, ultimoCampo, recentes = [];
   let raiz, voltarLista, previaTimer, digitandoTimer;
+  let arrastandoTipo = null; // tipo vindo da paleta (o dado só é legível ao soltar)
 
   const snap = () => JSON.stringify(E);
   const sujo = () => snap() !== salvo;
@@ -299,8 +302,9 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
               <button type="button" class="ag-icone" data-tam="computador" aria-pressed="true" aria-label="Computador" title="Computador">${ic('computador')}</button>
               <button type="button" class="ag-icone" data-tam="celular" aria-pressed="false" aria-label="Celular" title="Celular">${ic('celular')}</button>
               <button type="button" class="ag-icone" data-tam="texto" aria-pressed="false" aria-label="Versão só texto" title="Versão só texto">${ic('so_texto')}</button></div></div>
+          <div class="eb-paleta" role="group" aria-label="Blocos para arrastar até o e-mail"><span class="mini">Arraste para o e-mail:</span>${Object.entries(TIPOS).map(([k, t]) => `<button type="button" class="eb-paleta__item" draggable="true" data-paleta="${k}" title="Arraste até o ponto do e-mail, ou clique para pôr no fim">${ic(k)} ${t.rotulo}</button>`).join('')}</div>
           <div class="eb-caixa" id="eb-caixa"></div>
-          <div class="eb-moldura" id="eb-moldura"><iframe id="eb-frame" title="Prévia do e-mail"></iframe><pre class="eb-texto" id="eb-texto" hidden></pre></div>
+          <div class="eb-moldura" id="eb-moldura"><p class="eb-dica mini">Arraste um bloco para mudar de lugar, solte uma imagem do computador ou um bloco da paleta.</p><iframe id="eb-frame" title="Prévia do e-mail"></iframe><pre class="eb-texto" id="eb-texto" hidden></pre></div>
         </div>
       </div>`;
 
@@ -336,6 +340,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
         const tr = ev.target.closest('[data-b]');
         if (tr) { selecionar(tr.dataset.b); const card = raiz.querySelector(`[data-card="${tr.dataset.b}"]`); if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
       });
+      ligarArrastarNaPrevia(doc);
       ajustarAltura();
       // A altura acompanha o e-mail (imagens carregando, celular): sem rolagem dupla.
       const RO = frame.contentWindow && frame.contentWindow.ResizeObserver;
@@ -343,6 +348,11 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
     });
     document.removeEventListener('keydown', teclas);
     document.addEventListener('keydown', teclas);
+    el.querySelectorAll('[data-paleta]').forEach((b) => {
+      b.addEventListener('dragstart', (ev) => { ev.dataTransfer.effectAllowed = 'copy'; ev.dataTransfer.setData('text/plain', 'bloco:' + b.dataset.paleta); arrastandoTipo = b.dataset.paleta; });
+      b.addEventListener('dragend', () => { arrastandoTipo = null; });
+      b.onclick = () => { inserirBloco(b.dataset.paleta, E.blocos.length); };
+    });
 
     desenharCabecalho();
     desenharFundo();
@@ -516,10 +526,107 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
       if (ev.key === 'ArrowUp') { ev.preventDefault(); itens[(i - 1 + itens.length) % itens.length].focus(); }
     });
     m.querySelectorAll('[data-tipo]').forEach((b) => {
-      b.onclick = () => { guardar(); const n = blocoNovo(b.dataset.tipo); E.blocos.splice(pos, 0, n); sel = n.id; fecharTipos(); mudou(); const f = raiz.querySelector(`[data-card="${n.id}"] input, [data-card="${n.id}"] [contenteditable]`); if (f) f.focus(); };
+      b.onclick = () => { fecharTipos(); inserirBloco(b.dataset.tipo, pos, { focar: true }); };
     });
     setTimeout(() => document.addEventListener('click', foraTipos), 0);
   }
+  function inserirBloco(tipo, pos, { focar = false, extra = null } = {}) {
+    guardar();
+    const n = Object.assign(blocoNovo(tipo), extra || {});
+    E.blocos.splice(pos, 0, n);
+    sel = n.id;
+    mudou();
+    const card = raiz.querySelector(`[data-card="${n.id}"]`);
+    if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (focar) { const f = raiz.querySelector(`[data-card="${n.id}"] input, [data-card="${n.id}"] [contenteditable]`); if (f) f.focus(); }
+    return n;
+  }
+
+  // Arrastar e soltar dentro da prévia (o e-mail): reordenar blocos, soltar um
+  // bloco da paleta e soltar imagem do computador (em cima de uma imagem, troca;
+  // entre blocos, cria um bloco de imagem ali).
+  function ligarArrastarNaPrevia(doc) {
+    let movendo = null;
+    const limpar = () => doc.querySelectorAll('.eb-antes, .eb-depois, .eb-troca, .eb-vazio-alvo').forEach((x) => x.classList.remove('eb-antes', 'eb-depois', 'eb-troca', 'eb-vazio-alvo'));
+    // Onde cai: índice na pilha e, para arquivo, o bloco de imagem embaixo do ponteiro.
+    const alvo = (ev) => {
+      const tr = ev.target.closest && ev.target.closest('[data-b]');
+      if (!tr) {
+        const vazio = ev.target.closest && ev.target.closest('[data-vazio]');
+        if (vazio) return { pos: 0, tr: vazio, vazio: true };
+        // Acima do primeiro bloco (cabeçalho) entra no começo; abaixo, no fim.
+        const primeiro = doc.querySelector('[data-b]');
+        const antesDoPrimeiro = primeiro && ev.clientY < primeiro.getBoundingClientRect().top;
+        return { pos: antesDoPrimeiro ? 0 : E.blocos.length, tr: antesDoPrimeiro ? primeiro : doc.querySelector('[data-b]:last-of-type'), antes: antesDoPrimeiro };
+      }
+      const r = tr.getBoundingClientRect();
+      const antes = ev.clientY < r.top + r.height / 2;
+      const i = E.blocos.findIndex((b) => b.id === tr.dataset.b);
+      const b = E.blocos[i];
+      const sobreImagem = ev.target.tagName === 'IMG' && (b.tipo === 'imagem' || b.tipo === 'imgtexto');
+      return { pos: antes ? i : i + 1, tr, antes, bloco: b, sobreImagem };
+    };
+    const tipoDoArraste = (ev) => {
+      const tipos = [...(ev.dataTransfer?.types || [])];
+      if (tipos.includes('Files')) return 'arquivo';
+      if (movendo) return 'mover';
+      if (arrastandoTipo) return 'paleta';
+      return null;
+    };
+    doc.addEventListener('dragstart', (ev) => {
+      const tr = ev.target.closest && ev.target.closest('[data-b]');
+      if (!tr) return;
+      movendo = tr.dataset.b;
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', 'mover:' + movendo);
+      tr.classList.add('eb-arrastando');
+    });
+    doc.addEventListener('dragend', () => { movendo = null; limpar(); doc.querySelectorAll('.eb-arrastando').forEach((x) => x.classList.remove('eb-arrastando')); });
+    doc.addEventListener('dragover', (ev) => {
+      const t = tipoDoArraste(ev);
+      if (!t) return;
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = t === 'mover' ? 'move' : 'copy';
+      limpar();
+      const a = alvo(ev);
+      if (a.vazio) { a.tr.classList.add('eb-vazio-alvo'); return; }
+      if (t === 'arquivo' && a.sobreImagem) { a.tr.classList.add('eb-troca'); return; }
+      if (a.tr) a.tr.classList.add(a.antes ? 'eb-antes' : 'eb-depois');
+    });
+    doc.addEventListener('dragleave', (ev) => { if (!ev.relatedTarget) limpar(); });
+    doc.addEventListener('drop', (ev) => {
+      const t = tipoDoArraste(ev);
+      if (!t) return;
+      ev.preventDefault();
+      const a = alvo(ev);
+      limpar();
+      if (t === 'mover') {
+        const de = E.blocos.findIndex((b) => b.id === movendo);
+        let para = a.pos;
+        movendo = null;
+        if (de < 0 || para === de || para === de + 1) return;
+        guardar();
+        const [b] = E.blocos.splice(de, 1);
+        if (para > de) para -= 1;
+        E.blocos.splice(para, 0, b);
+        sel = b.id;
+        mudou();
+        return;
+      }
+      if (t === 'paleta') {
+        const tipo = (ev.dataTransfer.getData('text/plain') || '').replace(/^bloco:/, '') || arrastandoTipo;
+        arrastandoTipo = null;
+        if (TIPOS[tipo]) inserirBloco(tipo, a.pos, { focar: true });
+        return;
+      }
+      const f = ev.dataTransfer.files[0];
+      lerImagem(f, (nova) => {
+        if (a.sobreImagem) { guardar(); a.bloco.img = nova.id; sel = a.bloco.id; mudou(); return; }
+        inserirBloco('imagem', a.pos, { extra: { img: nova.id } });
+      });
+    });
+  }
+
   function foraTipos(ev) { if (!ev.target.closest('.eb-tipos')) fecharTipos(); }
   function fecharTipos() { document.querySelectorAll('.eb-tipos').forEach((m) => m.remove()); document.removeEventListener('click', foraTipos); }
 
@@ -588,27 +695,11 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
     if (!bt) return;
     bt.onclick = () => { caixa.hidden = !caixa.hidden; bt.setAttribute('aria-expanded', String(!caixa.hidden)); if (!caixa.hidden) caixa.querySelector('[data-img-' + chave + ']').focus(); };
     alvo.querySelectorAll(`[data-img-${chave}]`).forEach((b) => { b.onclick = () => { guardar(); fn(b.getAttribute(`data-img-${chave}`)); mudou(); }; });
-    // Subir: a imagem entra na biblioteca e já fica escolhida.
-    // No protótipo ela fica só neste navegador (não sobe para o servidor).
-    const subir = (f) => {
-      if (!f) return;
-      if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) return U.avisar('Formato não aceito. Use JPG, PNG, GIF ou WebP.', 'erro');
-      if (f.size > 1024 * 1024) return U.avisar(`A imagem tem ${(f.size / 1024 / 1024).toFixed(1).replace('.', ',')} MB e o limite é 1 MB. Exporte menor e tente de novo.`, 'erro');
-      const leitor = new FileReader();
-      leitor.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          const nova = { id: novoId(), nome: f.name.replace(/\.[^.]+$/, ''), url: leitor.result, w: img.naturalWidth, h: img.naturalHeight, peso: `${Math.max(1, Math.round(f.size / 1024))} KB`, gif: f.type === 'image/gif' };
-          BIBLIOTECA.unshift(nova);
-          guardar(); fn(nova.id);
-          if (chave === 'cab') desenharCabecalho();
-          mudou();
-          U.avisar(nova.w > 1200 ? `Imagem na biblioteca e escolhida. Ela tem ${nova.w} px de largura: acima de 1200 px, vale reduzir (no e-mail ela aparece reduzida).` : 'Imagem na biblioteca e escolhida.');
-        };
-        img.src = leitor.result;
-      };
-      leitor.readAsDataURL(f);
-    };
+    const subir = (f) => lerImagem(f, (nova) => {
+      guardar(); fn(nova.id);
+      if (chave === 'cab') desenharCabecalho();
+      mudou();
+    });
     alvo.querySelectorAll(`[data-subir-${chave}]`).forEach((b) => {
       b.onclick = () => {
         const inp = document.createElement('input');
@@ -624,6 +715,26 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
       zona.addEventListener('dragleave', () => zona.classList.remove('eb-solta--sobre'));
       zona.addEventListener('drop', (ev) => { ev.preventDefault(); zona.classList.remove('eb-solta--sobre'); subir(ev.dataTransfer.files[0]); });
     }
+  }
+
+  // Subir: a imagem entra na biblioteca e `pronta` recebe a ficha. No protótipo
+  // ela fica só neste navegador (não sobe para o servidor).
+  function lerImagem(f, pronta) {
+    if (!f) return;
+    if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) return U.avisar('Formato não aceito. Use JPG, PNG, GIF ou WebP.', 'erro');
+    if (f.size > 1024 * 1024) return U.avisar(`A imagem tem ${(f.size / 1024 / 1024).toFixed(1).replace('.', ',')} MB e o limite é 1 MB. Exporte menor e tente de novo.`, 'erro');
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const nova = { id: novoId(), nome: f.name.replace(/\.[^.]+$/, ''), url: leitor.result, w: img.naturalWidth, h: img.naturalHeight, peso: `${Math.max(1, Math.round(f.size / 1024))} KB`, gif: f.type === 'image/gif' };
+        BIBLIOTECA.unshift(nova);
+        pronta(nova);
+        U.avisar(nova.w > 1200 ? `Imagem na biblioteca e no e-mail. Ela tem ${nova.w} px de largura: acima de 1200 px, vale reduzir (no e-mail ela aparece reduzida).` : 'Imagem na biblioteca e no e-mail.');
+      };
+      img.src = leitor.result;
+    };
+    leitor.readAsDataURL(f);
   }
 
   function textoRico(html, chave) {

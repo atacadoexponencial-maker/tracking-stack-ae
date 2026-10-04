@@ -1032,6 +1032,12 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .eb-moldura { background: var(--papel-escuro); border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem; max-height: calc(100dvh - 9rem); overflow: auto; }
 .eb-moldura iframe { display: block; width: 100%; border: 0; min-height: 420px; overflow: hidden; margin: 0 auto; background: #fff; transition: max-width 0.2s ease-out; }
 .eb-moldura--celular iframe { max-width: 375px; }
+.eb-paleta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-bottom: 0.6rem; }
+.eb-paleta > .mini { margin-right: 0.2rem; }
+.eb-paleta__item { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.3rem 0.55rem; font: inherit; font-size: 0.8rem; color: var(--tinta); cursor: grab; }
+.eb-paleta__item:hover, .eb-paleta__item:focus-visible { border-color: var(--tinta); }
+.eb-paleta__item:active { cursor: grabbing; }
+.eb-dica { margin: 0 0 0.5rem; text-align: center; }
 .eb-texto { margin: 0; white-space: pre-wrap; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; line-height: 1.55; background: #fff; border: 1px solid var(--fio); padding: 1rem; color: var(--tinta); }
 @media (max-width: 1100px) { .eb { grid-template-columns: minmax(0, 1fr); } .eb-previa { position: static; } .eb-moldura { max-height: none; } }
 @media (max-width: 640px) { .eb-card__resumo { display: none; } .eb-card__corpo { padding-left: 0.9rem; } }
