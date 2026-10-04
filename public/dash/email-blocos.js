@@ -54,11 +54,11 @@
   const svgImg = (w, h, fundo, cor, texto) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="${fundo}"/><text x="50%" y="50%" fill="${cor}" font-family="Arial" font-size="${Math.round(h / 9)}" font-weight="700" text-anchor="middle" dominant-baseline="middle">${texto}</text></svg>`);
   const BIBLIOTECA = [
-    { id: 'logo', nome: 'Logo Atacado Exponencial', url: '/email/logo.png', w: 600, h: 140, peso: '18 KB' },
-    { id: 'workshop', nome: 'Banner workshop 05-11', url: svgImg(1200, 630, '#161513', '#f5f0eb', 'WORKSHOP AO VIVO · 05/11'), w: 1200, h: 630, peso: '212 KB' },
-    { id: 'felipe', nome: 'Felipe no palco', url: svgImg(800, 800, '#b8ada1', '#161513', 'FELIPE SANTOS'), w: 800, h: 800, peso: '164 KB' },
-    { id: 'gif', nome: 'Contagem animada (GIF)', url: svgImg(600, 200, '#f5f0eb', '#161513', 'GIF ANIMADO'), w: 600, h: 200, peso: '640 KB', gif: true },
-    { id: 'logo-branca', nome: 'Logo branca', url: svgImg(600, 140, '#1e1e1e', '#ffffff', 'atacado exponencial'), w: 600, h: 140, peso: '9 KB' },
+    { id: 'logo', nome: 'Logo Atacado Exponencial', url: '/email/logo.png', w: 600, h: 140, peso: '18 KB', data: '03/10', usos: ['Cabeçalho padrão', 'Confirmação de reunião', 'Lembrete 24h antes'] },
+    { id: 'workshop', nome: 'Banner workshop 05-11', url: svgImg(1200, 630, '#161513', '#f5f0eb', 'WORKSHOP AO VIVO · 05/11'), w: 1200, h: 630, peso: '212 KB', data: '04/10', usos: ['Convite workshop 05/11'] },
+    { id: 'felipe', nome: 'Felipe no palco', url: svgImg(800, 800, '#b8ada1', '#161513', 'FELIPE SANTOS'), w: 800, h: 800, peso: '164 KB', data: '04/10', usos: ['Convite workshop 05/11', 'Boas-vindas do workshop'] },
+    { id: 'gif', nome: 'Contagem animada (GIF)', url: svgImg(600, 200, '#f5f0eb', '#161513', 'GIF ANIMADO'), w: 600, h: 200, peso: '640 KB', gif: true, data: '02/10', usos: [] },
+    { id: 'logo-branca', nome: 'Logo branca', url: svgImg(600, 140, '#1e1e1e', '#ffffff', 'atacado exponencial'), w: 600, h: 140, peso: '9 KB', data: '01/10', usos: [] },
   ];
   const imagem = (id) => BIBLIOTECA.find((i) => i.id === id) || null;
 
@@ -171,7 +171,9 @@
   }
 
   function montar(E, sel) {
-    const blocos = blocosCorpo().map((b) => linhaBloco(b, sel)).join('');
+    const blocos = apenasCab
+      ? `<tr><td style="padding:28px;${FONTE};font-size:13px;color:#8a837a;text-align:center;background:repeating-linear-gradient(135deg,#faf8f4 0 10px,#f3f1ec 10px 20px)">Aqui entra o corpo de cada modelo</td></tr>`
+      : blocosCorpo().map((b) => linhaBloco(b, sel)).join('');
     return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>body{margin:0}[data-b],[data-cabeca]{cursor:pointer}[data-b]:hover>td{outline:1px dashed #b8ada1;outline-offset:-1px}.eb-sel>td{outline:2px solid #161513!important;outline-offset:-2px}
 [data-b]{cursor:grab}.eb-antes>td{box-shadow:inset 0 4px 0 #161513}.eb-depois>td{box-shadow:inset 0 -4px 0 #161513}.eb-troca img{outline:4px solid #161513;outline-offset:-4px}.eb-arrastando{opacity:.4}
@@ -271,7 +273,9 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   // ---------------------------------------------------------------------------
   let E, salvo, sel, desfazer, refazer, tamanho, ctx, U, ultimoCampo, recentes = [];
   let raiz, voltarLista, previaTimer, digitandoTimer;
-  let arrastandoTipo = null; // tipo vindo da paleta (o dado só é legível ao soltar)
+  let arrastandoTipo = null;
+  let apenasCab = false; // editor aberto pela Configuração › Cabeçalho padrão
+  const USAM_PADRAO = ['Confirmação de reunião', 'Lembrete 24h antes', 'Lembrete 1h antes', 'Convite workshop 05/11']; // tipo vindo da paleta (o dado só é legível ao soltar)
 
   const snap = () => JSON.stringify(E);
   const sujo = () => snap() !== salvo;
@@ -295,26 +299,36 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
 
   function prototipo(el, opcoes) {
     raiz = el; ctx = opcoes.ctx; U = opcoes.util; voltarLista = opcoes.voltar;
-    E = exemplo(); salvo = snap(); sel = E.blocos[1].id; desfazer = []; refazer = []; tamanho = 'computador'; ultimoCampo = null;
+    apenasCab = opcoes.modo === 'cabecalho';
+    E = exemplo();
+    if (apenasCab) {
+      E.nome = 'Cabeçalho padrão'; E.assunto = ''; E.previa = '';
+      E.cab = { modo: 'proprio', fundo: CAB_PADRAO.fundo };
+      E.blocos = CAB_PADRAO.blocos.map((b) => ({ ...JSON.parse(JSON.stringify(b)), id: novoId(), zona: 'cab' }));
+    }
+    salvo = snap(); sel = apenasCab ? E.blocos[0].id : E.blocos[1].id; desfazer = []; refazer = []; tamanho = 'computador'; ultimoCampo = null;
     el.innerHTML = `
-      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Editor novo por blocos, com dados de exemplo. Nada aqui é salvo nem enviado.</span></div>
-      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ic('voltar')} Modelos</button>
+      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>${apenasCab ? 'Cabeçalho padrão montado com blocos' : 'Editor novo por blocos'}, com dados de exemplo. Nada aqui é salvo nem enviado.</span></div>
+      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ic('voltar')} ${apenasCab ? 'Configuração' : 'Modelos'}</button>
         <div class="ag-acoes"><span class="mini eb-sujo" data-sujo hidden>Mudanças não salvas</span>
           <button class="ag-icone" type="button" data-desfazer aria-label="Desfazer (Ctrl+Z)" title="Desfazer (Ctrl+Z)">${ic('desfazer')}</button>
           <button class="ag-icone" type="button" data-refazer aria-label="Refazer (Ctrl+Y)" title="Refazer (Ctrl+Y)">${ic('refazer')}</button>
-          <button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-dup>Duplicar</button><button class="btn" type="button" data-salvar>Salvar</button></div></div>
+          ${apenasCab ? '' : '<button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-dup>Duplicar</button>'}<button class="btn" type="button" data-salvar>${apenasCab ? 'Salvar cabeçalho padrão' : 'Salvar'}</button></div></div>
       <div class="eb">
         <div class="eb-editor">
-          <form class="ag-form" onsubmit="return false">
+          ${apenasCab
+            ? `<div class="eb-cab-intro"><h3 class="ag-h3">Cabeçalho padrão</h3><p>A faixa do topo de todo modelo que usa o padrão. Monte com os mesmos blocos do corpo: logo, texto, links, botão.</p>
+              <p class="mini">Usado hoje por <b>${USAM_PADRAO.length} modelos</b>: ${USAM_PADRAO.map(esc).join(', ')}. Mudar aqui vale para os próximos envios deles.</p></div>`
+            : `<form class="ag-form" onsubmit="return false">
             <div class="linha"><label>Nome<input type="text" data-e="nome" maxlength="100"></label>
               <label>Canal<input type="text" value="Marketing (news.)" disabled></label></div>
             <label>Assunto<input type="text" data-e="assunto" maxlength="200"></label>
             <label>Texto de pré-visualização<input type="text" data-e="previa" maxlength="200"></label>
-          </form>
+          </form>`}
           <div class="eb-avisos" id="eb-avisos" aria-live="polite"></div>
-          <section class="eb-secao" aria-labelledby="eb-blocos-t"><h3 class="ag-h3" id="eb-blocos-t">Cabeçalho e blocos <span class="mini">arraste pela alça ou use as setas</span></h3>
+          <section class="eb-secao" aria-labelledby="eb-blocos-t"><h3 class="ag-h3" id="eb-blocos-t">${apenasCab ? 'Blocos do cabeçalho' : 'Cabeçalho e blocos'} <span class="mini">arraste pela alça ou use as setas</span></h3>
             <ol class="eb-pilha" id="eb-pilha"></ol></section>
-          <section class="eb-secao" aria-labelledby="eb-fundo-t"><h3 class="ag-h3" id="eb-fundo-t">Fundo do e-mail</h3><div id="eb-fundo" class="eb-duas"></div></section>
+          <section class="eb-secao" aria-labelledby="eb-fundo-t"><h3 class="ag-h3" id="eb-fundo-t">${apenasCab ? 'Fundo da faixa' : 'Fundo do e-mail'}</h3><div id="eb-fundo" class="eb-duas"></div></section>
           <section class="eb-secao eb-campos" aria-labelledby="eb-campos-t"><h3 class="ag-h3" id="eb-campos-t">Campos <span class="mini">clique para inserir onde está o cursor</span></h3>
             <div class="ag-etiquetas">${CAMPOS.map(([c, r]) => `<button type="button" class="ag-etiqueta eb-campo" data-campo="${c}" title="${esc(r)}">{{${c}}}</button>`).join('')}</div></section>
         </div>
@@ -337,15 +351,25 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     });
     el.querySelector('[data-voltar]').onclick = (ev) => {
       if (!sujo()) return voltarLista();
-      ctx.pedirConfirmacao(ev.currentTarget, 'Sair sem salvar? As mudanças deste modelo se perdem.', () => { voltarLista(); return true; }, [{ valor: true, rotulo: 'Descartar e sair' }]);
+      ctx.pedirConfirmacao(ev.currentTarget, apenasCab ? 'Sair sem salvar? As mudanças do cabeçalho se perdem.' : 'Sair sem salvar? As mudanças deste modelo se perdem.', () => { voltarLista(); return true; }, [{ valor: true, rotulo: 'Descartar e sair' }]);
     };
-    el.querySelector('[data-salvar]').onclick = () => {
+    el.querySelector('[data-salvar]').onclick = (ev) => {
+      if (apenasCab) {
+        if (!blocosCab().length) return U.avisar('O cabeçalho padrão está vazio. Adicione pelo menos um bloco, ou deixe cada modelo escolher "Sem cabeçalho".', 'erro');
+        return ctx.pedirConfirmacao(ev.currentTarget, `Salvar? O cabeçalho muda em ${USAM_PADRAO.length} modelos, nos próximos envios.`, () => {
+          salvo = snap(); mudou({ pilha: false });
+          U.avisar('Protótipo: nada foi salvo. No de verdade, os modelos que usam o padrão passam a sair com este cabeçalho.');
+          return true;
+        });
+      }
       if (!blocosCorpo().length) return U.avisar('Não dá para salvar um modelo sem nenhum bloco. Adicione pelo menos um.', 'erro');
       salvo = snap(); mudou({ pilha: false });
       U.avisar('Protótipo: nada foi salvo. No editor de verdade, este modelo é usado em "Boas-vindas do workshop" (fluxo) e o aviso aparece antes de salvar.');
     };
-    el.querySelector('[data-teste]').onclick = () => U.avisar('Protótipo: no editor de verdade, o teste sai com o que está na tela, mesmo sem salvar.');
-    el.querySelector('[data-dup]').onclick = () => U.avisar('Protótipo: duplicar leva blocos, cabeçalho e cores para uma cópia.');
+    const bTeste = el.querySelector('[data-teste]');
+    if (bTeste) bTeste.onclick = () => U.avisar('Protótipo: no editor de verdade, o teste sai com o que está na tela, mesmo sem salvar.');
+    const bDup = el.querySelector('[data-dup]');
+    if (bDup) bDup.onclick = () => U.avisar('Protótipo: duplicar leva blocos, cabeçalho e cores para uma cópia.');
     el.querySelector('[data-desfazer]').onclick = () => voltar(desfazer, refazer);
     el.querySelector('[data-refazer]').onclick = () => voltar(refazer, desfazer);
     el.querySelectorAll('[data-tam]').forEach((b) => { b.onclick = () => { tamanho = b.dataset.tam; el.querySelectorAll('[data-tam]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); desenharPrevia(); }; });
@@ -374,7 +398,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     el.querySelectorAll('[data-paleta]').forEach((b) => {
       b.addEventListener('dragstart', (ev) => { ev.dataTransfer.effectAllowed = 'copy'; ev.dataTransfer.setData('text/plain', 'bloco:' + b.dataset.paleta); arrastandoTipo = b.dataset.paleta; });
       b.addEventListener('dragend', () => { arrastandoTipo = null; });
-      b.onclick = () => { inserirBloco(b.dataset.paleta, E.blocos.length, { zona: 'corpo' }); };
+      b.onclick = () => { inserirBloco(b.dataset.paleta, apenasCab ? blocosCab().length : E.blocos.length, { zona: apenasCab ? 'cab' : 'corpo' }); };
     });
 
     desenharCabecalho();
@@ -433,6 +457,11 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
 
   function desenharFundo() {
     const alvo = raiz.querySelector('#eb-fundo');
+    if (apenasCab) {
+      alvo.innerHTML = seletorCor('Cor de fundo', E.cab.fundo || '', 'cab-fundo2', true);
+      ligarCor(alvo, 'cab-fundo2', (v) => { E.cab.fundo = v; });
+      return;
+    }
     alvo.innerHTML = seletorCor('Em volta do e-mail', E.fundo.fora, 'fundo-fora') + seletorCor('Área do conteúdo', E.fundo.conteudo, 'fundo-conteudo');
     ligarCor(alvo, 'fundo-fora', (v) => { E.fundo.fora = v; });
     ligarCor(alvo, 'fundo-conteudo', (v) => { E.fundo.conteudo = v; });
@@ -492,7 +521,9 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const lista = (blocos, zona) => blocos.map((b, i) => inserir(E.blocos.indexOf(b), zona) + cartaoBloco(b, i === 0, i === blocos.length - 1)).join('');
     const cabs = blocosCab(), corpo = blocosCorpo();
     const fimCab = cabs.length ? E.blocos.indexOf(cabs[cabs.length - 1]) + 1 : 0;
-    p.innerHTML = cartaoCab
+    if (apenasCab) {
+      p.innerHTML = lista(cabs, 'cab') + `<li class="eb-fim"><button type="button" class="btn sec" data-inserir="${fimCab}" data-zona="cab">${ic('mais')} Adicionar ao cabeçalho</button></li>`;
+    } else p.innerHTML = cartaoCab
       + (proprio ? `<li class="eb-zona eb-zona--cab"><ol class="eb-zona__lista">${lista(cabs, 'cab')}<li class="eb-fim eb-fim--cab"><button type="button" class="btn sec" data-inserir="${fimCab}" data-zona="cab">${ic('mais')} Adicionar ao cabeçalho</button></li></ol></li>` : '')
       + '<li class="eb-zona__rotulo">Corpo do e-mail</li>'
       + lista(corpo, 'corpo')
@@ -604,6 +635,10 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const limpar = () => doc.querySelectorAll('.eb-antes, .eb-depois, .eb-troca, .eb-vazio-alvo').forEach((x) => x.classList.remove('eb-antes', 'eb-depois', 'eb-troca', 'eb-vazio-alvo'));
     // Onde cai: índice na pilha e, para arquivo, o bloco de imagem embaixo do ponteiro.
     const alvo = (ev) => {
+      if (apenasCab) {
+        const trc = ev.target.closest && ev.target.closest('[data-b]');
+        if (!trc) return { pos: blocosCab().length, zona: 'cab', tr: doc.querySelector('[data-b]:last-of-type') || doc.querySelector('[data-vazio-cab]'), antes: false, vazio: !blocosCab().length };
+      }
       const tr = ev.target.closest && ev.target.closest('[data-b]');
       if (!tr) {
         const vazioCab = ev.target.closest && ev.target.closest('[data-vazio-cab]');
@@ -929,9 +964,9 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   function desenharAvisos() {
     const alvo = raiz.querySelector('#eb-avisos');
     const itens = [];
-    if (!blocosCorpo().length) itens.push({ txt: 'O corpo do e-mail não tem nenhum bloco. Sem bloco, não dá para salvar.', id: null });
+    if (!apenasCab && !blocosCorpo().length) itens.push({ txt: 'O corpo do e-mail não tem nenhum bloco. Sem bloco, não dá para salvar.', id: null });
     camposRuins(E.assunto, E.previa).forEach((c) => itens.push({ txt: `Assunto ou pré-visualização: campo desconhecido {{${c}}}`, id: null }));
-    visiveis().forEach((b) => avisosDoBloco(b).forEach((a) => itens.push({ txt: `${doCab(b) ? 'Cabeçalho, ' : ''}${rotuloBloco(b)}: ${a}`, id: b.id })));
+    visiveis().forEach((b) => avisosDoBloco(b).forEach((a) => itens.push({ txt: `${doCab(b) && !apenasCab ? 'Cabeçalho, ' : ''}${rotuloBloco(b)}: ${a}`, id: b.id })));
     alvo.innerHTML = itens.length ? `<div class="aviso alerta eb-avisos__caixa"><b>Antes de salvar, confira:</b><ul>${itens.map((i) => `<li>${i.id ? `<button type="button" class="ag-link-linha" data-ir-bloco="${i.id}">${esc(i.txt)}</button>` : esc(i.txt)}</li>`).join('')}</ul></div>` : '';
     alvo.querySelectorAll('[data-ir-bloco]').forEach((b) => { b.onclick = () => { selecionar(b.dataset.irBloco); raiz.querySelector(`[data-card="${b.dataset.irBloco}"]`).scrollIntoView({ block: 'center', behavior: 'smooth' }); }; });
   }
@@ -942,6 +977,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const moldura = raiz.querySelector('#eb-moldura');
     const frame = raiz.querySelector('#eb-frame');
     const texto = raiz.querySelector('#eb-texto');
+    raiz.querySelector('#eb-caixa').hidden = apenasCab;
     raiz.querySelector('#eb-caixa').innerHTML = `<div class="eb-entrada"><span class="eb-entrada__de"><b>Felipe Santos | Atacado Exponencial</b> <span class="mini">felipe@news.atacadoexponencial.com</span></span><span class="eb-entrada__assunto"><b>${esc(preencherTexto(E.assunto) || '(sem assunto)')}</b> <span class="mini">${esc(preencherTexto(E.previa))}</span></span></div>`;
     moldura.classList.toggle('eb-moldura--celular', tamanho === 'celular');
     texto.hidden = tamanho !== 'texto';
@@ -957,5 +993,156 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     if (doc && doc.body) frame.style.height = Math.max(420, doc.body.scrollHeight) + 'px';
   }
 
-  window.EmailBlocos = { prototipo };
+  // ---------------------------------------------------------------------------
+  // Biblioteca de imagens (spec, módulo 4) · PROTÓTIPO 390
+  // ---------------------------------------------------------------------------
+  const PESO_MAX = 1024 * 1024;
+  const pesoTxt = (b) => (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+  const pesoKb = (t) => { const m = /([\d,.]+)\s*(KB|MB)/.exec(t || ''); return m ? parseFloat(m[1].replace(',', '.')) * (m[2] === 'MB' ? 1024 : 1) : 0; };
+  let bib = null; // { el, busca, aberta, fila, cenario }
+
+  function biblioteca(el, opcoes) {
+    ctx = opcoes.ctx; U = opcoes.util;
+    bib = { el, voltar: opcoes.voltar, busca: '', aberta: null, fila: [], cenario: 'normal' };
+    desenharBib();
+  }
+
+  function desenharBib() {
+    const { el } = bib;
+    const vazio = bib.cenario === 'vazio';
+    const imgs = vazio ? [] : BIBLIOTECA.filter((i) => !bib.busca || i.nome.toLowerCase().includes(bib.busca.toLowerCase()));
+    const total = vazio ? 0 : BIBLIOTECA.length;
+    const pesoTotal = vazio ? 0 : BIBLIOTECA.reduce((s, i) => s + pesoKb(i.peso), 0);
+    const CEN = [['normal', 'Com imagens'], ['vazio', 'Biblioteca vazia'], ['subindo', 'Imagens subindo'], ['erros', 'Envios com erro']];
+    el.innerHTML = `
+      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Biblioteca de imagens com dados de exemplo. O que você subir aqui fica só neste navegador.</span>
+        <label class="em-proto__cen">Ver estado <select data-bib-cen aria-label="Estado de exemplo">${CEN.map(([v, r]) => `<option value="${v}"${v === bib.cenario ? ' selected' : ''}>${r}</option>`).join('')}</select></label></div>
+      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-bib-voltar>${ic('voltar')} Modelos</button>
+        <div class="ag-acoes"><button class="btn" type="button" data-bib-subir>${ic('mais')} Subir imagens</button></div></div>
+      <div class="eb-bib">
+        <div class="eb-bib__principal">
+          <div class="eb-bib__topo">
+            <input type="search" data-bib-busca placeholder="Buscar imagem pelo nome" aria-label="Buscar imagem" value="${esc(bib.busca)}">
+            <span class="mini">${total} ${total === 1 ? 'imagem' : 'imagens'}${total ? ` · ${pesoTotal >= 1024 ? `${(pesoTotal / 1024).toFixed(1).replace('.', ',')} MB` : `${Math.round(pesoTotal)} KB`} no total` : ''}</span>
+          </div>
+          <div class="eb-solta eb-bib__solta${vazio ? ' eb-bib__solta--grande' : ''}" data-bib-solta>${ic('imagem')}<span><b>${vazio ? 'Nenhuma imagem ainda. Arraste imagens para cá' : 'Arraste imagens para cá'}</b><span class="mini">ou use "Subir imagens" · JPG, PNG, GIF ou WebP, até 1 MB cada · largura ideal de 600 a 1200 px · várias de uma vez</span></span></div>
+          <ul class="eb-bib__fila" data-bib-fila aria-live="polite"></ul>
+          ${imgs.length ? `<div class="eb-bib__grade">${imgs.map((i) => `<button type="button" class="eb-bib__item${bib.aberta === i.id ? ' eb-bib__item--aberta' : ''}" data-bib-img="${i.id}">
+              <span class="eb-bib__mini"><img src="${esc(i.url)}" alt=""></span>
+              <span class="eb-bib__nome">${esc(i.nome)}</span>
+              <span class="mini">${i.w} × ${i.h} px · ${esc(i.peso)} · ${esc(i.data || 'hoje')}${i.gif ? ' · GIF' : ''}</span>
+              ${i.usos && i.usos.length ? `<span class="carimbo neutro eb-bib__uso">Em uso · ${i.usos.length}</span>` : '<span class="mini eb-bib__livre">Não usada</span>'}
+            </button>`).join('')}</div>`
+            : vazio ? '' : `<p class="aviso">Nenhuma imagem com "${esc(bib.busca)}" no nome.</p>`}
+        </div>
+        <aside class="eb-bib__painel" data-bib-painel ${bib.aberta ? '' : 'hidden'}></aside>
+      </div>`;
+    el.querySelector('[data-bib-cen]').onchange = (ev) => { bib.cenario = ev.target.value; bib.aberta = null; bib.fila = []; if (bib.cenario === 'subindo') simularSubida(); if (bib.cenario === 'erros') simularErros(); desenharBib(); };
+    el.querySelector('[data-bib-voltar]').onclick = () => bib.voltar();
+    const busca = el.querySelector('[data-bib-busca]');
+    busca.addEventListener('input', () => { bib.busca = busca.value; const pos = busca.selectionStart; desenharBib(); const b2 = bib.el.querySelector('[data-bib-busca]'); b2.focus(); b2.setSelectionRange(pos, pos); });
+    el.querySelector('[data-bib-subir]').onclick = () => {
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.multiple = true; inp.accept = 'image/jpeg,image/png,image/gif,image/webp';
+      inp.onchange = () => subirVarias([...inp.files]);
+      inp.click();
+    };
+    const zona = el.querySelector('[data-bib-solta]');
+    zona.addEventListener('dragover', (ev) => { if ([...ev.dataTransfer.types].includes('Files')) { ev.preventDefault(); zona.classList.add('eb-solta--sobre'); } });
+    zona.addEventListener('dragleave', () => zona.classList.remove('eb-solta--sobre'));
+    zona.addEventListener('drop', (ev) => { ev.preventDefault(); zona.classList.remove('eb-solta--sobre'); subirVarias([...ev.dataTransfer.files]); });
+    el.querySelectorAll('[data-bib-img]').forEach((b) => { b.onclick = () => { bib.aberta = bib.aberta === b.dataset.bibImg ? null : b.dataset.bibImg; desenharBib(); }; });
+    desenharFila();
+    desenharPainel();
+  }
+
+  // Fila de envios: subindo (com barra), pronta (some sozinha) e com erro (motivo e dispensar).
+  function desenharFila() {
+    const f = bib.el.querySelector('[data-bib-fila]');
+    if (!f) return;
+    f.innerHTML = bib.fila.map((x) => `<li class="eb-bib__envio eb-bib__envio--${x.estado}">
+        <span class="eb-bib__envio-nome">${esc(x.nome)} <span class="mini">${esc(x.peso)}</span></span>
+        ${x.estado === 'subindo' ? `<span class="eb-bib__barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${x.pct}" aria-label="Subindo ${esc(x.nome)}"><i style="width:${x.pct}%"></i></span>` : ''}
+        ${x.estado === 'erro' ? `<span class="eb-bib__erro">${esc(x.erro)}</span><button type="button" class="ag-link-linha" data-bib-dispensar="${x.id}">Dispensar</button>` : ''}
+        ${x.estado === 'aviso' ? `<span class="eb-bib__aviso">${esc(x.erro)}</span><button type="button" class="ag-link-linha" data-bib-dispensar="${x.id}">Ok</button>` : ''}
+      </li>`).join('');
+    f.querySelectorAll('[data-bib-dispensar]').forEach((b) => { b.onclick = () => { bib.fila = bib.fila.filter((x) => x.id !== b.dataset.bibDispensar); desenharFila(); }; });
+  }
+
+  function subirVarias(arquivos) {
+    if (bib.cenario === 'vazio') bib.cenario = 'normal';
+    arquivos.forEach((f) => {
+      const item = { id: novoId(), nome: f.name, peso: pesoTxt(f.size), estado: 'subindo', pct: 0 };
+      if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) { Object.assign(item, { estado: 'erro', erro: 'Formato não aceito. Use JPG, PNG, GIF ou WebP.' }); bib.fila.push(item); return; }
+      if (f.size > PESO_MAX) { Object.assign(item, { estado: 'erro', erro: `Tem ${pesoTxt(f.size)} e o limite é 1 MB. Exporte menor e suba de novo.` }); bib.fila.push(item); return; }
+      bib.fila.push(item);
+      const leitor = new FileReader();
+      leitor.onload = () => {
+        const img = new Image();
+        img.onload = () => animarSubida(item, () => {
+          const nova = { id: novoId(), nome: f.name.replace(/\.[^.]+$/, ''), url: leitor.result, w: img.naturalWidth, h: img.naturalHeight, peso: pesoTxt(f.size), gif: f.type === 'image/gif', data: 'hoje', usos: [] };
+          BIBLIOTECA.unshift(nova);
+          if (nova.w > 1200) Object.assign(item, { estado: 'aviso', erro: `Subiu, mas tem ${nova.w} px de largura. Acima de 1200 px vale reduzir; no e-mail ela aparece reduzida.` });
+          else bib.fila = bib.fila.filter((x) => x !== item);
+          desenharBib();
+        });
+        img.src = leitor.result;
+      };
+      leitor.readAsDataURL(f);
+    });
+    desenharBib();
+  }
+  function animarSubida(item, fim) {
+    const passo = () => {
+      item.pct = Math.min(100, item.pct + 12 + Math.random() * 18);
+      desenharFila();
+      if (item.pct < 100) setTimeout(passo, 120); else fim();
+    };
+    setTimeout(passo, 120);
+  }
+  // Estados de exemplo para ver o desenho sem ter arquivos à mão.
+  function simularSubida() {
+    bib.fila = [
+      { id: novoId(), nome: 'banner-black-friday.png', peso: '640 KB', estado: 'subindo', pct: 35 },
+      { id: novoId(), nome: 'foto-turma.jpg', peso: '410 KB', estado: 'subindo', pct: 80 },
+    ];
+  }
+  function simularErros() {
+    bib.fila = [
+      { id: novoId(), nome: 'apresentacao.pdf', peso: '2,3 MB', estado: 'erro', erro: 'Formato não aceito. Use JPG, PNG, GIF ou WebP.' },
+      { id: novoId(), nome: 'foto-palco-original.jpg', peso: '4,8 MB', estado: 'erro', erro: 'Tem 4,8 MB e o limite é 1 MB. Exporte menor e suba de novo.' },
+      { id: novoId(), nome: 'banner-largo.png', peso: '520 KB', estado: 'aviso', erro: 'Subiu, mas tem 2400 px de largura. Acima de 1200 px vale reduzir; no e-mail ela aparece reduzida.' },
+    ];
+  }
+
+  // Painel da imagem: maior, renomear, endereço público, onde é usada e apagar.
+  function desenharPainel() {
+    const p = bib.el.querySelector('[data-bib-painel]');
+    const i = imagem(bib.aberta);
+    if (!p || !i) return;
+    const endereco = `https://img.atacadoexponencial.com/${encodeURIComponent(i.nome.toLowerCase().replace(/\s+/g, '-'))}.${i.gif ? 'gif' : 'png'}`;
+    const usada = i.usos && i.usos.length;
+    p.innerHTML = `<div class="eb-bib__painel-topo"><b>Detalhes da imagem</b><button type="button" class="ag-icone" data-bib-fechar aria-label="Fechar">${ic('voltar')}</button></div>
+      <div class="eb-bib__grande"><img src="${esc(i.url)}" alt=""></div>
+      <label class="eb-bib__campo">Nome <span class="mini">só para achar na biblioteca</span><input type="text" data-bib-nome value="${esc(i.nome)}" maxlength="100"></label>
+      <dl class="ag-dl"><dt>Tamanho</dt><dd>${i.w} × ${i.h} px${i.w > 1200 ? ' <span class="carimbo alerta">acima de 1200 px</span>' : ''}</dd><dt>Peso</dt><dd>${esc(i.peso)}</dd><dt>Enviada</dt><dd>${esc(i.data || 'hoje')}</dd>${i.gif ? '<dt>Tipo</dt><dd>GIF animado</dd>' : ''}</dl>
+      <label class="eb-bib__campo">Endereço público <span class="mini">permanente: e-mails já enviados continuam mostrando</span>
+        <span class="eb-bib__end"><input type="text" value="${esc(endereco)}" readonly><button type="button" class="btn sec" data-bib-copiar>Copiar</button></span></label>
+      <div><span class="ag-campo__rotulo">Onde é usada</span>${usada ? `<ul class="eb-bib__usos">${i.usos.map((u) => `<li>${esc(u)}</li>`).join('')}</ul>` : '<p class="mini">Em nenhum modelo nem no cabeçalho padrão.</p>'}</div>
+      <div class="eb-bib__apagar">${usada
+        ? `<button type="button" class="btn perigo" disabled>Apagar</button><p class="mini">Não dá para apagar: está em uso em ${i.usos.length} ${i.usos.length === 1 ? 'lugar' : 'lugares'}. Troque a imagem lá antes.</p>`
+        : '<button type="button" class="btn perigo" data-bib-apagar>Apagar</button>'}</div>`;
+    p.querySelector('[data-bib-fechar]').onclick = () => { bib.aberta = null; desenharBib(); };
+    const nome = p.querySelector('[data-bib-nome]');
+    nome.addEventListener('change', () => { const v = nome.value.trim(); if (!v) { nome.value = i.nome; return; } i.nome = v; U.avisar('Nome trocado.'); desenharBib(); });
+    p.querySelector('[data-bib-copiar]').onclick = () => { try { navigator.clipboard.writeText(endereco); } catch (e) { /* sem área de transferência */ } U.avisar('Endereço copiado.'); };
+    const ap = p.querySelector('[data-bib-apagar]');
+    if (ap) ap.onclick = () => ctx.pedirConfirmacao(ap, 'Apagar da biblioteca? E-mails já enviados continuam mostrando a imagem; ela só sai daqui.', () => {
+      const k = BIBLIOTECA.indexOf(i); if (k >= 0) BIBLIOTECA.splice(k, 1);
+      bib.aberta = null; desenharBib(); U.avisar('Imagem apagada da biblioteca.');
+      return true;
+    });
+  }
+
+  window.EmailBlocos = { prototipo, biblioteca };
 })();

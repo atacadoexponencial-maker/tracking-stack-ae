@@ -1149,6 +1149,8 @@
   let filtroModelo = 'todos';
   let modeloAberto = null;
   let protoBlocos = false; // 389: protótipo do editor por blocos (email-blocos.js)
+  let protoBib = false; // 390: protótipo da biblioteca de imagens
+  let protoCab = false; // 390: protótipo do cabeçalho padrão (Configuração)
   let modelosEstado = null; // { modelos, campos }
   let paraTeste = '';
 
@@ -1180,6 +1182,9 @@
         return;
       }
     }
+    if (protoBib && window.EmailBlocos) {
+      return window.EmailBlocos.biblioteca(el, { ctx, util: api.util, voltar: () => { protoBib = false; listaModelos(el); } });
+    }
     if (protoBlocos && window.EmailBlocos) {
       return window.EmailBlocos.prototipo(el, { ctx, util: api.util, voltar: () => { protoBlocos = false; listaModelos(el); } });
     }
@@ -1196,11 +1201,12 @@
         <div class="ag-subvistas" role="group" aria-label="Filtrar modelos">${FILTROS_M.map(([k, r]) => `<button type="button" class="ag-subvista" data-fm="${k}" aria-pressed="${k === filtroModelo}">${r} <span class="ag-cont">${todos.filter((m) => casaFiltro(m, k)).length}</span></button>`).join('')}</div>
         <div class="ag-acoes"><button class="btn" type="button" data-novo="marketing">Novo modelo de marketing</button><button class="btn sec" type="button" data-novo="transacional">Novo transacional</button></div>
       </div>
-      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Editor novo por blocos, com imagens, cores e cabeçalho editável.</span><button class="btn sec" type="button" data-proto-blocos>Ver o editor novo</button></div>
+      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Editor novo por blocos, com imagens, cores e cabeçalho editável.</span><button class="btn sec" type="button" data-proto-blocos>Ver o editor novo</button><button class="btn sec" type="button" data-proto-bib>Ver a biblioteca de imagens</button></div>
       <div class="tabela-wrap" id="em-mod-lista"></div>`;
     el.querySelectorAll('[data-fm]').forEach((b) => { b.onclick = () => { filtroModelo = b.dataset.fm; listaModelos(el); }; });
     el.querySelectorAll('[data-novo]').forEach((b) => { b.onclick = () => novoModelo(el, b.dataset.novo); });
     el.querySelector('[data-proto-blocos]').onclick = () => { protoBlocos = true; modelos(el); window.scrollTo(0, 0); };
+    el.querySelector('[data-proto-bib]').onclick = () => { protoBib = true; modelos(el); window.scrollTo(0, 0); };
     const alvo = el.querySelector('#em-mod-lista');
     ctx.tabela(alvo, [
       { titulo: 'Modelo', campo: 'nome', render: (m) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${m.id}">${esc(m.nome)}</button>` },
@@ -1461,6 +1467,9 @@
   let cfgEstado = null;
 
   async function configuracao(el) {
+    if (protoCab && window.EmailBlocos) {
+      return window.EmailBlocos.prototipo(el, { ctx, util: api.util, modo: 'cabecalho', voltar: () => { protoCab = false; configuracao(el); } });
+    }
     el.innerHTML = carregando('Carregando a configuração');
     try {
       cfgEstado = await ctx.fetchJson('/api/email/config?_=' + Date.now());
@@ -1535,6 +1544,7 @@
       </tr>`;
     };
     el.innerHTML = `
+      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Cabeçalho padrão montado com blocos (logo, texto, links, botão).</span><button class="btn sec" type="button" data-proto-cab>Ver o cabeçalho padrão novo</button></div>
       <div class="faixa-estado ${geral}">
         <span class="selo-estado">${geral === 'incidente' ? 'Com problema' : geral === 'atencao' ? (contaOk && mktLiberado && !semResultados && !domRuins.length ? `Funcionando, com ${pendencias.length} ${pendencias.length === 1 ? 'pendência' : 'pendências'}` : 'Pendente') : 'Tudo certo'}</span>
         <div><p>${frase}</p>${geral === 'atencao' && contaOk && mktLiberado && !semResultados && !domRuins.length && pendencias.length
@@ -1593,6 +1603,7 @@
       </form>`;
 
     // Remetentes e rodapé: um "Salvar alterações", ativo só quando algo mudou.
+    el.querySelector('[data-proto-cab]').onclick = () => { protoCab = true; configuracao(el); window.scrollTo(0, 0); };
     const fc = el.querySelector('form[data-config]');
     const CAMPOS_CFG = ['remetente_transacional_nome', 'remetente_transacional_email', 'resposta_transacional',
       'remetente_marketing_nome', 'remetente_marketing_email', 'resposta_marketing', 'rodape'];
