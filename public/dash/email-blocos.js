@@ -315,7 +315,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       E.cab = { modo: 'proprio', fundo: CAB_PADRAO.fundo };
       E.blocos = CAB_PADRAO.blocos.map((b) => ({ ...JSON.parse(JSON.stringify(b)), id: novoId(), zona: 'cab' }));
     }
-    salvo = snap(); sel = apenasCab ? E.blocos[0].id : E.blocos[1].id; desfazer = []; refazer = []; tamanho = 'computador'; ultimoCampo = null;
+    salvo = snap(); sel = apenasCab || camp ? (E.blocos[0] || {}).id : E.blocos[1].id; desfazer = []; refazer = []; tamanho = 'computador'; ultimoCampo = null;
     el.innerHTML = `
       <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>${apenasCab ? 'Cabeçalho padrão montado com blocos' : 'Editor novo por blocos'}, com dados de exemplo. Nada aqui é salvo nem enviado.</span></div>
       <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ic('voltar')} ${apenasCab ? 'Configuração' : camp ? 'Campanhas' : 'Modelos'}</button>
