@@ -940,6 +940,8 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
   /* Contatos: nome (com o e-mail embaixo) e situação; o resto fica no detalhe. */
   .em-cont-lista th:nth-child(n+2):nth-child(-n+5), .em-cont-lista td:nth-child(n+2):nth-child(-n+5) { display: none; }
   .em-so-cel { display: block; overflow-wrap: anywhere; }
+  .em-cont-lista table { min-width: 0; }
+  .em-cont-lista .ag-link-linha { overflow-wrap: anywhere; word-break: break-word; text-align: left; white-space: normal; }
   /* Números do topo em duas colunas, mais baixos. */
   .em .grid-etiquetas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
   .em-regra { grid-template-columns: minmax(0, 1fr) auto; }
