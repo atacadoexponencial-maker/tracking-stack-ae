@@ -357,8 +357,55 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   // A logo de hoje, como bloco (quando não há cabeçalho padrão salvo).
   const LOGO_PADRAO = () => [{ id: novoId(), tipo: 'imagem', fixa: 'logo', alt: 'Atacado Exponencial', largura: 'px', px: 150, alinh: 'esquerda', link: '', zona: 'cab' }];
 
+  // 398: a campanha com o e-mail escrito nela ou com modelo (tela inteira).
+  // opcoes: { ctx, util, campanha | null, modelos (marketing, com corpo), segmentos, campos,
+  //   remetente, cabPadrao, salvar(dados), resumo(alvo, { id, agendar, dia, hora }),
+  //   testarModelo(id), testarEscrito(id, conteudo), salvarComoModelo(nome, conteudo), cancelar(id), voltar() }
+  async function editorCampanha(el, opcoes) {
+    real = true;
+    OPC = { ...opcoes, modelo: { usos: [] } };
+    CAMPOS = (opcoes.campos || []).map((c) => [c.campo, c.rotulo, c.exemplo]);
+    EXEMPLO = Object.fromEntries(CAMPOS.map(([c, , v]) => [c, v]));
+    try { IMAGENS = (await opcoes.ctx.fetchJson(`/api/email/imagens?_=${Date.now()}`)).imagens || []; } catch (e) { IMAGENS = []; }
+    const c = opcoes.campanha;
+    const escrito = !!(c && c.corpo && !c.modelo_id);
+    const quando = c && c.situacao === 'agendada' && c.agendada_para ? new Date(c.agendada_para * 1000) : null;
+    const fmt = (d, o) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', ...o }).format(d);
+    CAMP_REAL = {
+      id: c ? c.id : null, situacao: c ? c.situacao : 'rascunho', nome: c ? c.nome : '',
+      conteudo: escrito ? 'escrever' : 'modelo',
+      modelo: c && c.modelo_id ? String(c.modelo_id) : (opcoes.modelos[0] ? String(opcoes.modelos[0].id) : ''),
+      segs: new Set((c ? c.segmentos : []).map(String)),
+      quando: quando ? 'agendar' : 'agora',
+      dia: quando ? fmt(quando, { year: 'numeric', month: '2-digit', day: '2-digit' }) : '',
+      hora: quando ? fmt(quando, { hour: '2-digit', minute: '2-digit', hour12: false }) : '09:00',
+    };
+    let doc = null;
+    if (escrito) { try { doc = JSON.parse(c.corpo); } catch (e) { doc = null; } }
+    const inicial = {
+      nome: CAMP_REAL.nome, assunto: escrito ? c.assunto || '' : '', previa: escrito ? c.previa || '' : '', canal: 'marketing',
+      cab: { modo: doc ? doc.cab.modo : 'padrao', fundo: doc ? doc.cab.fundo || '' : '' },
+      fundo: doc ? doc.fundo : { fora: '#f3f1ec', conteudo: '#ffffff' },
+      blocos: doc ? doc.blocos.map((b) => ({ ...b, id: b.id || novoId() })) : [blocoNovo('texto')],
+    };
+    return montarTela(el, { ...opcoes, modo: 'campanha' }, inicial);
+  }
+  let CAMP_REAL = null;
+  let campSalvo = '';
+  const campSnap = () => JSON.stringify({ ...CAMP_REAL, segs: [...(CAMP_REAL ? CAMP_REAL.segs : [])] });
+  // O modelo escolhido como "E" (só para a prévia e para escrever a partir dele).
+  function modeloComoE(id) {
+    const m = (OPC.modelos || []).find((x) => String(x.id) === String(id));
+    if (!m) return null;
+    let d = null;
+    try { d = JSON.parse(m.corpo); } catch (e) { d = null; }
+    if (!d || d.formato !== 'blocos') return null;
+    return { nome: m.nome, assunto: m.assunto || '', previa: m.previa || '', canal: 'marketing', cab: d.cab, fundo: d.fundo, blocos: d.blocos };
+  }
+
   function prototipo(el, opcoes) {
     real = false;
+    CAMP_REAL = null;
     OPC = null;
     return montarTela(el, opcoes, null);
   }
@@ -366,8 +413,9 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   function montarTela(el, opcoes, inicial) {
     raiz = el; ctx = opcoes.ctx; U = opcoes.util; voltarLista = opcoes.voltar;
     apenasCab = opcoes.modo === 'cabecalho';
-    camp = opcoes.modo === 'campanha' ? { nome: '', conteudo: 'modelo', modelo: 'convite', segs: new Set(), quando: 'agora', resumo: false } : null;
-    EMODELO = camp ? exemplo() : null;
+    camp = opcoes.modo === 'campanha' ? (real && CAMP_REAL ? CAMP_REAL : { nome: '', conteudo: 'modelo', modelo: 'convite', segs: new Set(), quando: 'agora', resumo: false }) : null;
+    EMODELO = camp ? (real ? modeloComoE(camp.modelo) : exemplo()) : null;
+    if (real && camp) campSalvo = campSnap();
     E = inicial || exemplo();
     if (camp && !inicial) { E.nome = ''; E.assunto = ''; E.previa = ''; E.blocos = [blocoNovo('texto')]; }
     if (apenasCab && !inicial) {
@@ -382,7 +430,11 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
         <div class="ag-acoes"><span class="mini eb-sujo" data-sujo hidden>Mudanças não salvas</span>
           <button class="ag-icone" type="button" data-desfazer aria-label="Desfazer (Ctrl+Z)" title="Desfazer (Ctrl+Z)">${ic('desfazer')}</button>
           <button class="ag-icone" type="button" data-refazer aria-label="Refazer (Ctrl+Y)" title="Refazer (Ctrl+Y)">${ic('refazer')}</button>
-          ${camp
+          ${camp && real && camp.situacao === 'agendada'
+            ? '<button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn perigo" type="button" data-cancelar-envio>Cancelar envio</button><button class="btn" type="button" data-salvar>Salvar alterações</button><span class="mini" data-motivo></span>'
+            : camp && real
+            ? '<button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button><button class="btn" type="button" data-revisar>Revisar e disparar</button><span class="mini" data-motivo></span>'
+            : camp
             ? '<button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar-modelo>Salvar como modelo</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button><button class="btn" type="button" data-revisar>Revisar e disparar</button><span class="mini" data-motivo></span>'
             : `${apenasCab ? '' : '<button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-dup>Duplicar</button>'}<button class="btn" type="button" data-salvar>${apenasCab ? 'Salvar cabeçalho padrão' : 'Salvar'}</button>`}</div></div>
       ${camp ? '<section class="eb-camp" id="eb-camp"></section>' : ''}
@@ -423,10 +475,11 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       i.addEventListener('input', () => { guardarDigitando(); E[i.dataset.e] = i.value; mudou({ pilha: false }); });
     });
     el.querySelector('[data-voltar]').onclick = (ev) => {
-      if (!sujo() && !(camp && (camp.nome || camp.segs.size))) return voltarLista();
+      if (!sujo() && !(camp && (real ? campSnap() !== campSalvo : camp.nome || camp.segs.size))) return voltarLista();
       ctx.pedirConfirmacao(ev.currentTarget, camp ? 'Sair sem salvar? A campanha e o e-mail escrito nela se perdem.' : apenasCab ? 'Sair sem salvar? As mudanças do cabeçalho se perdem.' : 'Sair sem salvar? As mudanças deste modelo se perdem.', () => { voltarLista(); return true; }, [{ valor: true, rotulo: 'Descartar e sair' }]);
     };
     el.querySelector('[data-salvar]').onclick = (ev) => {
+      if (real && camp) return salvarCampanhaReal(ev.currentTarget).then((ok) => { if (ok) U.avisar(camp.situacao === 'agendada' ? 'Alterações salvas. O envio segue agendado.' : 'Rascunho salvo.'); });
       if (real) return salvarDeVerdade(ev.currentTarget);
       if (camp) { salvo = snap(); mudou({ pilha: false }); return U.avisar('Protótipo: rascunho da campanha não foi salvo. No de verdade, ela fica em Campanhas › Rascunhos com o e-mail escrito nela.'); }
       if (apenasCab) {
@@ -442,7 +495,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       U.avisar('Protótipo: nada foi salvo. No editor de verdade, este modelo é usado em "Boas-vindas do workshop" (fluxo) e o aviso aparece antes de salvar.');
     };
     const bTeste = el.querySelector('[data-teste]');
-    if (bTeste) bTeste.onclick = () => (real ? OPC.testar(rascunho()) : U.avisar('Protótipo: no editor de verdade, o teste sai com o que está na tela, mesmo sem salvar.'));
+    if (bTeste) bTeste.onclick = () => (real && camp ? testarCampanhaReal(bTeste) : real ? OPC.testar(rascunho()) : U.avisar('Protótipo: no editor de verdade, o teste sai com o que está na tela, mesmo sem salvar.'));
     if (camp) ligarCampanha();
     const bDup = el.querySelector('[data-dup]');
     if (bDup) bDup.onclick = () => {
@@ -1135,7 +1188,8 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   function agendarPrevia() { clearTimeout(previaTimer); previaTimer = setTimeout(desenharPrevia, real ? 350 : 120); }
   // Estilo de interação injetado na prévia do servidor (clicar, arrastar, soltar).
   const CSS_EDITOR = '<style>[data-b],[data-cabeca]{cursor:pointer}[data-b]{cursor:grab}[data-b]:hover>td{outline:1px dashed #b8ada1;outline-offset:-1px}.eb-sel>td{outline:2px solid #161513!important;outline-offset:-2px}.eb-antes>td{box-shadow:inset 0 4px 0 #161513}.eb-depois>td{box-shadow:inset 0 -4px 0 #161513}.eb-troca img{outline:4px solid #161513;outline-offset:-4px}.eb-arrastando{opacity:.4}.eb-vazio-alvo td{outline:2px dashed #161513;outline-offset:-6px}</style>';
-  const docDeE = () => ({ formato: 'blocos', versao: 1, cab: { modo: E.cab.modo, fundo: E.cab.fundo || '' }, fundo: E.fundo, blocos: E.blocos });
+  const docDe = (X) => ({ formato: 'blocos', versao: 1, cab: { modo: X.cab.modo, fundo: X.cab.fundo || '' }, fundo: X.fundo, blocos: X.blocos });
+  const docDeE = () => docDe(E);
   const rascunho = () => ({ nome: E.nome, assunto: E.assunto, previa: E.previa, corpo: docDeE() });
   async function previaDoServidor() {
     const n = ++pedidoPrevia;
@@ -1143,14 +1197,17 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const frame = raiz.querySelector('#eb-frame');
     const texto = raiz.querySelector('#eb-texto');
     raiz.querySelector('#eb-caixa').hidden = apenasCab;
-    raiz.querySelector('#eb-caixa').innerHTML = `<div class="eb-entrada"><span class="eb-entrada__de"><b>${esc(OPC.remetente.nome)}</b> <span class="mini">${esc(OPC.remetente.email)}</span></span><span class="eb-entrada__assunto"><b>${esc(preencherTexto(E.assunto) || '(sem assunto)')}</b> <span class="mini">${esc(preencherTexto(E.previa))}</span></span></div>`;
+    // Campanha com modelo: a prévia mostra o modelo (só leitura).
+    const F = camp && camp.conteudo === 'modelo' ? EMODELO : E;
+    if (!F) { texto.hidden = false; frame.hidden = true; texto.textContent = 'Escolha um modelo de marketing para ver a prévia.'; return; }
+    raiz.querySelector('#eb-caixa').innerHTML = `<div class="eb-entrada"><span class="eb-entrada__de"><b>${esc(OPC.remetente.nome)}</b> <span class="mini">${esc(OPC.remetente.email)}</span></span><span class="eb-entrada__assunto"><b>${esc(preencherTexto(F.assunto) || '(sem assunto)')}</b> <span class="mini">${esc(preencherTexto(F.previa))}</span></span></div>`;
     moldura.classList.toggle('eb-moldura--celular', tamanho === 'celular');
     let r;
     try {
       const corpo = apenasCab
         ? { ...docDeE(), blocos: [...E.blocos, { id: 'lugarcorpo', tipo: 'texto', html: '<p>Aqui entra o corpo de cada modelo.</p>', alinh: 'centro', cor: '#8a837a' }] }
-        : docDeE();
-      r = await ctx.postJson('/api/email/modelos', { acao: 'previa', editor: true, modelo: { canal: E.canal, assunto: E.assunto || 'Cabeçalho padrão', previa: E.previa, corpo } });
+        : docDe(F);
+      r = await ctx.postJson('/api/email/modelos', { acao: 'previa', editor: F === E, modelo: { canal: 'marketing', assunto: F.assunto || 'Cabeçalho padrão', previa: F.previa, corpo } });
     } catch (e) {
       if (n === pedidoPrevia) { texto.hidden = false; frame.hidden = true; texto.textContent = `Não foi possível montar a prévia agora (${U.msgErro(e)}). Ela volta na próxima mudança.`; }
       return;
@@ -1198,6 +1255,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     desenharCampanha();
   }
   function desenharCampanha() {
+    if (real) return desenharCampanhaReal();
     const alvo = raiz.querySelector('#eb-camp');
     const c = camp;
     const temConteudo = c.conteudo === 'modelo' ? !!c.modelo : !!(E.assunto.trim() && escritoTemConteudo());
@@ -1279,6 +1337,150 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     });
   }
   const recebem = () => SEGS_EX.filter(([id]) => camp.segs.has(id)).reduce((s, x) => s + x[2], 0);
+
+  // --- campanha de verdade (398) ---
+  const conteudoEscrito = () => ({ assunto: E.assunto, previa: E.previa, corpo: docDeE() });
+  const dadosCampanha = () => ({
+    id: camp.id || undefined, nome: camp.nome, segmentos: [...camp.segs].map(Number),
+    modelo_id: camp.conteudo === 'modelo' && camp.modelo ? Number(camp.modelo) : null,
+    conteudo: camp.conteudo === 'escrever' ? conteudoEscrito() : null,
+    ...(camp.situacao === 'agendada' ? { dia: camp.dia, hora: camp.hora } : {}),
+  });
+  async function salvarCampanhaReal(botao) {
+    const erro = raiz.querySelector('#eb-erro');
+    if (!camp.nome.trim()) { U.avisar('Dê um nome à campanha.', 'erro'); const i = raiz.querySelector('[data-c="nome"]'); if (i) i.focus(); return false; }
+    let ok = false;
+    await U.ocupado(botao, async () => {
+      try {
+        const c = await OPC.salvar(dadosCampanha());
+        camp.id = c.id; camp.situacao = c.situacao;
+        salvo = snap(); campSalvo = campSnap(); erro.innerHTML = '';
+        mudou({ pilha: false });
+        ok = true;
+      } catch (e) {
+        erro.innerHTML = `<div class="aviso falha"><b>Não foi salvo.</b> ${esc(U.msgErro(e))}</div>`;
+        erro.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        U.avisar(U.msgErro(e), 'erro');
+      }
+    });
+    return ok;
+  }
+  async function testarCampanhaReal(botao) {
+    if (camp.conteudo === 'modelo') {
+      if (!camp.modelo) return U.avisar('Escolha o modelo antes de mandar o teste.', 'erro');
+      return OPC.testarModelo(Number(camp.modelo));
+    }
+    if (!camp.id && !(await salvarCampanhaReal(botao))) return null;
+    return OPC.testarEscrito(camp.id, conteudoEscrito());
+  }
+  function desenharCampanhaReal() {
+    const alvo = raiz.querySelector('#eb-camp');
+    const c = camp;
+    const agendada = c.situacao === 'agendada';
+    const escritoOk = !!(E.assunto.trim() && E.blocos.some((b) => b.zona !== 'cab' && !avisosDoBloco(b).some((a) => /vazio|não escolhida/i.test(a))));
+    const temConteudo = c.conteudo === 'modelo' ? !!c.modelo : escritoOk;
+    const temSeg = c.segs.size > 0;
+    const passo = (ok, txt, falta, conselho) => `<li class="${ok ? 'feito' : 'falta'}"><span class="carimbo ${ok ? 'alta' : 'neutro'}">${ok ? 'Feito' : conselho ? 'Conselho' : 'Falta'}</span> ${ok ? txt : falta}</li>`;
+    const modelos = OPC.modelos || [];
+    alvo.innerHTML = `
+      ${agendada ? `<div class="aviso explica">Agendada para ${esc(c.dia.split('-').reverse().join('/'))} às ${esc(c.hora)} (Brasília). Dá para mudar até o horário; "Salvar alterações" guarda.</div>` : ''}
+      <ol class="em-passos" aria-label="O que falta para disparar">
+        ${passo(temConteudo, c.conteudo === 'modelo' ? 'Modelo escolhido' : 'E-mail escrito', c.conteudo === 'modelo' ? (modelos.length ? 'Escolher o modelo' : 'Criar um modelo de marketing em Modelos, ou escrever o e-mail aqui') : 'Escrever o assunto e o corpo do e-mail')}
+        ${passo(temSeg, 'Segmento escolhido', OPC.segmentos.length ? 'Marcar um ou mais segmentos' : 'Criar um segmento em <a href="#mkt-email?v=segmentos">Segmentos</a>')}
+        ${passo(false, '', 'Mandar um teste para você antes de disparar', true)}</ol>
+      <div class="eb-camp__grade">
+        <div class="ag-form eb-camp__col">
+          <label>Nome interno<input type="text" data-c="nome" maxlength="100" placeholder="Ex.: Convite workshop 05/11" value="${esc(c.nome)}"></label>
+          <div class="ag-campo"><span class="ag-campo__rotulo">Conteúdo do e-mail</span>
+            <div class="ag-subvistas" role="radiogroup" aria-label="Conteúdo do e-mail">
+              <button type="button" class="ag-subvista" role="radio" data-conteudo="modelo" aria-checked="${c.conteudo === 'modelo'}" aria-pressed="${c.conteudo === 'modelo'}">Usar um modelo</button>
+              <button type="button" class="ag-subvista" role="radio" data-conteudo="escrever" aria-checked="${c.conteudo === 'escrever'}" aria-pressed="${c.conteudo === 'escrever'}">Escrever o e-mail aqui</button></div></div>
+          ${c.conteudo === 'modelo'
+            ? (modelos.length
+              ? `<label>Modelo<select data-c="modelo">${modelos.map((m) => `<option value="${m.id}"${String(m.id) === String(c.modelo) ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
+                ${EMODELO ? `<p class="mini">Assunto: <b>${esc(preencherTexto(EMODELO.assunto))}</b></p>
+                <div><button type="button" class="btn sec" data-a-partir>Escrever a partir deste modelo</button> <span class="mini">copia o modelo para esta campanha; o modelo não muda</span></div>` : ''}`
+              : '<p class="mini">Ainda não há modelo de marketing. Escreva o e-mail aqui ou crie um em <a href="#mkt-email?v=modelos">Modelos</a>.</p>')
+            : `<p class="mini">O e-mail fica guardado nesta campanha.</p>
+              <div class="eb-salvar-modelo"><label>Guardar uma cópia como modelo<input type="text" data-c="nome-modelo" maxlength="100" placeholder="Nome do modelo novo" value="${esc(c.nomeModelo || '')}"></label><button type="button" class="btn sec" data-salvar-como-modelo>Salvar como modelo</button></div>`}
+        </div>
+        <div class="ag-form eb-camp__col">
+          <fieldset><legend>Segmentos (um ou mais)</legend>
+            ${OPC.segmentos.length ? OPC.segmentos.map((sg) => `<label class="marca"><input type="checkbox" data-seg="${sg.id}"${c.segs.has(String(sg.id)) ? ' checked' : ''}> ${esc(sg.nome)} <span class="mini">${Number(sg.ativos || 0).toLocaleString('pt-BR')} ativos</span></label>`).join('') : '<p class="mini">Nenhum segmento ainda. Crie um em Segmentos.</p>'}</fieldset>
+          <fieldset><legend>Quando enviar</legend>
+            ${agendada ? '' : `<label class="marca"><input type="radio" name="eb-quando" value="agora"${c.quando === 'agora' ? ' checked' : ''}> Agora, depois do resumo</label>`}
+            <label class="marca"><input type="radio" name="eb-quando" value="agendar"${c.quando === 'agendar' ? ' checked' : ''}${agendada ? ' disabled' : ''}> Agendar para data e hora (Brasília)</label>
+            <div class="linha" ${c.quando === 'agendar' ? '' : 'hidden'}>
+              <label>Dia<input type="date" data-c="dia" value="${esc(c.dia)}"></label>
+              <label>Hora<input type="time" data-c="hora" value="${esc(c.hora)}"></label></div>
+            <span class="mini">A lista é recalculada na hora do envio: quem entrar até lá também recebe, e quem se descadastrar não recebe.</span></fieldset>
+        </div>
+      </div>
+      <div id="eb-camp-resumo"></div>`;
+    raiz.querySelector('.eb').classList.toggle('eb--so-previa', c.conteudo === 'modelo');
+    raiz.querySelector('.eb-paleta').hidden = c.conteudo === 'modelo';
+    raiz.querySelector('.eb-dica').hidden = c.conteudo === 'modelo';
+    const br = raiz.querySelector('[data-revisar]');
+    const motivo = raiz.querySelector('[data-motivo]');
+    const falta = !temConteudo ? (c.conteudo === 'modelo' ? 'Falta o modelo.' : 'Falta escrever o e-mail.') : !temSeg ? 'Falta o segmento.' : '';
+    if (br) { br.disabled = !!falta; br.textContent = c.quando === 'agendar' ? 'Revisar e agendar' : 'Revisar e disparar'; }
+    if (motivo) motivo.textContent = falta;
+
+    const campo = (k) => alvo.querySelector(`[data-c="${k}"]`);
+    campo('nome').addEventListener('input', (ev) => { c.nome = ev.target.value; });
+    const dia = campo('dia'), hora = campo('hora');
+    if (dia) dia.addEventListener('change', () => { c.dia = dia.value; limparResumo(); });
+    if (hora) hora.addEventListener('change', () => { c.hora = hora.value; limparResumo(); });
+    const nm = campo('nome-modelo');
+    if (nm) nm.addEventListener('input', () => { c.nomeModelo = nm.value; });
+    const selM = campo('modelo');
+    if (selM) selM.onchange = () => { c.modelo = selM.value; EMODELO = modeloComoE(c.modelo); limparResumo(); desenharCampanha(); desenharPrevia(); };
+    alvo.querySelectorAll('[data-seg]').forEach((i) => { i.onchange = () => { if (i.checked) c.segs.add(i.dataset.seg); else c.segs.delete(i.dataset.seg); desenharCampanha(); }; });
+    alvo.querySelectorAll('[name="eb-quando"]').forEach((i) => { i.onchange = () => { c.quando = i.value; if (c.quando === 'agendar' && !c.dia) c.dia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(Date.now() + 86400000)); desenharCampanha(); }; });
+    const aPartir = alvo.querySelector('[data-a-partir]');
+    if (aPartir) aPartir.onclick = () => {
+      guardar();
+      const copia = JSON.parse(JSON.stringify(EMODELO));
+      Object.assign(E, { assunto: copia.assunto, previa: copia.previa, cab: copia.cab, fundo: copia.fundo, blocos: copia.blocos.map((b) => ({ ...b, id: novoId() })) });
+      c.conteudo = 'escrever'; sel = null;
+      raiz.querySelectorAll('[data-e]').forEach((i) => { i.value = E[i.dataset.e]; });
+      desenharCampanha(); desenharFundo(); mudou();
+      U.avisar('Modelo copiado para a campanha. O que você mudar aqui não muda o modelo.');
+    };
+    alvo.querySelectorAll('[data-conteudo]').forEach((b) => {
+      b.onclick = () => {
+        const novo = b.dataset.conteudo;
+        if (novo === c.conteudo) return;
+        if (novo === 'modelo' && escritoOk) {
+          return ctx.pedirConfirmacao(b, 'Usar um modelo descarta o e-mail escrito nesta campanha (ao salvar). Continuar?', () => {
+            c.conteudo = 'modelo'; EMODELO = modeloComoE(c.modelo); desenharCampanha(); desenharPrevia(); return true;
+          }, [{ valor: true, rotulo: 'Usar modelo' }]);
+        }
+        c.conteudo = novo;
+        if (novo === 'modelo') EMODELO = modeloComoE(c.modelo);
+        desenharCampanha(); mudou();
+      };
+    });
+    const bm = alvo.querySelector('[data-salvar-como-modelo]');
+    if (bm) bm.onclick = () => U.ocupado(bm, async () => {
+      const nome = (c.nomeModelo || '').trim();
+      if (!nome) { U.avisar('Escreva o nome do modelo novo.', 'erro'); if (nm) nm.focus(); return; }
+      try { await OPC.salvarComoModelo(nome, conteudoEscrito()); c.nomeModelo = ''; desenharCampanha(); U.avisar(`Modelo "${nome}" criado com uma cópia deste e-mail. A campanha continua com o próprio e-mail.`); }
+      catch (e) { U.avisar(U.msgErro(e), 'erro'); }
+    });
+    if (br) br.onclick = async () => {
+      if (c.quando === 'agendar' && (!c.dia || !c.hora)) return U.avisar('Escolha o dia e a hora do envio.', 'erro');
+      if (!(await salvarCampanhaReal(br))) return;
+      const res = alvo.querySelector('#eb-camp-resumo');
+      OPC.resumo(res, { id: c.id, agendar: c.quando === 'agendar', dia: c.dia, hora: c.hora });
+      res.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+    const bc = raiz.querySelector('[data-cancelar-envio]');
+    if (bc) bc.onclick = () => ctx.pedirConfirmacao(bc, 'Cancelar o envio agendado? Ninguém recebe.', async () => {
+      try { await OPC.cancelar(c.id); return true; } catch (e) { U.avisar(U.msgErro(e), 'erro'); return false; }
+    });
+  }
+  function limparResumo() { const r = raiz.querySelector('#eb-camp-resumo'); if (r) r.innerHTML = ''; }
   function resumoCampanha() {
     const c = camp;
     const assunto = c.conteudo === 'modelo' ? EMODELO.assunto : E.assunto;
@@ -1443,5 +1645,5 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     });
   }
 
-  window.EmailBlocos = { prototipo, editor, editorCabecalho, biblioteca };
+  window.EmailBlocos = { prototipo, editor, editorCabecalho, editorCampanha, biblioteca };
 })();

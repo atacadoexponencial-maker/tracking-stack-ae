@@ -366,7 +366,7 @@
   // Público, resumo, limite do mês, bloqueios, disparo único, envio em lotes e
   // agendamento (383) ficam no servidor; aqui só a tela. O relatório é a 384.
   let filtroCamp = '';
-  let protoCamp = false; // 391: protótipo da campanha com e-mail escrito na hora
+  let campanhaAberta; // 398: campanha aberta na tela inteira (null = nova; undefined = lista)
   let campEstado = null;
   let campTimer = null;
   const MES = (t) => new Date(t * 1000).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long' });
@@ -378,17 +378,13 @@
       <div class="regua" aria-hidden="true"><i style="width:${Math.min(100, p)}%"></i></div>
     </div>`;
   }
-  const diaBrt = (t) => new Date(t * 1000).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-  const horaBrt = (t) => new Date(t * 1000).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
   const envioTxt = (c) => (c.situacao === 'agendada' && c.agendada_para ? `agendada para ${quando(c.agendada_para)}`
     : c.disparada_em ? quando(c.disparada_em) : c.situacao === 'cancelada' ? 'cancelada' : 'sem data');
   const progresso = (c) => `<span data-prog="${c.id}"><span class="em-progresso" title="${c.percentual}% enviado"><span style="width:${c.percentual}%"></span></span> <b>${c.percentual}%</b></span>`;
 
   async function campanhas(el) {
     clearTimeout(campTimer);
-    if (protoCamp && window.EmailBlocos) {
-      return window.EmailBlocos.prototipo(el, { ctx, util: api.util, modo: 'campanha', voltar: () => { protoCamp = false; campanhas(el); } });
-    }
+    if (campanhaAberta !== undefined) return editorDeCampanha(campanhaAberta, el);
     if (!campEstado) el.innerHTML = carregando('Carregando as campanhas');
     try {
       campEstado = await ctx.fetchJson(`/api/email/campanhas?${filtroCamp ? `situacao=${filtroCamp}&` : ''}_=${Date.now()}`);
@@ -403,7 +399,7 @@
     el.innerHTML = `<div class="em-barra"><p class="mini">Os números do canal ficam em <a href="#mkt-email?v=relatorio">Resultados</a>.</p>
         <button class="btn" type="button" data-nova>Nova campanha</button>
       </div>
-      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Campanha com o e-mail escrito na hora, sem precisar de modelo.</span><button class="btn sec" type="button" data-proto-camp>Ver a campanha nova</button></div>
+
       ${S.marketing_liberado ? '' : '<div class="aviso alerta"><b>Disparos de marketing bloqueados.</b> O marketing está marcado como não liberado. Dá para montar a campanha, mas o disparo só funciona depois de ligar a opção. <a href="#mkt-email?v=configuracao">Ver configuração</a></div>'}
       ${avisoLimite(S.uso)}
       ${total ? `<div class="ag-subvistas" role="group" aria-label="Filtrar por situação">
@@ -411,8 +407,7 @@
         ${['rascunho', 'agendada', 'enviando', 'enviada', 'cancelada', 'falhou'].filter((k) => S.por_situacao[k] || filtroCamp === k).map((k) => `<button type="button" class="ag-subvista" data-filtro="${k}" aria-pressed="${filtroCamp === k}">${SITUACAO_CAMP[k][0]} <span class="ag-cont${k === 'falhou' && S.por_situacao[k] ? ' alerta' : ''}">${S.por_situacao[k] || 0}</span></button>`).join('')}
       </div>` : ''}
       <div class="tabela-wrap" id="em-camp-lista"></div>`;
-    el.querySelector('[data-nova]').onclick = () => formCampanha(null, el);
-    el.querySelector('[data-proto-camp]').onclick = () => { protoCamp = true; campanhas(el); window.scrollTo(0, 0); };
+    el.querySelector('[data-nova]').onclick = () => editorDeCampanha(null, el);
     el.querySelectorAll('[data-filtro]').forEach((b) => { b.onclick = () => { filtroCamp = b.dataset.filtro; campanhas(el); }; });
     const segNome = (id) => (S.opcoes.segmentos.find((s) => s.id === id) || { nome: 'segmento excluído' }).nome;
     const alvo = el.querySelector('#em-camp-lista');
@@ -427,7 +422,7 @@
       { titulo: '', render: (c) => `<div class="ag-acoes ag-acoes--linha">${menuHtml(c.nome, [
         { acao: 'abrir', id: c.id, rotulo: ['rascunho', 'agendada'].includes(c.situacao) ? 'Editar' : 'Abrir' },
         c.disparada_em && { acao: 'relatorio', id: c.id, rotulo: 'Ver relatório' },
-        c.modelo_id && { acao: 'teste', id: c.id, rotulo: 'Mandar teste' },
+        c.modelo_id && !c.disparada_em && { acao: 'teste', id: c.id, rotulo: 'Mandar teste' },
         { acao: 'duplicar', id: c.id, rotulo: 'Duplicar' },
         c.situacao === 'agendada' && { acao: 'cancelar', id: c.id, rotulo: 'Cancelar envio', perigo: true },
         c.situacao === 'rascunho' && { acao: 'excluir', id: c.id, rotulo: 'Excluir rascunho', perigo: true },
@@ -465,7 +460,7 @@
   }
 
   function abrirCampanha(c, el) {
-    if (c.situacao === 'rascunho' || c.situacao === 'agendada') return formCampanha(c, el);
+    if (c.situacao === 'rascunho' || c.situacao === 'agendada') return editorDeCampanha(c, el);
     const S = campEstado;
     const m = S.opcoes.modelos.find((x) => x.id === c.modelo_id);
     const segs = c.segmentos.map((id) => (S.opcoes.segmentos.find((s) => s.id === id) || { nome: 'segmento excluído' }).nome);
@@ -500,104 +495,52 @@
     };
   }
 
-  function formCampanha(c, el) {
-    const S = campEstado;
-    const agendada = !!(c && c.situacao === 'agendada');
-    const corpo = `<ol class="em-passos" id="em-camp-passos" aria-label="O que falta para disparar"></ol>
-      <form class="ag-form em-form" id="em-camp-form" novalidate>
-        <label>Nome interno<input type="text" name="nome" maxlength="100" value="${esc(c ? c.nome : '')}" placeholder="Ex.: Convite workshop 05/11" required></label>
-        ${S.opcoes.modelos.length
-          ? `<label>Modelo<select name="modelo"><option value="">Escolha um modelo</option>${S.opcoes.modelos.map((m) => `<option value="${m.id}"${c && m.id === c.modelo_id ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>`
-          : '<div class="aviso alerta">Ainda não há modelo de marketing (os modelos que existem são da agenda). <a href="#mkt-email?v=modelos">Criar modelo de marketing</a><select name="modelo" hidden><option value=""></option></select></div>'}
-        <div class="em-previa-assunto" id="em-camp-assunto"></div>
-        <fieldset><legend>Segmentos (um ou mais)</legend>
-          ${S.opcoes.segmentos.length ? S.opcoes.segmentos.map((s) => `<label class="marca"><input type="checkbox" name="seg" value="${s.id}"${c && c.segmentos.includes(s.id) ? ' checked' : ''}> ${esc(s.nome)} <span class="mini">${int(s.ativos)} ativos</span></label>`).join('') : '<p class="mini">Nenhum segmento ainda. Crie um em Segmentos.</p>'}
-        </fieldset>
-        <div class="ag-campo"><span class="ag-campo__rotulo">Remetente</span>${(() => { const m = /^"?(.*?)"?\s*<(.+)>$/.exec(S.remetente) || [null, S.remetente, '']; return `<p class="em-remetente"><b>${esc(m[1])}</b><br><span class="mini">${esc(m[2])} · vem da <a href="#mkt-email?v=configuracao">configuração de e-mail</a></span></p>`; })()}</div>
-        <fieldset><legend>Quando enviar</legend>
-          <label class="marca"><input type="radio" name="quando" value="agora"${agendada ? '' : ' checked'}${agendada ? ' disabled' : ''}> Agora, depois do resumo</label>
-          <label class="marca"><input type="radio" name="quando" value="agendar"${agendada ? ' checked' : ''}> Agendar para data e hora (Brasília)</label>
-          <div class="linha" data-quando-campos${agendada ? '' : ' hidden'}>
-            <label>Dia<input type="date" name="dia" value="${agendada ? diaBrt(c.agendada_para) : ''}"></label>
-            <label>Hora<input type="time" name="hora" value="${agendada ? horaBrt(c.agendada_para) : '09:00'}"></label>
-          </div>
-          <span class="mini">A lista é recalculada na hora do envio: quem entrar até lá também recebe, e quem se descadastrar não recebe.</span>
-        </fieldset>
-      </form>
-      <div class="em-erro" aria-live="polite"></div>
-      <div id="em-camp-resumo"></div>`;
-    const g = gaveta({
-      titulo: c ? esc(c.nome) : 'Nova campanha',
-      sub: agendada ? `agendada para ${esc(quando(c.agendada_para))}: dá para editar até o horário` : 'rascunho: só sai quando você disparar ou agendar',
-      corpo,
-      rodape: agendada
-        ? '<div class="ag-acoes"><button class="btn" type="button" data-salvar>Salvar alterações</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn perigo" type="button" data-cancelar>Cancelar envio</button></div>'
-        : '<div class="ag-acoes"><button class="btn" type="button" data-revisar>Revisar e disparar</button><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button><span class="mini" data-motivo></span></div>',
+  // 398 · Campanha na tela inteira (public/dash/email-blocos.js, modo campanha):
+  // e-mail escrito nela ou de um modelo. Resumo e disparo como antes.
+  async function editorDeCampanha(c, el) {
+    if (!window.EmailBlocos) { el.innerHTML = '<div class="aviso falha">O editor não carregou. Recarregue a página.</div>'; return; }
+    clearTimeout(campTimer);
+    campanhaAberta = c;
+    window.scrollTo(0, 0);
+    el.innerHTML = carregando('Abrindo a campanha');
+    let S, M, cfg, atual = c;
+    try {
+      [S, M, cfg] = await Promise.all([
+        ctx.fetchJson(`/api/email/campanhas?_=${Date.now()}`),
+        ctx.fetchJson(`/api/email/modelos?_=${Date.now()}`),
+        ctx.fetchJson(`/api/email/config?_=${Date.now()}`).then((x) => x.config).catch(() => ({})),
+      ]);
+      if (c) atual = (await ctx.fetchJson(`/api/email/campanhas?id=${c.id}&_=${Date.now()}`)).campanha;
+    } catch (e) { campanhaAberta = undefined; el.innerHTML = `<div class="aviso falha">Não foi possível abrir a campanha (${esc(e.message)}).</div>`; return; }
+    const fechar = () => { campanhaAberta = undefined; filtroCamp = ''; campanhas(el); };
+    const modelosMkt = (M.modelos || []).filter((m) => m.canal === 'marketing' && !m.arquivado);
+    window.EmailBlocos.editorCampanha(el, {
+      ctx, util: api.util, campanha: atual, modelos: modelosMkt, segmentos: S.opcoes.segmentos,
+      campos: M.campos.marketing || [], cabPadrao: lerCabecalho(cfg.cabecalho_padrao),
+      remetente: { nome: cfg.remetente_marketing_nome || 'Atacado Exponencial', email: cfg.remetente_marketing_email || '' },
+      voltar: fechar,
+      salvar: async (dados) => { const r = await ctx.postJson('/api/email/campanhas', { acao: 'salvar', ...dados }); campanhaAberta = r.campanha; return r.campanha; },
+      resumo: (alvo, q) => mostrarResumo(alvo, q, (msg) => { avisar(msg); fechar(); }),
+      testarModelo: (id) => { const m = modelosMkt.find((x) => x.id === id); if (m) pedirTeste({ id: m.id, nome: m.nome, canal: 'marketing' }); },
+      testarEscrito: (id, conteudo) => pedirTesteCampanha(id, conteudo),
+      salvarComoModelo: async (nome, conteudo) => { await ctx.postJson('/api/email/campanhas', { acao: 'salvar_como_modelo', nome, conteudo }); modelosEstado = null; },
+      cancelar: async (id) => { await ctx.postJson('/api/email/campanhas', { acao: 'cancelar', id }); avisar('Envio cancelado. Ninguém recebeu.'); fechar(); },
     });
-    const f = g.querySelector('#em-camp-form');
-    const erro = g.querySelector('.em-erro');
-    let atual = c;
-    const dados = () => ({ nome: f.nome.value, modelo_id: f.modelo.value ? Number(f.modelo.value) : null, segmentos: [...f.querySelectorAll('[name="seg"]:checked')].map((i) => Number(i.value)) });
-    const agendar = () => f.quando.value === 'agendar';
-    const quandoTxt = () => `${f.dia.value.split('-').reverse().slice(0, 2).join('/')} às ${f.hora.value}`;
-    const mostrarAssunto = () => {
-      const m = S.opcoes.modelos.find((x) => String(x.id) === f.modelo.value);
-      g.querySelector('#em-camp-assunto').innerHTML = m ? `<span class="mini">Assunto</span> <b>${esc(m.assunto || '(sem assunto)')}</b><br><span class="mini">${esc(m.previa || '')}</span>` : '';
-      g.querySelector('#em-camp-resumo').innerHTML = '';
-      erro.textContent = '';
-      g.querySelector('[data-quando-campos]').hidden = !agendar();
-      const br2 = g.querySelector('[data-revisar]');
-      if (br2) br2.textContent = agendar() ? 'Revisar e agendar' : 'Revisar e disparar';
-      // O que falta, em passos; sem modelo ou segmento o botão espera, com o motivo ao lado.
-      const temModelo = !!f.modelo.value;
-      const temSeg = !!f.querySelector('[name="seg"]:checked');
-      const passo = (ok, txt, falta) => `<li class="${ok ? 'feito' : 'falta'}"><span class="carimbo ${ok ? 'alta' : 'neutro'}">${ok ? 'Feito' : 'Falta'}</span> ${ok ? txt : falta}</li>`;
-      g.querySelector('#em-camp-passos').innerHTML = temModelo && temSeg ? ''
-        : passo(temModelo, 'Modelo escolhido', S.opcoes.modelos.length ? 'Escolher o modelo' : 'Criar um modelo de marketing em <a href="#mkt-email?v=modelos">Modelos</a>')
-          + passo(temSeg, 'Segmento escolhido', S.opcoes.segmentos.length ? 'Marcar um ou mais segmentos' : 'Criar um segmento em <a href="#mkt-email?v=segmentos">Segmentos</a>')
-          + '<li class="falta"><span class="carimbo neutro">Conselho</span> Mandar um teste para você antes de disparar</li>';
-      if (br2) {
-        br2.disabled = !temModelo || !temSeg;
-        g.querySelector('[data-motivo]').textContent = !temModelo ? 'Falta o modelo.' : !temSeg ? 'Falta o segmento.' : '';
-      }
-    };
-    f.addEventListener('change', mostrarAssunto);
-    mostrarAssunto();
-    const salvarRascunho = async () => {
-      const extra = agendada ? { dia: f.dia.value, hora: f.hora.value } : {};
-      const r = await ctx.postJson('/api/email/campanhas', { acao: 'salvar', id: atual ? atual.id : undefined, ...dados(), ...extra });
-      atual = r.campanha;
-      return atual;
-    };
-    const bs = g.querySelector('[data-salvar]');
-    bs.onclick = () => ocupado(bs, async () => {
-      try { await salvarRascunho(); g.close(); avisar(agendada ? 'Campanha agendada atualizada.' : 'Rascunho salvo.'); campanhas(el); }
-      catch (e) { erro.textContent = msgErro(e); }
-    });
-    const bc = g.querySelector('[data-cancelar]');
-    if (bc) bc.onclick = () => ctx.pedirConfirmacao(bc, 'Cancelar o envio agendado?', async () => {
-      try { await ctx.postJson('/api/email/campanhas', { acao: 'cancelar', id: c.id }); g.close(); avisar('Envio cancelado. Ninguém recebeu.'); campanhas(el); }
-      catch (e) { erro.textContent = msgErro(e); return false; }
-    });
-    g.querySelector('[data-teste]').onclick = () => {
-      const m = S.opcoes.modelos.find((x) => String(x.id) === f.modelo.value);
-      if (!m) return avisar('Escolha o modelo antes de mandar o teste.', 'erro');
-      pedirTeste({ id: m.id, nome: m.nome, canal: 'marketing' });
-    };
-    const br = g.querySelector('[data-revisar]');
-    if (br) br.onclick = () => ocupado(br, async () => {
-      if (agendar() && (!f.dia.value || !f.hora.value)) { erro.textContent = 'Escolha o dia e a hora do envio.'; return; }
-      let r;
-      try {
-        await salvarRascunho();
-        r = await ctx.postJson('/api/email/campanhas', { acao: 'resumo', modelo_id: atual.modelo_id, segmentos: atual.segmentos });
-      } catch (e) { erro.textContent = msgErro(e); return; }
-      erro.textContent = '';
-      const totFora = Object.values(r.fora).reduce((a, b) => a + b, 0);
-      g.querySelector('#em-camp-resumo').innerHTML = `<div class="em-resumo">
-        <h3 class="ag-h3">Resumo antes de ${agendar() ? 'agendar' : 'disparar'}</h3>
-        <div class="em-resumo__grande"><b>${int(r.recebem)}</b> pessoas ${agendar() ? 'receberiam agora' : 'vão receber'}</div>
-        ${agendar() ? '<p class="mini">Na hora do envio a lista é recalculada, e o envio é conferido de novo (marketing liberado, limite do mês).</p>' : ''}
+  }
+
+  // Resumo antes de disparar ou agendar a campanha salva, e a confirmação.
+  async function mostrarResumo(alvo, { id, agendar, dia, hora }, aoTerminar) {
+    alvo.innerHTML = carregando('Montando o resumo');
+    let r;
+    try { r = await ctx.postJson('/api/email/campanhas', { acao: 'resumo', id }); }
+    catch (e) { alvo.innerHTML = `<div class="aviso falha">${esc(msgErro(e))}</div>`; return; }
+    const quandoTxt = `${String(dia || '').split('-').reverse().slice(0, 2).join('/')} às ${hora}`;
+    const deQue = r.conteudo === 'escrito' ? 'deste e-mail' : 'deste modelo';
+    const totFora = Object.values(r.fora).reduce((a, b) => a + b, 0);
+    alvo.innerHTML = `<div class="em-resumo">
+        <h3 class="ag-h3">Resumo antes de ${agendar ? 'agendar' : 'disparar'}</h3>
+        <div class="em-resumo__grande"><b>${int(r.recebem)}</b> pessoas ${agendar ? 'receberiam agora' : 'vão receber'}</div>
+        ${agendar ? '<p class="mini">Na hora do envio a lista é recalculada, e o envio é conferido de novo (marketing liberado, limite do mês).</p>' : ''}
         ${r.em_dois ? `<p class="mini">${int(r.em_dois)} estão em mais de um segmento escolhido e recebem uma vez só.</p>` : ''}
         <p><b>${int(totFora)}</b> ficam de fora:</p>
         <ul class="em-fora">
@@ -607,38 +550,54 @@
           <li><span>Endereço inválido</span><b>${int(r.fora.invalido)}</b></li>
         </ul>
         ${r.ultimo_teste && !r.ultimo_teste.antes_da_mudanca
-          ? `<p class="mini">Último teste deste modelo: ${esc(quando(r.ultimo_teste.em))} para ${esc(r.ultimo_teste.para)}.</p>`
-          : `<div class="aviso alerta">${r.ultimo_teste ? 'Este modelo mudou depois do último teste.' : 'Este modelo ainda não foi testado.'} Vale mandar um teste para você antes (botão Mandar teste, aqui embaixo).</div>`}
+          ? `<p class="mini">Último teste ${deQue}: ${esc(quando(r.ultimo_teste.em))} para ${esc(r.ultimo_teste.para)}.</p>`
+          : `<div class="aviso alerta">${r.ultimo_teste ? `O conteúdo mudou depois do último teste ${deQue}.` : `Ainda não houve teste ${deQue}.`} Vale mandar um teste para você antes (botão Mandar teste, lá em cima).</div>`}
         ${r.sem_nome ? `<div class="aviso alerta">${int(r.sem_nome)} ${r.sem_nome === 1 ? 'pessoa está' : 'pessoas estão'} sem nome no cadastro: para elas, o nome do e-mail sai em branco.</div>` : ''}
         <p class="mini">Assunto: <b>${esc(r.assunto)}</b> · remetente ${esc(r.remetente)}. Limite do mês: ${int(r.uso.usados)} usados, restam ${int(r.uso.restam)}.</p>
         ${r.bloqueio ? `<div class="aviso alerta">${esc(r.bloqueio)}</div>` : ''}
-        <div class="ag-acoes">${agendar()
-          ? `<button class="btn" type="button" data-agendar>Agendar para ${esc(quandoTxt())}</button>`
+        <div class="ag-acoes">${agendar
+          ? `<button class="btn" type="button" data-agendar>Agendar para ${esc(quandoTxt)}</button>`
           : `<button class="btn" type="button" data-disparar${r.bloqueio ? ' disabled' : ''}>Disparar para ${int(r.recebem)} pessoas</button>`}</div>
+        <div class="em-erro" aria-live="polite"></div>
       </div>`;
-      const corpoG = g.querySelector('.ag-gaveta__corpo');
-      corpoG.scrollTop = corpoG.scrollHeight;
-      const ba = g.querySelector('[data-agendar]');
-      if (ba) ba.onclick = () => ctx.pedirConfirmacao(ba, `Agendar para ${quandoTxt()}?`, async () => {
-        try {
-          await ctx.postJson('/api/email/campanhas', { acao: 'agendar', id: atual.id, dia: f.dia.value, hora: f.hora.value });
-          g.close();
-          filtroCamp = '';
-          avisar(`Agendada para ${quandoTxt()}.`);
-          campanhas(el);
-        } catch (e) { erro.textContent = msgErro(e); avisar(msgErro(e), 'erro'); return false; }
-      }, [{ valor: true, rotulo: 'Agendar' }]);
-      const b = g.querySelector('[data-disparar]');
-      if (b) b.onclick = () => ctx.pedirConfirmacao(b, `Disparar agora para ${int(r.recebem)} pessoas? Não dá para desfazer.`, async () => {
-        try {
-          await ctx.postJson('/api/email/campanhas', { acao: 'disparar', id: atual.id });
-          g.close();
-          filtroCamp = '';
-          avisar(`Disparo iniciado para ${int(r.recebem)} pessoas.`);
-          campanhas(el);
-        } catch (e) { erro.textContent = msgErro(e); avisar(msgErro(e), 'erro'); return false; }
-      }, [{ valor: true, rotulo: 'Disparar' }]);
+    const erro = alvo.querySelector('.em-erro');
+    const ba = alvo.querySelector('[data-agendar]');
+    if (ba) ba.onclick = () => ctx.pedirConfirmacao(ba, `Agendar para ${quandoTxt}?`, async () => {
+      try { await ctx.postJson('/api/email/campanhas', { acao: 'agendar', id, dia, hora }); aoTerminar(`Agendada para ${quandoTxt}.`); }
+      catch (e) { erro.textContent = msgErro(e); avisar(msgErro(e), 'erro'); return false; }
+    }, [{ valor: true, rotulo: 'Agendar' }]);
+    const b = alvo.querySelector('[data-disparar]');
+    if (b) b.onclick = () => ctx.pedirConfirmacao(b, `Disparar agora para ${int(r.recebem)} pessoas? Não dá para desfazer.`, async () => {
+      try { await ctx.postJson('/api/email/campanhas', { acao: 'disparar', id }); aoTerminar(`Disparo iniciado para ${int(r.recebem)} pessoas.`); }
+      catch (e) { erro.textContent = msgErro(e); avisar(msgErro(e), 'erro'); return false; }
+    }, [{ valor: true, rotulo: 'Disparar' }]);
+  }
+
+  // Teste do e-mail escrito na campanha, com o que está na tela (398).
+  function pedirTesteCampanha(id, conteudo) {
+    const g = gaveta({
+      titulo: 'Mandar teste',
+      sub: 'e-mail desta campanha com os dados de exemplo, do jeito que está na tela',
+      corpo: `<form class="ag-form" data-teste-form novalidate>
+          <label>Para<input type="email" name="para" value="${esc(paraTeste)}" placeholder="seu e-mail" autocomplete="email"></label>
+          <p class="mini">Sai pelo remetente de marketing, com os campos preenchidos por dados de exemplo. A entrega aparece em Configuração › Últimos testes.</p>
+          <div class="em-erro" aria-live="polite"></div>
+        </form>`,
+      rodape: '<button class="btn" type="button" data-mandar>Mandar teste</button>',
     });
+    const f = g.querySelector('[data-teste-form]');
+    const b = g.querySelector('[data-mandar]');
+    f.para.focus();
+    const enviar = () => ocupado(b, async () => {
+      try {
+        await ctx.postJson('/api/email/campanhas', { acao: 'enviar_teste', id, para: f.para.value, conteudo });
+        paraTeste = f.para.value.trim();
+        fecharGaveta();
+        avisar(`Teste mandado para ${paraTeste}.`);
+      } catch (e) { f.querySelector('.em-erro').textContent = msgErro(e); }
+    });
+    b.onclick = enviar;
+    f.onsubmit = (ev) => { ev.preventDefault(); enviar(); };
   }
 
   // ===========================================================================
@@ -715,7 +674,7 @@
     const atualizado = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     el.innerHTML = `<div class="em-barra" data-rel-campanha><button class="btn sec em-voltar" type="button" data-voltar>${ICONE.voltar} Visão geral</button>
         <span class="mini">atualiza sozinho a cada 30 segundos · última às ${esc(atualizado)}</span></div>
-      <div class="em-rel-cabeca"><h2>${esc(c.nome)}</h2><p class="mini">${c.situacao === 'enviando' ? `Enviando: ${c.percentual}% · ` : ''}Enviada em ${esc(quando(c.disparada_em))} · assunto "${esc(c.assunto || '')}"</p></div>
+      <div class="em-rel-cabeca"><h2>${esc(c.nome)}</h2><p class="mini">${c.situacao === 'enviando' ? `Enviando: ${c.percentual}% · ` : ''}Enviada em ${esc(quando(c.disparada_em))} · assunto "${esc(c.assunto || '')}"${r.email ? ' · <button type="button" class="ag-link-linha" data-ver-email>Ver o e-mail que saiu</button>' : ''}</p></div>
       ${c.situacao === 'falhou' && c.motivo ? `<div class="aviso falha"><b>Falhou:</b> ${esc(c.motivo)}</div>` : ''}
       <div class="grid-etiquetas">${[
         { rotulo: 'Destinatários', valor: int(r.destinatarios) },
@@ -742,6 +701,14 @@
         </div>
       </div>`;
     el.querySelector('[data-voltar]').onclick = () => { clearTimeout(relTimer); campanhaRelatorio = null; relatorio(el); };
+    // O e-mail que saiu (398): o conteúdo congelado no disparo, com dados de exemplo.
+    const ve = el.querySelector('[data-ver-email]');
+    if (ve) ve.onclick = () => {
+      const g = gaveta({ titulo: 'O e-mail que saiu', sub: `${esc(r.email.assunto)} · com dados de exemplo`, corpo: '<iframe class="em-rel-email" title="O e-mail que saiu" sandbox="allow-same-origin"></iframe>', largura: 'larga' });
+      const fr = g.querySelector('iframe');
+      fr.onload = () => { try { fr.style.height = fr.contentDocument.documentElement.scrollHeight + 'px'; } catch (e) { /* fica a altura mínima */ } };
+      fr.srcdoc = r.email.html;
+    };
     const MOTIVO = { HardBounce: 'endereço não existe', BadEmailAddress: 'endereço inválido', ManuallyDeactivated: 'desativado' };
     let pagina = 1, linhas = [];
     const coluna = () => (filtroRel === 'clicaram' ? 'Link' : filtroRel === 'voltaram' ? 'Motivo' : 'Quando');
