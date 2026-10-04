@@ -54,13 +54,12 @@ export const CATALOGO = [
   // Agenda própria (spec-agenda-propria.md): chave da conta de serviço do Google.
   { nome: 'GOOGLE_AGENDA_SA_JSON', integracao: 'Agenda (Google)', obrigatoria: false },
   { nome: 'AGENDA_ATIVA', integracao: 'Agenda (Google)', obrigatoria: false },
-  // E-mail próprio (issue 377). Opcionais até produção ter as chaves; depois
-  // do merge com as chaves gravadas, POSTMARK_SERVER_TOKEN e as do webhook
-  // passam a obrigatórias.
-  { nome: 'POSTMARK_SERVER_TOKEN', integracao: 'E-mail (Postmark)', obrigatoria: false, teste: 'postmark' },
+  // E-mail próprio (issue 377). Gravadas em produção no merge de 04/10/2026:
+  // servidor e webhook passam a obrigatórias (a da conta só lê domínios).
+  { nome: 'POSTMARK_SERVER_TOKEN', integracao: 'E-mail (Postmark)', obrigatoria: true, teste: 'postmark' },
   { nome: 'POSTMARK_ACCOUNT_TOKEN', integracao: 'E-mail (Postmark)', obrigatoria: false },
-  { nome: 'POSTMARK_WEBHOOK_USER', integracao: 'E-mail (Postmark)', obrigatoria: false },
-  { nome: 'POSTMARK_WEBHOOK_PASS', integracao: 'E-mail (Postmark)', obrigatoria: false },
+  { nome: 'POSTMARK_WEBHOOK_USER', integracao: 'E-mail (Postmark)', obrigatoria: true },
+  { nome: 'POSTMARK_WEBHOOK_PASS', integracao: 'E-mail (Postmark)', obrigatoria: true },
   { nome: 'SYNC_SECRET', integracao: 'Acesso interno', obrigatoria: true },
   { nome: 'DASH_KEY', integracao: 'Acesso interno', obrigatoria: true },
   { nome: 'FEEDBACK_MARKETING_KEY', integracao: 'Acesso interno', obrigatoria: true },
