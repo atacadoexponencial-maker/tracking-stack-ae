@@ -28,6 +28,9 @@
   --fio: #d9d3c9; --fio-forte: #161513;
   --carvao: #1e1e1e; --bege: #f5f0eb; --taupe: #b8ada1;
   --alta: #2f9a5d; --queda: #d24a3f; --info: #2f6db3; --alerta: #b7791f;
+  /* Mesma cor de estado, escurecida para TEXTO pequeno (carimbo, selo): passa de
+     4,5:1 no papel. As cores de cima seguem para linha, barra e gráfico. */
+  --alta-texto: #1f6e41; --queda-texto: #a8352c; --alerta-texto: #8a5a12;
   --serie-area: rgba(22,21,19,0.12);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -107,8 +110,9 @@ a.btn { display: inline-block; text-decoration: none; }
 /* Carimbo: moldura fina na cor do estado, levemente inclinado; o neutro fica
    reto e tracejado, porque não julga. Sinal ▲ ▼ sempre junto da cor. */
 .carimbo, .delta { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; padding: 0.15rem 0.45rem; border: 1.5px solid currentColor; border-radius: 2px; font-variant-numeric: tabular-nums; transform: rotate(-2deg); white-space: nowrap; }
-.carimbo.alta, .delta.up { color: var(--alta); }
-.carimbo.queda, .delta.down { color: var(--queda); }
+.carimbo.alta, .delta.up { color: var(--alta-texto); }
+.carimbo.queda, .delta.down { color: var(--queda-texto); }
+.carimbo.alerta { color: var(--alerta-texto); }
 .carimbo.neutro, .delta.neutro { color: var(--apagado); transform: none; border-style: dashed; }
 
 /* ---------- Manchete ---------- */
@@ -267,10 +271,10 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 /* ---------- Faixa de estado (Saúde, Argo) ---------- */
 .faixa-estado { display: flex; gap: 0.9rem; align-items: center; border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); border-radius: 2px; padding: 1rem 1.2rem; margin-bottom: 1.1rem; background: var(--etiqueta); }
 .faixa-estado .selo-estado { font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; padding: 0.3rem 0.65rem; border-radius: 2px; border: 1.5px solid currentColor; white-space: nowrap; }
-.faixa-estado.saudavel .selo-estado { color: var(--alta); }
-.faixa-estado.atencao .selo-estado { color: var(--alerta); }
+.faixa-estado.saudavel .selo-estado { color: var(--alta-texto); }
+.faixa-estado.atencao .selo-estado { color: var(--alerta-texto); }
 .faixa-estado.incidente { border-top-color: var(--queda); }
-.faixa-estado.incidente .selo-estado { color: var(--queda); }
+.faixa-estado.incidente .selo-estado { color: var(--queda-texto); }
 .faixa-estado p { margin: 0; }
 .saude-filtros { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; }
 .saude-acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
@@ -935,11 +939,28 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .em-email__rodape a { color: #888; text-decoration: underline; }
 @media (max-width: 1100px) { .em-editor { grid-template-columns: minmax(0, 1fr); } .em-editor__previa { position: static; } }
 .em-so-cel { display: none; }
+/* Só para leitor de tela. */
+.so-leitor { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.em-acoes-contato { width: 100%; align-items: center; }
+.em-acao-canto { margin-left: auto; }
+.em-tipos-sel { display: none; }
+.ag-toast__acao { font: inherit; font-weight: 700; color: inherit; background: none; border: 0; border-bottom: 1.5px solid currentColor; padding: 0 0 1px; margin-left: 0.5rem; cursor: pointer; min-height: 24px; }
+.em-lembrete-escolha { display: inline-flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 @media (max-width: 640px) {
   .em-proto__cen { margin-left: 0; }
   /* Contatos: nome (com o e-mail embaixo) e situação; o resto fica no detalhe. */
-  .em-cont-lista th:nth-child(n+2):nth-child(-n+5), .em-cont-lista td:nth-child(n+2):nth-child(-n+5) { display: none; }
+  .em-cont-lista th:nth-child(n+2):nth-child(-n+4), .em-cont-lista td:nth-child(n+2):nth-child(-n+4) { display: none; }
   .em-so-cel { display: block; overflow-wrap: anywhere; }
+  /* Agenda › E-mails: tipo num seletor e cada e-mail como um bloco empilhado. */
+  .em-tipos-pilulas { display: none; }
+  .em-tipos-sel { display: block; width: 100%; }
+  .em-agenda-tab thead { display: none; }
+  .em-agenda-tab, .em-agenda-tab tbody, .em-agenda-tab tr, .em-agenda-tab td { display: block; width: 100%; }
+  .em-agenda-tab tr { border-bottom: 1px solid var(--fio); padding: 0.6rem 0; }
+  .em-agenda-tab td { border: 0; padding: 0.25rem 0; }
+  .em-agenda-tab td[data-rot]::before { content: attr(data-rot); display: block; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
+  .em-agenda-tab select { width: 100%; }
+  .em-agenda-tab .em-acoes-agenda { justify-content: flex-start; }
   .em-cont-lista table { min-width: 0; }
   .em-cont-lista .ag-link-linha { overflow-wrap: anywhere; word-break: break-word; text-align: left; white-space: normal; }
   /* Números do topo em duas colunas, mais baixos. */
@@ -982,10 +1003,18 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
    segundo contorno, em tinta, por fora (antes a seleção sumia). */
 .fx-cartao.fx-sel.fx-problema { box-shadow: 0 0 0 1px var(--queda), 0 0 0 4px var(--papel), 0 0 0 6px var(--tinta), 0 12px 22px -12px rgba(22,21,19,0.35); }
 .fx-cartao:focus-visible { outline: 2px solid var(--tinta); outline-offset: 5px; }
+/* Fluxo arquivado: só leitura, sem "+" e sem pontos de ligação. */
+.fx-leitura .fx-mais, .fx-leitura .fx-porta { display: none; }
+.fx-leitura .fx-cartao { cursor: pointer; }
+.fx-ferr:disabled { opacity: 0.4; cursor: not-allowed; }
 /* Agenda › E-mails: a vaga do "×" mantém "Mandar teste" alinhado em todas as linhas. */
 .em-acoes-agenda { justify-content: flex-end; }
 .em-vaga { visibility: hidden; }
 .em-remetente { line-height: 1.4; }
+.em a:visited, .em-barra a:visited { color: inherit; }
+.em-pendencias { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.em-pendencias button { text-align: left; }
+.em input[type="checkbox"] { min-height: 24px; }
 /* Subseções do e-mail num seletor, só no celular (a barra vira faixa de rolar). */
 .em-subnav { display: none; margin-bottom: 1rem; }
 .em-subnav select { width: 100%; }

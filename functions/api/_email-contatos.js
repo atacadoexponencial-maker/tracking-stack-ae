@@ -46,7 +46,10 @@ export const normalizarEmail = (v) => String(v || '').trim().toLowerCase();
 export async function registrarLead(env, { email, nome = '', funil = '', material = '', origem = '', eventId, quando = agora() }) {
   const e = normalizarEmail(email);
   if (!e) return null;
-  const n = String(nome || '').trim().slice(0, 200);
+  // Formulário que manda o e-mail no campo de nome não vira nome: o contato fica
+  // sem nome e a busca no ClickUp tenta achar o de verdade.
+  const n0 = String(nome || '').trim().slice(0, 200);
+  const n = n0.includes('@') ? '' : n0;
   const t = agora();
   await env.DB.prepare(
     `INSERT OR IGNORE INTO email_contatos

@@ -155,7 +155,7 @@
     catch (e) { el.innerHTML = `<div class="aviso falha">Não foi possível carregar os fluxos (${esc(e.message)}). Tente de novo em instantes.</div>`; return; }
     if (F) return;
     el.innerHTML = `<div class="em-barra"><p class="mini">Cada fluxo começa sozinho quando a pessoa faz algo (vira lead, compra, agenda). Sai pelo canal de marketing.</p>
-        <div class="ag-acoes"><button class="btn sec" type="button" data-arquivados aria-pressed="${verArquivados}">${verArquivados ? 'Ver fluxos em uso' : `Arquivados (${int(d.arquivados)})`}</button><button class="btn" type="button" data-novo>Novo fluxo</button></div></div>
+        <div class="ag-acoes"><button class="btn sec" type="button" data-arquivados>${verArquivados ? 'Ver fluxos em uso' : `Arquivados (${int(d.arquivados)})`}</button><button class="btn" type="button" data-novo>Novo fluxo</button></div></div>
       <div class="tabela-wrap" id="fx-lista"></div>`;
     $q('[data-arquivados]').onclick = () => { verArquivados = !verArquivados; lista(); };
     const bn = $q('[data-novo]');
@@ -214,10 +214,15 @@
     NUM = null;
     quadro();
     centralizar();
-    // Cartões um em cima do outro (ex.: colados antes desta correção) escondem o
-    // que está embaixo: organiza sozinho ao abrir.
+    aplicarLeitura();
+    // Abrir nunca grava. Cartões um em cima do outro (colados antes da correção
+    // de 04/10) escondem o que está embaixo: avisa, e só organiza com o clique.
     const sobrepostos = F.nos.some((a, i) => F.nos.some((b, j) => j > i && Math.abs(a.x - b.x) < 120 && Math.abs(a.y - b.y) < 60));
-    if (sobrepostos) { organizar(); U().avisar('Havia cartões um em cima do outro: o quadro foi organizado.'); }
+    const aviso = $q('#fx-sobrepostos');
+    if (sobrepostos && !F.arquivado) {
+      aviso.innerHTML = '<div class="aviso explica fx-probs">Há cartões um em cima do outro, e o de baixo fica escondido. <button type="button" class="btn sec" data-organizar>Organizar o quadro</button></div>';
+      aviso.querySelector('[data-organizar]').onclick = () => { aviso.innerHTML = ''; organizar(); U().avisar('Quadro organizado.'); };
+    }
     if (abrirNo) selecionar(abrirNo);
     window.scrollTo(0, 0);
     carregarNumeros();
@@ -237,6 +242,7 @@
 
   // Salvamento sozinho: 1 s depois da última mudança; uma chamada por vez.
   function agendarSalvar() {
+    if (soLeitura()) return;
     clearTimeout(salvar.timer);
     salvar.timer = setTimeout(salvarAgora, 1000);
     desenharSituacao();
@@ -277,6 +283,7 @@
         <input class="fx-nome" type="text" value="${esc(F.nome)}" aria-label="Nome do fluxo">
         <div class="fx-situacao" id="fx-situacao"></div>
       </div>
+      <div id="fx-sobrepostos"></div>
       <div id="fx-problemas"></div>
       <div class="fx-area" id="fx-area">
         <div class="fx-quadro" id="fx-quadro" tabindex="0" aria-label="Quadro do fluxo. Arraste para mover a tela.">
@@ -378,8 +385,21 @@
     aplicarVista();
   }
 
+  // Fluxo arquivado abre só para leitura: nada muda e nada grava.
+  const soLeitura = () => !!(F && F.arquivado);
+  const EDITAM = ['organizar', 'desfazer', 'refazer', 'cartao', 'nota', 'colar'];
+  function aplicarLeitura() {
+    const area = $q('#fx-area');
+    if (!area) return;
+    area.classList.toggle('fx-leitura', soLeitura());
+    $q('.fx-nome').disabled = soLeitura();
+    $q('.fx-ferramentas').querySelectorAll('[data-f]').forEach((b) => { if (EDITAM.includes(b.dataset.f)) b.disabled = soLeitura(); });
+  }
+  function avisarLeitura() { U().avisar('Fluxo arquivado: tire do arquivo para editar.'); }
+
   // --- mudanças, histórico e salvamento automático ---
   function mudar(fn, { redesenhar = true } = {}) {
+    if (soLeitura()) return avisarLeitura();
     desfazer.push(instantaneo(F) + '\u0000' + F.nome);
     if (desfazer.length > 60) desfazer.shift();
     refazer = [];
@@ -388,6 +408,7 @@
     if (redesenhar) desenharTudo();
   }
   function marcarMudanca() {
+    if (soLeitura()) return;
     agendarSalvar();
   }
   function voltarEstado(de, para) {
@@ -450,7 +471,7 @@
     if (acao === 'pessoas') return pessoasNoFluxo();
     if (acao === 'desarquivar') {
       return U().ocupado(b, async () => {
-        try { await postFluxos({ acao: 'desarquivar', id: F.id }); F.arquivado = false; desenharSituacao(); U().avisar('Fluxo de volta na lista.'); }
+        try { await postFluxos({ acao: 'desarquivar', id: F.id }); F.arquivado = false; aplicarLeitura(); desenharSituacao(); U().avisar('Fluxo de volta na lista.'); }
         catch (e) { U().avisar(U().msgErro(e), 'erro'); }
       });
     }
@@ -659,7 +680,7 @@
           const ligada = F.arestas.some((a) => a.de === n.id && a.saida === s);
           return `<div class="fx-saida"><span>${rot}${numeroDaSaida(n, s)}</span>
             <span class="fx-porta${ligada ? ' fx-porta--ligada' : ''}" data-porta="${s}" title="Arraste até outro cartão para ligar"></span>
-            ${ligada ? '' : `<button type="button" class="fx-mais" data-mais="${s}" aria-label="Adicionar cartão depois de ${esc(rot)}">${IC.mais}</button>`}</div>`;
+            ${ligada ? '' : `<button type="button" class="fx-mais" data-mais="${s}" aria-label="Adicionar cartão na saída ${esc(rot)}">${IC.mais}</button>`}</div>`;
         }).join('')}</div>` : ''}
       </div>`;
     }).join('') + F.notas.map((o) => `<div class="fx-nota" data-nota="${o.id}" style="left:${o.x}px;top:${o.y}px">
@@ -771,6 +792,7 @@
         return;
       }
       const porta = ev.target.closest('[data-porta]');
+      if (porta && soLeitura()) return;
       if (porta) {
         const id = porta.closest('[data-no]').dataset.no;
         acao = { tipo: 'ligar', de: id, saida: porta.dataset.porta };
@@ -818,6 +840,7 @@
       if (!acao.moveu && Math.hypot(dx, dy) < 4) return;
       acao.moveu = true;
       if (acao.tipo === 'tela') { vis.x = acao.orig.x + dx; vis.y = acao.orig.y + dy; aplicarVista(); }
+      if (acao.tipo === 'mover' && soLeitura()) { acao.moveu = false; return; }
       if (acao.tipo === 'mover') {
         acao.obj.x = Math.round(acao.orig.x + dx / vis.z);
         acao.obj.y = Math.round(acao.orig.y + dy / vis.z);
@@ -1188,6 +1211,7 @@
   function ligarPainel(p, n) {
     const d = n.dados;
     p.querySelector('[data-fechar-painel]').onclick = () => fecharPainel();
+    if (soLeitura()) p.querySelectorAll('input, select, textarea, button:not([data-fechar-painel])').forEach((x) => { x.disabled = true; });
     p.onchange = (ev) => {
       const c = ev.target.dataset.campo;
       if (!c) return;

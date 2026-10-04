@@ -123,6 +123,15 @@ test('lead novo pelo tracker: nome na hora; a carga depois não duplica e acerta
   assert.ok(antigo);
 });
 
+test('nome com @ (e-mail no campo de nome) não vira nome', async () => {
+  await registrarLead(env, { email: 'ana@x.com', nome: 'ana@x.com', eventId: 'n1', quando: 10 });
+  const c = contato('ana@x.com');
+  assert.deepEqual([c.nome, c.nome_buscado], [null, 0], 'fica sem nome, e a busca no ClickUp ainda tenta');
+  await registrarLead(env, { email: 'ana@x.com', nome: 'Ana Lima', eventId: 'n2', quando: 20 });
+  await registrarLead(env, { email: 'ana@x.com', nome: 'outra@x.com', eventId: 'n3', quando: 30 });
+  assert.equal(contato('ana@x.com').nome, 'Ana Lima', 'um e-mail depois não apaga o nome bom');
+});
+
 test('teste interno pelo tracker entra como contato normal', async () => {
   await registrarLead(env, { email: 'eu@seteads.com', nome: 'Eu', eventId: 'x1', quando: 10 });
   assert.equal(contato('eu@seteads.com').situacao, 'ativo');
