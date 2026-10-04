@@ -27,4 +27,4 @@ Ajustes pedidos por ela (04/10):
 - Cabeçalho como primeiro cartão da lista ("Cabeçalho e blocos"), com lixeira para tirar e "Pôr de volta"; clicar na logo dentro do e-mail abre as opções (padrão, outra imagem, sem). Sem cabeçalho, a prévia mostra uma faixa tracejada só no editor.
 - Cabeçalho montado com blocos (pedido dela): "Padrão da Configuração", "Personalizado" (blocos próprios, começa como cópia do padrão, fundo da faixa, "Adicionar ao cabeçalho", arrastar blocos entre cabeçalho e corpo na lista e na prévia) e "Sem cabeçalho". Imagem ganhou largura "Personalizada" em px. Aviso de contraste do texto com o fundo (faixa ou e-mail). Spec módulo 3 e issue 397 atualizadas.
 
-Falta: aprovação dela na prévia.
+APROVADO por ela em 04/10.
