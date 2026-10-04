@@ -299,7 +299,6 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
   .nav a { white-space: nowrap; font-size: 0.82rem; }
   .sidebar { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); }
   .conteudo { padding: 1.2rem 1rem 3rem; }
-  .em-subnav { display: block; }
   .duas, .duas-colunas { grid-template-columns: 1fr; }
   .manchete { font-size: 1.2rem; }
   .topo { align-items: flex-start; }
@@ -988,6 +987,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 /* Subseções do e-mail num seletor, só no celular (a barra vira faixa de rolar). */
 .em-subnav { display: none; margin-bottom: 1rem; }
 .em-subnav select { width: 100%; }
+@media (max-width: 900px) { .em-subnav { display: block; } }
 .fx-selo-problema { position: absolute; top: -0.7rem; right: 0.6rem; background: var(--etiqueta); color: var(--queda); border: 1.5px solid currentColor; border-radius: 2px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.05rem 0.4rem; transform: rotate(-2deg); white-space: nowrap; }
 .fx-cabeca { display: flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--fio); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tinta-2); }
 .fx-cabeca svg, .fx-escolha svg, .fx-painel__topo > svg, .fx-nota__cabeca svg { width: 0.95rem; height: 0.95rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
