@@ -365,6 +365,7 @@
   // Público, resumo, limite do mês, bloqueios, disparo único, envio em lotes e
   // agendamento (383) ficam no servidor; aqui só a tela. O relatório é a 384.
   let filtroCamp = '';
+  let protoCamp = false; // 391: protótipo da campanha com e-mail escrito na hora
   let campEstado = null;
   let campTimer = null;
   const MES = (t) => new Date(t * 1000).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long' });
@@ -384,6 +385,9 @@
 
   async function campanhas(el) {
     clearTimeout(campTimer);
+    if (protoCamp && window.EmailBlocos) {
+      return window.EmailBlocos.prototipo(el, { ctx, util: api.util, modo: 'campanha', voltar: () => { protoCamp = false; campanhas(el); } });
+    }
     if (!campEstado) el.innerHTML = carregando('Carregando as campanhas');
     try {
       campEstado = await ctx.fetchJson(`/api/email/campanhas?${filtroCamp ? `situacao=${filtroCamp}&` : ''}_=${Date.now()}`);
@@ -398,6 +402,7 @@
     el.innerHTML = `<div class="em-barra"><p class="mini">Os números do canal ficam em <a href="#mkt-email?v=relatorio">Resultados</a>.</p>
         <button class="btn" type="button" data-nova>Nova campanha</button>
       </div>
+      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Campanha com o e-mail escrito na hora, sem precisar de modelo.</span><button class="btn sec" type="button" data-proto-camp>Ver a campanha nova</button></div>
       ${S.marketing_liberado ? '' : '<div class="aviso alerta"><b>Disparos de marketing bloqueados.</b> O marketing está marcado como não liberado. Dá para montar a campanha, mas o disparo só funciona depois de ligar a opção. <a href="#mkt-email?v=configuracao">Ver configuração</a></div>'}
       ${avisoLimite(S.uso)}
       ${total ? `<div class="ag-subvistas" role="group" aria-label="Filtrar por situação">
@@ -406,6 +411,7 @@
       </div>` : ''}
       <div class="tabela-wrap" id="em-camp-lista"></div>`;
     el.querySelector('[data-nova]').onclick = () => formCampanha(null, el);
+    el.querySelector('[data-proto-camp]').onclick = () => { protoCamp = true; campanhas(el); window.scrollTo(0, 0); };
     el.querySelectorAll('[data-filtro]').forEach((b) => { b.onclick = () => { filtroCamp = b.dataset.filtro; campanhas(el); }; });
     const segNome = (id) => (S.opcoes.segmentos.find((s) => s.id === id) || { nome: 'segmento excluído' }).nome;
     const alvo = el.querySelector('#em-camp-lista');

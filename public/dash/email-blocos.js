@@ -275,6 +275,11 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   let raiz, voltarLista, previaTimer, digitandoTimer;
   let arrastandoTipo = null;
   let apenasCab = false; // editor aberto pela Configuração › Cabeçalho padrão
+  // Modo "campanha" (391): a campanha usa um modelo OU tem o e-mail escrito nela.
+  let camp = null; // { nome, conteudo: 'modelo'|'escrever', modelo, segs: Set, quando, resumo }
+  let EMODELO = null; // o modelo escolhido, só para a prévia
+  const MODELOS_EX = [['convite', 'Convite workshop 05/11'], ['novidade', 'Novidade da semana']];
+  const SEGS_EX = [['s1', 'Workshop: últimos 30 dias', 8], ['s2', 'Sessão estratégica', 49], ['s3', 'Lives semanais', 112]];
   const USAM_PADRAO = ['Confirmação de reunião', 'Lembrete 24h antes', 'Lembrete 1h antes', 'Convite workshop 05/11']; // tipo vindo da paleta (o dado só é legível ao soltar)
 
   const snap = () => JSON.stringify(E);
@@ -291,6 +296,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     digitandoTimer = setTimeout(() => { digitandoTimer = null; }, 800);
   }
   function mudou({ pilha = true } = {}) {
+    if (camp && raiz.querySelector('#eb-camp')) setTimeout(() => { if (camp) { const r = camp.resumo; desenharCampanha(); camp.resumo = r; } }, 0);
     if (pilha) desenharPilha();
     agendarPrevia();
     desenharAvisos();
@@ -300,7 +306,10 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   function prototipo(el, opcoes) {
     raiz = el; ctx = opcoes.ctx; U = opcoes.util; voltarLista = opcoes.voltar;
     apenasCab = opcoes.modo === 'cabecalho';
+    camp = opcoes.modo === 'campanha' ? { nome: '', conteudo: 'modelo', modelo: 'convite', segs: new Set(), quando: 'agora', resumo: false } : null;
+    EMODELO = camp ? exemplo() : null;
     E = exemplo();
+    if (camp) { E.nome = ''; E.assunto = ''; E.previa = ''; E.blocos = [blocoNovo('texto')]; }
     if (apenasCab) {
       E.nome = 'Cabeçalho padrão'; E.assunto = ''; E.previa = '';
       E.cab = { modo: 'proprio', fundo: CAB_PADRAO.fundo };
@@ -309,19 +318,22 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     salvo = snap(); sel = apenasCab ? E.blocos[0].id : E.blocos[1].id; desfazer = []; refazer = []; tamanho = 'computador'; ultimoCampo = null;
     el.innerHTML = `
       <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>${apenasCab ? 'Cabeçalho padrão montado com blocos' : 'Editor novo por blocos'}, com dados de exemplo. Nada aqui é salvo nem enviado.</span></div>
-      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ic('voltar')} ${apenasCab ? 'Configuração' : 'Modelos'}</button>
+      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ic('voltar')} ${apenasCab ? 'Configuração' : camp ? 'Campanhas' : 'Modelos'}</button>
         <div class="ag-acoes"><span class="mini eb-sujo" data-sujo hidden>Mudanças não salvas</span>
           <button class="ag-icone" type="button" data-desfazer aria-label="Desfazer (Ctrl+Z)" title="Desfazer (Ctrl+Z)">${ic('desfazer')}</button>
           <button class="ag-icone" type="button" data-refazer aria-label="Refazer (Ctrl+Y)" title="Refazer (Ctrl+Y)">${ic('refazer')}</button>
-          ${apenasCab ? '' : '<button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-dup>Duplicar</button>'}<button class="btn" type="button" data-salvar>${apenasCab ? 'Salvar cabeçalho padrão' : 'Salvar'}</button></div></div>
+          ${camp
+            ? '<button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-salvar-modelo>Salvar como modelo</button><button class="btn sec" type="button" data-salvar>Salvar rascunho</button><button class="btn" type="button" data-revisar>Revisar e disparar</button><span class="mini" data-motivo></span>'
+            : `${apenasCab ? '' : '<button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-dup>Duplicar</button>'}<button class="btn" type="button" data-salvar>${apenasCab ? 'Salvar cabeçalho padrão' : 'Salvar'}</button>`}</div></div>
+      ${camp ? '<section class="eb-camp" id="eb-camp"></section>' : ''}
       <div class="eb">
         <div class="eb-editor">
           ${apenasCab
             ? `<div class="eb-cab-intro"><h3 class="ag-h3">Cabeçalho padrão</h3><p>A faixa do topo de todo modelo que usa o padrão. Monte com os mesmos blocos do corpo: logo, texto, links, botão.</p>
               <p class="mini">Usado hoje por <b>${USAM_PADRAO.length} modelos</b>: ${USAM_PADRAO.map(esc).join(', ')}. Mudar aqui vale para os próximos envios deles.</p></div>`
             : `<form class="ag-form" onsubmit="return false">
-            <div class="linha"><label>Nome<input type="text" data-e="nome" maxlength="100"></label>
-              <label>Canal<input type="text" value="Marketing (news.)" disabled></label></div>
+            ${camp ? '<h3 class="ag-h3 eb-camp__titulo-email">E-mail desta campanha</h3>' : `<div class="linha"><label>Nome<input type="text" data-e="nome" maxlength="100"></label>
+              <label>Canal<input type="text" value="Marketing (news.)" disabled></label></div>`}
             <label>Assunto<input type="text" data-e="assunto" maxlength="200"></label>
             <label>Texto de pré-visualização<input type="text" data-e="previa" maxlength="200"></label>
           </form>`}
@@ -350,10 +362,11 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       i.addEventListener('input', () => { guardarDigitando(); E[i.dataset.e] = i.value; mudou({ pilha: false }); });
     });
     el.querySelector('[data-voltar]').onclick = (ev) => {
-      if (!sujo()) return voltarLista();
-      ctx.pedirConfirmacao(ev.currentTarget, apenasCab ? 'Sair sem salvar? As mudanças do cabeçalho se perdem.' : 'Sair sem salvar? As mudanças deste modelo se perdem.', () => { voltarLista(); return true; }, [{ valor: true, rotulo: 'Descartar e sair' }]);
+      if (!sujo() && !(camp && (camp.nome || camp.segs.size))) return voltarLista();
+      ctx.pedirConfirmacao(ev.currentTarget, camp ? 'Sair sem salvar? A campanha e o e-mail escrito nela se perdem.' : apenasCab ? 'Sair sem salvar? As mudanças do cabeçalho se perdem.' : 'Sair sem salvar? As mudanças deste modelo se perdem.', () => { voltarLista(); return true; }, [{ valor: true, rotulo: 'Descartar e sair' }]);
     };
     el.querySelector('[data-salvar]').onclick = (ev) => {
+      if (camp) { salvo = snap(); mudou({ pilha: false }); return U.avisar('Protótipo: rascunho da campanha não foi salvo. No de verdade, ela fica em Campanhas › Rascunhos com o e-mail escrito nela.'); }
       if (apenasCab) {
         if (!blocosCab().length) return U.avisar('O cabeçalho padrão está vazio. Adicione pelo menos um bloco, ou deixe cada modelo escolher "Sem cabeçalho".', 'erro');
         return ctx.pedirConfirmacao(ev.currentTarget, `Salvar? O cabeçalho muda em ${USAM_PADRAO.length} modelos, nos próximos envios.`, () => {
@@ -368,6 +381,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     };
     const bTeste = el.querySelector('[data-teste]');
     if (bTeste) bTeste.onclick = () => U.avisar('Protótipo: no editor de verdade, o teste sai com o que está na tela, mesmo sem salvar.');
+    if (camp) ligarCampanha();
     const bDup = el.querySelector('[data-dup]');
     if (bDup) bDup.onclick = () => U.avisar('Protótipo: duplicar leva blocos, cabeçalho e cores para uma cópia.');
     el.querySelector('[data-desfazer]').onclick = () => voltar(desfazer, refazer);
@@ -383,6 +397,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       if (!doc) return;
       doc.addEventListener('click', (ev) => {
         ev.preventDefault();
+        if (camp && camp.conteudo === 'modelo') return;
         if (ev.target.closest('[data-cabeca], [data-vazio-cab]')) { selecionar('cab'); const c = raiz.querySelector('[data-card="cab"]'); if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
         const tr = ev.target.closest('[data-b]');
         if (tr) { selecionar(tr.dataset.b); const card = raiz.querySelector(`[data-card="${tr.dataset.b}"]`); if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
@@ -660,6 +675,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       return { pos: antes ? i : i + 1, zona: doCab(b) ? 'cab' : 'corpo', tr, antes, bloco: b, sobreImagem };
     };
     const tipoDoArraste = (ev) => {
+      if (camp && camp.conteudo === 'modelo') return null;
       const tipos = [...(ev.dataTransfer?.types || [])];
       if (tipos.includes('Files')) return 'arquivo';
       if (movendo) return 'mover';
@@ -978,19 +994,124 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const frame = raiz.querySelector('#eb-frame');
     const texto = raiz.querySelector('#eb-texto');
     raiz.querySelector('#eb-caixa').hidden = apenasCab;
+    const doModelo = camp && camp.conteudo === 'modelo';
+    const Eatual = E;
+    if (doModelo) E = EMODELO;
+    try {
     raiz.querySelector('#eb-caixa').innerHTML = `<div class="eb-entrada"><span class="eb-entrada__de"><b>Felipe Santos | Atacado Exponencial</b> <span class="mini">felipe@news.atacadoexponencial.com</span></span><span class="eb-entrada__assunto"><b>${esc(preencherTexto(E.assunto) || '(sem assunto)')}</b> <span class="mini">${esc(preencherTexto(E.previa))}</span></span></div>`;
     moldura.classList.toggle('eb-moldura--celular', tamanho === 'celular');
     texto.hidden = tamanho !== 'texto';
     frame.hidden = tamanho === 'texto';
     if (tamanho === 'texto') { texto.textContent = soTexto(E); return; }
     const y = frame.contentWindow ? frame.contentWindow.scrollY : 0;
-    frame.srcdoc = montar(E, sel);
+    frame.srcdoc = montar(E, doModelo ? null : sel);
     frame.addEventListener('load', () => { if (frame.contentWindow) frame.contentWindow.scrollTo(0, y); }, { once: true });
+    } finally { E = Eatual; }
   }
   function ajustarAltura() {
     const frame = raiz.querySelector('#eb-frame');
     const doc = frame.contentDocument;
     if (doc && doc.body) frame.style.height = Math.max(420, doc.body.scrollHeight) + 'px';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Campanha com e-mail escrito na hora (spec, módulo 8) · PROTÓTIPO 391
+  // ---------------------------------------------------------------------------
+  const escritoTemConteudo = () => E.assunto.trim() || E.blocos.some((b) => avisosDoBloco(b).every((a) => !/vazio/i.test(a)));
+  function ligarCampanha() {
+    desenharCampanha();
+  }
+  function desenharCampanha() {
+    const alvo = raiz.querySelector('#eb-camp');
+    const c = camp;
+    const temConteudo = c.conteudo === 'modelo' ? !!c.modelo : !!(E.assunto.trim() && escritoTemConteudo());
+    const temSeg = c.segs.size > 0;
+    const passo = (ok, txt, falta, conselho) => `<li class="${ok ? 'feito' : 'falta'}"><span class="carimbo ${ok ? 'alta' : 'neutro'}">${ok ? 'Feito' : conselho ? 'Conselho' : 'Falta'}</span> ${ok ? txt : falta}</li>`;
+    alvo.innerHTML = `
+      <ol class="em-passos" aria-label="O que falta para disparar">
+        ${passo(temConteudo, c.conteudo === 'modelo' ? 'Modelo escolhido' : 'E-mail escrito', c.conteudo === 'modelo' ? 'Escolher o modelo' : 'Escrever o assunto e o corpo do e-mail')}
+        ${passo(temSeg, 'Segmento escolhido', 'Marcar um ou mais segmentos')}
+        ${passo(false, '', 'Mandar um teste para você antes de disparar', true)}</ol>
+      <div class="eb-camp__grade">
+        <div class="ag-form eb-camp__col">
+          <label>Nome interno<input type="text" data-c="nome" maxlength="100" placeholder="Ex.: Convite workshop 05/11" value="${esc(c.nome)}"></label>
+          <div class="ag-campo"><span class="ag-campo__rotulo">Conteúdo do e-mail</span>
+            <div class="ag-subvistas" role="radiogroup" aria-label="Conteúdo do e-mail">
+              <button type="button" class="ag-subvista" role="radio" data-conteudo="modelo" aria-checked="${c.conteudo === 'modelo'}" aria-pressed="${c.conteudo === 'modelo'}">Usar um modelo</button>
+              <button type="button" class="ag-subvista" role="radio" data-conteudo="escrever" aria-checked="${c.conteudo === 'escrever'}" aria-pressed="${c.conteudo === 'escrever'}">Escrever o e-mail aqui</button></div></div>
+          ${c.conteudo === 'modelo' ? `<label>Modelo<select data-c="modelo">${MODELOS_EX.map(([v, r]) => `<option value="${v}"${v === c.modelo ? ' selected' : ''}>${esc(r)}</option>`).join('')}</select></label>
+            <p class="mini">Assunto: <b>${esc(preencherTexto(EMODELO.assunto))}</b></p>
+            <div><button type="button" class="btn sec" data-a-partir>Escrever a partir deste modelo</button> <span class="mini">copia o modelo para esta campanha; o modelo não muda</span></div>`
+            : '<p class="mini">O e-mail fica guardado nesta campanha. Para reaproveitar depois, use "Salvar como modelo".</p>'}
+        </div>
+        <div class="ag-form eb-camp__col">
+          <fieldset><legend>Segmentos (um ou mais)</legend>
+            ${SEGS_EX.map(([id, n, q]) => `<label class="marca"><input type="checkbox" data-seg="${id}"${c.segs.has(id) ? ' checked' : ''}> ${esc(n)} <span class="mini">${q} ativos</span></label>`).join('')}</fieldset>
+          <fieldset><legend>Quando enviar</legend>
+            <label class="marca"><input type="radio" name="eb-quando" value="agora"${c.quando === 'agora' ? ' checked' : ''}> Agora, depois do resumo</label>
+            <label class="marca"><input type="radio" name="eb-quando" value="agendar"${c.quando === 'agendar' ? ' checked' : ''}> Agendar para data e hora (Brasília)</label></fieldset>
+        </div>
+      </div>
+      ${c.resumo ? resumoCampanha() : ''}`;
+    raiz.querySelector('.eb').classList.toggle('eb--so-previa', c.conteudo === 'modelo');
+    raiz.querySelector('.eb-paleta').hidden = c.conteudo === 'modelo';
+    raiz.querySelector('.eb-dica').hidden = c.conteudo === 'modelo';
+    const bModelo = raiz.querySelector('[data-salvar-modelo]');
+    if (bModelo) bModelo.hidden = c.conteudo === 'modelo';
+    const br = raiz.querySelector('[data-revisar]');
+    br.disabled = !temConteudo || !temSeg;
+    raiz.querySelector('[data-motivo]').textContent = !temConteudo ? (c.conteudo === 'modelo' ? 'Falta o modelo.' : 'Falta escrever o e-mail.') : !temSeg ? 'Falta o segmento.' : '';
+    br.textContent = c.quando === 'agendar' ? 'Revisar e agendar' : 'Revisar e disparar';
+
+    alvo.querySelector('[data-c="nome"]').addEventListener('input', (ev) => { c.nome = ev.target.value; });
+    const selM = alvo.querySelector('[data-c="modelo"]');
+    if (selM) selM.onchange = () => { c.modelo = selM.value; EMODELO = exemplo(); if (c.modelo === 'novidade') { EMODELO.assunto = 'Novidade da semana no atacado'; EMODELO.blocos = EMODELO.blocos.slice(1, 4); } desenharCampanha(); desenharPrevia(); };
+    alvo.querySelectorAll('[data-seg]').forEach((i) => { i.onchange = () => { if (i.checked) c.segs.add(i.dataset.seg); else c.segs.delete(i.dataset.seg); c.resumo = false; desenharCampanha(); }; });
+    alvo.querySelectorAll('[name="eb-quando"]').forEach((i) => { i.onchange = () => { c.quando = i.value; c.resumo = false; desenharCampanha(); }; });
+    const aPartir = alvo.querySelector('[data-a-partir]');
+    if (aPartir) aPartir.onclick = () => {
+      guardar();
+      const copia = JSON.parse(JSON.stringify(EMODELO));
+      Object.assign(E, { assunto: copia.assunto, previa: copia.previa, cab: copia.cab, fundo: copia.fundo, blocos: copia.blocos.map((b) => ({ ...b, id: novoId() })) });
+      c.conteudo = 'escrever'; sel = null;
+      raiz.querySelectorAll('[data-e]').forEach((i) => { i.value = E[i.dataset.e]; });
+      desenharCampanha(); desenharFundo(); mudou();
+      U.avisar('Modelo copiado para a campanha. O que você mudar aqui não muda o modelo.');
+    };
+    alvo.querySelectorAll('[data-conteudo]').forEach((b) => {
+      b.onclick = () => {
+        const novo = b.dataset.conteudo;
+        if (novo === c.conteudo) return;
+        if (novo === 'modelo' && escritoTemConteudo()) {
+          return ctx.pedirConfirmacao(b, 'Usar um modelo descarta o e-mail escrito nesta campanha. Continuar?', () => {
+            c.conteudo = 'modelo'; c.resumo = false; desenharCampanha(); desenharPrevia(); return true;
+          }, [{ valor: true, rotulo: 'Descartar e usar modelo' }]);
+        }
+        c.conteudo = novo; c.resumo = false; desenharCampanha(); mudou();
+      };
+    });
+    const bm = raiz.querySelector('[data-salvar-modelo]');
+    if (bm) bm.onclick = () => {
+      if (!escritoTemConteudo()) return U.avisar('Escreva o e-mail antes de salvar como modelo.', 'erro');
+      U.avisar(`Protótipo: no de verdade, vira o modelo de marketing "${c.nome || E.assunto || 'Sem nome'}" (uma cópia). A campanha continua com o próprio e-mail.`);
+    };
+    br.onclick = () => { c.resumo = true; desenharCampanha(); alvo.querySelector('.em-resumo').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
+    const bd = alvo.querySelector('[data-disparar]');
+    if (bd) bd.onclick = () => ctx.pedirConfirmacao(bd, `${c.quando === 'agendar' ? 'Agendar' : 'Disparar agora'} para ${recebem()} pessoas? Não dá para desfazer.`, () => {
+      U.avisar('Protótipo: nada foi enviado. No de verdade, a campanha sai com o e-mail escrito nela e o relatório mostra esse e-mail.');
+      return true;
+    });
+  }
+  const recebem = () => SEGS_EX.filter(([id]) => camp.segs.has(id)).reduce((s, x) => s + x[2], 0);
+  function resumoCampanha() {
+    const c = camp;
+    const assunto = c.conteudo === 'modelo' ? EMODELO.assunto : E.assunto;
+    return `<div class="em-resumo">
+      <h3 class="ag-h3">Resumo antes de ${c.quando === 'agendar' ? 'agendar' : 'disparar'}</h3>
+      <div class="em-resumo__grande"><b>${recebem()}</b> pessoas vão receber</div>
+      <p class="mini">Conteúdo: ${c.conteudo === 'modelo' ? `modelo "${esc((MODELOS_EX.find((m) => m[0] === c.modelo) || [0, ''])[1])}"` : 'e-mail escrito nesta campanha'} · assunto <b>${esc(preencherTexto(assunto))}</b></p>
+      <div class="aviso alerta">${c.conteudo === 'modelo' ? 'Este modelo ainda não foi testado.' : 'Este e-mail ainda não foi testado.'} Vale mandar um teste para você antes (botão Mandar teste, lá em cima).</div>
+      <div class="ag-acoes"><button class="btn" type="button" data-disparar>${c.quando === 'agendar' ? 'Agendar' : `Disparar para ${recebem()} pessoas`}</button></div></div>`;
   }
 
   // ---------------------------------------------------------------------------

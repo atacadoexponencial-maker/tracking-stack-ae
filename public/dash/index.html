@@ -1042,6 +1042,14 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .eb-moldura { background: var(--papel-escuro); border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem; max-height: calc(100dvh - 9rem); overflow: auto; }
 .eb-moldura iframe { display: block; width: 100%; border: 0; min-height: 420px; overflow: hidden; margin: 0 auto; background: #fff; transition: max-width 0.2s ease-out; }
 .eb-moldura--celular iframe { max-width: 375px; }
+/* Campanha com e-mail escrito · PROTÓTIPO 391 */
+.eb-camp { display: grid; gap: 1rem; margin-bottom: 1.6rem; padding-bottom: 1.4rem; border-bottom: 2px solid var(--fio-forte); }
+.eb-camp__grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1.2rem 2rem; }
+.eb-camp__col { max-width: none; }
+.eb-camp .em-resumo { max-width: 40rem; }
+.eb-camp__titulo-email { margin: 0 0 0.2rem; }
+.eb--so-previa { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
+.eb--so-previa .eb-editor { display: none; }
 /* Biblioteca de imagens · PROTÓTIPO 390 */
 .eb-bib { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
 .eb-bib:has(.eb-bib__painel:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 22rem); }
