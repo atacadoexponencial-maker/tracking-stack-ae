@@ -304,7 +304,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text
               <button type="button" class="ag-icone" data-tam="texto" aria-pressed="false" aria-label="Versão só texto" title="Versão só texto">${ic('so_texto')}</button></div></div>
           <div class="eb-paleta" role="group" aria-label="Blocos para arrastar até o e-mail"><span class="mini">Arraste para o e-mail:</span>${Object.entries(TIPOS).map(([k, t]) => `<button type="button" class="eb-paleta__item" draggable="true" data-paleta="${k}" title="Arraste até o ponto do e-mail, ou clique para pôr no fim">${ic(k)} ${t.rotulo}</button>`).join('')}</div>
           <div class="eb-caixa" id="eb-caixa"></div>
-          <div class="eb-moldura" id="eb-moldura"><p class="eb-dica mini">Arraste um bloco para mudar de lugar, solte uma imagem do computador ou um bloco da paleta.</p><iframe id="eb-frame" title="Prévia do e-mail"></iframe><pre class="eb-texto" id="eb-texto" hidden></pre></div>
+          <div class="eb-moldura" id="eb-moldura"><p class="eb-dica mini">Arraste um bloco para mudar de lugar, solte uma imagem do computador ou um bloco da paleta.</p><iframe id="eb-frame" title="Prévia do e-mail" scrolling="no"></iframe><pre class="eb-texto" id="eb-texto" hidden></pre></div>
         </div>
       </div>`;
 
