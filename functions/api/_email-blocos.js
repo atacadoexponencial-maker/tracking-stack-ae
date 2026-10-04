@@ -264,20 +264,38 @@ function blocoHtml(b, o, fundo) {
   }
 }
 
+// Modo editor (394): cada linha ganha a marca que a prévia usa para clicar,
+// arrastar e soltar; bloco vazio vira um lugar marcado (no e-mail ele some).
+const VAZIO = { titulo: 'Título vazio', texto: 'Texto vazio', imagem: 'Escolha uma imagem', botao: 'Botão sem texto', imgtexto: 'Imagem com texto vazia' };
+const vazioHtml = (texto, fundo, attrs) => `<tr${attrs}><td style="${fundo ? `background:${fundo};` : ''}padding:14px 28px;${FONTE};font-size:13px;color:#8a837a;text-align:center;border:1px dashed #d9d3c9">${texto}</td></tr>`;
+function blocoMarcado(b, o, fundo, editavel) {
+  const html = blocoHtml(b, o, fundo);
+  if (!o.editor) return html;
+  const attrs = editavel ? ` data-b="${b.id}" draggable="true"` : ' data-cabeca';
+  if (!html) return vazioHtml(VAZIO[b.tipo] || 'Bloco vazio', fundo, attrs);
+  return html.replace(/^<tr/, `<tr${attrs}`);
+}
+
 /** Linhas da faixa do cabeçalho (com o fundo dela) ou nada. */
 function cabecalhoHtml(doc, cfg, o) {
-  if (doc.cab.modo === 'sem') return '';
-  const fonte = doc.cab.modo === 'proprio' ? { fundo: doc.cab.fundo, blocos: doc.blocos.filter((b) => b.zona === 'cab') } : cabecalhoPadrao(cfg);
-  const linhas = fonte.blocos.map((b) => blocoHtml(b, o, fonte.fundo)).join('');
-  if (!linhas) return '';
+  if (doc.cab.modo === 'sem') {
+    return o.editor ? `<tr data-cabeca class="eb-sem-cab"><td style="padding:8px 28px;${FONTE};font-size:12px;color:#8a837a;text-align:center;border-bottom:1px dashed #d9d3c9">Sem cabeçalho · clique para mudar (esta faixa só aparece no editor)</td></tr>` : '';
+  }
+  const proprio = doc.cab.modo === 'proprio';
+  const fonte = proprio ? { fundo: doc.cab.fundo, blocos: doc.blocos.filter((b) => b.zona === 'cab') } : cabecalhoPadrao(cfg);
   const f = fonte.fundo;
-  return `${celula('height:24px;font-size:0;line-height:0', '&nbsp;', f)}${linhas}${celula('height:0;font-size:0;line-height:0', '', f)}<tr><td style="height:12px;font-size:0;line-height:0">&nbsp;</td></tr>`;
+  let linhas = fonte.blocos.map((b) => blocoMarcado(b, o, f, proprio)).join('');
+  if (!linhas && o.editor && proprio) linhas = vazioHtml('Cabeçalho vazio: arraste um bloco para cá ou use o "+" na lista', f, ' data-vazio-cab');
+  if (!linhas) return '';
+  const topo = o.editor ? ' data-cabeca' : '';
+  return `${celula('height:24px;font-size:0;line-height:0', '&nbsp;', f).replace(/^<tr/, `<tr${topo}`)}${linhas}${celula('height:0;font-size:0;line-height:0', '', f)}<tr><td style="height:12px;font-size:0;line-height:0">&nbsp;</td></tr>`;
 }
 
 /** HTML de todas as linhas (cabeçalho e corpo) para dentro da tabela do e-mail. */
-export function htmlDosBlocos(doc, cfg, { valores = null, marcar = false, site } = {}) {
-  const o = { valores, marcar, site };
-  return cabecalhoHtml(doc, cfg, o) + doc.blocos.filter((b) => b.zona !== 'cab').map((b) => blocoHtml(b, o)).join('');
+export function htmlDosBlocos(doc, cfg, { valores = null, marcar = false, site, editor = false } = {}) {
+  const o = { valores, marcar, site, editor };
+  const corpo = doc.blocos.filter((b) => b.zona !== 'cab').map((b) => blocoMarcado(b, o, '', true)).join('');
+  return cabecalhoHtml(doc, cfg, o) + (corpo || (editor ? vazioHtml('Nenhum bloco ainda. Arraste um bloco da paleta para cá.', '', ' data-vazio') : ''));
 }
 
 /** Versão só texto: títulos, textos, endereços de botões e texto alternativo das imagens. */

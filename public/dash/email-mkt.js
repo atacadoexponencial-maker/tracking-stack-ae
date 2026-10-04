@@ -1155,7 +1155,6 @@
   // ficam lá. Aqui só a tela.
   let filtroModelo = 'todos';
   let modeloAberto = null;
-  let protoBlocos = false; // 389: protótipo do editor por blocos (email-blocos.js)
   let protoCab = false; // 390: protótipo do cabeçalho padrão (Configuração)
   let modelosEstado = null; // { modelos, campos }
   let paraTeste = '';
@@ -1194,9 +1193,6 @@
         return;
       }
     }
-    if (protoBlocos && window.EmailBlocos) {
-      return window.EmailBlocos.prototipo(el, { ctx, util: api.util, voltar: () => { protoBlocos = false; listaModelos(el); } });
-    }
     if (modeloAberto) return editorModelo(el, modeloAberto);
     listaModelos(el);
   }
@@ -1210,11 +1206,10 @@
         <div class="ag-subvistas" role="group" aria-label="Filtrar modelos">${FILTROS_M.map(([k, r]) => `<button type="button" class="ag-subvista" data-fm="${k}" aria-pressed="${k === filtroModelo}">${r} <span class="ag-cont">${todos.filter((m) => casaFiltro(m, k)).length}</span></button>`).join('')}</div>
         <div class="ag-acoes"><button class="btn" type="button" data-novo="marketing">Novo modelo de marketing</button><button class="btn sec" type="button" data-novo="transacional">Novo transacional</button></div>
       </div>
-      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Editor novo por blocos, com imagens, cores e cabeçalho editável.</span><button class="btn sec" type="button" data-proto-blocos>Ver o editor novo</button></div>
+
       <div class="tabela-wrap" id="em-mod-lista"></div>`;
     el.querySelectorAll('[data-fm]').forEach((b) => { b.onclick = () => { filtroModelo = b.dataset.fm; listaModelos(el); }; });
     el.querySelectorAll('[data-novo]').forEach((b) => { b.onclick = () => novoModelo(el, b.dataset.novo); });
-    el.querySelector('[data-proto-blocos]').onclick = () => { protoBlocos = true; modelos(el); window.scrollTo(0, 0); };
     const alvo = el.querySelector('#em-mod-lista');
     ctx.tabela(alvo, [
       { titulo: 'Modelo', campo: 'nome', render: (m) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${m.id}">${esc(m.nome)}</button>` },
@@ -1286,10 +1281,11 @@
     f.onsubmit = (ev) => { ev.preventDefault(); enviar(); };
   }
 
-  function pedirTeste(m) {
+  // `rascunho` (394): o editor manda o que está na tela, mesmo sem salvar.
+  function pedirTeste(m, rascunho = null) {
     const g = gaveta({
       titulo: 'Mandar teste',
-      sub: `"${esc(m.nome)}" com os dados de exemplo`,
+      sub: `"${esc(m.nome)}" com os dados de exemplo${rascunho ? ', do jeito que está na tela' : ''}`,
       corpo: `<form class="ag-form" data-teste-form novalidate>
           <label>Para<input type="email" name="para" value="${esc(paraTeste)}" placeholder="seu e-mail" autocomplete="email"></label>
           <p class="mini">Sai pelo remetente do canal ${m.canal}, com os campos preenchidos por dados de exemplo. A entrega aparece em Configuração › Últimos testes.</p>
@@ -1302,7 +1298,7 @@
     f.para.focus();
     const enviar = () => ocupado(b, async () => {
       try {
-        await postModelos({ acao: 'enviar_teste', id: m.id, para: f.para.value });
+        await postModelos({ acao: 'enviar_teste', id: m.id, para: f.para.value, ...(rascunho ? { modelo: rascunho } : {}) });
         paraTeste = f.para.value.trim();
         fecharGaveta();
         avisar(`Teste mandado para ${paraTeste}.`);
@@ -1312,146 +1308,37 @@
     f.onsubmit = (ev) => { ev.preventDefault(); enviar(); };
   }
 
-  function editorModelo(el, id) {
+  // 394 · Editor por blocos (public/dash/email-blocos.js). A prévia é o e-mail
+  // montado pelo servidor; salvar, testar e duplicar passam por /api/email/modelos.
+  async function editorModelo(el, id) {
     const m = modeloReal(id);
     if (!m) { modeloAberto = null; return listaModelos(el); }
-    const CHAVES = ['nome', 'canal', 'assunto', 'previa', 'corpo'];
-    const rasc = Object.fromEntries(CHAVES.map((k) => [k, m[k] ?? '']));
-    const sujo = () => CHAVES.some((k) => rasc[k] !== (m[k] ?? ''));
-    let tamanho = 'computador';
-    el.innerHTML = `<div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ICONE.voltar} Modelos</button>
-        <div class="ag-acoes"><button class="btn sec" type="button" data-teste>Mandar teste</button><button class="btn sec" type="button" data-dup>Duplicar</button><button class="btn" type="button" data-salvar>Salvar</button></div></div>
-      ${m.arquivado ? '<div class="aviso alerta">Este modelo está arquivado. Ele não aparece na lista principal nem pode ser escolhido em campanhas, fluxos ou na agenda.</div>' : ''}
-      <div class="em-editor">
-        <form class="ag-form em-editor__form" onsubmit="return false">
-          <div class="linha"><label>Nome<input type="text" data-m="nome" maxlength="100" value="${esc(rasc.nome)}"></label>
-            <label>Canal<select data-m="canal">${Object.entries(NOME_CANAL).map(([k, r]) => `<option value="${k}"${k === rasc.canal ? ' selected' : ''}>${r} (${k === 'marketing' ? 'news.' : 'envio.'})</option>`).join('')}</select></label></div>
-          <label>Assunto<input type="text" data-m="assunto" maxlength="200" value="${esc(rasc.assunto)}" placeholder="O que aparece em negrito na caixa de entrada"></label>
-          <label>Texto de pré-visualização<input type="text" data-m="previa" maxlength="200" value="${esc(rasc.previa)}" placeholder="A linha que aparece depois do assunto"></label>
-          <div class="ag-campo"><span class="ag-campo__rotulo">Corpo</span>
-            <div class="em-ferramentas" role="toolbar" aria-label="Formatação">
-              <button type="button" class="btn sec" data-fmt="negrito"><b>N</b> Negrito</button>
-              <button type="button" class="btn sec" data-fmt="link">Link</button>
-              <button type="button" class="btn sec" data-fmt="botao">Botão</button>
-            </div>
-            <textarea data-m="corpo" rows="12">${esc(rasc.corpo)}</textarea>
-            <span class="mini">**texto** vira negrito · [texto](link) vira link · [[Texto | link]] vira botão. Cabeçalho e rodapé entram sozinhos.</span></div>
-          <div class="ag-campo"><span class="ag-campo__rotulo">Campos do canal <span data-nome-canal>${rasc.canal}</span> <span class="mini">(clique para inserir onde está o cursor)</span></span>
-            <div class="ag-etiquetas" data-chips></div></div>
-          <div id="em-campos-ruins" aria-live="polite"></div>
-          <div class="em-erro" aria-live="polite"></div>
-        </form>
-        <div class="em-editor__previa">
-          <div class="em-barra em-barra--previa"><span class="ag-campo__rotulo">Pré-visualização com dados de exemplo</span>
-            <div class="em-tamanho" role="group" aria-label="Tamanho da pré-visualização">
-              <button type="button" class="ag-icone" data-tam="computador" aria-pressed="true" aria-label="Computador" title="Computador">${ICONE.computador}</button>
-              <button type="button" class="ag-icone" data-tam="celular" aria-pressed="false" aria-label="Celular" title="Celular">${ICONE.celular}</button></div></div>
-          <div id="em-previa"></div>
-        </div>
-      </div>`;
-    const ta = el.querySelector('[data-m="corpo"]');
-    const erro = el.querySelector('.em-editor__form .em-erro');
-    let ultimoCampo = ta;
-    let ultimaPrevia = null;
-
-    const inserir = (antes, depois = '', padrao = '') => {
-      const i = ultimoCampo, a = i.selectionStart ?? i.value.length, z = i.selectionEnd ?? a;
-      const sel = i.value.slice(a, z) || padrao;
-      i.value = i.value.slice(0, a) + antes + sel + depois + i.value.slice(z);
-      i.focus();
-      i.selectionStart = i.selectionEnd = a + antes.length + sel.length + depois.length;
-      rasc[i.dataset.m] = i.value;
-      atualizar();
-    };
-    const desenharChips = () => {
-      el.querySelector('[data-nome-canal]').textContent = rasc.canal;
-      el.querySelector('[data-chips]').innerHTML = (modelosEstado.campos[rasc.canal] || [])
-        .map((c) => `<button type="button" class="em-campo" data-campo="${esc(c.campo)}" title="${esc(c.rotulo)}">{{${esc(c.campo)}}}</button>`).join('');
-      el.querySelectorAll('[data-campo]').forEach((b) => { b.onclick = () => inserir(`{{${b.dataset.campo}}}`); });
-    };
-    // A prévia é o HTML final montado pelo servidor, isolado num iframe sem scripts.
-    const desenharPrevia = () => {
-      const p = ultimaPrevia;
-      if (!p) return;
-      const cfg = D.config[rasc.canal];
-      const alvo = el.querySelector('#em-previa');
-      alvo.innerHTML = `<div class="em-email em-email--${tamanho}">
-          <div class="em-email__caixa"><b>${esc(cfg.nome)}</b> <span class="mini">&lt;${esc(cfg.endereco)}&gt;</span><br>
-            <span class="em-email__assunto">${esc(p.assunto || '(sem assunto)')}</span> <span class="mini">${esc(p.previa)}</span></div>
-          <iframe title="Pré-visualização do e-mail" sandbox="allow-same-origin" style="display:block;width:100%;border:0;min-height:320px"></iframe>
-        </div>`;
-      const fr = alvo.querySelector('iframe');
-      fr.onload = () => { try { fr.style.height = fr.contentDocument.documentElement.scrollHeight + 'px'; } catch { /* fica a altura mínima */ } };
-      fr.srcdoc = p.html;
-      el.querySelector('#em-campos-ruins').innerHTML = [
-        p.desconhecidos.length ? `<div class="aviso falha"><b>Campo desconhecido:</b> ${p.desconhecidos.map((r) => `{{${esc(r)}}}`).join(', ')}. Os campos deste canal estão logo acima. Não dá para salvar assim.</div>` : '',
-        ...p.avisos.map((a) => `<div class="aviso alerta">${esc(a)}</div>`),
-      ].join('');
-    };
-    let espera = null, pedido = 0;
-    function atualizar(imediato) {
-      clearTimeout(espera);
-      espera = setTimeout(async () => {
-        const n = ++pedido;
-        try {
-          const p = await postModelos({ acao: 'previa', modelo: { canal: rasc.canal, assunto: rasc.assunto, previa: rasc.previa, corpo: rasc.corpo } });
-          if (n !== pedido) return; // já há um pedido mais novo
-          ultimaPrevia = p;
-          desenharPrevia();
-        } catch (e) {
-          if (n === pedido) el.querySelector('#em-previa').innerHTML = `<div class="aviso falha">Não foi possível montar a pré-visualização (${esc(msgErro(e))}).</div>`;
-        }
-      }, imediato ? 0 : 400);
-    }
-
-    el.querySelectorAll('[data-m]').forEach((i) => i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', () => {
-      rasc[i.dataset.m] = i.value;
-      erro.textContent = '';
-      if (i.dataset.m === 'canal') desenharChips();
-      if (i.dataset.m !== 'nome') atualizar(i.dataset.m === 'canal');
-    }));
-    el.querySelectorAll('[data-m="assunto"], [data-m="previa"], [data-m="corpo"]').forEach((i) => i.addEventListener('focus', () => { ultimoCampo = i; }));
-    el.querySelectorAll('[data-fmt]').forEach((b) => { b.onclick = () => { ultimoCampo = ta; ({
-      negrito: () => inserir('**', '**', 'texto em negrito'),
-      link: () => inserir('[', '](https://)', 'texto do link'),
-      botao: () => inserir('\n\n[[', ' | https://]]\n\n', 'Texto do botão'),
-    })[b.dataset.fmt](); }; });
-    el.querySelectorAll('[data-tam]').forEach((b) => { b.onclick = () => { tamanho = b.dataset.tam; el.querySelectorAll('[data-tam]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); desenharPrevia(); }; });
-
-    const voltar = el.querySelector('[data-voltar]');
-    voltar.onclick = () => {
-      if (!sujo()) { modeloAberto = null; return listaModelos(el); }
-      ctx.pedirConfirmacao(voltar, 'Sair sem salvar?', () => { modeloAberto = null; listaModelos(el); });
-    };
-    el.querySelector('[data-teste]').onclick = () => (sujo() ? avisar('Salve as mudanças antes de mandar o teste.', 'erro') : pedirTeste(m));
-    const dup = el.querySelector('[data-dup]');
-    dup.onclick = () => {
-      if (sujo()) return avisar('Salve as mudanças antes de duplicar.', 'erro');
-      ocupado(dup, async () => {
+    if (!window.EmailBlocos) { el.innerHTML = '<div class="aviso falha">O editor não carregou. Recarregue a página.</div>'; return; }
+    el.innerHTML = carregando('Abrindo o editor');
+    let cfg = {};
+    try { cfg = (await ctx.fetchJson('/api/email/config?_=' + Date.now())).config || {}; } catch (e) { /* remetente fica genérico */ }
+    const k = m.canal === 'marketing' ? 'marketing' : 'transacional';
+    const fechar = () => { modeloAberto = null; listaModelos(el); };
+    window.EmailBlocos.editor(el, {
+      ctx, util: api.util, modelo: m, campos: modelosEstado.campos[m.canal] || [],
+      remetente: { nome: cfg[`remetente_${k}_nome`] || 'Atacado Exponencial', email: cfg[`remetente_${k}_email`] || '' },
+      voltar: fechar,
+      salvar: async (rasc) => {
+        const r = await postModelos({ acao: 'salvar', id: m.id, modelo: { ...rasc, canal: m.canal } });
+        const novo = { ...r.modelo, usos: m.usos || [] };
+        trocarModelo(novo);
+        Object.assign(m, novo);
+        return novo;
+      },
+      testar: (rasc) => pedirTeste(m, { ...rasc, canal: m.canal }),
+      duplicar: async () => {
         try {
           const r = await postModelos({ acao: 'duplicar', id: m.id });
-          trocarModelo(r.modelo); modeloAberto = r.modelo.id;
+          trocarModelo({ ...r.modelo, usos: [] }); modeloAberto = r.modelo.id;
           avisar('Modelo duplicado. Você está editando a cópia.'); modelos(el);
         } catch (e) { avisar(msgErro(e), 'erro'); }
-      });
-    };
-    const salvar = el.querySelector('[data-salvar]');
-    salvar.onclick = () => ocupado(salvar, async () => {
-      try {
-        const r = await postModelos({ acao: 'salvar', id: m.id, modelo: rasc });
-        trocarModelo(r.modelo);
-        Object.assign(m, r.modelo);
-        Object.assign(rasc, Object.fromEntries(CHAVES.map((k) => [k, r.modelo[k] ?? ''])));
-        erro.textContent = '';
-        avisar('Modelo salvo.');
-      } catch (e) {
-        erro.textContent = msgErro(e);
-        avisar(msgErro(e), 'erro');
-        erro.scrollIntoView({ block: 'center' });
-      }
+      },
     });
-    desenharChips();
-    atualizar(true);
   }
 
   // ===========================================================================

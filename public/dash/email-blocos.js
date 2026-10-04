@@ -14,11 +14,11 @@
   // ---------------------------------------------------------------------------
   // Catálogo
   // ---------------------------------------------------------------------------
-  const CAMPOS = [
+  let CAMPOS = [
     ['primeiro_nome', 'Primeiro nome', 'Ana'], ['nome', 'Nome completo', 'Ana Lima'],
     ['email', 'E-mail', 'ana.lima@exemplo.com'], ['funil', 'Funil de entrada', 'Workshop gratuito'],
   ];
-  const EXEMPLO = Object.fromEntries(CAMPOS.map(([c, , v]) => [c, v]));
+  let EXEMPLO = Object.fromEntries(CAMPOS.map(([c, , v]) => [c, v]));
   const MARCA = [['#161513', 'Carvão'], ['#f5f0eb', 'Bege assinatura'], ['#ffffff', 'Branco'], ['#b8ada1', 'Taupe']];
 
   const IC = {
@@ -60,7 +60,15 @@
     { id: 'gif', nome: 'Contagem animada (GIF)', url: svgImg(600, 200, '#f5f0eb', '#161513', 'GIF ANIMADO'), w: 600, h: 200, peso: '640 KB', gif: true, data: '02/10', usos: [] },
     { id: 'logo-branca', nome: 'Logo branca', url: svgImg(600, 140, '#1e1e1e', '#ffffff', 'atacado exponencial'), w: 600, h: 140, peso: '9 KB', data: '01/10', usos: [] },
   ];
-  const imagem = (id) => BIBLIOTECA.find((i) => i.id === id) || null;
+  // Imagem do bloco: no protótipo, um id da biblioteca de exemplo; no editor de
+  // verdade (394), a ficha da biblioteca { chave, ext, w, h, nome }.
+  const LOGO = { id: 'logo', nome: 'Logo Atacado Exponencial', url: '/email/logo.png', w: 939, h: 253, peso: '' };
+  function imagem(ref) {
+    if (!ref) return null;
+    if (typeof ref === 'object') return { id: ref.chave, nome: ref.nome || 'Imagem', url: `/email/i/${ref.chave}.${ref.ext}`, w: ref.w, h: ref.h, peso: '', gif: ref.ext === 'gif' };
+    return BIBLIOTECA.find((i) => i.id === ref) || null;
+  }
+  const imgDoBloco = (b) => (b.fixa === 'logo' ? LOGO : imagem(b.img));
 
   // Cabeçalho: uma faixa no topo montada com os mesmos blocos do corpo. O padrão
   // vem da Configuração (desenhado na 390); "Personalizado" usa os blocos do
@@ -121,7 +129,7 @@
   }
 
   function imagemHtml(b, maxW) {
-    const im = imagem(b.img);
+    const im = imgDoBloco(b);
     if (!im) return `<div style="border:1px dashed #c9c2b6;padding:28px 12px;text-align:center;${FONTE};font-size:13px;color:#8a837a">Escolha uma imagem</div>`;
     const w = b.largura === 'metade' ? Math.round(maxW / 2) : b.largura === 'original' ? Math.min(im.w, maxW) : b.largura === 'px' ? Math.min(Number(b.px) || 200, maxW) : maxW;
     const img = `<img src="${esc(im.url)}" width="${w}" alt="${esc(preencherTexto(b.alt))}" style="display:block;width:100%;max-width:${w}px;height:auto;border:0;${b.alinh === 'centro' ? 'margin:0 auto' : b.alinh === 'direita' ? 'margin-left:auto' : ''}">`;
@@ -248,7 +256,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     if (b.tipo === 'titulo' && !b.texto.trim()) a.push('Título vazio');
     if ((b.tipo === 'texto' || b.tipo === 'imgtexto') && !limpar(b.html).replace(/<[^>]+>/g, '').trim()) a.push('Texto vazio');
     if (b.tipo === 'imagem' || b.tipo === 'imgtexto') {
-      if (!b.img) a.push('Imagem não escolhida');
+      if (!b.img && !b.fixa) a.push('Imagem não escolhida');
       else if (!b.alt.trim()) a.push('Imagem sem texto alternativo');
       if (b.link) links.push(b.link);
     }
@@ -274,6 +282,10 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   let E, salvo, sel, desfazer, refazer, tamanho, ctx, U, ultimoCampo, recentes = [];
   let raiz, voltarLista, previaTimer, digitandoTimer;
   let arrastandoTipo = null;
+  let real = false; // 394: editor ligado à API (Modelos)
+  let IMAGENS = []; // biblioteca de verdade (392)
+  let OPC = null; // modo real: { modelo, salvar, testar, duplicar, remetente }
+  let pedidoPrevia = 0, ultimaPrevia = null;
   let apenasCab = false; // editor aberto pela Configuração › Cabeçalho padrão
   // Modo "campanha" (391): a campanha usa um modelo OU tem o e-mail escrito nela.
   let camp = null; // { nome, conteudo: 'modelo'|'escrever', modelo, segs: Set, quando, resumo }
@@ -303,21 +315,48 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     raiz.querySelector('[data-sujo]').hidden = !sujo();
   }
 
+  // 394: o editor de verdade de um modelo (Marketing › E-mail › Modelos).
+  // opcoes: { ctx, util, modelo, campos, remetente, salvar(rasc), testar(rasc), duplicar(), voltar() }
+  async function editor(el, opcoes) {
+    real = true;
+    OPC = opcoes;
+    const m = opcoes.modelo;
+    CAMPOS = (opcoes.campos || []).map((c) => [c.campo, c.rotulo, c.exemplo]);
+    EXEMPLO = Object.fromEntries(CAMPOS.map(([c, , v]) => [c, v]));
+    try { IMAGENS = (await opcoes.ctx.fetchJson(`/api/email/imagens?_=${Date.now()}`)).imagens || []; } catch (e) { IMAGENS = []; }
+    let doc = null;
+    try { const d = JSON.parse(m.corpo); if (d && d.formato === 'blocos') doc = d; } catch (e) { /* corpo vazio ou antigo */ }
+    const blocos = doc ? doc.blocos : String(m.corpo || '').trim() ? [{ ...blocoNovo('texto'), html: `<p>${esc(m.corpo).replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>')}</p>` }] : [blocoNovo('texto')];
+    const inicial = {
+      nome: m.nome, assunto: m.assunto || '', previa: m.previa || '', canal: m.canal,
+      cab: { modo: doc ? doc.cab.modo : 'padrao', fundo: doc ? doc.cab.fundo || '' : '' },
+      fundo: doc ? doc.fundo : { fora: '#f3f1ec', conteudo: '#ffffff' },
+      blocos: blocos.map((b) => ({ ...b, id: b.id || novoId() })),
+    };
+    return montarTela(el, { ...opcoes, modo: 'modelo' }, inicial);
+  }
+
   function prototipo(el, opcoes) {
+    real = false;
+    OPC = null;
+    return montarTela(el, opcoes, null);
+  }
+
+  function montarTela(el, opcoes, inicial) {
     raiz = el; ctx = opcoes.ctx; U = opcoes.util; voltarLista = opcoes.voltar;
     apenasCab = opcoes.modo === 'cabecalho';
     camp = opcoes.modo === 'campanha' ? { nome: '', conteudo: 'modelo', modelo: 'convite', segs: new Set(), quando: 'agora', resumo: false } : null;
     EMODELO = camp ? exemplo() : null;
-    E = exemplo();
+    E = inicial || exemplo();
     if (camp) { E.nome = ''; E.assunto = ''; E.previa = ''; E.blocos = [blocoNovo('texto')]; }
     if (apenasCab) {
       E.nome = 'Cabeçalho padrão'; E.assunto = ''; E.previa = '';
       E.cab = { modo: 'proprio', fundo: CAB_PADRAO.fundo };
       E.blocos = CAB_PADRAO.blocos.map((b) => ({ ...JSON.parse(JSON.stringify(b)), id: novoId(), zona: 'cab' }));
     }
-    salvo = snap(); sel = apenasCab || camp ? (E.blocos[0] || {}).id : E.blocos[1].id; desfazer = []; refazer = []; tamanho = 'computador'; ultimoCampo = null;
+    salvo = snap(); sel = apenasCab || camp || real ? ((E.blocos.find((b) => b.zona !== 'cab') || E.blocos[0]) || {}).id : E.blocos[1].id; desfazer = []; refazer = []; tamanho = 'computador'; ultimoCampo = null;
     el.innerHTML = `
-      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>${apenasCab ? 'Cabeçalho padrão montado com blocos' : camp ? 'Campanha com o e-mail escrito na hora' : 'Editor novo por blocos'}, com dados de exemplo. Nada aqui é salvo nem enviado.</span></div>
+      ${real ? '' : `<div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>${apenasCab ? 'Cabeçalho padrão montado com blocos' : camp ? 'Campanha com o e-mail escrito na hora' : 'Editor novo por blocos'}, com dados de exemplo. Nada aqui é salvo nem enviado.</span></div>`}
       <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ic('voltar')} ${apenasCab ? 'Configuração' : camp ? 'Campanhas' : 'Modelos'}</button>
         <div class="ag-acoes"><span class="mini eb-sujo" data-sujo hidden>Mudanças não salvas</span>
           <button class="ag-icone" type="button" data-desfazer aria-label="Desfazer (Ctrl+Z)" title="Desfazer (Ctrl+Z)">${ic('desfazer')}</button>
@@ -333,10 +372,11 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
               <p class="mini">Usado hoje por <b>${USAM_PADRAO.length} modelos</b>: ${USAM_PADRAO.map(esc).join(', ')}. Mudar aqui vale para os próximos envios deles.</p></div>`
             : `<form class="ag-form" onsubmit="return false">
             ${camp ? '<h3 class="ag-h3 eb-camp__titulo-email">E-mail desta campanha</h3>' : `<div class="linha"><label>Nome<input type="text" data-e="nome" maxlength="100"></label>
-              <label>Canal<input type="text" value="Marketing (news.)" disabled></label></div>`}
+              <label>Canal<input type="text" value="${E.canal === 'transacional' ? 'Transacional (envio.)' : 'Marketing (news.)'}" disabled></label></div>`}
             <label>Assunto<input type="text" data-e="assunto" maxlength="200"></label>
             <label>Texto de pré-visualização<input type="text" data-e="previa" maxlength="200"></label>
           </form>`}
+          <div class="eb-erro-salvar" id="eb-erro" aria-live="polite"></div>
           <div class="eb-avisos" id="eb-avisos" aria-live="polite"></div>
           <section class="eb-secao" aria-labelledby="eb-blocos-t"><h3 class="ag-h3" id="eb-blocos-t">${apenasCab ? 'Blocos do cabeçalho' : 'Cabeçalho e blocos'} <span class="mini">arraste pela alça ou use as setas</span></h3>
             <ol class="eb-pilha" id="eb-pilha"></ol></section>
@@ -366,6 +406,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       ctx.pedirConfirmacao(ev.currentTarget, camp ? 'Sair sem salvar? A campanha e o e-mail escrito nela se perdem.' : apenasCab ? 'Sair sem salvar? As mudanças do cabeçalho se perdem.' : 'Sair sem salvar? As mudanças deste modelo se perdem.', () => { voltarLista(); return true; }, [{ valor: true, rotulo: 'Descartar e sair' }]);
     };
     el.querySelector('[data-salvar]').onclick = (ev) => {
+      if (real) return salvarDeVerdade(ev.currentTarget);
       if (camp) { salvo = snap(); mudou({ pilha: false }); return U.avisar('Protótipo: rascunho da campanha não foi salvo. No de verdade, ela fica em Campanhas › Rascunhos com o e-mail escrito nela.'); }
       if (apenasCab) {
         if (!blocosCab().length) return U.avisar('O cabeçalho padrão está vazio. Adicione pelo menos um bloco, ou deixe cada modelo escolher "Sem cabeçalho".', 'erro');
@@ -380,10 +421,14 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       U.avisar('Protótipo: nada foi salvo. No editor de verdade, este modelo é usado em "Boas-vindas do workshop" (fluxo) e o aviso aparece antes de salvar.');
     };
     const bTeste = el.querySelector('[data-teste]');
-    if (bTeste) bTeste.onclick = () => U.avisar('Protótipo: no editor de verdade, o teste sai com o que está na tela, mesmo sem salvar.');
+    if (bTeste) bTeste.onclick = () => (real ? OPC.testar(rascunho()) : U.avisar('Protótipo: no editor de verdade, o teste sai com o que está na tela, mesmo sem salvar.'));
     if (camp) ligarCampanha();
     const bDup = el.querySelector('[data-dup]');
-    if (bDup) bDup.onclick = () => U.avisar('Protótipo: duplicar leva blocos, cabeçalho e cores para uma cópia.');
+    if (bDup) bDup.onclick = () => {
+      if (!real) return U.avisar('Protótipo: duplicar leva blocos, cabeçalho e cores para uma cópia.');
+      if (sujo()) return U.avisar('Salve as mudanças antes de duplicar.', 'erro');
+      return U.ocupado(bDup, () => OPC.duplicar());
+    };
     el.querySelector('[data-desfazer]').onclick = () => voltar(desfazer, refazer);
     el.querySelector('[data-refazer]').onclick = () => voltar(refazer, desfazer);
     el.querySelectorAll('[data-tam]').forEach((b) => { b.onclick = () => { tamanho = b.dataset.tam; el.querySelectorAll('[data-tam]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); desenharPrevia(); }; });
@@ -423,6 +468,29 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     desenharPrevia();
   }
 
+  // Salvar no servidor (394). Modelo em uso: avisa onde antes de gravar.
+  function salvarDeVerdade(botao) {
+    const erro = raiz.querySelector('#eb-erro');
+    const gravar = () => U.ocupado(botao, async () => {
+      try {
+        const m = await OPC.salvar(rascunho());
+        OPC.modelo = m;
+        salvo = snap();
+        erro.innerHTML = '';
+        mudou({ pilha: false });
+        U.avisar('Modelo salvo.');
+      } catch (e) {
+        erro.innerHTML = `<div class="aviso falha"><b>Não foi salvo.</b> ${esc(U.msgErro(e))}</div>`;
+        erro.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        U.avisar(U.msgErro(e), 'erro');
+      }
+      return true;
+    });
+    const usos = OPC.modelo.usos || [];
+    if (!usos.length) return gravar();
+    return ctx.pedirConfirmacao(botao, `Este modelo é usado em: ${usos.join(', ')}. Salvar vale para os próximos envios. Salvar?`, () => gravar());
+  }
+
   function teclas(ev) {
     if (!raiz || !raiz.isConnected) { document.removeEventListener('keydown', teclas); return; }
     if (!(ev.ctrlKey || ev.metaKey)) return;
@@ -457,7 +525,8 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
         ${seletorCor('Fundo da faixa', c.fundo || '', 'cab-fundo', true)}` : ''}`;
     const personalizar = () => {
       if (!blocosCab().length) {
-        E.blocos.unshift(...CAB_PADRAO.blocos.map((b) => ({ ...JSON.parse(JSON.stringify(b)), id: novoId(), zona: 'cab' })));
+        const base = real ? [{ tipo: 'imagem', fixa: 'logo', alt: 'Atacado Exponencial', largura: 'px', px: 150, alinh: 'esquerda', link: '' }] : CAB_PADRAO.blocos;
+        E.blocos.unshift(...base.map((b) => ({ ...JSON.parse(JSON.stringify(b)), id: novoId(), zona: 'cab' })));
         if (!c.fundo) c.fundo = CAB_PADRAO.fundo;
       }
       c.modo = 'proprio';
@@ -487,9 +556,9 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const t = (html) => limpar(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     if (b.tipo === 'titulo') return b.texto || 'vazio';
     if (b.tipo === 'texto') return t(b.html) || 'vazio';
-    if (b.tipo === 'imagem') return imagem(b.img) ? imagem(b.img).nome : 'sem imagem';
+    if (b.tipo === 'imagem') return imgDoBloco(b) ? imgDoBloco(b).nome : 'sem imagem';
     if (b.tipo === 'botao') return `${b.texto || 'sem texto'} → ${b.link || 'sem link'}`;
-    if (b.tipo === 'imgtexto') return `${imagem(b.img) ? imagem(b.img).nome : 'sem imagem'} · ${t(b.html) || 'sem texto'}`;
+    if (b.tipo === 'imgtexto') return `${imgDoBloco(b) ? imgDoBloco(b).nome : 'sem imagem'} · ${t(b.html) || 'sem texto'}`;
     if (b.tipo === 'divisoria') return 'linha';
     if (b.tipo === 'espaco') return { pequeno: 'pequeno', medio: 'médio', grande: 'grande' }[b.altura];
     return '';
@@ -559,7 +628,14 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     if (b) ligarCampos(p.querySelector(`[data-card="${b.id}"] .eb-card__corpo`), b);
   }
 
-  function selecionar(id) { sel = id; desenharPilha(); agendarPrevia(); }
+  function selecionar(id) { sel = id; desenharPilha(); if (real) marcarSelecaoNaPrevia(); else agendarPrevia(); }
+  function marcarSelecaoNaPrevia() {
+    const doc = raiz.querySelector('#eb-frame').contentDocument;
+    if (!doc) return;
+    doc.querySelectorAll('.eb-sel').forEach((x) => x.classList.remove('eb-sel'));
+    const alvo = sel === 'cab' ? doc.querySelectorAll('[data-cabeca]') : doc.querySelectorAll(`[data-b="${sel}"]`);
+    alvo.forEach((x) => x.classList.add('eb-sel'));
+  }
   function mover(id, d) {
     const b = E.blocos.find((x) => x.id === id);
     const zona = doCab(b) ? blocosCab() : blocosCorpo();
@@ -732,9 +808,9 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
         return;
       }
       const f = ev.dataTransfer.files[0];
-      lerImagem(f, (nova) => {
-        if (a.sobreImagem) { guardar(); a.bloco.img = nova.id; sel = a.bloco.id; mudou(); return; }
-        inserirBloco('imagem', a.pos, { extra: { img: nova.id }, zona: a.zona });
+      lerImagem(f, (valor) => {
+        if (a.sobreImagem) { guardar(); a.bloco.img = valor; delete a.bloco.fixa; sel = a.bloco.id; mudou(); return; }
+        inserirBloco('imagem', a.pos, { extra: { img: valor }, zona: a.zona });
       });
     });
   }
@@ -789,8 +865,12 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   // Escolha de imagem: "Subir imagem" e "Escolher da biblioteca" sempre à vista;
   // sem imagem, a área aceita arrastar o arquivo. Na biblioteca, o primeiro
   // quadrado também sobe.
-  function escolhaImagem(id, chave) {
-    const im = imagem(id);
+  // Itens da biblioteca na escolha: os de exemplo (protótipo) ou os da API.
+  const itensBiblioteca = () => (real ? IMAGENS.map((i) => ({ id: i.chave, nome: i.nome, url: i.url })) : BIBLIOTECA);
+  const refDaApi = (i) => ({ chave: i.chave, ext: i.extensao, w: i.largura, h: i.altura, nome: i.nome });
+  function escolhaImagem(b, chave) {
+    const im = imgDoBloco(b);
+    const atual = b.img && typeof b.img === 'object' ? b.img.chave : b.img;
     return `<div class="ag-campo"><span class="ag-campo__rotulo">Imagem</span>
       ${im
         ? `<div class="eb-img-escolhida" data-solta-${chave}><img src="${esc(im.url)}" alt=""><span><b>${esc(im.nome)}</b><span class="mini">${im.w} × ${im.h} px · ${im.peso}${im.gif ? ' · GIF animado' : ''}</span></span></div>`
@@ -799,16 +879,22 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
         <button type="button" class="btn sec" data-escolher-${chave} aria-expanded="false">Escolher da biblioteca</button></div>
       <div class="eb-biblio" data-biblio-${chave} hidden>
         <p class="mini eb-biblio__topo">Biblioteca de imagens · clique numa imagem para usar</p>
-        <div class="eb-biblio__grade"><button type="button" class="eb-biblio__item eb-biblio__subir" data-subir-${chave}>${ic('mais')}<span>Subir imagem</span></button>${BIBLIOTECA.map((x) => `<button type="button" class="eb-biblio__item${x.id === id ? ' eb-biblio__item--atual' : ''}" data-img-${chave}="${x.id}" aria-label="${esc(x.nome)}"><img src="${esc(x.url)}" alt=""><span>${esc(x.nome)}</span></button>`).join('')}</div></div></div>`;
+        <div class="eb-biblio__grade"><button type="button" class="eb-biblio__item eb-biblio__subir" data-subir-${chave}>${ic('mais')}<span>Subir imagem</span></button>${itensBiblioteca().map((x) => `<button type="button" class="eb-biblio__item${x.id === atual ? ' eb-biblio__item--atual' : ''}" data-img-${chave}="${esc(x.id)}" aria-label="${esc(x.nome)}"><img src="${esc(x.url)}" alt="" loading="lazy"><span>${esc(x.nome)}</span></button>`).join('')}</div>${real && !IMAGENS.length ? '<p class="mini">A biblioteca está vazia. Suba a primeira imagem.</p>' : ''}</div></div>`;
   }
   function ligarEscolhaImagem(alvo, chave, fn) {
     const bt = alvo.querySelector(`[data-escolher-${chave}]`);
     const caixa = alvo.querySelector(`[data-biblio-${chave}]`);
     if (!bt) return;
-    bt.onclick = () => { caixa.hidden = !caixa.hidden; bt.setAttribute('aria-expanded', String(!caixa.hidden)); if (!caixa.hidden) caixa.querySelector('[data-img-' + chave + ']').focus(); };
-    alvo.querySelectorAll(`[data-img-${chave}]`).forEach((b) => { b.onclick = () => { guardar(); fn(b.getAttribute(`data-img-${chave}`)); mudou(); }; });
-    const subir = (f) => lerImagem(f, (nova) => {
-      guardar(); fn(nova.id);
+    bt.onclick = () => { caixa.hidden = !caixa.hidden; bt.setAttribute('aria-expanded', String(!caixa.hidden)); if (!caixa.hidden) (caixa.querySelector('[data-img-' + chave + ']') || caixa.querySelector('button')).focus(); };
+    alvo.querySelectorAll(`[data-img-${chave}]`).forEach((b) => {
+      b.onclick = () => {
+        const id = b.getAttribute(`data-img-${chave}`);
+        const valor = real ? refDaApi(IMAGENS.find((i) => i.chave === id)) : id;
+        guardar(); fn(valor); mudou();
+      };
+    });
+    const subir = (f) => lerImagem(f, (valor) => {
+      guardar(); fn(valor);
       if (chave === 'cab') desenharCabecalho();
       mudou();
     });
@@ -833,6 +919,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   // ela fica só neste navegador (não sobe para o servidor).
   function lerImagem(f, pronta) {
     if (!f) return;
+    if (real) return subirParaBiblioteca(f, pronta);
     if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) return U.avisar('Formato não aceito. Use JPG, PNG, GIF ou WebP.', 'erro');
     if (f.size > 1024 * 1024) return U.avisar(`A imagem tem ${(f.size / 1024 / 1024).toFixed(1).replace('.', ',')} MB e o limite é 1 MB. Exporte menor e tente de novo.`, 'erro');
     const leitor = new FileReader();
@@ -841,12 +928,31 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       img.onload = () => {
         const nova = { id: novoId(), nome: f.name.replace(/\.[^.]+$/, ''), url: leitor.result, w: img.naturalWidth, h: img.naturalHeight, peso: `${Math.max(1, Math.round(f.size / 1024))} KB`, gif: f.type === 'image/gif' };
         BIBLIOTECA.unshift(nova);
-        pronta(nova);
+        pronta(nova.id, nova);
         U.avisar(nova.w > 1200 ? `Imagem na biblioteca e no e-mail. Ela tem ${nova.w} px de largura: acima de 1200 px, vale reduzir (no e-mail ela aparece reduzida).` : 'Imagem na biblioteca e no e-mail.');
       };
       img.src = leitor.result;
     };
     leitor.readAsDataURL(f);
+  }
+
+  // 394: sobe para a biblioteca de verdade (POST /api/email/imagens) e devolve a
+  // ficha para o bloco. Quem confere tipo, peso e medidas é o servidor.
+  async function subirParaBiblioteca(f, pronta) {
+    if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) return U.avisar('Formato não aceito. Use JPG, PNG, GIF ou WebP.', 'erro');
+    if (f.size > 1024 * 1024) return U.avisar(`A imagem tem ${(f.size / 1024 / 1024).toFixed(1).replace('.', ',')} MB e o limite é 1 MB. Exporte menor e tente de novo.`, 'erro');
+    U.avisar(`Subindo ${f.name}…`);
+    const fd = new FormData();
+    fd.append('arquivo', f);
+    let r, d = {};
+    try {
+      r = await fetch(`/api/email/imagens?key=${encodeURIComponent(ctx.key())}`, { method: 'POST', body: fd });
+      d = await r.json().catch(() => ({}));
+    } catch (e) { return U.avisar('Sem conexão. Tente subir de novo.', 'erro'); }
+    if (!r.ok || !d.imagem) return U.avisar(d.error || `Não foi possível subir (erro ${r.status}).`, 'erro');
+    IMAGENS = [d.imagem, ...IMAGENS];
+    pronta(refDaApi(d.imagem), d.imagem);
+    U.avisar(d.imagem.aviso ? `Imagem na biblioteca e no e-mail. ${d.imagem.aviso}` : 'Imagem na biblioteca e no e-mail.');
   }
 
   function textoRico(html, chave) {
@@ -905,7 +1011,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       ${alinhamento(b.alinh, 'b-alinh', ['esquerda', 'centro'])}${seletorCor('Cor', b.cor, 'b-cor')}`;
     if (b.tipo === 'texto') return `${textoRico(b.html, b.id)}${alinhamento(b.alinh, 'b-alinh', ['esquerda', 'centro'])}
       <div class="eb-duas">${seletorCor('Cor do texto', b.cor, 'b-cor')}${seletorCor('Cor dos links', b.corLink, 'b-corlink')}</div>`;
-    if (b.tipo === 'imagem') return `${escolhaImagem(b.img, 'b-img')}
+    if (b.tipo === 'imagem') return `${escolhaImagem(b, 'b-img')}
       <label>Texto alternativo <span class="mini">o que aparece se a imagem não carregar e o que o leitor de tela lê</span><input type="text" data-b-campo="alt" value="${esc(b.alt)}" maxlength="200"></label>
       ${opcoesRadio('Largura', b.largura, 'b-larg', [['toda', 'Largura toda'], ['metade', 'Metade'], ['original', 'Tamanho original'], ['px', 'Personalizada']])}
       ${b.largura === 'px' ? `<label>Largura <span class="mini" data-b-px-rot>${b.px} px</span><input type="range" min="40" max="544" step="2" value="${b.px}" data-b-px></label>` : ''}
@@ -916,7 +1022,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
       ${opcoesRadio('Estilo', b.estilo, 'b-estilo', [['cheio', 'Cheio'], ['contorno', 'Contorno']])}
       ${alinhamento(b.alinh, 'b-alinh', ['esquerda', 'centro', 'toda'])}
       <div class="eb-duas">${seletorCor(b.estilo === 'cheio' ? 'Cor de fundo' : 'Cor do contorno e do texto', b.fundo, 'b-fundo')}${b.estilo === 'cheio' ? seletorCor('Cor do texto', b.corTexto, 'b-cortexto') : ''}</div>`;
-    if (b.tipo === 'imgtexto') return `${escolhaImagem(b.img, 'b-img')}
+    if (b.tipo === 'imgtexto') return `${escolhaImagem(b, 'b-img')}
       <label>Texto alternativo da imagem<input type="text" data-b-campo="alt" value="${esc(b.alt)}" maxlength="200"></label>
       ${opcoesRadio('Imagem fica', b.lado, 'b-lado', [['esquerda', 'À esquerda'], ['direita', 'À direita']])}
       ${textoRico(b.html, b.id)}<div class="eb-duas">${seletorCor('Cor do texto', b.cor, 'b-cor')}${seletorCor('Cor dos links', b.corLink, 'b-corlink')}</div>
@@ -957,7 +1063,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     ligarCor(corpo, 'b-corlink', (v) => { b.corLink = v; });
     ligarCor(corpo, 'b-fundo', (v) => { b.fundo = v; });
     ligarCor(corpo, 'b-cortexto', (v) => { b.corTexto = v; });
-    ligarEscolhaImagem(corpo, 'b-img', (id) => { b.img = id; if (!b.alt) b.alt = ''; });
+    ligarEscolhaImagem(corpo, 'b-img', (valor) => { b.img = valor; delete b.fixa; if (!b.alt) b.alt = ''; });
     ligarTextoRico(corpo, (html) => { b.html = html; });
   }
   // Depois de sair de um campo, os avisos do cartão se atualizam sem perder o lugar.
@@ -988,8 +1094,36 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   }
 
   // --- prévia ---
-  function agendarPrevia() { clearTimeout(previaTimer); previaTimer = setTimeout(desenharPrevia, 120); }
+  function agendarPrevia() { clearTimeout(previaTimer); previaTimer = setTimeout(desenharPrevia, real ? 350 : 120); }
+  // Estilo de interação injetado na prévia do servidor (clicar, arrastar, soltar).
+  const CSS_EDITOR = '<style>[data-b],[data-cabeca]{cursor:pointer}[data-b]{cursor:grab}[data-b]:hover>td{outline:1px dashed #b8ada1;outline-offset:-1px}.eb-sel>td{outline:2px solid #161513!important;outline-offset:-2px}.eb-antes>td{box-shadow:inset 0 4px 0 #161513}.eb-depois>td{box-shadow:inset 0 -4px 0 #161513}.eb-troca img{outline:4px solid #161513;outline-offset:-4px}.eb-arrastando{opacity:.4}.eb-vazio-alvo td{outline:2px dashed #161513;outline-offset:-6px}</style>';
+  const docDeE = () => ({ formato: 'blocos', versao: 1, cab: { modo: E.cab.modo, fundo: E.cab.fundo || '' }, fundo: E.fundo, blocos: E.blocos });
+  const rascunho = () => ({ nome: E.nome, assunto: E.assunto, previa: E.previa, corpo: docDeE() });
+  async function previaDoServidor() {
+    const n = ++pedidoPrevia;
+    const moldura = raiz.querySelector('#eb-moldura');
+    const frame = raiz.querySelector('#eb-frame');
+    const texto = raiz.querySelector('#eb-texto');
+    raiz.querySelector('#eb-caixa').innerHTML = `<div class="eb-entrada"><span class="eb-entrada__de"><b>${esc(OPC.remetente.nome)}</b> <span class="mini">${esc(OPC.remetente.email)}</span></span><span class="eb-entrada__assunto"><b>${esc(preencherTexto(E.assunto) || '(sem assunto)')}</b> <span class="mini">${esc(preencherTexto(E.previa))}</span></span></div>`;
+    moldura.classList.toggle('eb-moldura--celular', tamanho === 'celular');
+    let r;
+    try {
+      r = await ctx.postJson('/api/email/modelos', { acao: 'previa', editor: true, modelo: { canal: E.canal, assunto: E.assunto, previa: E.previa, corpo: docDeE() } });
+    } catch (e) {
+      if (n === pedidoPrevia) { texto.hidden = false; frame.hidden = true; texto.textContent = `Não foi possível montar a prévia agora (${U.msgErro(e)}). Ela volta na próxima mudança.`; }
+      return;
+    }
+    if (n !== pedidoPrevia || !raiz.isConnected) return; // há um pedido mais novo
+    ultimaPrevia = r;
+    texto.hidden = tamanho !== 'texto';
+    frame.hidden = tamanho === 'texto';
+    if (tamanho === 'texto') { texto.textContent = r.texto; return; }
+    const y = frame.contentWindow ? frame.contentWindow.scrollY : 0;
+    frame.srcdoc = r.html.replace('</head>', `${CSS_EDITOR}</head>`);
+    frame.addEventListener('load', () => { marcarSelecaoNaPrevia(); if (frame.contentWindow) frame.contentWindow.scrollTo(0, y); }, { once: true });
+  }
   function desenharPrevia() {
+    if (real) return previaDoServidor();
     const moldura = raiz.querySelector('#eb-moldura');
     const frame = raiz.querySelector('#eb-frame');
     const texto = raiz.querySelector('#eb-texto');
@@ -1267,5 +1401,5 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     });
   }
 
-  window.EmailBlocos = { prototipo, biblioteca };
+  window.EmailBlocos = { prototipo, editor, biblioteca };
 })();

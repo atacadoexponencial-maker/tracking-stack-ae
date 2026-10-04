@@ -11,7 +11,7 @@ import { montarEmail } from '../_email-render.js';
 import { lerConfig } from '../_email-config.js';
 import {
   ErroModelo, listarModelos, obterModelo, criarModelo, salvarModelo, duplicarModelo,
-  arquivarModelo, desarquivarModelo, validarModelo, converterModelos,
+  arquivarModelo, desarquivarModelo, validarModelo, converterModelos, usosDoModelo,
 } from '../_email-modelos.js';
 import { lerDocumento, textosDoDocumento } from '../_email-blocos.js';
 import { enviarTeste } from './config.js';
@@ -21,27 +21,32 @@ const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') =
 
 export async function onRequestGet({ request, env }) {
   if (!autorizado(new URL(request.url), env)) return json({ error: 'Unauthorized' }, 401);
-  return json({ modelos: await listarModelos(env), campos: CAMPOS });
+  // Com onde cada modelo é usado: o editor avisa antes de salvar (394).
+  const modelos = await listarModelos(env);
+  const comUsos = await Promise.all(modelos.map(async (m) => ({ ...m, usos: await usosDoModelo(env, m.id) })));
+  return json({ modelos: comUsos, campos: CAMPOS });
 }
 
 /** Prévia com os dados de exemplo; campo desconhecido fica marcado. */
-async function previa(env, request, m) {
+async function previa(env, request, m, editor = false) {
   const canal = CANAIS.includes(m?.canal) ? m.canal : null;
   if (!canal) throw new ErroModelo('Escolha o canal do modelo: transacional ou marketing.');
   // O corpo vem do editor de blocos (objeto) ou como texto; a prévia monta os dois.
   const corpo = m.corpo && typeof m.corpo === 'object' ? m.corpo : String(m.corpo ?? '');
   const rasc = { canal, assunto: String(m.assunto ?? ''), previa: String(m.previa ?? ''), corpo };
   const cfg = await lerConfig(env);
-  const e = montarEmail(rasc, cfg, { valores: exemplos(canal), marcar: true, site: new URL(request.url).origin, descadastro: '#' });
+  const e = montarEmail(rasc, cfg, { valores: exemplos(canal), marcar: true, site: new URL(request.url).origin, descadastro: '#', editor });
   return {
-    assunto: e.assunto, previa: e.previa, html: e.html, avisos: e.avisos,
+    assunto: e.assunto, previa: e.previa, html: e.html, texto: e.texto, avisos: e.avisos,
     desconhecidos: desconhecidos(`${rasc.assunto}\n${rasc.previa}\n${textosDoDocumento(lerDocumento(corpo))}`, canal),
   };
 }
 
-async function testar(env, request, id, para) {
-  const m = await obterModelo(env, id);
-  if (m.arquivado) throw new ErroModelo('Este modelo está arquivado. Tire do arquivo antes de testar.', 409);
+// `rascunho` (394): o editor manda o que está na tela, mesmo sem salvar.
+async function testar(env, request, id, para, rascunho) {
+  const salvo = await obterModelo(env, id);
+  if (salvo.arquivado) throw new ErroModelo('Este modelo está arquivado. Tire do arquivo antes de testar.', 409);
+  const m = rascunho ? { ...salvo, ...validarModelo({ ...salvo, ...rascunho, canal: salvo.canal }) } : salvo;
   validarModelo(m); // modelo recém-criado ainda sem assunto ou corpo
   const cfg = await lerConfig(env);
   const e = montarEmail(m, cfg, { valores: exemplos(m.canal), site: new URL(request.url).origin });
@@ -59,8 +64,8 @@ export async function onRequestPost({ request, env }) {
         const modelo = corpo.id ? await salvarModelo(env, corpo.id, corpo.modelo || {}) : await criarModelo(env, corpo.modelo || {});
         return json({ ok: true, modelo });
       }
-      case 'previa': return json(await previa(env, request, corpo.modelo));
-      case 'enviar_teste': return await testar(env, request, corpo.id, corpo.para);
+      case 'previa': return json(await previa(env, request, corpo.modelo, !!corpo.editor));
+      case 'enviar_teste': return await testar(env, request, corpo.id, corpo.para, corpo.modelo || null);
       case 'duplicar': return json({ ok: true, modelo: await duplicarModelo(env, corpo.id) });
       case 'arquivar': return json({ ok: true, modelo: await arquivarModelo(env, corpo.id) });
       case 'desarquivar': return json({ ok: true, modelo: await desarquivarModelo(env, corpo.id) });

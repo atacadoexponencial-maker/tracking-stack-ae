@@ -35,7 +35,7 @@ export function linksDoCorpo(corpo) {
  * @param {object} opcoes   { valores, marcar, site, descadastro }
  * @returns {{ assunto, previa, html, texto, avisos: string[] }}
  */
-export function montarEmail(m, cfg, { valores = null, marcar = false, site = SITE, descadastro = DESCADASTRO } = {}) {
+export function montarEmail(m, cfg, { valores = null, marcar = false, site = SITE, descadastro = DESCADASTRO, editor = false } = {}) {
   const marketing = m.canal === 'marketing';
   const doc = lerDocumento(m.corpo);
   const rodape = String(cfg?.rodape || '').trim();
@@ -55,7 +55,7 @@ export function montarEmail(m, cfg, { valores = null, marcar = false, site = SIT
 <body style="margin:0;padding:0;background:${fora}">
 ${previa ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${esc(previa)}</div>\n` : ''}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${fora}"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:${conteudo};border:1px solid #e5e2da;border-radius:4px">
-${htmlDosBlocos(doc, cfg, { valores, marcar, site })}
+${htmlDosBlocos(doc, cfg, { valores, marcar, site, editor })}
 ${linhasRodape ? `<tr><td style="padding:16px 28px 24px;border-top:1px solid #eeeae2;${FONTE};font-size:12px;line-height:1.5;color:#888888">${linhasRodape}</td></tr>\n` : ''}</table>
 </td></tr></table>
 </body></html>`;

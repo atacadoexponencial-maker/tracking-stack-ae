@@ -238,3 +238,37 @@ test('teste do modelo: marketing não liberado é recusado; modelo sem corpo tam
   assert.equal(r.status, 400);
   assert.equal(pm.envios.length, 0);
 });
+
+test('editor (394): teste com o rascunho da tela, sem salvar', async () => {
+  const m = await criar();
+  const rasc = {
+    assunto: 'Rascunho, {{primeiro_nome}}', previa: '',
+    corpo: { formato: 'blocos', versao: 1, cab: { modo: 'sem', fundo: '' }, fundo: { fora: '#ffffff', conteudo: '#ffffff' }, blocos: [{ id: 'a1', tipo: 'titulo', texto: 'Só na tela' }] },
+  };
+  const r = await dash({ acao: 'enviar_teste', id: m.id, para: 'eu@x.com', modelo: rasc });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.equal(pm.envios[0].Subject, 'Rascunho, Ana');
+  assert.match(pm.envios[0].HtmlBody, /Só na tela/);
+  assert.doesNotMatch(pm.envios[0].HtmlBody, /logo\.png/, 'sem cabeçalho');
+  // O modelo salvo não mudou.
+  assert.equal((await dash()).corpo.modelos[0].assunto, CONTEUDO.assunto);
+  // Rascunho inválido não sai.
+  const ruim = await dash({ acao: 'enviar_teste', id: m.id, para: 'eu@x.com', modelo: { ...rasc, corpo: { ...rasc.corpo, blocos: [] } } });
+  assert.equal(ruim.status, 400);
+  assert.equal(pm.envios.length, 1);
+});
+
+test('editor (394): prévia marca os blocos para clicar e arrastar; lista diz onde o modelo é usado', async () => {
+  const corpo = { formato: 'blocos', versao: 1, cab: { modo: 'padrao', fundo: '' }, fundo: {}, blocos: [{ id: 'x9', tipo: 'texto', html: '<p>Oi</p>' }, { id: 'y8', tipo: 'titulo', texto: '' }] };
+  const p = await dash({ acao: 'previa', editor: true, modelo: { canal: 'marketing', assunto: 'A', previa: '', corpo } });
+  assert.match(p.corpo.html, /<tr data-b="x9" draggable="true">/);
+  assert.match(p.corpo.html, /<tr data-b="y8" draggable="true"><td[^>]*>Título vazio/);
+  assert.match(p.corpo.html, /<tr data-cabeca>/);
+  assert.equal(p.corpo.texto.split('\n')[0], 'Oi');
+  const sem = await dash({ acao: 'previa', modelo: { canal: 'marketing', assunto: 'A', previa: '', corpo } });
+  assert.doesNotMatch(sem.corpo.html, /data-b=|Título vazio/, 'fora do editor, nada de marca');
+
+  const m = await criar();
+  consultasDeUso.push(async (e, id) => (id === m.id ? ['confirmação da agenda (Sessão estratégica)'] : []));
+  assert.deepEqual((await dash()).corpo.modelos[0].usos, ['confirmação da agenda (Sessão estratégica)']);
+});
