@@ -252,13 +252,13 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     }
     if (b.tipo === 'botao') {
       if (!b.link.trim()) a.push('Botão sem link'); else links.push(b.link);
-      if (b.estilo === 'cheio' && contraste(b.fundo, b.corTexto) < 4.5) a.push(`Pouco contraste entre o texto e o fundo do botão (${contraste(b.fundo, b.corTexto).toFixed(1)}:1; o mínimo de leitura é 4,5:1)`);
+      if (b.estilo === 'cheio' && contraste(b.fundo, b.corTexto) < 4.5) a.push(`Pouco contraste entre o texto e o fundo do botão (${contraste(b.fundo, b.corTexto).toFixed(1).replace('.', ',')}:1; o mínimo de leitura é 4,5:1)`);
     }
     // Texto contra o fundo onde ele está (faixa do cabeçalho ou área do conteúdo).
     if (['titulo', 'texto', 'imgtexto'].includes(b.tipo) && b.cor) {
       const fundo = (b.zona === 'cab' && E.cab.fundo) || E.fundo.conteudo;
       const minimo = b.tipo === 'titulo' ? 3 : 4.5;
-      if (/^#[0-9a-f]{6}$/i.test(fundo) && contraste(b.cor, fundo) < minimo) a.push(`Pouco contraste entre o texto e o fundo (${contraste(b.cor, fundo).toFixed(1)}:1; o mínimo de leitura é ${minimo === 3 ? '3' : '4,5'}:1). Troque a cor do texto ou do fundo`);
+      if (/^#[0-9a-f]{6}$/i.test(fundo) && contraste(b.cor, fundo) < minimo) a.push(`Pouco contraste entre o texto e o fundo (${contraste(b.cor, fundo).toFixed(1).replace('.', ',')}:1; o mínimo de leitura é ${minimo === 3 ? '3' : '4,5'}:1). Troque a cor do texto ou do fundo`);
     }
     if (b.html) { const d = document.createElement('div'); d.innerHTML = b.html; d.querySelectorAll('a').forEach((x) => links.push(x.getAttribute('href') || '')); }
     links.filter((u) => !linkOk(u)).forEach((u) => a.push(`Link inválido: "${u || 'vazio'}"`));

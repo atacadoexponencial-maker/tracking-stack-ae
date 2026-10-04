@@ -14,8 +14,9 @@ pilha de blocos (título, texto, imagem, botão, divisória, espaço, imagem com
 texto ao lado) que a equipe adiciona, edita, reordena e apaga, vendo o resultado
 ao lado. Junto vêm:
 
-- **Cabeçalho editável:** um cabeçalho padrão na Configuração (logo, tamanho,
-  alinhamento, fundo), que cada modelo usa, troca por outra imagem ou tira.
+- **Cabeçalho editável:** uma faixa no topo montada com os mesmos blocos do
+  corpo e com cor de fundo. Um cabeçalho padrão na Configuração, que cada modelo
+  usa, personaliza ou tira.
 - **Biblioteca de imagens:** a equipe sobe uma imagem uma vez e reaproveita em
   vários modelos; a imagem fica num endereço público e permanente, porque o
   e-mail é aberto dias depois do envio.
@@ -172,34 +173,50 @@ celular).
 
 ### 3. Cabeçalho
 
-**Descrição:** a faixa do topo do e-mail. Existe um cabeçalho padrão, definido
-na Configuração, e cada modelo escolhe usar o padrão, usar outra imagem ou sair
-sem cabeçalho.
+**Descrição:** a faixa do topo do e-mail, montada com os **mesmos blocos do
+corpo** (imagem, texto, título, botão, divisória, espaço, imagem com texto) e com
+cor de fundo própria. Existe um cabeçalho padrão, definido na Configuração, e
+cada modelo escolhe usar o padrão, ter um cabeçalho personalizado ou sair sem
+cabeçalho. (Mudado em 04/10, a pedido dela: o cabeçalho não é só imagem.)
 
 **Componentes:**
-- Na Configuração de e-mail, bloco "Cabeçalho padrão": imagem (hoje, a logo do
-  Atacado Exponencial), largura da imagem, alinhamento (esquerda ou centro), cor
-  de fundo da faixa (qualquer cor, ou sem fundo) e link opcional ao clicar.
-- Prévia do cabeçalho padrão.
-- No editor do modelo, faixa do cabeçalho com três opções: "Cabeçalho padrão",
-  "Outra imagem" e "Sem cabeçalho".
-- Quando "Outra imagem": os mesmos campos do padrão, só para este modelo.
+- Na Configuração de e-mail, bloco "Cabeçalho padrão": os blocos da faixa (hoje,
+  a logo do Atacado Exponencial à esquerda, 150 px), a cor de fundo da faixa
+  (qualquer cor, ou sem fundo) e a prévia.
+- No editor do modelo, o cabeçalho é o primeiro cartão da lista ("Cabeçalho e
+  blocos"), com o resumo do que está em uso, a lixeira para tirar e "Pôr de
+  volta" quando foi tirado.
+- Dentro do cartão, três opções: "Padrão da Configuração", "Personalizado" e
+  "Sem cabeçalho". No padrão, o botão "Personalizar a partir do padrão".
+- Quando "Personalizado": a cor de fundo da faixa e os blocos do cabeçalho logo
+  abaixo do cartão, com "Adicionar ao cabeçalho".
+- Na prévia, a faixa do cabeçalho com o fundo escolhido; sem cabeçalho, uma
+  faixa tracejada só no editor.
+- Bloco de imagem com a largura "Personalizada", em px (para logo pequena).
 
 **Comportamentos:**
-- Trocar a imagem do cabeçalho padrão por outra da biblioteca.
-- Subir uma imagem nova para o cabeçalho padrão.
-- Mudar a largura da imagem do cabeçalho padrão.
-- Mudar o alinhamento do cabeçalho padrão.
+- Editar os blocos do cabeçalho padrão na Configuração (adicionar, editar,
+  reordenar, apagar), com os mesmos blocos e opções do corpo.
 - Mudar a cor de fundo do cabeçalho padrão.
-- Pôr ou tirar o link do cabeçalho padrão.
 - Salvar o cabeçalho padrão, que passa a valer para todos os modelos que usam o
   padrão, nos próximos envios.
 - Ver quantos modelos usam o cabeçalho padrão antes de salvar a mudança.
-- No modelo, escolher "Cabeçalho padrão".
-- No modelo, escolher "Outra imagem" e configurar imagem, largura, alinhamento,
-  fundo e link só para ele.
-- No modelo, escolher "Sem cabeçalho" (o e-mail começa direto no primeiro bloco).
-- Ver na prévia do modelo o cabeçalho escolhido.
+- No modelo, escolher "Padrão da Configuração".
+- No modelo, escolher "Personalizado" (começa como uma cópia do padrão).
+- No modelo, personalizar a partir do padrão com um clique.
+- Adicionar um bloco ao cabeçalho personalizado.
+- Editar, reordenar, duplicar e apagar blocos do cabeçalho personalizado.
+- Arrastar um bloco do corpo para o cabeçalho, e do cabeçalho para o corpo (na
+  lista e na prévia).
+- Soltar um bloco da paleta ou uma imagem do computador dentro da faixa do
+  cabeçalho, na prévia.
+- Mudar a cor de fundo da faixa do cabeçalho personalizado.
+- Tirar o cabeçalho pela lixeira do cartão (o e-mail começa direto no corpo).
+- Pôr o cabeçalho de volta, como estava antes.
+- Clicar no cabeçalho dentro da prévia para abrir as opções dele.
+- Ser avisada quando a cor de um texto ou título tem pouco contraste com o fundo
+  da faixa ou do e-mail (não impede salvar).
+- Escolher a largura de uma imagem em px ("Personalizada").
 
 ---
 
@@ -363,8 +380,9 @@ repete (agenda, fluxos, campanhas que voltam sempre).
 ## Decisões tomadas (04/10)
 
 - Corpo por **blocos** (não texto livre com inserir).
-- Cabeçalho: **padrão na Configuração + troca por modelo** (padrão, outra imagem
-  ou sem cabeçalho).
+- Cabeçalho: **padrão na Configuração + troca por modelo** (padrão, personalizado
+  ou sem cabeçalho). Em 04/10 ela pediu que o cabeçalho não fosse só imagem: ele
+  é **montado com os mesmos blocos do corpo**, com fundo próprio.
 - Imagens numa **biblioteca** reaproveitável, com trava de apagar imagem em uso.
 - Modelos existentes **convertem sozinhos**; um formato só depois disso.
 - **Campanha sem modelo:** dá para escrever o e-mail direto na campanha (pedido
