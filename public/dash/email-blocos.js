@@ -567,49 +567,63 @@ ${cabecalhoHtml(E)}${blocos || `<tr><td style="padding:40px 28px;text-align:cent
     alvo.querySelectorAll(`[data-cor-${chave}]`).forEach((b) => { b.onclick = () => aplicar(b.getAttribute(`data-cor-${chave}`)); });
   }
 
+  // Escolha de imagem: "Subir imagem" e "Escolher da biblioteca" sempre à vista;
+  // sem imagem, a área aceita arrastar o arquivo. Na biblioteca, o primeiro
+  // quadrado também sobe.
   function escolhaImagem(id, chave) {
     const im = imagem(id);
     return `<div class="ag-campo"><span class="ag-campo__rotulo">Imagem</span>
-      <div class="eb-img-escolhida">${im ? `<img src="${esc(im.url)}" alt=""><span><b>${esc(im.nome)}</b><span class="mini">${im.w} × ${im.h} px · ${im.peso}${im.gif ? ' · GIF animado' : ''}</span></span>` : '<span class="mini">Nenhuma imagem escolhida.</span>'}
-        <button type="button" class="btn sec" data-escolher-${chave}>${im ? 'Trocar' : 'Escolher da biblioteca'}</button></div>
+      ${im
+        ? `<div class="eb-img-escolhida" data-solta-${chave}><img src="${esc(im.url)}" alt=""><span><b>${esc(im.nome)}</b><span class="mini">${im.w} × ${im.h} px · ${im.peso}${im.gif ? ' · GIF animado' : ''}</span></span></div>`
+        : `<div class="eb-solta" data-solta-${chave}>${ic('imagem')}<span><b>Arraste uma imagem aqui</b><span class="mini">JPG, PNG, GIF ou WebP, até 1 MB · largura ideal de 600 a 1200 px</span></span></div>`}
+      <div class="eb-img-acoes"><button type="button" class="btn" data-subir-${chave}>${ic('mais')} ${im ? 'Subir outra imagem' : 'Subir imagem'}</button>
+        <button type="button" class="btn sec" data-escolher-${chave} aria-expanded="false">Escolher da biblioteca</button></div>
       <div class="eb-biblio" data-biblio-${chave} hidden>
-        <div class="eb-biblio__topo"><span class="mini">Biblioteca de imagens · largura recomendada de 600 a 1200 px, até 1 MB</span><button type="button" class="ag-link-linha" data-subir-${chave}>Subir imagem nova</button></div>
-        <div class="eb-biblio__grade">${BIBLIOTECA.map((x) => `<button type="button" class="eb-biblio__item${x.id === id ? ' eb-biblio__item--atual' : ''}" data-img-${chave}="${x.id}" aria-label="${esc(x.nome)}"><img src="${esc(x.url)}" alt=""><span>${esc(x.nome)}</span></button>`).join('')}</div></div></div>`;
+        <p class="mini eb-biblio__topo">Biblioteca de imagens · clique numa imagem para usar</p>
+        <div class="eb-biblio__grade"><button type="button" class="eb-biblio__item eb-biblio__subir" data-subir-${chave}>${ic('mais')}<span>Subir imagem</span></button>${BIBLIOTECA.map((x) => `<button type="button" class="eb-biblio__item${x.id === id ? ' eb-biblio__item--atual' : ''}" data-img-${chave}="${x.id}" aria-label="${esc(x.nome)}"><img src="${esc(x.url)}" alt=""><span>${esc(x.nome)}</span></button>`).join('')}</div></div></div>`;
   }
   function ligarEscolhaImagem(alvo, chave, fn) {
     const bt = alvo.querySelector(`[data-escolher-${chave}]`);
     const caixa = alvo.querySelector(`[data-biblio-${chave}]`);
     if (!bt) return;
-    bt.onclick = () => { caixa.hidden = !caixa.hidden; if (!caixa.hidden) caixa.querySelector('.eb-biblio__item').focus(); };
+    bt.onclick = () => { caixa.hidden = !caixa.hidden; bt.setAttribute('aria-expanded', String(!caixa.hidden)); if (!caixa.hidden) caixa.querySelector('[data-img-' + chave + ']').focus(); };
     alvo.querySelectorAll(`[data-img-${chave}]`).forEach((b) => { b.onclick = () => { guardar(); fn(b.getAttribute(`data-img-${chave}`)); mudou(); }; });
-    // Subir direto do bloco: a imagem entra na biblioteca e já fica escolhida.
+    // Subir: a imagem entra na biblioteca e já fica escolhida.
     // No protótipo ela fica só neste navegador (não sobe para o servidor).
-    alvo.querySelector(`[data-subir-${chave}]`).onclick = () => {
-      const inp = document.createElement('input');
-      inp.type = 'file';
-      inp.accept = 'image/jpeg,image/png,image/gif,image/webp';
-      inp.onchange = () => {
-        const f = inp.files[0];
-        if (!f) return;
-        if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) return U.avisar('Formato não aceito. Use JPG, PNG, GIF ou WebP.', 'erro');
-        if (f.size > 1024 * 1024) return U.avisar(`A imagem tem ${(f.size / 1024 / 1024).toFixed(1).replace('.', ',')} MB e o limite é 1 MB. Exporte menor e tente de novo.`, 'erro');
-        const leitor = new FileReader();
-        leitor.onload = () => {
-          const img = new Image();
-          img.onload = () => {
-            const nova = { id: novoId(), nome: f.name.replace(/\.[^.]+$/, ''), url: leitor.result, w: img.naturalWidth, h: img.naturalHeight, peso: `${Math.max(1, Math.round(f.size / 1024))} KB`, gif: f.type === 'image/gif' };
-            BIBLIOTECA.unshift(nova);
-            guardar(); fn(nova.id);
-            if (chave === 'cab') desenharCabecalho();
-            mudou();
-            U.avisar(nova.w > 1200 ? `Imagem na biblioteca e escolhida. Ela tem ${nova.w} px de largura: acima de 1200 px, vale reduzir (no e-mail ela aparece reduzida).` : 'Imagem na biblioteca e escolhida.');
-          };
-          img.src = leitor.result;
+    const subir = (f) => {
+      if (!f) return;
+      if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) return U.avisar('Formato não aceito. Use JPG, PNG, GIF ou WebP.', 'erro');
+      if (f.size > 1024 * 1024) return U.avisar(`A imagem tem ${(f.size / 1024 / 1024).toFixed(1).replace('.', ',')} MB e o limite é 1 MB. Exporte menor e tente de novo.`, 'erro');
+      const leitor = new FileReader();
+      leitor.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const nova = { id: novoId(), nome: f.name.replace(/\.[^.]+$/, ''), url: leitor.result, w: img.naturalWidth, h: img.naturalHeight, peso: `${Math.max(1, Math.round(f.size / 1024))} KB`, gif: f.type === 'image/gif' };
+          BIBLIOTECA.unshift(nova);
+          guardar(); fn(nova.id);
+          if (chave === 'cab') desenharCabecalho();
+          mudou();
+          U.avisar(nova.w > 1200 ? `Imagem na biblioteca e escolhida. Ela tem ${nova.w} px de largura: acima de 1200 px, vale reduzir (no e-mail ela aparece reduzida).` : 'Imagem na biblioteca e escolhida.');
         };
-        leitor.readAsDataURL(f);
+        img.src = leitor.result;
       };
-      inp.click();
+      leitor.readAsDataURL(f);
     };
+    alvo.querySelectorAll(`[data-subir-${chave}]`).forEach((b) => {
+      b.onclick = () => {
+        const inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = 'image/jpeg,image/png,image/gif,image/webp';
+        inp.onchange = () => subir(inp.files[0]);
+        inp.click();
+      };
+    });
+    const zona = alvo.querySelector(`[data-solta-${chave}]`);
+    if (zona) {
+      zona.addEventListener('dragover', (ev) => { if ([...ev.dataTransfer.types].includes('Files')) { ev.preventDefault(); zona.classList.add('eb-solta--sobre'); } });
+      zona.addEventListener('dragleave', () => zona.classList.remove('eb-solta--sobre'));
+      zona.addEventListener('drop', (ev) => { ev.preventDefault(); zona.classList.remove('eb-solta--sobre'); subir(ev.dataTransfer.files[0]); });
+    }
   }
 
   function textoRico(html, chave) {
