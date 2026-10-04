@@ -65,10 +65,17 @@ Ela sobe uma imagem pela biblioteca, a imagem aparece na grade com um endereço 
 
 ## Checklist
 
-- [ ] Migration 0060 escrita e aplicada no remoto (`d1 execute --file`)
-- [ ] `_email-imagens.js` com tipos e medidas pelos bytes, limites e trava de uso
-- [ ] Rotas `/api/email/imagens` e `/email/i/<arquivo>`
-- [ ] Testes passando (`npm test`)
-- [ ] KV criado e binding na prévia e em produção
-- [ ] Vista Imagens no dash ligada à API
-- [ ] Conferido na prévia: subir, recusas, renomear, endereço abre sem chave, apagar com trava
+- [x] Migration 0060 escrita e aplicada no remoto (`d1 execute --file`)
+- [x] `_email-imagens.js` com tipos e medidas pelos bytes, limites e trava de uso
+- [x] Rotas `/api/email/imagens` e `/email/i/<arquivo>`
+- [x] Testes passando (`npm test`)
+- [x] KV criado e binding na prévia e em produção
+- [x] Vista Imagens no dash ligada à API
+- [x] Conferido na prévia: subir, recusas, renomear, endereço abre sem chave, apagar com trava
+
+## Execução (04/10/2026)
+
+- KV `EMAIL_IMAGENS` (id 82d902dd4e3d4640b05dee10108ea196) criado e ligado na prévia e em produção pela API do Pages (configuração fotografada antes e depois: D1 e variáveis iguais; `MIDIA` mantido).
+- Migration 0060 aplicada no remoto.
+- Testado na prévia: logo da casa subida (939 × 253 px, 41 KB), endereço público abre sem chave com `Cache-Control: public, max-age=31536000, immutable` e `CF-Cache-Status: HIT`; arquivo falso com nome .png recusado (415). A logo ficou na biblioteca, pronta para o cabeçalho.
+- Imagem enviada pela prévia tem endereço no domínio da prévia; depois do merge, as novas ficam no domínio de produção (o endereço segue o domínio de quem sobe). Os bytes são os mesmos nos dois (KV único).
