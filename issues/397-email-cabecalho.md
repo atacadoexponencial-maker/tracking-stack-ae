@@ -38,8 +38,16 @@ Ela muda o cabeçalho padrão e todos os modelos que usam o padrão passam a sai
 
 ## Checklist
 
-- [ ] `cabecalho_padrao` validado e guardado
-- [ ] Modelos que usam o padrão no GET da configuração
-- [ ] Editor do cabeçalho padrão ligado
-- [ ] Personalizar copia o padrão atual
-- [ ] Testes e conferência na prévia (sem salvar o padrão)
+- [x] `cabecalho_padrao` validado e guardado
+- [x] Modelos que usam o padrão no GET da configuração
+- [x] Editor do cabeçalho padrão ligado
+- [x] Personalizar copia o padrão atual
+- [x] Testes e conferência na prévia (sem salvar o padrão)
+
+## Execução (04/10/2026)
+
+- `cabecalho_padrao` na configuração (vazio = logo de hoje), validado como blocos do cabeçalho (vazio e link sem https recusados).
+- GET da configuração devolve os modelos que usam o padrão (hoje os 6).
+- Configuração › Cabeçalho padrão abre o editor só com a faixa; salvar pede confirmação com o número de modelos. Conferido na prévia sem salvar: logo de hoje na faixa, lugar do corpo marcado, confirmação "o cabeçalho muda em 6 modelos".
+- No modelo, "Personalizar a partir do padrão" copia o padrão atual.
+- Corrigido no caminho: o editor do cabeçalho padrão abria com os blocos de exemplo do protótipo.
