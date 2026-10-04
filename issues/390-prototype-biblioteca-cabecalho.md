@@ -21,4 +21,4 @@ Protótipo só de front, em `public/dash/email-blocos.js` (função `biblioteca`
 
 Conferido no navegador (1440 e 390 px) com gravações bloqueadas.
 
-Falta: aprovação dela na prévia.
+Falta: avaliação dela (pediu para seguir com tudo e avaliar no fim).

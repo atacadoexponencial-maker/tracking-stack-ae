@@ -317,7 +317,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     }
     salvo = snap(); sel = apenasCab || camp ? (E.blocos[0] || {}).id : E.blocos[1].id; desfazer = []; refazer = []; tamanho = 'computador'; ultimoCampo = null;
     el.innerHTML = `
-      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>${apenasCab ? 'Cabeçalho padrão montado com blocos' : 'Editor novo por blocos'}, com dados de exemplo. Nada aqui é salvo nem enviado.</span></div>
+      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>${apenasCab ? 'Cabeçalho padrão montado com blocos' : camp ? 'Campanha com o e-mail escrito na hora' : 'Editor novo por blocos'}, com dados de exemplo. Nada aqui é salvo nem enviado.</span></div>
       <div class="em-barra"><button class="btn sec em-voltar" type="button" data-voltar>${ic('voltar')} ${apenasCab ? 'Configuração' : camp ? 'Campanhas' : 'Modelos'}</button>
         <div class="ag-acoes"><span class="mini eb-sujo" data-sujo hidden>Mudanças não salvas</span>
           <button class="ag-icone" type="button" data-desfazer aria-label="Desfazer (Ctrl+Z)" title="Desfazer (Ctrl+Z)">${ic('desfazer')}</button>
