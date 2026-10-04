@@ -1291,6 +1291,92 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
   .fx-ferr--txt { padding: 0 0.45rem; }
   .fx-situacao .ag-acoes { width: 100%; }
 }
+/* ---------- Relatório semanal do Argo (issue 399, PROTÓTIPO, argo-relatorio.js) ----------
+   Fato e leitura nunca se confundem: número calculado fica na etiqueta tabular
+   do dash; o texto da IA mora em .ar-leitura, com fio lateral e rótulo. */
+.ar-nav { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 1.2rem; }
+.ar-nav .tipo-pill { font-size: 0.82rem; padding: 0.35rem 0.85rem; }
+.ar-nav__pacote { margin-left: auto; }
+.ar-link { background: none; border: 0; padding: 0; font: inherit; font-size: 0.8rem; color: var(--tinta); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--fio); }
+.ar-link:hover { text-decoration-color: var(--tinta); }
+.ar-cabeca { border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); border-radius: 2px; background: var(--etiqueta); padding: 1rem 1.2rem 0.4rem; margin-bottom: 1.6rem; }
+.ar-cabeca__linha { display: flex; flex-wrap: wrap; gap: 0.8rem 1.2rem; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem; }
+.ar-cabeca__rotulo { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); }
+.ar-cabeca__titulo { font-size: 1.25rem; font-weight: 700; margin: 0.15rem 0 0.2rem; border: 0; padding: 0; }
+.ar-cabeca__acoes { display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap; }
+.ar-cabeca .aviso { padding-top: 0.2rem; padding-bottom: 0.4rem; margin-bottom: 0.6rem; max-width: 80ch; }
+.ar-aviso { border-left: 1px solid var(--queda); padding-left: 0.9rem; }
+.ar-leitura { border-left: 3px solid var(--tinta-2); background: var(--etiqueta); padding: 0.8rem 1rem 0.7rem 1.1rem; border-radius: 0 2px 2px 0; max-width: 78ch; color: var(--tinta-2); line-height: 1.55; }
+.ar-leitura p + p, .ar-leitura ul { margin-top: 0.55rem; }
+.ar-leitura ul { padding-left: 1.1rem; display: grid; gap: 0.4rem; }
+.ar-leitura__rotulo { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); margin-bottom: 0.35rem; }
+.ar-cita { display: inline-block; vertical-align: 0.1em; margin-left: 0.15rem; padding: 0 0.3rem; font: inherit; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; line-height: 1.45; font-variant-numeric: tabular-nums; color: var(--tinta-2); background: var(--papel); border: 1px solid var(--fio-forte); border-radius: 2px; cursor: pointer; }
+.ar-cita:hover, .ar-cita:focus-visible { background: var(--tinta); color: var(--papel); outline: none; }
+.ar-balao { position: absolute; z-index: 90; width: min(20rem, calc(100vw - 16px)); background: var(--etiqueta); color: var(--tinta); border: 1px solid var(--fio-forte); border-radius: 2px; padding: 0.7rem 0.85rem; box-shadow: 0 8px 22px -12px rgba(22,21,19,0.45); display: grid; gap: 0.3rem; font-size: 0.84rem; }
+.ar-balao[hidden] { display: none; }
+.ar-balao--folha { position: fixed; left: 0 !important; right: 0; bottom: 0; top: auto !important; width: 100%; box-sizing: border-box; border-width: 2px 0 0; padding: 1rem 16px calc(1rem + env(safe-area-inset-bottom)); }
+.ar-balao__id { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--apagado); }
+.ar-balao__nome { font-weight: 700; }
+.ar-balao__valor { font-size: 1.4rem; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.ar-balao__texto { color: var(--tinta-2); }
+.ar-funis { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0.9rem; }
+.ar-funil { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.9rem 1rem 0.4rem; min-width: 0; }
+.ar-funil h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 0.4rem; }
+.ar-met { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.1rem 0.8rem; padding: 0.5rem 0; border-top: 1px solid var(--fio); }
+.ar-met__nome { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--apagado); align-self: center; }
+.ar-met__valor { grid-row: 2; font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ar-met__comp { grid-column: 1 / -1; font-size: 0.74rem; color: var(--apagado); font-variant-numeric: tabular-nums; }
+.ar-met__sinal { grid-row: 1 / span 2; grid-column: 2; align-self: center; }
+.ar-acao-lado { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+.ar-reacao { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: center; margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px dashed var(--fio); }
+.ar-reacao__btn { background: var(--papel); border: 1px solid var(--fio); border-radius: 2px; padding: 0.2rem 0.6rem; font: inherit; font-size: 0.76rem; color: var(--tinta-2); cursor: pointer; }
+.ar-reacao__btn:hover { border-color: var(--tinta); }
+.ar-reacao__btn[aria-pressed="true"] { background: var(--tinta); color: var(--papel); border-color: var(--tinta); }
+.ar-reacao__btn[data-ar-reagir="errado"][aria-pressed="true"] { background: var(--queda); border-color: var(--queda); }
+.ar-reacao__coment { flex-basis: 100%; font-size: 0.8rem; color: var(--tinta-2); font-style: italic; }
+.ar-reacao__form { flex-basis: 100%; display: grid; gap: 0.35rem; }
+.ar-reacao__form textarea, .ar-sug__acoes input { width: 100%; box-sizing: border-box; }
+.ar-reacao__acoes { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.ar-sugs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.9rem; }
+.ar-sug { max-width: none; display: grid; gap: 0.6rem; align-content: start; }
+.ar-sug__hip { color: var(--tinta); font-weight: 700; line-height: 1.45; }
+.ar-sug__ficha { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 0.3rem 0.7rem; font-size: 0.82rem; }
+.ar-sug__ficha dt { color: var(--apagado); font-size: 0.74rem; }
+.ar-sug__acoes { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.ar-sug--descartada { opacity: 0.7; }
+.ar-removido { margin-top: 0.9rem; }
+.ar-qs { display: grid; gap: 0.5rem; max-width: 60rem; }
+.ar-q { display: grid; grid-template-columns: 7.5rem minmax(6rem, 1fr) auto; gap: 0.8rem; align-items: center; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.ar-q__barra { display: flex; height: 10px; border: 1px solid var(--fio-forte); border-radius: 2px; overflow: hidden; }
+.ar-q__barra i { display: block; height: 100%; }
+.ar-q__util { background: var(--alta); }
+.ar-q__obvio { background: var(--fio); }
+.ar-q__errado { background: var(--queda); }
+.ar-q__num { color: var(--apagado); }
+.ar-substituida td { color: var(--apagado); }
+.ar-comp-esc { display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; margin-bottom: 1rem; }
+.ar-comp-esc label { display: grid; gap: 0.25rem; font-size: 0.76rem; color: var(--apagado); }
+.ar-pacote__busca { width: 100%; box-sizing: border-box; margin-bottom: 0.8rem; }
+.ar-pacote { display: grid; gap: 1rem; }
+.ar-pacote section[hidden], .ar-pacote__fato[hidden] { display: none; }
+.ar-pacote__fato { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr) auto; gap: 0.6rem; padding: 0.4rem 0; border-top: 1px solid var(--fio); font-size: 0.82rem; align-items: baseline; }
+.ar-pacote__id { font-weight: 700; color: var(--apagado); font-variant-numeric: tabular-nums; }
+.ar-pacote__valor { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; max-width: 16rem; }
+.ar-chec { margin-bottom: 1rem; }
+.ar-chec h3 { font-size: 0.92rem; display: flex; gap: 0.6rem; align-items: center; margin-bottom: 0.4rem; }
+.ar-chec ul { padding-left: 1.1rem; display: grid; gap: 0.45rem; font-size: 0.84rem; }
+.ar-rodape { margin-top: -0.6rem; }
+@media (max-width: 640px) {
+  .ar-nav__pacote { margin-left: 0; width: 100%; }
+  .ar-funis, .ar-sugs { grid-template-columns: minmax(0, 1fr); }
+  .ar-sug__ficha { grid-template-columns: minmax(0, 1fr); }
+  .ar-sug__ficha dd { margin-bottom: 0.3rem; }
+  .ar-q { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
+  .ar-pacote__fato { grid-template-columns: 2.4rem minmax(0, 1fr); }
+  .ar-pacote__valor { grid-column: 2; text-align: left; }
+  #argo-vista-relatorio .argo-acao { grid-template-columns: minmax(0, 1fr); }
+  .ar-acao-lado { flex-direction: row; align-items: center; justify-content: flex-start; }
+}
 </style>
 </head>
 <body>
@@ -1809,8 +1895,11 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
       <div class="argo-vistas" role="group" aria-label="Parte da aba Argo">
         <button type="button" class="tipo-pill" data-argo-vista="controle" aria-pressed="true">Controle</button>
         <button type="button" class="tipo-pill" data-argo-vista="propostas" aria-pressed="false">Propostas <span class="argo-contador" id="argo-contador" hidden></span></button>
+        <button type="button" class="tipo-pill" data-argo-vista="relatorio" aria-pressed="false">Relatório</button>
       </div>
       <div id="argo-vista-propostas" hidden></div>
+      <!-- Relatório semanal (issue 399): PROTÓTIPO em public/dash/argo-relatorio.js. -->
+      <div id="argo-vista-relatorio" hidden></div>
       <div id="argo-vista-controle">
       <div class="bloco argo-comando">
         <h2>O que ele pode fazer <small>vale a partir da próxima rodada</small></h2>
@@ -1937,6 +2026,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/email-mkt.js"></script>
 <script src="/dash/email-fluxos.js"></script>
 <script src="/dash/email-blocos.js"></script>
+<script src="/dash/argo-relatorio.js"></script>
 <script>
 (() => {
 'use strict';
@@ -5213,18 +5303,21 @@ function desenharRegistroArgo(rodadas) {
 // sobreviver ao recarregar e para o Slack poder mandar link direto.
 let argoVista = 'controle';
 let argoPendentes = 0;
+const ARGO_VISTAS = ['controle', 'propostas', 'relatorio'];
 
 // Só esconde e mostra: redesenhar a grade aqui apagaria alteração não salva.
 function mostrarVistaArgo() {
   $('#argo-vista-controle').hidden = argoVista !== 'controle';
   $('#argo-vista-propostas').hidden = argoVista !== 'propostas';
+  $('#argo-vista-relatorio').hidden = argoVista !== 'relatorio';
+  if (argoVista === 'relatorio' && window.ArgoRelatorio) window.ArgoRelatorio.abrir($('#argo-vista-relatorio'));
   document.querySelectorAll('.argo-vistas [data-argo-vista]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.argoVista === argoVista));
   });
 }
 
 function trocarVistaArgo(vista) {
-  argoVista = vista === 'propostas' ? 'propostas' : 'controle';
+  argoVista = ARGO_VISTAS.includes(vista) ? vista : 'controle';
   mostrarVistaArgo();
   escreverUrl();
 }
@@ -6375,7 +6468,7 @@ function escreverUrl() {
     if ($('#data-ate').value) ps.set('ate', $('#data-ate').value);
   }
   if ($('#funil').value) ps.set('f', $('#funil').value);
-  if (secao === 'argo' && argoVista === 'propostas') ps.set('v', 'propostas');
+  if (secao === 'argo' && argoVista !== 'controle') ps.set('v', argoVista);
   if (secao === 'instagram' && igVista !== 'crescimento') ps.set('v', igVista);
   if (secao === 'agenda' && window.AgendaDash && window.AgendaDash.vista !== 'agendamentos') ps.set('v', window.AgendaDash.vista);
   if (secao === 'mkt-email' && window.EmailMkt && window.EmailMkt.vista !== 'campanhas') ps.set('v', window.EmailMkt.vista);
@@ -6386,8 +6479,9 @@ function escreverUrl() {
 function lerUrl() {
   const [aba, qs] = location.hash.replace('#', '').split('?');
   secao = TITULOS[aba] ? aba : 'visao';
-  // A aba Argo abre em Controle, a não ser que o link peça Propostas.
-  argoVista = new URLSearchParams(qs || '').get('v') === 'propostas' ? 'propostas' : 'controle';
+  // A aba Argo abre em Controle, a não ser que o link peça Propostas ou Relatório.
+  const vArgo = new URLSearchParams(qs || '').get('v');
+  argoVista = ARGO_VISTAS.includes(vArgo) ? vArgo : 'controle';
   // A aba Instagram abre em Crescimento, a não ser que o link peça outra sub-aba.
   const vIg = new URLSearchParams(qs || '').get('v');
   igVista = IG_VISTAS.includes(vIg) ? vIg : 'crescimento';
