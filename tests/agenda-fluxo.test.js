@@ -101,7 +101,7 @@ beforeEach(() => {
   db.exec(readFileSync(new URL('../migrations/0048_agenda_descricao.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0049_agenda_etapas.sql', import.meta.url), 'utf8'));
   // E-mails da agenda (issue 379): os ganchos de e-mail rodam de verdade.
-  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0052_email_agenda.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0052_email_agenda.sql', '0059_agenda_tipos_teste.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   // As colunas de UTM da sessão entraram fora das migrations (conferido no D1 remoto).
   for (const c of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'funnel']) db.exec(`ALTER TABLE sessions ADD COLUMN ${c} TEXT`);
   env = { DB: d1(db), DASH_KEY: 'k', SYNC_SECRET: 's', GOOGLE_AGENDA_SA_JSON: SA };
@@ -320,4 +320,24 @@ test('etapas da agenda: uma vez por convite, sem teste, e entram no funil', asyn
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM agenda_etapas').get().n, 2);
   const f = await dash(funilApi, null, `&from=0&to=${Math.floor(Date.now() / 1000) + 10}`);
   assert.deepEqual([f.corpo.atual.leads, f.corpo.atual.abriu, f.corpo.atual.escolheu, f.corpo.atual.agendou], [1, 1, 1, 0]);
+});
+
+test('tipo de teste: some das listas e dos números, a página pública segue funcionando', async () => {
+  const tipo = await configurar({ comercial: false });
+  const salvo = await dash(tipos, {
+    acao: 'salvar', id: tipo.id, nome: tipo.nome, slug: tipo.slug, duracao_min: 45, destino_cal: CAL, conflito_cals: [CAL],
+    grade_id: tipo.grade_id, antecedencia_min: 60, janela_dias: 14, intervalo_min: 60, comercial: false, perguntas: tipo.perguntas, teste: true,
+  });
+  assert.equal(salvo.status, 200, JSON.stringify(salvo.corpo));
+  assert.deepEqual([salvo.corpo.tipos.length, salvo.corpo.testes_escondidos], [0, 1]);
+  const h = await publico(pubHorarios, { qs: '?slug=consultoria-individual' });
+  const dia = Object.keys(h.corpo.dias)[1];
+  const conf = await publico(pubConfirmar, { corpo: { slug: 'consultoria-individual', inicio: h.corpo.dias[dia][0], nome: 'Teste', email: 't@x.com', telefone: '11987654321', respostas: ['A'] } });
+  assert.equal(conf.status, 200, JSON.stringify(conf.corpo));
+  let r = await dash(reunioes, null, '&vista=proximas');
+  assert.deepEqual([r.corpo.rows.length, r.corpo.contagens.proximas, r.corpo.tipos.length], [0, 0, 0]);
+  r = await dash(reunioes, null, '&vista=proximas&testes=1');
+  assert.deepEqual([r.corpo.rows.length, r.corpo.contagens.proximas, r.corpo.tipos.length], [1, 1, 1]);
+  const comTestes = await dash(tipos, null, '&testes=1');
+  assert.equal(comTestes.corpo.tipos[0].teste, true);
 });

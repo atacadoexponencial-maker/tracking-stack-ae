@@ -58,7 +58,10 @@
 
   // Valores reais de cada filtro, vindos do servidor ao abrir o fluxo.
   let OPC = {};
-  const FILTRO_VALORES = new Proxy({}, { get: (_, campo) => () => OPC[campo] || [] });
+  // Funis aparecem pelo nome de leitura (o valor guardado continua o técnico).
+  const FILTRO_VALORES = new Proxy({}, {
+    get: (_, campo) => () => (['funil', 'formulario'].includes(campo) ? (OPC[campo] || []).map(([v]) => [v, U().nomeFunil(v)]) : OPC[campo] || []),
+  });
   const primeiroValor = (campo) => (FILTRO_VALORES[campo]()[0] || [''])[0];
   const FILTRO_ROTULO = {
     funil: 'Funil', pagina: 'Página', canal: 'Canal', utm_source: 'UTM origem', utm_campaign: 'UTM campanha', utm_content: 'UTM anúncio',
@@ -169,9 +172,9 @@
       { titulo: 'Fluxo', campo: 'nome', render: (f) => `<button type="button" class="ag-link-linha" data-acao="abrir" data-id="${f.id}">${esc(f.nome)}</button>` },
       { titulo: 'Gatilhos', render: (f) => `<span class="mini">${esc(resumoGatilhos(f))}</span>` },
       { titulo: 'Situação', campo: 'situacao', render: (f) => U().carimbo(SIT, f.situacao) },
-      { titulo: 'Dentro agora', num: true, render: (f) => (f.situacao === 'rascunho' ? '' : int(f.totais.dentro)) },
-      { titulo: 'Concluíram', num: true, render: (f) => (f.situacao === 'rascunho' ? '' : int(f.totais.concluiram)) },
-      { titulo: 'Clique', num: true, render: (f) => (f.totais.clique == null ? '' : U().pct(f.totais.clique * 100)) },
+      { titulo: 'Dentro agora', num: true, render: (f) => (f.situacao === 'rascunho' ? '–' : int(f.totais.dentro)) },
+      { titulo: 'Concluíram', num: true, render: (f) => (f.situacao === 'rascunho' ? '–' : int(f.totais.concluiram)) },
+      { titulo: 'Clique', num: true, render: (f) => (f.totais.clique == null ? '–' : U().pct(f.totais.clique * 100)) },
       { titulo: 'Editado', render: (f) => esc(quandoCurto(f.atualizado_em)) },
       { titulo: '', render: (f) => `<div class="ag-acoes ag-acoes--linha">${U().menuHtml(f.nome, f.arquivado ? [
         { acao: 'desarquivar', id: f.id, rotulo: 'Tirar do arquivo' }, { acao: 'duplicar', id: f.id, rotulo: 'Duplicar' },
@@ -205,12 +208,16 @@
     OPC = d.opcoes;
     MODELOS = m.modelos;
     const f = d.fluxo;
-    F = { id: f.id, nome: f.nome, situacao: f.situacao, versao: f.versao, nos: f.grafo.nos, arestas: f.grafo.arestas, notas: f.grafo.notas, problemas: f.problemas, salvoEm: quandoCurto(f.atualizado_em).slice(-5), mudancas: f.mudancas, saem: f.saem_ao_publicar };
+    F = { id: f.id, nome: f.nome, situacao: f.situacao, versao: f.versao, nos: f.grafo.nos, arestas: f.grafo.arestas, notas: f.grafo.notas, problemas: f.problemas, salvoEm: quandoCurto(f.atualizado_em).slice(-5), mudancas: f.mudancas, saem: f.saem_ao_publicar, arquivado: !!f.arquivado };
     sel = null; selAresta = null; desfazer = []; refazer = []; marcados = new Set();
     salvar = { timer: null, rodando: false, pendente: false, erro: null };
     NUM = null;
     quadro();
     centralizar();
+    // Cartões um em cima do outro (ex.: colados antes desta correção) escondem o
+    // que está embaixo: organiza sozinho ao abrir.
+    const sobrepostos = F.nos.some((a, i) => F.nos.some((b, j) => j > i && Math.abs(a.x - b.x) < 120 && Math.abs(a.y - b.y) < 60));
+    if (sobrepostos) { organizar(); U().avisar('Havia cartões um em cima do outro: o quadro foi organizado.'); }
     if (abrirNo) selecionar(abrirNo);
     window.scrollTo(0, 0);
     carregarNumeros();
@@ -427,7 +434,10 @@
     const testar = `${s !== 'rascunho' ? '<button class="btn sec" type="button" data-s="pessoas">Pessoas no fluxo</button>' : ''}<button class="btn sec" type="button" data-s="testar">Testar</button>`;
     const botoes = s === 'rascunho' ? `${testar}<button class="btn" type="button" data-s="publicar">Publicar</button>`
       : `${testar}${F.mudancas ? '<button class="btn perigo" type="button" data-s="descartar">Descartar mudanças</button><button class="btn" type="button" data-s="publicar">Publicar mudanças</button>' : ''}${s === 'ativo' ? '<button class="btn sec" type="button" data-s="pausar">Pausar</button>' : '<button class="btn" type="button" data-s="retomar">Retomar</button>'}`;
-    alvo.innerHTML = `<div class="fx-estado">${estado}<span class="mini">${s === 'rascunho' ? nota : `${notaSit}${salvar.erro ? ` ${nota}` : ''}`}</span></div><div class="ag-acoes">${botoes}</div>`;
+    // Arquivado: não roda e não se publica; a única ação é tirar do arquivo.
+    alvo.innerHTML = F.arquivado
+      ? `<div class="fx-estado"><span class="carimbo neutro">Arquivado</span><span class="mini">Fora da lista e parado. Tire do arquivo para editar, testar ou publicar.</span></div><div class="ag-acoes"><button class="btn" type="button" data-s="desarquivar">Tirar do arquivo</button></div>`
+      : `<div class="fx-estado">${estado}<span class="mini">${s === 'rascunho' ? nota : `${notaSit}${salvar.erro ? ` ${nota}` : ''}`}</span></div><div class="ag-acoes">${botoes}</div>`;
     alvo.querySelectorAll('[data-s]').forEach((b) => { b.onclick = () => acaoSituacao(b.dataset.s, b); });
     const caixa = $q('#fx-problemas');
     caixa.innerHTML = probs.length ? `<div class="aviso alerta fx-probs"><b>Para publicar, falta resolver:</b> ${probs.map((p) => `<button type="button" class="argo-faixa-chamada" data-ir-no="${p.no}">${esc(rotuloNo(no(p.no)))}: ${p.textos.map((t) => EXPLICA_PROBLEMA[t] || t).join(', ')}</button>`).join(' · ')}</div>` : '';
@@ -438,6 +448,12 @@
   function acaoSituacao(acao, b) {
     if (acao === 'testar') return testarFluxo();
     if (acao === 'pessoas') return pessoasNoFluxo();
+    if (acao === 'desarquivar') {
+      return U().ocupado(b, async () => {
+        try { await postFluxos({ acao: 'desarquivar', id: F.id }); F.arquivado = false; desenharSituacao(); U().avisar('Fluxo de volta na lista.'); }
+        catch (e) { U().avisar(U().msgErro(e), 'erro'); }
+      });
+    }
     const mudancas = F.situacao !== 'rascunho';
     const PERGUNTA = {
       publicar: mudancas
@@ -547,10 +563,16 @@
     };
   }
 
+  // "E-mail 2" quando há mais de um cartão do mesmo tipo: o mesmo nome no
+  // cartão, no painel e na lista de problemas.
+  function rotuloTipo(n) {
+    const iguais = F.nos.filter((x) => x.tipo === n.tipo);
+    return iguais.length > 1 ? `${TIPOS[n.tipo].rotulo} ${iguais.indexOf(n) + 1}` : TIPOS[n.tipo].rotulo;
+  }
   function rotuloNo(n) {
     if (!n) return '';
-    if (n.tipo === 'email') { const m = modelo(n.dados.modelo); return m ? `E-mail "${m.nome}"` : 'E-mail'; }
-    return TIPOS[n.tipo].rotulo;
+    if (n.tipo === 'email') { const m = modelo(n.dados.modelo); return m ? `${rotuloTipo(n)} "${m.nome}"` : rotuloTipo(n); }
+    return rotuloTipo(n);
   }
 
   // ---------------------------------------------------------------------------
@@ -625,10 +647,12 @@
       const sai = saidasDe(n);
       const p = probs[n.id];
       const primeiro = p && p.find((t) => !t.startsWith('Saída'));
-      return `<div class="fx-cartao fx-cartao--${n.tipo}${sel === n.id || marcados.has(n.id) ? ' fx-sel' : ''}${primeiro ? ' fx-problema' : ''}" data-no="${n.id}" style="left:${n.x}px;top:${n.y}px">
+      const nome = `${rotuloNo(n)}${p ? `, problema: ${p.map((t) => EXPLICA_PROBLEMA[t] || t).join(', ')}` : ''}`;
+      return `<div class="fx-cartao fx-cartao--${n.tipo}${sel === n.id || marcados.has(n.id) ? ' fx-sel' : ''}${primeiro ? ' fx-problema' : ''}" data-no="${n.id}" style="left:${n.x}px;top:${n.y}px"
+        tabindex="0" role="button" aria-label="${esc(nome)}. Enter abre para editar."${sel === n.id ? ' aria-pressed="true"' : ''}>
         ${n.tipo === 'inicio' ? '' : '<span class="fx-entrada" aria-hidden="true"></span>'}
         ${primeiro ? `<span class="fx-selo-problema">${esc(primeiro)}</span>` : ''}
-        <div class="fx-cabeca">${IC[n.tipo]}<span>${TIPOS[n.tipo].rotulo}</span></div>
+        <div class="fx-cabeca">${IC[n.tipo]}<span>${esc(rotuloTipo(n))}</span></div>
         <div class="fx-corpo">${corpoCartao(n)}</div>
         ${numerosHtml(n)}
         ${sai.length ? `<div class="fx-saidas">${sai.map(([s, rot]) => {
@@ -891,6 +915,12 @@
       else if (k === 'delete' || k === 'backspace') {
         if (selAresta) { const id = selAresta; selAresta = null; mudar(() => { F.arestas = F.arestas.filter((a) => a.id !== id); }); U().avisar('Ligação desfeita.'); }
       } else if (k === 'escape') { fecharEscolha(); if (sel) fecharPainel(); }
+      else if ((k === 'enter' || k === ' ') && ev.target.closest && ev.target.closest('.fx-cartao')) {
+        // Cartão com foco do teclado: Enter ou espaço abre o painel (Shift marca para copiar).
+        ev.preventDefault();
+        const id = ev.target.closest('.fx-cartao').dataset.no;
+        if (ev.shiftKey) marcar(id); else { marcados = new Set(); selecionar(id); }
+      }
     };
     document.addEventListener('keydown', teclado);
   }
@@ -943,7 +973,10 @@
     areaCopia.nos.forEach((n) => { novo[n.id] = novoId('n'); });
     const minX = Math.min(...areaCopia.nos.map((n) => n.x)), minY = Math.min(...areaCopia.nos.map((n) => n.y));
     const q = $q('#fx-quadro');
-    const ox = Math.round((q.clientWidth / 2 - vis.x) / vis.z - 120), oy = Math.round((q.clientHeight / 2 - vis.y) / vis.z - 60);
+    const ox = Math.round((q.clientWidth / 2 - vis.x) / vis.z - 120);
+    let oy = Math.round((q.clientHeight / 2 - vis.y) / vis.z - 60);
+    const bate = (y0) => areaCopia.nos.some((c) => F.nos.some((n) => Math.abs(n.x - (ox + c.x - minX)) < 260 && Math.abs(n.y - (y0 + c.y - minY)) < 160));
+    for (let i = 0; i < 30 && bate(oy); i++) oy += 170;
     const ref = (r) => novo[r] || (no(r) && no(r).tipo === 'email' ? r : '');
     mudar(() => {
       areaCopia.nos.forEach((n) => {

@@ -50,7 +50,7 @@ const DIA = 86400;
 
 beforeEach(() => {
   db = new DatabaseSync(':memory:');
-  for (const f of ['0047_agenda.sql', '0048_agenda_descricao.sql', '0049_agenda_etapas.sql', '0050_email.sql', '0051_email_modelos.sql', '0052_email_agenda.sql']) {
+  for (const f of ['0047_agenda.sql', '0048_agenda_descricao.sql', '0049_agenda_etapas.sql', '0050_email.sql', '0051_email_modelos.sql', '0052_email_agenda.sql', '0059_agenda_tipos_teste.sql']) {
     db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   }
   db.prepare("INSERT INTO agenda_grades (id, nome, faixas_json, criado_em, atualizado_em) VALUES (1, 'G', '{}', 0, 0)").run();

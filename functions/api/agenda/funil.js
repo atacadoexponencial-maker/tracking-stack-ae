@@ -19,7 +19,7 @@ async function lerConvites(env, de, ate, funil) {
             r.criado_em AS agendou_em, r.situacao,
             s.utm_source, s.utm_campaign
        FROM agenda_convites c
-       JOIN agenda_tipos t ON t.id = c.tipo_id AND t.comercial = 1
+       JOIN agenda_tipos t ON t.id = c.tipo_id AND t.comercial = 1 AND t.teste = 0
        LEFT JOIN agenda_reunioes r ON r.convite_token = c.token
        LEFT JOIN sessions s ON s.session_id = c.session_id
       WHERE c.criado_em >= ? AND c.criado_em <= ? ${funil ? 'AND c.funil = ?' : ''}`,

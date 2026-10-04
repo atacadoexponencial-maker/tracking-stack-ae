@@ -161,6 +161,7 @@ export function validarTipo(entrada, contexto) {
       antecedencia_min: antecedencia, janela_dias: janela, limite_dia: limite, intervalo_min: intervalo,
       perguntas_json: JSON.stringify(perguntas), titulo_modelo: titulo.slice(0, 200),
       comercial, funil, pagina_pos: paginaPos || null,
+      teste: e.teste === true || e.teste === 1 || e.teste === '1' ? 1 : 0,
       contato_alternativo: String(e.contato_alternativo || '').trim().slice(0, 200) || null,
       descricao: String(e.descricao || '').trim().slice(0, 2000) || null,
     },
@@ -176,6 +177,7 @@ export function tipoDaLinha(l) {
     perguntas: JSON.parse(l.perguntas_json || '[]'),
     comercial: !!l.comercial,
     ativo: !!l.ativo,
+    teste: !!l.teste,
   };
 }
 

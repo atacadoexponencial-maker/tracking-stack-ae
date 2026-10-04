@@ -43,6 +43,14 @@
   let filtroTipos = 'ativos';
   let vistaReunioes = 'hoje';
   let filtroReuniao = { tipo: '', situacao: '' };
+  // Tipos marcados como teste e convites de teste da equipe ficam fora das
+  // listas; "Mostrar testes" traz de volta (a escolha vale para a sessão).
+  let mostrarTestes = false;
+  const botaoTestes = () => `<button type="button" class="ag-subvista" data-testes aria-pressed="${mostrarTestes}">${mostrarTestes ? 'Esconder testes' : 'Mostrar testes'}</button>`;
+  const ligarTestes = (raiz, recarregar) => {
+    const b = raiz.querySelector('[data-testes]');
+    if (b) b.onclick = () => { mostrarTestes = !mostrarTestes; recarregar(); };
+  };
 
   const api = {
     vista: 'agendamentos',
@@ -317,6 +325,7 @@
     const qs = new URLSearchParams({ vista: vistaReunioes, from: p.de, to: p.ate });
     if (filtroReuniao.tipo) qs.set('tipo', filtroReuniao.tipo);
     if (vistaReunioes === 'todas' && filtroReuniao.situacao) qs.set('situacao', filtroReuniao.situacao);
+    if (mostrarTestes) qs.set('testes', '1');
     // `_`: o dash guarda respostas de período fechado (to anterior a hoje), e
     // esta lista muda a cada presença, cancelamento ou remarcação.
     qs.set('_', Date.now());
@@ -334,6 +343,7 @@
           ${d.tipos.map((t) => `<option value="${t.id}">${ctx.esc(t.nome)}${t.ativo ? '' : ' (pausado)'}</option>`).join('')}</select>
         ${vistaReunioes === 'todas' ? `<select id="ag-f-sit" aria-label="Situação"><option value="">Todas as situações</option>
           ${Object.entries(SITUACAO).map(([k, [r]]) => `<option value="${k}">${r}</option>`).join('')}</select>` : ''}
+        ${botaoTestes()}
       </div>
       ${d.numeros ? '<div class="grid-etiquetas" id="ag-num"></div>' : ''}
       <div class="tabela-wrap" id="ag-lista"></div>`;
@@ -346,6 +356,7 @@
         { rotulo: 'Comparecimento', valor: n.taxa_comparecimento === null ? null : ctx.fmtPct(n.taxa_comparecimento * 100, 0), nota: n.taxa_comparecimento === null ? 'nenhuma reunião com presença lida' : `${n.realizadas} de ${n.realizadas + n.faltas} com presença lida` },
       ].map((k) => ctx.tile(k)).join('');
     }
+    ligarTestes(el(), agendamentos);
     el().querySelectorAll('[data-subvista]').forEach((b) => {
       b.onclick = () => { vistaReunioes = b.dataset.subvista; agendamentos(); };
     });
@@ -434,7 +445,7 @@
         const [rot, cor] = SITUACAO_EMAIL[e.situacao] || [e.situacao, 'neutro'];
         return `<li class="em-hist__item"><div><b>${ctx.esc(e.nome)}</b> <span class="mini">${quando(e.quando)}</span>${e.motivo ? `<br><span class="mini">${ctx.esc(e.motivo)}</span>` : ''}</div><span class="carimbo ${cor}">${ctx.esc(rot)}</span></li>`;
       }).join('')}</ol>
-      <p class="mini">Agendado: ainda vai sair no horário. Entregue e aberto chegam do serviço de envio conforme acontecem.</p>` : '<p class="mini">Nenhum e-mail programado para esta reunião.</p>'}`;
+      <p class="mini">Agendado: ainda vai sair no horário. Entregue e aberto chegam do serviço de envio conforme acontecem.</p>` : '<p class="mini">Nenhum e-mail programado para esta reunião. Acontece quando ela foi marcada antes dos e-mails da agenda existirem (03/10) ou quando o tipo está com os e-mails desligados em Agenda › E-mails.</p>'}`;
     const rodape = `<div class="ag-acoes">
         ${passou && r.situacao !== 'cancelada' ? `<span class="mini">Presença:</span>
           <button class="btn sec" type="button" data-presenca="realizada">Realizada</button>
@@ -519,7 +530,7 @@
   // ---------------------------------------------------------------------------
   async function tipos() {
     filtroDeDatas(false, 'configuração · não usa o filtro de datas');
-    const d = await ctx.fetchJson('/api/agenda/tipos');
+    const d = await ctx.fetchJson('/api/agenda/tipos' + (mostrarTestes ? '?testes=1' : ''));
     const lista = d.tipos.filter((t) => filtroTipos === 'todos' || (filtroTipos === 'ativos' ? t.ativo : !t.ativo));
     const site = location.origin.includes('localhost') ? 'https://atacadoexponencial.com' : location.origin;
     el().innerHTML = `
@@ -527,6 +538,7 @@
         <select id="ag-ft" aria-label="Situação dos tipos">
           <option value="ativos">Ativos</option><option value="pausados">Pausados</option><option value="todos">Todos</option>
         </select>
+        ${d.testes_escondidos || mostrarTestes ? botaoTestes() : ''}
         <button class="btn" type="button" id="ag-novo-tipo">Novo tipo de reunião</button>
       </div>
       ${!d.opcoes.agendas.length ? '<div class="aviso alerta">Conecte uma agenda (Agendas conectadas) antes de criar um tipo.</div>' : ''}
@@ -535,8 +547,9 @@
     ctx.$('#ag-ft').value = filtroTipos;
     ctx.$('#ag-ft').onchange = (e) => { filtroTipos = e.target.value; tipos(); };
     ctx.$('#ag-novo-tipo').onclick = () => formTipo(null, d.opcoes);
+    ligarTestes(el(), tipos);
     ctx.tabela(ctx.$('#ag-tipos'), [
-      { titulo: 'Nome', campo: 'nome', render: (t) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${t.id}">${ctx.esc(t.nome)}</button><br><span class="mini">${t.comercial ? 'Comercial · ' + ctx.esc(t.funil) : 'Não comercial (RH, entrevistas)'}</span>` },
+      { titulo: 'Nome', campo: 'nome', render: (t) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${t.id}">${ctx.esc(t.nome)}</button><br><span class="mini">${t.comercial ? 'Comercial · ' + ctx.esc(t.funil) : 'Não comercial (RH, entrevistas)'}${t.teste ? ' · teste' : ''}</span>` },
       { titulo: 'Duração', num: true, campo: 'duracao_min', render: (t) => `${t.duracao_min} min` },
       { titulo: 'Link', campo: 'slug', render: (t) => t.comercial
         ? `<span class="mini">/agendar/${ctx.esc(t.slug)}<br>abre depois do formulário da LP</span>`
@@ -654,6 +667,8 @@
         <section data-painel="comercial" id="ag-pnl-comercial" role="tabpanel" aria-labelledby="ag-aba-comercial" hidden>
           <label class="marca"><input type="checkbox" name="comercial"${v.comercial ? ' checked' : ''}> Reunião comercial</label>
           <p class="mini" style="margin:-0.3rem 0 0">Abre só depois do formulário da LP, conta em Reuniões agendadas, vai para o card do CRM e manda a conversão.</p>
+          <label class="marca"><input type="checkbox" name="teste"${v.teste ? ' checked' : ''}> Tipo de teste (não aparece nas listas)</label>
+          <p class="mini" style="margin:-0.3rem 0 0">Some de Agendamentos, Tipos e E-mails da agenda e não entra nos números. O link continua funcionando; "Mostrar testes" traz de volta.</p>
           <label>Funil <select name="funil">${opt(opcoes.funis.map((f) => [f, f]), v.funil || '')}</select></label>
           <label>Título do evento na agenda <span class="mini">{nome} vira o nome do lead</span><input type="text" name="titulo_modelo" value="${ctx.esc(v.titulo_modelo)}"></label>
           <label>Página depois de confirmar <input type="text" name="pagina_pos" value="${ctx.esc(v.pagina_pos || '')}" placeholder="vazio = confirmação da própria agenda"></label>
@@ -788,6 +803,7 @@
         destino_cal: f.get('destino_cal'), grade_id: f.get('grade_id'), conflito_cals: conflitos, comercial: comercialCb.checked,
         funil: comercialCb.checked ? f.get('funil') : '', titulo_modelo: f.get('titulo_modelo'),
         pagina_pos: f.get('pagina_pos'), contato_alternativo: f.get('contato_alternativo'), descricao: f.get('descricao'), perguntas,
+        teste: f.get('teste') === 'on',
       };
       const botao = form.querySelector('[type="submit"]');
       botao.disabled = true;

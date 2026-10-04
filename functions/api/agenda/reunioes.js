@@ -51,7 +51,8 @@ export async function onRequestGet({ request, env }) {
   if (p.get('por') === 'funil') {
     const rs = (await env.DB.prepare(
       `SELECT COALESCE(funil, '') AS funil, COUNT(*) AS n FROM agenda_reunioes
-        WHERE comercial = 1 AND is_teste = 0 AND criado_em >= ? AND criado_em < ? GROUP BY funil`,
+        WHERE comercial = 1 AND is_teste = 0 AND criado_em >= ? AND criado_em < ?
+          AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1) GROUP BY funil`,
     ).bind(de, ate).all()).results || [];
     const por_funil = Object.fromEntries(rs.map((x) => [x.funil, x.n]));
     return json({ total: rs.reduce((s, x) => s + x.n, 0), por_funil });
@@ -65,6 +66,10 @@ export async function onRequestGet({ request, env }) {
   const recorte = recorteDaVista(vista, { agora: t, hoje0, de, ate: Number(p.get('to')) || t });
   const filtros = [...recorte.where];
   const binds = [...recorte.binds];
+  // Testes (convite da equipe ou tipo marcado como teste) só com ?testes=1.
+  const comTestes = p.get('testes') === '1';
+  const SEM_TESTE = 'is_teste = 0 AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)';
+  if (!comTestes) filtros.push('r.is_teste = 0 AND r.tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)');
   if (p.get('tipo')) { filtros.push('r.tipo_id = ?'); binds.push(Number(p.get('tipo'))); }
   if (vista === 'todas' && SITUACOES.includes(p.get('situacao'))) { filtros.push('r.situacao = ?'); binds.push(p.get('situacao')); }
   const rows = (await env.DB.prepare(
@@ -81,9 +86,9 @@ export async function onRequestGet({ request, env }) {
        SUM(CASE WHEN inicio >= ?1 AND inicio < ?2 THEN 1 ELSE 0 END) AS hoje,
        SUM(CASE WHEN inicio > ?3 AND situacao IN ('marcada','remarcada') THEN 1 ELSE 0 END) AS proximas,
        SUM(CASE WHEN fim < ?3 AND situacao IN ('marcada','remarcada') THEN 1 ELSE 0 END) AS pendentes
-     FROM agenda_reunioes`,
+     FROM agenda_reunioes${comTestes ? '' : ` WHERE ${SEM_TESTE}`}`,
   ).bind(hoje0, hoje0 + 86400, t).first();
-  const tipos = (await env.DB.prepare('SELECT id, nome, ativo FROM agenda_tipos ORDER BY nome').all()).results || [];
+  const tipos = (await env.DB.prepare(`SELECT id, nome, ativo FROM agenda_tipos${comTestes ? '' : ' WHERE teste = 0'} ORDER BY nome`).all()).results || [];
   return json({
     vista,
     rows: rows.map((r) => ({ ...r, aguardando_presenca: ['marcada', 'remarcada'].includes(r.situacao) && r.fim < t })),

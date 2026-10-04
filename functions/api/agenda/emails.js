@@ -13,8 +13,10 @@ import { lerConfig } from '../_email-config.js';
 const json = (dados, status = 200) => Response.json(dados, { status });
 const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') === env.DASH_KEY;
 
-async function estado(env, tipoPedido) {
-  const tipos = (await env.DB.prepare('SELECT id, nome, comercial, ativo FROM agenda_tipos ORDER BY ativo DESC, nome').all()).results || [];
+async function estado(env, tipoPedido, comTestes) {
+  // Tipos de teste ficam fora, a não ser com ?testes=1 ("Mostrar testes").
+  const todos = (await env.DB.prepare('SELECT id, nome, comercial, ativo, teste FROM agenda_tipos ORDER BY ativo DESC, nome').all()).results || [];
+  const tipos = comTestes ? todos : todos.filter((t) => !t.teste);
   const tipo = tipos.find((t) => t.id === Number(tipoPedido)) || tipos[0] || null;
   const [emails, modelos, cfg] = await Promise.all([
     tipo ? configDoTipo(env, tipo.id) : [],
@@ -28,13 +30,14 @@ async function estado(env, tipoPedido) {
     modelos,
     remetente: { nome: cfg.remetente_transacional_nome, email: cfg.remetente_transacional_email },
     antecedencias: ANTECEDENCIAS,
+    testes_escondidos: todos.length - tipos.length,
   };
 }
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   if (!autorizado(url, env)) return json({ error: 'Unauthorized' }, 401);
-  return json(await estado(env, url.searchParams.get('tipo')));
+  return json(await estado(env, url.searchParams.get('tipo'), url.searchParams.get('testes') === '1'));
 }
 
 export async function onRequestPost({ request, env }) {
@@ -46,7 +49,7 @@ export async function onRequestPost({ request, env }) {
     else if (corpo.acao === 'adicionar_lembrete') tipoId = await adicionarLembrete(env, corpo);
     else if (corpo.acao === 'tirar_lembrete') tipoId = await tirarLembrete(env, corpo);
     else return json({ error: 'Ação desconhecida.' }, 400);
-    return json({ ok: true, ...(await estado(env, tipoId)) });
+    return json({ ok: true, ...(await estado(env, tipoId, !!corpo.testes)) });
   } catch (e) {
     if (e instanceof ErroEmailAgenda) return json({ error: e.message }, e.status);
     return json({ error: 'Não foi possível concluir agora. Tente de novo.' }, 500);

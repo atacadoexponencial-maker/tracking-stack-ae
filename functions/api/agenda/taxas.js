@@ -53,7 +53,7 @@ async function lerAgenda(env, de, ate, agora) {
             SUM(CASE WHEN inicio >= ?1 AND inicio <= ?2 AND situacao = 'realizada' THEN 1 ELSE 0 END) AS realizadas,
             SUM(CASE WHEN inicio >= ?1 AND inicio <= ?2 AND situacao = 'faltou' THEN 1 ELSE 0 END) AS faltas
        FROM agenda_reunioes
-      WHERE comercial = 1 AND is_teste = 0
+      WHERE comercial = 1 AND is_teste = 0 AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)
       GROUP BY funil`,
   ).bind(de, ate, agora).all();
   return Object.fromEntries((r.results || [])

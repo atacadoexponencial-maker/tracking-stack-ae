@@ -28,7 +28,7 @@ export function bancoDosFluxos() {
   `);
   for (const f of ['0026_whatsapp_grupos.sql', '0032_greenn_webhook.sql', '0047_agenda.sql', '0050_email.sql', '0051_email_modelos.sql',
     '0053_email_contatos.sql', '0054_email_segmentos.sql', '0055_email_campanhas.sql', '0056_email_campanhas_agendadas.sql',
-    '0057_email_fluxos.sql', '0058_email_fluxos_rodando.sql']) {
+    '0057_email_fluxos.sql', '0058_email_fluxos_rodando.sql', '0059_agenda_tipos_teste.sql']) {
     db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   }
   return db;

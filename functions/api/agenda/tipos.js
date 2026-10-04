@@ -18,12 +18,14 @@ export const FUNIS = [...new Set(FUNIL_POR_PAGINA.values())];
 const CAMPOS = [
   'slug', 'nome', 'duracao_min', 'destino_cal', 'conflito_cals_json', 'grade_id', 'folga_antes_min',
   'folga_depois_min', 'antecedencia_min', 'janela_dias', 'limite_dia', 'intervalo_min', 'perguntas_json',
-  'titulo_modelo', 'comercial', 'funil', 'pagina_pos', 'contato_alternativo', 'descricao',
+  'titulo_modelo', 'comercial', 'funil', 'pagina_pos', 'contato_alternativo', 'descricao', 'teste',
 ];
 
-async function listar(env) {
+// Tipos de teste ficam fora da lista, a não ser com ?testes=1 ("Mostrar testes").
+async function listar(env, comTestes) {
   const t = agora();
-  const tipos = (await env.DB.prepare('SELECT * FROM agenda_tipos ORDER BY nome').all()).results || [];
+  const todos = (await env.DB.prepare('SELECT * FROM agenda_tipos ORDER BY nome').all()).results || [];
+  const tipos = comTestes ? todos : todos.filter((l) => !l.teste);
   const futuros = (await env.DB.prepare(
     "SELECT tipo_id, COUNT(*) AS n FROM agenda_reunioes WHERE inicio > ? AND situacao IN ('marcada','remarcada') GROUP BY tipo_id",
   ).bind(t).all()).results || [];
@@ -32,6 +34,7 @@ async function listar(env) {
   const grades = (await env.DB.prepare('SELECT id, nome, faixas_json FROM agenda_grades ORDER BY nome').all()).results || [];
   return {
     tipos: tipos.map((l) => ({ ...tipoDaLinha(l), futuros: porTipo.get(l.id) || 0 })),
+    testes_escondidos: comTestes ? 0 : todos.length - tipos.length,
     opcoes: {
       agendas: cals.map((c) => ({ id: c.id, nome: c.nome, conta: c.conta_email, conflito: !!c.conflito })),
       grades: grades.map((g) => ({ id: g.id, nome: g.nome, resumo: resumoGrade(JSON.parse(g.faixas_json || '{}')) })),
@@ -51,12 +54,15 @@ async function contexto(env) {
 }
 
 export async function onRequestGet({ request, env }) {
-  if (!autorizado(new URL(request.url), env)) return json({ error: 'Unauthorized' }, 401);
-  return json(await listar(env));
+  const url = new URL(request.url);
+  if (!autorizado(url, env)) return json({ error: 'Unauthorized' }, 401);
+  return json(await listar(env, url.searchParams.get('testes') === '1'));
 }
 
 export async function onRequestPost({ request, env }) {
-  if (!autorizado(new URL(request.url), env)) return json({ error: 'Unauthorized' }, 401);
+  const url = new URL(request.url);
+  if (!autorizado(url, env)) return json({ error: 'Unauthorized' }, 401);
+  const comTestes = url.searchParams.get('testes') === '1';
   const corpo = await request.json().catch(() => ({}));
   const id = corpo.id ? Number(corpo.id) : null;
   const t = agora();
@@ -78,7 +84,7 @@ export async function onRequestPost({ request, env }) {
          VALUES (${CAMPOS.map(() => '?').join(', ')}, 1, ?, ?)`,
       ).bind(...valores, t, t).run();
     }
-    return json(await listar(env));
+    return json(await listar(env, comTestes));
   }
 
   const linha = id ? await env.DB.prepare('SELECT * FROM agenda_tipos WHERE id = ?').bind(id).first() : null;

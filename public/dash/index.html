@@ -21,7 +21,10 @@
   --font-sans: 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif;
   /* Paleta da spec (Módulo 0). */
   --papel: #f3f1ec; --etiqueta: #fbfaf7; --papel-escuro: #ebe8e1;
-  --tinta: #161513; --tinta-2: #4f4b45; --apagado: #8b857c;
+  --tinta: #161513; --tinta-2: #4f4b45;
+  /* Texto de apoio: 5,3:1 sobre o papel e 4,9:1 sobre o papel escuro (antes
+     #8b857c, 3,2:1, abaixo do mínimo de leitura). Crítica de UX de 04/10. */
+  --apagado: #68625a;
   --fio: #d9d3c9; --fio-forte: #161513;
   --carvao: #1e1e1e; --bege: #f5f0eb; --taupe: #b8ada1;
   --alta: #2f9a5d; --queda: #d24a3f; --info: #2f6db3; --alerta: #b7791f;
@@ -42,7 +45,7 @@ body { font-family: var(--font-sans); background: var(--papel); color: var(--tin
 .marca { padding: 0 0.55rem; }
 /* Logo branco sem fundo; largura e altura no HTML reservam o espaço antes de carregar. */
 .marca-logo { display: block; width: 160px; height: auto; }
-.marca small { display: block; color: var(--taupe); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.45rem; }
+.marca small { display: block; color: var(--taupe); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.45rem; }
 .nav { display: flex; flex-direction: column; gap: 1rem; }
 /* SONDA (02/10): seletor de apps. */
 .apps { display: grid; gap: 0.15rem; padding: 0.3rem; background: rgba(245,240,235,0.06); border-radius: 4px; }
@@ -56,7 +59,7 @@ body { font-family: var(--font-sans); background: var(--papel); color: var(--tin
 body[data-app="agenda"] #secao-agenda > .ig-vistas { display: none; }
 .nav-grupo { display: flex; flex-direction: column; gap: 0.1rem; }
 .nav-grupo + .nav-grupo { border-top: 1px solid rgba(245,240,235,0.14); padding-top: 0.9rem; }
-.nav-rotulo { color: var(--taupe); font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; padding: 0 0.55rem 0.45rem; }
+.nav-rotulo { color: var(--taupe); font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; padding: 0 0.55rem 0.45rem; }
 .nav a { color: rgba(245,240,235,0.72); text-decoration: none; padding: 0.42rem 0.55rem; border-radius: 3px; font-size: 0.9rem; display: block; }
 .nav a:hover { color: var(--bege); background: rgba(245,240,235,0.06); }
 .nav a.ativo { color: var(--carvao); background: var(--bege); font-weight: 700; }
@@ -93,7 +96,7 @@ a.btn { display: inline-block; text-decoration: none; }
 .grid-etiquetas, .grid-kpi, .grid-heroi { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem; margin-bottom: 1.6rem; }
 .etiqueta, .kpi { position: relative; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px 2px 3px 3px; padding: 2rem 1.1rem 1rem; min-width: 0; container-type: inline-size; box-shadow: 0 1px 0 rgba(22,21,19,0.06), 0 6px 14px -10px rgba(22,21,19,0.25); }
 .etiqueta::before { content: ""; position: absolute; top: 0.7rem; left: 50%; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--papel); box-shadow: inset 0 0 0 2px var(--fio-forte); }
-.etiqueta .ref, .kpi .rotulo { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--apagado); }
+.etiqueta .ref, .kpi .rotulo { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--apagado); }
 /* O valor encolhe com a largura da etiqueta (cqw) em vez de quebrar "R$ 23.620,00" em duas linhas. */
 .etiqueta .valor, .kpi .valor { font-size: min(2.2rem, 13cqw); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 0.25rem 0 0.5rem; white-space: nowrap; }
 .etiqueta.heroi .valor { font-size: min(2.9rem, 15cqw); }
@@ -142,10 +145,11 @@ a.btn { display: inline-block; text-decoration: none; }
 .tabela-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 th, td { text-align: left; white-space: nowrap; }
-th { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); font-weight: 700; padding: 0.4rem 0.6rem 0.5rem 0; border-bottom: 1px solid var(--fio-forte); }
+th { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); font-weight: 700; padding: 0.4rem 0.6rem 0.5rem 0; border-bottom: 1px solid var(--fio-forte); }
 td { padding: 0.55rem 0.6rem 0.55rem 0; border-bottom: 1px solid var(--fio); font-variant-numeric: tabular-nums; }
 th.num, td.num { text-align: right; }
 th.ordenavel { cursor: pointer; user-select: none; }
+.th-ordenar { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; min-height: 24px; }
 th.ordenavel:hover, th[aria-sort] { color: var(--tinta); }
 tbody tr:hover td { background: rgba(22,21,19,0.03); }
 tbody tr.clicavel { cursor: pointer; }
@@ -244,7 +248,7 @@ td .mini, .mini { color: var(--apagado); font-size: 0.72rem; }
 /* O logo é branco: mora numa faixa carvão no alto da etiqueta, como na barra lateral. */
 .gate .gate-marca { background: var(--carvao); margin: 0 -1.6rem 0.6rem; padding: 1.3rem 1.6rem 1.1rem; display: grid; gap: 0.4rem; }
 .gate .gate-marca img { display: block; width: 170px; height: auto; }
-.gate .gate-marca small { color: var(--taupe); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.gate .gate-marca small { color: var(--taupe); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .gate .mini.falha { color: var(--queda); }
 
 /* ---------- Modal ---------- */
@@ -293,7 +297,9 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
   .apps { flex: none; grid-template-columns: repeat(4, auto); }
   .apps span { display: none; }
   .nav a { white-space: nowrap; font-size: 0.82rem; }
+  .sidebar { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); }
   .conteudo { padding: 1.2rem 1rem 3rem; }
+  .em-subnav { display: block; }
   .duas, .duas-colunas { grid-template-columns: 1fr; }
   .manchete { font-size: 1.2rem; }
   .topo { align-items: flex-start; }
@@ -328,7 +334,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .balao img, .balao video { width: 100%; border-radius: 2px; display: block; background: var(--papel); }
 .balao .arquivo { display: flex; gap: 0.5rem; align-items: center; padding: 0.6rem; background: var(--papel); border-radius: 2px; font-size: 0.82rem; }
 .balao .corpo { font-size: 0.86rem; white-space: pre-wrap; word-break: break-word; margin-top: 0.4rem; }
-.balao .hora { font-size: 0.68rem; color: var(--apagado); text-align: right; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+.balao .hora { font-size: 0.6875rem; color: var(--apagado); text-align: right; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
 .previa-nota { font-size: 0.72rem; color: var(--apagado); margin-top: 0.5rem; }
 
 /* Semana em sete colunas. Grade de hora × dia ficaria quase toda vazia com dois
@@ -341,7 +347,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
    padrão, e o número do dia acabava colado no rodapé da célula vazia. */
 .dia { background: var(--etiqueta); border: 1px solid var(--fio); border-top: 2px solid var(--fio); border-radius: 2px; padding: 0.5rem 0.45rem; min-height: 6.5rem; text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
 .dia:hover { border-color: var(--tinta); }
-.dia .cab { font-size: 0.68rem; color: var(--apagado); text-transform: uppercase; letter-spacing: 0.06em; }
+.dia .cab { font-size: 0.6875rem; color: var(--apagado); text-transform: uppercase; letter-spacing: 0.06em; }
 .dia .num { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* "hoje" leva a palavra além da cor: o bege é quase branco, e a regra da casa
    é que nada se comunique só por cor. */
@@ -368,7 +374,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-faixa-meta b { color: var(--tinta); font-weight: 400; }
 
 .argo-grupo + .argo-grupo, .argo-bloco { margin-top: 1.6rem; }
-.argo-grupo-titulo, .argo-bloco h3 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); margin-bottom: 0.35rem; }
+.argo-grupo-titulo, .argo-bloco h3 { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); margin-bottom: 0.35rem; }
 .argo-grupo-nota { color: var(--apagado); font-size: 0.78rem; margin-bottom: 0.4rem; max-width: 70ch; }
 .argo-acao { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem 1.4rem; align-items: center; padding: 0.85rem 0; border-top: 1px solid var(--fio); }
 .argo-acao:first-of-type { border-top: 0; }
@@ -459,7 +465,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-veredito.falha { color: var(--queda); border-color: var(--queda); font-weight: 700; }
 .argo-veredito.alerta { color: var(--alerta); border-color: var(--alerta); }
 .argo-veredito.neutro { color: var(--apagado); }
-.argo-origem-manual { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); margin-right: 0.3rem; }
+.argo-origem-manual { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); margin-right: 0.3rem; }
 /* O summary da ação NÃO herda o grid do summary da rodada (`.argo-rodada
    summary` alcança os dois): aqui é linha corrida, como o <li> sem detalhe. */
 .argo-rodada .argo-acao-detalhe { display: block; }
@@ -471,7 +477,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-veredito-motivo { margin: 0.6rem 0 0.4rem; font-size: 0.84rem; color: var(--tinta); max-width: 80ch; }
 .argo-veredito-meta { display: block; margin-top: 0.45rem; font-size: 0.74rem; color: var(--apagado); }
 .argo-antes-depois { width: 100%; border-collapse: collapse; margin-top: 0.3rem; font-size: 0.84rem; }
-.argo-antes-depois th { text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); font-weight: 400; padding: 0.25rem 0.6rem 0.25rem 0; }
+.argo-antes-depois th { text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); font-weight: 400; padding: 0.25rem 0.6rem 0.25rem 0; }
 .argo-antes-depois td { padding: 0.35rem 0.6rem 0.35rem 0; border-top: 1px solid var(--fio); font-variant-numeric: tabular-nums; vertical-align: top; }
 .argo-antes-depois td.num { font-weight: 700; }
 .argo-antes-depois td.num.semdado { font-weight: 400; }
@@ -487,7 +493,7 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .argo-placar-periodo { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
 .argo-placar-periodo select, .argo-placar-periodo input { background: var(--papel); color: var(--tinta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.35rem 0.6rem; font: inherit; font-size: 0.84rem; }
 .argo-placar-grupos { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 2.4fr) minmax(0, 1.1fr); gap: 0.9rem; align-items: start; }
-.argo-placar-grupo h4 { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); font-weight: 400; margin-bottom: 0.45rem; }
+.argo-placar-grupo h4 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); font-weight: 400; margin-bottom: 0.45rem; }
 .argo-placar-grupo .grid-kpi { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; margin-bottom: 0; }
 .argo-cartao { font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; }
 .argo-cartao[aria-pressed="true"] { border-color: var(--tinta); }
@@ -516,11 +522,11 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 .metas-nota { font-size: 0.76rem; color: var(--apagado); margin-bottom: 0.6rem; }
 .metas-avisos { display: grid; gap: 0.3rem; margin-bottom: 0.6rem; }
 .metas-funil + .metas-funil { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--fio); }
-.metas-funil-nome { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); margin-bottom: 0.45rem; display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.metas-funil-nome { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); margin-bottom: 0.45rem; display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
 .metas-funil-nome span { text-transform: none; letter-spacing: 0; color: var(--apagado); }
 .metas-linha { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.7rem; }
 .meta-ind { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.6rem 0.75rem; min-width: 0; display: grid; gap: 0.2rem; align-content: start; }
-.meta-ind .rotulo { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
+.meta-ind .rotulo { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
 .meta-ind .valor { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .meta-ind .valor.semdado { color: var(--apagado); font-weight: 400; font-size: 1rem; }
 .meta-ind .alvo { font-size: 0.76rem; color: var(--apagado); font-variant-numeric: tabular-nums; }
@@ -554,8 +560,8 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
   .argo-antes-depois thead { display: none; }
   .argo-antes-depois tr { display: grid; grid-template-columns: 1fr 1fr; gap: 0 0.6rem; padding: 0.35rem 0; border-top: 1px solid var(--fio); }
   .argo-antes-depois td { border-top: 0; padding: 0.1rem 0; }
-  .argo-antes-depois td.rotulo { grid-column: 1 / -1; color: var(--apagado); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; }
-  .argo-antes-depois td.num::before { content: attr(data-coluna); display: block; font-size: 0.68rem; color: var(--apagado); font-weight: 400; }
+  .argo-antes-depois td.rotulo { grid-column: 1 / -1; color: var(--apagado); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .argo-antes-depois td.num::before { content: attr(data-coluna); display: block; font-size: 0.6875rem; color: var(--apagado); font-weight: 400; }
 }
 
 /* Régua: cada regra numa linha — texto à esquerda, controle à direita. A
@@ -651,7 +657,7 @@ input[type="time"] { font: inherit; padding: 0.35rem 0.45rem; border: 1px solid 
 .ag-cont.alerta { background: var(--alerta); color: #fff; }
 .ag-subvistas select { margin-left: auto; }
 .ag-subvistas select + select { margin-left: 0; }
-.ag-link-linha { background: none; border: none; padding: 0; font: inherit; font-weight: 700; color: var(--tinta); cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: var(--fio); text-underline-offset: 3px; }
+.ag-link-linha { background: none; border: none; padding: 2px 0; min-height: 24px; font: inherit; font-weight: 700; color: var(--tinta); cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: var(--fio); text-underline-offset: 3px; }
 .ag-link-linha:hover { text-decoration-color: var(--tinta); }
 .ag-acoes--linha { justify-content: flex-end; flex-wrap: nowrap; }
 .ag-icone { width: 1.9rem; height: 1.9rem; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--tinta-2); cursor: pointer; padding: 0; }
@@ -711,7 +717,7 @@ ol.ag-hist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem
 .argo-propostas-lista { display: grid; gap: 0.8rem; }
 .argo-proposta { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 1.1rem 1.25rem; display: grid; gap: 0.75rem; }
 .argo-proposta-topo { display: flex; gap: 0.8rem; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
-.argo-proposta-acao { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
+.argo-proposta-acao { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
 .argo-proposta-alvo { font-size: 1.02rem; font-weight: 700; margin-top: 0.15rem; }
 .argo-proposta-alvo small { font-weight: 400; color: var(--apagado); font-size: 0.8rem; margin-left: 0.4rem; }
 .argo-proposta-prazo { color: var(--apagado); font-size: 0.78rem; font-variant-numeric: tabular-nums; text-align: right; }
@@ -721,7 +727,7 @@ ol.ag-hist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem
 .argo-ver-tudo { background: none; border: 0; padding: 0; font: inherit; font-size: 0.78rem; color: var(--tinta); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; justify-self: start; }
 .argo-numeros { display: flex; flex-wrap: wrap; gap: 0.6rem 1.8rem; }
 .argo-numero { display: grid; gap: 0.1rem; }
-.argo-numero span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
+.argo-numero span { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--apagado); }
 .argo-numero strong { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
 .argo-numero small { color: var(--apagado); font-size: 0.74rem; }
 .argo-verificacao { font-size: 0.8rem; color: var(--apagado); border-top: 1px solid var(--fio); padding-top: 0.7rem; }
@@ -780,7 +786,7 @@ ol.ag-hist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem
 .grafico .barra.neg { fill: var(--queda); }
 .grafico .barra.apagada { opacity: 0.45; }
 .ig-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 0.9rem; }
-.ig-trio span { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
+.ig-trio span { display: block; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--apagado); }
 .ig-trio b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
 .ig-cabeca { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
 .ig-cabeca h2 { margin-bottom: 0; }
@@ -833,7 +839,7 @@ td.pago, th.pago { color: var(--alerta); }
 }
 /* ---------- E-mail próprio (public/dash/email-mkt.js e email-fluxos.js) · PROTÓTIPOS 373–376 ---------- */
 .em-proto { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; align-items: center; font-size: 0.78rem; color: var(--tinta-2); border: 1px dashed var(--fio); border-radius: 2px; padding: 0.4rem 0.7rem; margin-bottom: 1.1rem; }
-.em-proto__selo { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--alerta); border: 1.5px solid currentColor; border-radius: 2px; padding: 0.05rem 0.4rem; transform: rotate(-2deg); }
+.em-proto__selo { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--alerta); border: 1.5px solid currentColor; border-radius: 2px; padding: 0.05rem 0.4rem; transform: rotate(-2deg); }
 .em-proto__cen { margin-left: auto; display: inline-flex; gap: 0.4rem; align-items: center; color: var(--apagado); }
 .em-proto__cen select { font-size: 0.78rem; padding-top: 0.25rem; padding-bottom: 0.25rem; }
 .em-barra { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
@@ -860,7 +866,7 @@ td.pago, th.pago { color: var(--alerta); }
 .em-rel-cabeca h2 { font-size: 1.25rem; }
 .em-numeros { display: flex; flex-wrap: wrap; gap: 0.6rem 2rem; margin: -0.4rem 0 1.8rem; padding: 0.8rem 0; border-top: 1px solid var(--fio); border-bottom: 1px solid var(--fio); }
 .em-numeros div { display: grid; gap: 0.05rem; }
-.em-numeros span { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); }
+.em-numeros span { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); }
 .em-numeros b { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
 .em-numeros small { color: var(--apagado); font-size: 0.74rem; }
 td.em-link-url { white-space: normal; overflow-wrap: anywhere; }
@@ -873,7 +879,7 @@ td.em-link-url { white-space: normal; overflow-wrap: anywhere; }
 .em-regra-curta { white-space: normal; display: inline-block; min-width: 14rem; max-width: 26rem; }
 .em-regras { display: grid; gap: 0.5rem; }
 .em-regra { display: grid; grid-template-columns: 2.6rem minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1.3fr) auto; gap: 0.4rem; align-items: center; }
-.em-regra__e { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--apagado); }
+.em-regra__e { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--apagado); }
 .em-mais { justify-self: start; }
 .em-contagem-viva { background: var(--papel-escuro); padding: 0.7rem 0.9rem; border-radius: 2px; font-size: 0.9rem; }
 .em-contagem-viva b { font-size: 1.5rem; font-variant-numeric: tabular-nums; margin-right: 0.2rem; }
@@ -929,8 +935,14 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .em-email__rodape { border-top: 1px solid #e5e5e5; padding: 0.9rem 1.4rem; font-size: 11px; color: #888; line-height: 1.5; }
 .em-email__rodape a { color: #888; text-decoration: underline; }
 @media (max-width: 1100px) { .em-editor { grid-template-columns: minmax(0, 1fr); } .em-editor__previa { position: static; } }
+.em-so-cel { display: none; }
 @media (max-width: 640px) {
   .em-proto__cen { margin-left: 0; }
+  /* Contatos: nome (com o e-mail embaixo) e situação; o resto fica no detalhe. */
+  .em-cont-lista th:nth-child(n+2):nth-child(-n+5), .em-cont-lista td:nth-child(n+2):nth-child(-n+5) { display: none; }
+  .em-so-cel { display: block; overflow-wrap: anywhere; }
+  /* Números do topo em duas colunas, mais baixos. */
+  .em .grid-etiquetas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
   .em-regra { grid-template-columns: minmax(0, 1fr) auto; }
   .em-regra__e { grid-column: 1 / -1; }
   .em-regra select { grid-column: 1; }
@@ -965,8 +977,19 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .fx-cartao.fx-alvo { box-shadow: 0 0 0 3px rgba(22,21,19,0.25); border-color: var(--tinta); }
 .fx-cartao.fx-arrastando { cursor: grabbing; box-shadow: 0 16px 28px -14px rgba(22,21,19,0.45); }
 .fx-cartao.fx-problema { border-color: var(--queda); box-shadow: 0 0 0 1px var(--queda); }
-.fx-selo-problema { position: absolute; top: -0.7rem; right: 0.6rem; background: var(--etiqueta); color: var(--queda); border: 1.5px solid currentColor; border-radius: 2px; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.05rem 0.4rem; transform: rotate(-2deg); white-space: nowrap; }
-.fx-cabeca { display: flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--fio); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tinta-2); }
+/* Selecionado com problema: o vermelho fica no cartão e a seleção vem num
+   segundo contorno, em tinta, por fora (antes a seleção sumia). */
+.fx-cartao.fx-sel.fx-problema { box-shadow: 0 0 0 1px var(--queda), 0 0 0 4px var(--papel), 0 0 0 6px var(--tinta), 0 12px 22px -12px rgba(22,21,19,0.35); }
+.fx-cartao:focus-visible { outline: 2px solid var(--tinta); outline-offset: 5px; }
+/* Agenda › E-mails: a vaga do "×" mantém "Mandar teste" alinhado em todas as linhas. */
+.em-acoes-agenda { justify-content: flex-end; }
+.em-vaga { visibility: hidden; }
+.em-remetente { line-height: 1.4; }
+/* Subseções do e-mail num seletor, só no celular (a barra vira faixa de rolar). */
+.em-subnav { display: none; margin-bottom: 1rem; }
+.em-subnav select { width: 100%; }
+.fx-selo-problema { position: absolute; top: -0.7rem; right: 0.6rem; background: var(--etiqueta); color: var(--queda); border: 1.5px solid currentColor; border-radius: 2px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.05rem 0.4rem; transform: rotate(-2deg); white-space: nowrap; }
+.fx-cabeca { display: flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--fio); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tinta-2); }
 .fx-cabeca svg, .fx-escolha svg, .fx-painel__topo > svg, .fx-nota__cabeca svg { width: 0.95rem; height: 0.95rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .fx-cartao--inicio .fx-cabeca { background: var(--tinta); color: var(--papel); border-bottom-color: var(--tinta); border-radius: 1px 1px 0 0; }
 .fx-cartao--fim { width: 168px; }
@@ -978,12 +1001,12 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .fx-vazio { color: var(--apagado); font-style: italic; }
 .fx-cartao.fx-problema .fx-vazio { color: var(--queda); }
 .fx-gatilhos, .fx-conds { list-style: none; display: grid; gap: 0.25rem; }
-.fx-ou { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); }
+.fx-ou { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); }
 .fx-nums { display: flex; gap: 0.2rem 0.9rem; flex-wrap: wrap; padding: 0.45rem 0.75rem; border-top: 1px dashed var(--fio); }
 .fx-nums div { display: grid; }
-.fx-nums span { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--apagado); }
+.fx-nums span { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--apagado); }
 .fx-nums b { font-size: 1rem; font-variant-numeric: tabular-nums; line-height: 1.15; }
-.fx-nums small { font-size: 0.68rem; color: var(--apagado); font-variant-numeric: tabular-nums; }
+.fx-nums small { font-size: 0.6875rem; color: var(--apagado); font-variant-numeric: tabular-nums; }
 .fx-nums--vazio { font-size: 0.72rem; color: var(--apagado); }
 .fx-esperando { background: none; border: 0; font: inherit; font-size: 0.78rem; color: var(--tinta); cursor: pointer; padding: 0; text-decoration: underline; text-decoration-color: var(--fio); text-underline-offset: 3px; }
 .fx-esperando b { font-size: 1rem; font-variant-numeric: tabular-nums; }
@@ -1004,7 +1027,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .fx-desligar[hidden] { display: none; }
 .fx-desligar svg { width: 0.8rem; height: 0.8rem; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 .fx-nota { position: absolute; width: 230px; background: var(--papel-escuro); border: 1px dashed var(--tinta-2); border-radius: 2px; font-size: 0.8rem; color: var(--tinta-2); cursor: move; }
-.fx-nota__cabeca { display: flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.4rem 0.2rem 0.6rem; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); }
+.fx-nota__cabeca { display: flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.4rem 0.2rem 0.6rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); }
 .fx-nota__tirar { margin-left: auto; background: none; border: 0; color: var(--apagado); cursor: pointer; display: grid; place-items: center; width: 1.4rem; height: 1.4rem; padding: 0; }
 .fx-nota__tirar:hover { color: var(--queda); }
 .fx-nota__tirar svg { width: 0.75rem; height: 0.75rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
@@ -1050,7 +1073,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .fx-seg { justify-self: start; }
 .fx-escolha { position: absolute; z-index: 8; width: 270px; background: var(--etiqueta); border: 1px solid var(--fio); border-top: 2px solid var(--fio-forte); border-radius: 2px; box-shadow: 0 12px 26px -14px rgba(22,21,19,0.45); padding: 0.3rem 0; display: grid; }
 .fx-escolha[hidden] { display: none; }
-.fx-escolha__titulo { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); padding: 0.35rem 0.8rem 0.25rem; }
+.fx-escolha__titulo { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); padding: 0.35rem 0.8rem 0.25rem; }
 .fx-escolha button { display: flex; gap: 0.6rem; align-items: flex-start; text-align: left; background: none; border: 0; font: inherit; padding: 0.45rem 0.8rem; cursor: pointer; color: var(--tinta); }
 .fx-escolha button:hover, .fx-escolha button:focus-visible { background: var(--papel-escuro); outline: none; }
 .fx-escolha button svg { margin-top: 0.15rem; }
@@ -1133,6 +1156,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
         <!-- E-mail próprio (spec-email-proprio.md, protótipos 373–376): public/dash/email-mkt.js -->
         <span class="nav-rotulo nav-rotulo--sub">E-mail</span>
         <a href="#mkt-email?v=campanhas" data-email-nav="campanhas">Campanhas</a>
+        <a href="#mkt-email?v=relatorio" data-email-nav="relatorio">Resultados</a>
         <a href="#mkt-email?v=fluxos" data-email-nav="fluxos">Fluxos</a>
         <a href="#mkt-email?v=contatos" data-email-nav="contatos">Contatos</a>
         <a href="#mkt-email?v=segmentos" data-email-nav="segmentos">Segmentos</a>
@@ -1902,8 +1926,12 @@ function tabela(el, colunas, linhas, aoClicar, vazio) {
         return ordem.asc ? cmp : -cmp;
       });
     }
-    const sort = (c) => (c.campo && c.campo === ordem.campo ? ` aria-sort="${ordem.asc ? 'ascending' : 'descending'}"` : '');
-    const ths = colunas.map((c, i) => `<th class="${c.num ? 'num' : ''}${c.campo ? ' ordenavel' : ''}" data-i="${i}"${c.campo ? ' tabindex="0"' : ''}${sort(c)}>${esc(c.titulo)}${c.campo === ordem.campo ? (ordem.asc ? ' ↑' : ' ↓') : ''}</th>`).join('');
+    // Coluna ordenável: o botão dentro do cabeçalho anuncia que ordena, e o
+    // aria-sort diz a ordem atual (leitor de tela). Crítica de UX de 04/10.
+    const sort = (c) => (!c.campo ? '' : c.campo === ordem.campo ? ` aria-sort="${ordem.asc ? 'ascending' : 'descending'}"` : ' aria-sort="none"');
+    const ths = colunas.map((c, i) => `<th class="${c.num ? 'num' : ''}${c.campo ? ' ordenavel' : ''}" data-i="${i}"${sort(c)}>${c.campo
+      ? `<button type="button" class="th-ordenar" data-i="${i}">${esc(c.titulo)}${c.campo === ordem.campo ? (ordem.asc ? ' ↑' : ' ↓') : ''}</button>`
+      : esc(c.titulo)}</th>`).join('');
     const trs = dados.map((l) => `<tr class="${aoClicar ? 'clicavel' : ''}" data-k="${linhas.indexOf(l)}"${aoClicar ? ' tabindex="0"' : ''}>${colunas.map((c) => `<td class="${c.num ? 'num' : ''}">${c.render(l)}</td>`).join('')}</tr>`).join('');
     el.innerHTML = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
   };
@@ -1913,17 +1941,17 @@ function tabela(el, colunas, linhas, aoClicar, vazio) {
       const campo = colunas[Number(th.dataset.i)].campo;
       if (ordem.campo === campo) ordem.asc = !ordem.asc; else { ordem.campo = campo; ordem.asc = false; }
       desenhar();
-      // Redesenhar troca o HTML; o foco volta ao mesmo cabeçalho para quem usa teclado.
-      if (ev.detail === 0) { const novo = el.querySelector(`th[data-i="${th.dataset.i}"]`); if (novo) novo.focus(); }
+      // Redesenhar troca o HTML; o foco volta ao mesmo botão para quem usa teclado.
+      if (ev.detail === 0) { const novo = el.querySelector(`.th-ordenar[data-i="${th.dataset.i}"]`); if (novo) novo.focus(); }
       return;
     }
     const tr = ev.target.closest('tr[data-k]');
     if (tr && aoClicar) aoClicar(linhas[Number(tr.dataset.k)]);
   };
-  // Enter ou espaço num cabeçalho ordenável ou numa linha clicável = clique.
+  // Enter ou espaço numa linha clicável = clique (o cabeçalho já é botão).
   el.onkeydown = (ev) => {
     if (ev.key !== 'Enter' && ev.key !== ' ') return;
-    const alvo = ev.target.closest('th.ordenavel, tr.clicavel');
+    const alvo = ev.target.closest('tr.clicavel');
     if (!alvo || ev.target !== alvo) return;
     ev.preventDefault();
     alvo.click();
@@ -6196,8 +6224,7 @@ function aplicarApp() {
   });
   const vistaEmail = window.EmailMkt ? window.EmailMkt.vista : 'campanhas';
   document.querySelectorAll('[data-email-nav]').forEach((a) => {
-    // Relatório é parte de Campanhas na navegação.
-    const ativo = secao === 'mkt-email' && a.dataset.emailNav === (vistaEmail === 'relatorio' ? 'campanhas' : vistaEmail);
+    const ativo = secao === 'mkt-email' && a.dataset.emailNav === vistaEmail;
     a.classList.toggle('ativo', ativo);
     if (ativo) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });

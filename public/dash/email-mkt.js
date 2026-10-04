@@ -23,6 +23,7 @@
     campanhas: 'Campanhas de e-mail', relatorio: 'Resultados do e-mail', fluxos: 'Fluxos automáticos',
     contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', configuracao: 'Configuração de e-mail',
   };
+  const ROTULO_SUBNAV = { campanhas: 'Campanhas', relatorio: 'Resultados', fluxos: 'Fluxos', contatos: 'Contatos', segmentos: 'Segmentos', modelos: 'Modelos', configuracao: 'Configuração' };
   const NOTA_VISTA = {
     campanhas: 'disparos do canal de marketing', relatorio: 'resultado de cada disparo e do canal',
     fluxos: 'sequências que começam sozinhas', contatos: 'quem pode receber marketing',
@@ -87,7 +88,19 @@
     ativo: ['Ativo', 'alta'], descadastrado: ['Descadastrado', 'neutro'], voltou: ['Voltou', 'queda'],
     denunciou: ['Denunciou spam', 'queda'], invalido: ['Inválido', 'alerta'],
   };
-  const nomeFunil = (f) => (FUNIS.find((x) => x[0] === f) || [f, f])[1];
+  // Nome de leitura do funil (o tracking grava o nome técnico). Funil novo sem
+  // entrada aqui vira "Nome do funil" a partir do próprio nome técnico.
+  const NOME_FUNIL = {
+    workshop: 'Workshop gratuito', 'workshop-gratuito': 'Workshop gratuito', 'sessao-estrategica': 'Sessão estratégica',
+    'lives-semanais-v1': 'Lives semanais', 'aplicacao-mentoria': 'Aplicação mentoria', 'trafego-atacado': 'Tráfego atacado',
+    diagnostico: 'Diagnóstico (antigo)', 'iscas-manychat': 'Materiais (iscas)', materiais: 'Materiais (iscas)', calculadora: 'Calculadora do atacado',
+  };
+  const nomeFunil = (f) => {
+    if (!f) return '';
+    if (NOME_FUNIL[f]) return NOME_FUNIL[f];
+    const t = String(f).replace(/[-_]+/g, ' ').trim();
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  };
   // 20/07/2026 (quando o tracking passou a mandar leads) até hoje, 03/10/2026.
   const INICIO = Date.UTC(2026, 6, 20), HOJE = Date.UTC(2026, 9, 3);
   const dataBR = (t) => new Date(t).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit' });
@@ -301,6 +314,7 @@
     util: {
       esc, int, pct, avisar, gaveta, fecharGaveta, menuHtml, ligarAcoes, carimbo, chave, seloProto, ICONE, fecharMenus,
       abrirContato: (id) => detalheContatoReal(id),
+      nomeFunil: (f) => nomeFunil(f),
       // Fluxos (385): mesma trava de duplo clique e mesma mensagem de erro das outras vistas.
       ocupado: (b, fn) => ocupado(b, fn), msgErro: (e) => msgErro(e),
     },
@@ -319,6 +333,15 @@
     ctx.$('#subtitulo').textContent = NOTA_VISTA[api.vista] + (VISTAS_REAIS.includes(api.vista) ? '' : ' · protótipo');
     const el = raiz();
     el.className = 'em em--' + api.vista;
+    let sub = document.getElementById('em-subnav');
+    if (!sub) {
+      sub = document.createElement('label');
+      sub.id = 'em-subnav';
+      sub.className = 'em-subnav';
+      el.parentNode.insertBefore(sub, el);
+    }
+    sub.innerHTML = `<select aria-label="Parte do e-mail">${VISTAS.map((v) => `<option value="${v}"${v === api.vista ? ' selected' : ''}>${esc(ROTULO_SUBNAV[v])}</option>`).join('')}</select>`;
+    sub.querySelector('select').onchange = (ev) => irPara(ev.target.value);
     ({ campanhas, relatorio, fluxos, contatos, segmentos, modelos, configuracao })[api.vista](el);
   }
 
@@ -358,21 +381,16 @@
     if (api.vista !== 'campanhas' || !document.body.contains(el)) return;
     const S = campEstado;
     const total = Object.values(S.por_situacao).reduce((a, b) => a + b, 0);
-    el.innerHTML = `<div class="em-barra">
-        <div class="ig-vistas" role="group" aria-label="Campanhas ou visão geral">
-          <button type="button" class="tipo-pill" aria-pressed="true">Campanhas</button>
-          <button type="button" class="tipo-pill" aria-pressed="false" data-ir="relatorio">Visão geral do canal</button>
-        </div>
+    el.innerHTML = `<div class="em-barra"><p class="mini">Os números do canal ficam em <a href="#mkt-email?v=relatorio">Resultados</a>.</p>
         <button class="btn" type="button" data-nova>Nova campanha</button>
       </div>
       ${S.marketing_liberado ? '' : '<div class="aviso alerta"><b>Disparos de marketing bloqueados.</b> O marketing está marcado como não liberado. Dá para montar a campanha, mas o disparo só funciona depois de ligar a opção. <a href="#mkt-email?v=configuracao">Ver configuração</a></div>'}
       ${avisoLimite(S.uso)}
-      <div class="ag-subvistas" role="group" aria-label="Filtrar por situação">
+      ${total ? `<div class="ag-subvistas" role="group" aria-label="Filtrar por situação">
         <button type="button" class="ag-subvista" data-filtro="" aria-pressed="${!filtroCamp}">Todas <span class="ag-cont">${total}</span></button>
-        ${['rascunho', 'agendada', 'enviando', 'enviada', 'cancelada', 'falhou'].map((k) => `<button type="button" class="ag-subvista" data-filtro="${k}" aria-pressed="${filtroCamp === k}">${SITUACAO_CAMP[k][0]} <span class="ag-cont${k === 'falhou' && S.por_situacao[k] ? ' alerta' : ''}">${S.por_situacao[k] || 0}</span></button>`).join('')}
-      </div>
+        ${['rascunho', 'agendada', 'enviando', 'enviada', 'cancelada', 'falhou'].filter((k) => S.por_situacao[k] || filtroCamp === k).map((k) => `<button type="button" class="ag-subvista" data-filtro="${k}" aria-pressed="${filtroCamp === k}">${SITUACAO_CAMP[k][0]} <span class="ag-cont${k === 'falhou' && S.por_situacao[k] ? ' alerta' : ''}">${S.por_situacao[k] || 0}</span></button>`).join('')}
+      </div>` : ''}
       <div class="tabela-wrap" id="em-camp-lista"></div>`;
-    el.querySelector('[data-ir="relatorio"]').onclick = () => { campanhaRelatorio = null; irPara('relatorio'); };
     el.querySelector('[data-nova]').onclick = () => formCampanha(null, el);
     el.querySelectorAll('[data-filtro]').forEach((b) => { b.onclick = () => { filtroCamp = b.dataset.filtro; campanhas(el); }; });
     const segNome = (id) => (S.opcoes.segmentos.find((s) => s.id === id) || { nome: 'segmento excluído' }).nome;
@@ -466,12 +484,14 @@
     const agendada = !!(c && c.situacao === 'agendada');
     const corpo = `<form class="ag-form em-form" id="em-camp-form" novalidate>
         <label>Nome interno<input type="text" name="nome" maxlength="100" value="${esc(c ? c.nome : '')}" placeholder="Ex.: Convite workshop 05/11" required></label>
-        <label>Modelo<select name="modelo"><option value="">Escolha um modelo</option>${S.opcoes.modelos.map((m) => `<option value="${m.id}"${c && m.id === c.modelo_id ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>
+        ${S.opcoes.modelos.length
+          ? `<label>Modelo<select name="modelo"><option value="">Escolha um modelo</option>${S.opcoes.modelos.map((m) => `<option value="${m.id}"${c && m.id === c.modelo_id ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>`
+          : '<div class="aviso alerta">Ainda não há modelo de marketing (os modelos que existem são da agenda). <a href="#mkt-email?v=modelos">Criar modelo de marketing</a><select name="modelo" hidden><option value=""></option></select></div>'}
         <div class="em-previa-assunto" id="em-camp-assunto"></div>
         <fieldset><legend>Segmentos (um ou mais)</legend>
           ${S.opcoes.segmentos.length ? S.opcoes.segmentos.map((s) => `<label class="marca"><input type="checkbox" name="seg" value="${s.id}"${c && c.segmentos.includes(s.id) ? ' checked' : ''}> ${esc(s.nome)} <span class="mini">${int(s.ativos)} ativos</span></label>`).join('') : '<p class="mini">Nenhum segmento ainda. Crie um em Segmentos.</p>'}
         </fieldset>
-        <label>Remetente<input type="text" value="${esc(S.remetente)}" readonly><span class="mini">Vem da configuração de e-mail.</span></label>
+        <div class="ag-campo"><span class="ag-campo__rotulo">Remetente</span>${(() => { const m = /^"?(.*?)"?\s*<(.+)>$/.exec(S.remetente) || [null, S.remetente, '']; return `<p class="em-remetente"><b>${esc(m[1])}</b><br><span class="mini">${esc(m[2])} · vem da <a href="#mkt-email?v=configuracao">configuração de e-mail</a></span></p>`; })()}</div>
         <fieldset><legend>Quando enviar</legend>
           <label class="marca"><input type="radio" name="quando" value="agora"${agendada ? '' : ' checked'}${agendada ? ' disabled' : ''}> Agora, depois do resumo</label>
           <label class="marca"><input type="radio" name="quando" value="agendar"${agendada ? ' checked' : ''}> Agendar para data e hora (Brasília)</label>
@@ -609,11 +629,7 @@
     const usoP = u.limite ? (u.usados / u.limite) * 100 : 0;
     const projP = u.limite ? Math.min(100, (u.projecao / u.limite) * 100) : 0;
     const semEnvio = !v.enviados;
-    el.innerHTML = `<div class="em-barra">
-        <div class="ig-vistas" role="group" aria-label="Campanhas ou visão geral">
-          <button type="button" class="tipo-pill" aria-pressed="false" data-ir="campanhas">Campanhas</button>
-          <button type="button" class="tipo-pill" aria-pressed="true">Visão geral do canal</button>
-        </div>
+    el.innerHTML = `<div class="em-barra"><p class="mini">Uso do limite, entrega e reputação do canal, e o resultado de cada campanha.</p>
         <select data-periodo aria-label="Período">${PERIODOS.map(([k, r]) => `<option value="${k}"${k === periodoCanal ? ' selected' : ''}>${r}</option>`).join('')}</select>
       </div>
       ${v.reputacao.itens.length ? `<div class="aviso alerta"><b>Alerta de reputação.</b> ${v.reputacao.itens.map(esc).join(' · ')}. Revise os segmentos antes do próximo disparo. Este alerta também vai para o aviso de integrações.</div>` : ''}
@@ -633,7 +649,6 @@
         ].map((k) => ctx.tile(k)).join('')}
       </div>
       <div class="bloco"><h2>Campanhas enviadas <small>clique para abrir o relatório</small></h2><div class="tabela-wrap" id="em-rel-lista"></div></div>`;
-    el.querySelector('[data-ir="campanhas"]').onclick = () => irPara('campanhas');
     el.querySelector('[data-periodo]').onchange = (e) => { periodoCanal = e.target.value; relatorio(el); };
     ctx.tabela(el.querySelector('#em-rel-lista'), [
       { titulo: 'Campanha', campo: 'nome', render: (c) => `<b>${esc(c.nome)}</b>${c.situacao === 'falhou' ? ' <span class="carimbo queda">falhou</span>' : ''}` },
@@ -769,14 +784,14 @@
         <select data-f="funil" aria-label="Funil"><option value="">Todos os funis</option>${d.funis.map((f) => `<option value="${esc(f)}">${esc(nomeFunil(f))}</option>`).join('')}</select>
       </div>
       <div class="em-contagem mini" id="em-cont-total"></div>
-      <div class="tabela-wrap" id="em-cont-lista"></div>
+      <div class="tabela-wrap em-cont-lista" id="em-cont-lista"></div>
       <div class="paginacao" id="em-cont-mais"></div>`;
 
     const desenharLista = () => {
       const filtrado = Object.values(filtroCont).some(Boolean);
       el.querySelector('#em-cont-total').textContent = filtrado ? `${int(d.total)} contatos com esses filtros` : `${int(d.total)} contatos, mais recentes primeiro`;
       ctx.tabela(el.querySelector('#em-cont-lista'), [
-        { titulo: 'Nome', campo: 'nome', render: (p) => `<button type="button" class="ag-link-linha" data-contato="${p.id}">${esc(p.nome || p.email)}</button>` },
+        { titulo: 'Nome', campo: 'nome', render: (p) => `<button type="button" class="ag-link-linha" data-contato="${p.id}">${esc(p.nome || p.email)}</button>${p.nome ? `<span class="mini em-so-cel">${esc(p.email)}</span>` : ''}` },
         { titulo: 'E-mail', campo: 'email', render: (p) => `<span class="mini">${esc(p.email)}</span>` },
         { titulo: 'Origem', campo: 'origem', render: (p) => esc(nomeOrigem(p.origem)) },
         { titulo: 'Funil', campo: 'funil', render: (p) => esc(p.funil ? nomeFunil(p.funil) : '') },
@@ -866,7 +881,7 @@
       });
     });
     const des = g.querySelector('[data-descad]');
-    if (des) des.onclick = () => ctx.pedirConfirmacao(des, p.situacao === 'ativo' ? 'Descadastrar a pedido da pessoa?' : 'Tentar de novo no serviço de envio?', async () => {
+    if (des) des.onclick = () => ctx.pedirConfirmacao(des, p.situacao === 'ativo' ? 'Descadastrar? Não tem volta pela equipe: só a própria pessoa volta, preenchendo um formulário.' : 'Tentar de novo no serviço de envio?', async () => {
       try {
         const r = await ctx.postJson('/api/email/contatos', { acao: 'descadastrar', id: p.id });
         avisar(r.aviso || `${p.nome || p.email} foi descadastrado.`, r.aviso ? 'erro' : 'ok');
@@ -1042,7 +1057,7 @@
         try {
           const p = await ctx.postJson('/api/email/segmentos', { acao: 'previa', regras: rascunho.regras });
           if (n !== pedido) return;
-          conta.innerHTML = `<b>${int(p.ativos)}</b> contatos ativos com essa regra <span class="mini">· mais ${int(p.fora)} fora do marketing (descadastrados, voltaram, spam, inválidos)</span>`;
+          conta.innerHTML = `<b>${int(p.ativos)}</b> contatos ativos com essa regra${p.fora ? ` <span class="mini">· mais ${int(p.fora)} fora do marketing (descadastrados, voltaram, spam, inválidos)</span>` : ''}`;
           ctx.tabela(g.querySelector('#em-seg-amostra'), [
             { titulo: 'Nome', render: (c) => `<b>${esc(c.nome || c.email)}</b><br><span class="mini">${esc(c.email)}</span>` },
             { titulo: 'Funil', render: (c) => `<span class="mini">${esc(c.funil ? nomeFunil(c.funil) : '')}</span>` },
@@ -1432,12 +1447,18 @@
     const mktLiberado = C.marketing_liberado === '1';
     const domRuins = S.dominios.consultado ? S.dominios.itens.filter((d) => !d.dkim) : [];
     const semResultados = contaOk && (S.resultados.transacional === false || S.resultados.marketing === false);
-    const geral = !contaOk || domRuins.length ? 'incidente' : !mktLiberado || semResultados ? 'atencao' : 'saudavel';
+    // Pendências que não impedem o envio, mas não podem passar como "tudo certo".
+    const pendencias = [
+      !C.resposta_transacional && !C.resposta_marketing && 'Sem endereço de resposta: o domínio não recebe e-mail, então as respostas dos leads se perdem.',
+      !C.rodape && 'Rodapé vazio: todo e-mail de marketing precisa dos dados da empresa e do endereço.',
+    ].filter(Boolean);
+    const geral = !contaOk || domRuins.length ? 'incidente' : !mktLiberado || semResultados || pendencias.length ? 'atencao' : 'saudavel';
     const frase = S.conta === 'ausente' || S.conta === 'recusada' ? 'Serviço de envio sem acesso. Confira a chave em Saúde das integrações. Teste e conexão dos resultados ficam indisponíveis.'
       : S.conta === 'sem_resposta' ? 'Não foi possível falar com o serviço de envio agora. Atualize em instantes.'
       : domRuins.length ? `O domínio ${domRuins.map((d) => d.nome).join(' e ')} está sem verificação. Confira o DNS na Cloudflare.`
       : !mktLiberado ? 'Conta aprovada, mas o marketing está marcado como não liberado. A agenda pode mandar e-mails; campanhas e fluxos esperam.'
       : semResultados ? 'Envio funcionando, mas os resultados (entregue, aberto, clicado) ainda não estão conectados.'
+      : pendencias.length ? `Os e-mails podem sair, mas há ${pendencias.length === 1 ? 'uma pendência' : `${pendencias.length} pendências`}: ${pendencias.join(' ')}`
       : 'Conta aprovada e os dois canais liberados. Os e-mails da agenda e de marketing podem sair.';
     const CHAVE = { aceita: ['Funcionando', 'alta'], recusada: ['Recusada', 'queda'], ausente: ['Não configurada', 'queda'], sem_resposta: ['Sem resposta', 'alerta'] };
     const seloResultado = (v) => (v === true ? selo('Conectado', 'alta') : v === false ? selo('Não conectado', 'alerta') : selo('Não consultado', 'neutro'));
@@ -1478,7 +1499,7 @@
     };
     el.innerHTML = `
       <div class="faixa-estado ${geral}">
-        <span class="selo-estado">${geral === 'incidente' ? 'Com problema' : geral === 'atencao' ? 'Pendente' : 'Tudo certo'}</span>
+        <span class="selo-estado">${geral === 'incidente' ? 'Com problema' : geral === 'atencao' ? (contaOk && mktLiberado && !semResultados && !domRuins.length ? `Funcionando, com ${pendencias.length} ${pendencias.length === 1 ? 'pendência' : 'pendências'}` : 'Pendente') : 'Tudo certo'}</span>
         <p>${frase}</p>
       </div>
       <div class="duas-colunas">
@@ -1501,7 +1522,9 @@
             <tr><td>Transacional</td><td class="num">${seloResultado(S.resultados.transacional)}</td></tr>
             <tr><td>Marketing</td><td class="num">${seloResultado(S.resultados.marketing)}</td></tr>
           </tbody></table>
-          <div class="ag-acoes"><button class="btn sec" type="button" data-conectar${contaOk ? '' : ' disabled'}>Conectar resultados</button></div>
+          ${S.resultados.transacional === true && S.resultados.marketing === true
+            ? '<p class="mini em-nota">Os dois canais estão conectados. Só conecte de novo se o endereço do dash mudar (por exemplo, ao ir da prévia para produção).</p><div class="ag-acoes"><button class="ag-link-linha" type="button" data-conectar>Conectar de novo</button></div>'
+            : `<div class="ag-acoes"><button class="btn sec" type="button" data-conectar${contaOk ? '' : ' disabled'}>Conectar resultados</button></div>`}
         </div>
         <div class="bloco"><h2>Mandar teste <small>chega com um link para conferir abertura e clique</small></h2>
           <form class="ag-form" data-teste novalidate>
@@ -1601,6 +1624,7 @@
   // o teste de modelo da 378.
   let tipoAgenda = null;
   let agendaEstado = null;
+  let agendaTestes = false; // "Mostrar testes": tipos de teste ficam fora por padrão
   const rotAntes = (min) => (min >= 60 ? `${min / 60} h antes` : `${min} min antes`);
 
   async function renderAgenda(c) {
@@ -1611,7 +1635,7 @@
     el.className = 'em';
     el.innerHTML = '<p class="aviso">Carregando os e-mails da agenda…</p>';
     try {
-      agendaEstado = await ctx.fetchJson(`/api/agenda/emails?${tipoAgenda ? `tipo=${tipoAgenda}&` : ''}_=${Date.now()}`);
+      agendaEstado = await ctx.fetchJson(`/api/agenda/emails?${tipoAgenda ? `tipo=${tipoAgenda}&` : ''}${agendaTestes ? 'testes=1&' : ''}_=${Date.now()}`);
     } catch (e) {
       el.innerHTML = `<div class="aviso falha">Não foi possível carregar os e-mails da agenda (${esc(e.message)}). Tente de novo em instantes.</div>`;
       return;
@@ -1623,14 +1647,19 @@
     const S = agendaEstado;
     tipoAgenda = S.tipo_id;
     if (!S.tipos.length) {
-      el.innerHTML = '<p class="aviso">Nenhum tipo de reunião ainda. Crie um em Agenda › Tipos de reunião e volte aqui.</p>';
+      el.innerHTML = S.testes_escondidos
+        ? '<p class="aviso">Só há tipos de teste, e eles ficam escondidos. <button type="button" class="btn sec" data-testes>Mostrar testes</button></p>'
+        : '<p class="aviso">Nenhum tipo de reunião ainda. Crie um em Agenda › Tipos de reunião e volte aqui.</p>';
+      const bv = el.querySelector('[data-testes]');
+      if (bv) bv.onclick = () => { agendaTestes = true; renderAgenda(ctx); };
       return;
     }
     const tipo = S.tipos.find((t) => t.id === S.tipo_id);
     const selModelo = (e) => `<select data-modelo aria-label="Modelo de ${esc(e.nome)}">${S.modelos.some((m) => m.id === e.modelo_id) ? '' : '<option value="">(modelo arquivado)</option>'}${S.modelos.map((m) => `<option value="${m.id}"${m.id === e.modelo_id ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select>`;
     const livres = S.antecedencias.filter((min) => !S.emails.some((e) => e.evento === 'lembrete' && e.antes_min === min));
     el.innerHTML = `<div class="em-barra">
-        <div class="ag-subvistas" role="group" aria-label="Tipo de reunião">${S.tipos.map((t) => `<button type="button" class="ag-subvista" data-tipo="${t.id}" aria-pressed="${t.id === S.tipo_id}">${esc(t.nome)}${t.ativo ? '' : ' <span class="mini">(pausado)</span>'}</button>`).join('')}</div>
+        <div class="ag-subvistas" role="group" aria-label="Tipo de reunião">${S.tipos.map((t) => `<button type="button" class="ag-subvista" data-tipo="${t.id}" aria-pressed="${t.id === S.tipo_id}">${esc(t.nome)}${t.ativo ? '' : ' <span class="mini">(pausado)</span>'}${t.teste ? ' <span class="mini">(teste)</span>' : ''}</button>`).join('')}</div>
+        ${S.testes_escondidos || agendaTestes ? `<button type="button" class="ag-subvista" data-testes aria-pressed="${agendaTestes}">${agendaTestes ? 'Esconder testes' : 'Mostrar testes'}</button>` : ''}
       </div>
       ${tipo.comercial ? '' : '<div class="aviso explica">Tipo não comercial: a pessoa recebe confirmação e lembretes normalmente, mas não vira contato de marketing.</div>'}
       <div class="bloco"><h2>E-mails de ${esc(tipo.nome)} <small>remetente: ${esc(S.remetente.nome)} &lt;${esc(S.remetente.email)}&gt;</small></h2>
@@ -1640,7 +1669,7 @@
           <td><span class="mini">${esc(e.quando)}</span></td>
           <td>${selModelo(e)}</td>
           <td>${chave(!!e.ligado, 'data-ligar')}</td>
-          <td><div class="ag-acoes ag-acoes--linha"><button class="btn sec" type="button" data-teste>Mandar teste</button>${e.evento === 'lembrete' ? `<button class="ag-icone" type="button" data-tirar aria-label="Tirar lembrete">${ICONE.fechar}</button>` : ''}</div></td>
+          <td><div class="ag-acoes ag-acoes--linha em-acoes-agenda"><button class="btn sec" type="button" data-teste>Mandar teste</button>${e.evento === 'lembrete' ? `<button class="ag-icone" type="button" data-tirar aria-label="Tirar lembrete">${ICONE.fechar}</button>` : '<span class="ag-icone em-vaga" aria-hidden="true"></span>'}</div></td>
         </tr>`).join('')}
         </tbody></table></div>
         ${livres.length ? `<div class="em-lembrete-novo"><span class="mini">Lembretes deste tipo:</span>
@@ -1656,12 +1685,14 @@
 
     const postAgenda = async (corpo, aviso) => {
       try {
-        agendaEstado = await ctx.postJson('/api/agenda/emails', corpo);
+        agendaEstado = await ctx.postJson('/api/agenda/emails', { ...corpo, testes: agendaTestes });
         avisar(aviso);
       } catch (e) { avisar(msgErro(e), 'erro'); }
       desenharAgenda(el);
     };
     el.querySelectorAll('[data-tipo]').forEach((b) => { b.onclick = () => { tipoAgenda = Number(b.dataset.tipo); renderAgenda(ctx); }; });
+    const bt = el.querySelector('[data-testes]');
+    if (bt) bt.onclick = () => { agendaTestes = !agendaTestes; renderAgenda(ctx); };
     el.querySelectorAll('tr[data-id]').forEach((tr) => {
       const e = S.emails.find((x) => String(x.id) === tr.dataset.id);
       tr.querySelector('[data-modelo]').onchange = (ev) => {
