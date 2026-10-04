@@ -145,13 +145,13 @@
     return '<td></td>';
   }
 
-  function cabecalhoHtml(E) {
+  function cabecalhoHtml(E, sel) {
     const c = E.cab.modo === 'padrao' ? CAB_PADRAO : E.cab;
-    if (E.cab.modo === 'sem') return '';
+    if (E.cab.modo === 'sem') return `<tr data-cabeca class="eb-sem-cab${sel === 'cab' ? ' eb-sel' : ''}"><td style="padding:8px 28px;${FONTE};font-size:12px;color:#8a837a;text-align:center;border-bottom:1px dashed #d9d3c9">Sem cabeçalho · clique para pôr de volta (esta faixa só aparece na prévia)</td></tr>`;
     const im = imagem(c.img);
     if (!im) return '';
     const img = `<img src="${esc(im.url)}" width="${c.largura}" alt="${esc(im.nome)}" style="display:inline-block;width:${c.largura}px;max-width:100%;height:auto;border:0">`;
-    return `<tr><td style="padding:22px 28px;text-align:${ALINH[c.alinh]};${c.fundo ? `background:${c.fundo};` : ''}">${c.link ? `<a href="${esc(c.link)}" target="_blank">${img}</a>` : img}</td></tr><tr><td style="height:12px;font-size:0">&nbsp;</td></tr>`;
+    return `<tr data-cabeca class="${sel === 'cab' ? 'eb-sel' : ''}"><td style="padding:22px 28px;text-align:${ALINH[c.alinh]};${c.fundo ? `background:${c.fundo};` : ''}">${c.link ? `<a href="${esc(c.link)}" target="_blank">${img}</a>` : img}</td></tr><tr><td style="height:12px;font-size:0">&nbsp;</td></tr>`;
   }
 
   function montar(E, sel) {
@@ -163,7 +163,7 @@
 @media (max-width:480px){.eb-col{display:block!important;width:100%!important;padding:0 0 12px!important}}</style></head>
 <body style="background:${E.fundo.fora}"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${E.fundo.fora}"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${E.fundo.conteudo};border:1px solid #e5e2da;border-radius:4px">
-${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text-align:center;${FONTE};color:#8a837a">Nenhum bloco ainda. Arraste um bloco da paleta para cá.</td></tr>`}
+${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text-align:center;${FONTE};color:#8a837a">Nenhum bloco ainda. Arraste um bloco da paleta para cá.</td></tr>`}
 <tr><td style="padding:16px 28px 24px;border-top:1px solid #eeeae2;${FONTE};font-size:12px;line-height:1.5;color:#888888">Atacado Exponencial · rodapé comum da Configuração<br><br><a href="#" style="color:#888888">Não quero mais receber estes e-mails</a></td></tr>
 </table></td></tr></table></body></html>`;
   }
@@ -289,8 +289,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text
             <label>Texto de pré-visualização<input type="text" data-e="previa" maxlength="200"></label>
           </form>
           <div class="eb-avisos" id="eb-avisos" aria-live="polite"></div>
-          <section class="eb-secao" aria-labelledby="eb-cab-t"><h3 class="ag-h3" id="eb-cab-t">Cabeçalho</h3><div id="eb-cab"></div></section>
-          <section class="eb-secao" aria-labelledby="eb-blocos-t"><h3 class="ag-h3" id="eb-blocos-t">Blocos <span class="mini">arraste pela alça ou use as setas</span></h3>
+          <section class="eb-secao" aria-labelledby="eb-blocos-t"><h3 class="ag-h3" id="eb-blocos-t">Cabeçalho e blocos <span class="mini">arraste pela alça ou use as setas</span></h3>
             <ol class="eb-pilha" id="eb-pilha"></ol></section>
           <section class="eb-secao" aria-labelledby="eb-fundo-t"><h3 class="ag-h3" id="eb-fundo-t">Fundo do e-mail</h3><div id="eb-fundo" class="eb-duas"></div></section>
           <section class="eb-secao eb-campos" aria-labelledby="eb-campos-t"><h3 class="ag-h3" id="eb-campos-t">Campos <span class="mini">clique para inserir onde está o cursor</span></h3>
@@ -337,6 +336,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text
       if (!doc) return;
       doc.addEventListener('click', (ev) => {
         ev.preventDefault();
+        if (ev.target.closest('[data-cabeca]')) { selecionar('cab'); const c = raiz.querySelector('[data-card="cab"]'); if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
         const tr = ev.target.closest('[data-b]');
         if (tr) { selecionar(tr.dataset.b); const card = raiz.querySelector(`[data-card="${tr.dataset.b}"]`); if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
       });
@@ -377,7 +377,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text
     if (!de.length) return U.avisar('Nada para ' + (de === desfazer ? 'desfazer.' : 'refazer.'));
     para.push(snap());
     E = JSON.parse(de.pop());
-    if (!E.blocos.some((b) => b.id === sel)) sel = null;
+    if (sel !== 'cab' && !E.blocos.some((b) => b.id === sel)) sel = null;
     raiz.querySelectorAll('[data-e]').forEach((i) => { i.value = E[i.dataset.e]; });
     desenharCabecalho(); desenharFundo(); mudou();
   }
@@ -385,9 +385,10 @@ ${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text
   // --- cabeçalho (modo do modelo; o padrão é desenhado na 390) ---
   function desenharCabecalho() {
     const alvo = raiz.querySelector('#eb-cab');
+    if (!alvo) return;
     const c = E.cab;
     const MODOS = [['padrao', 'Cabeçalho padrão'], ['outra', 'Outra imagem'], ['sem', 'Sem cabeçalho']];
-    alvo.innerHTML = `<div class="ag-subvistas" role="radiogroup" aria-label="Cabeçalho deste modelo">${MODOS.map(([k, r]) => `<button type="button" class="ag-subvista" role="radio" data-cab="${k}" aria-checked="${c.modo === k}" aria-pressed="${c.modo === k}">${r}</button>`).join('')}</div>
+    alvo.innerHTML = `<div class="ag-subvistas" role="radiogroup" aria-label="Cabeçalho deste modelo">${MODOS.map(([k, r]) => `<button type="button" class="ag-subvista" role="radio" data-cab-modo="${k}" aria-checked="${c.modo === k}" aria-pressed="${c.modo === k}">${r}</button>`).join('')}</div>
       ${c.modo === 'padrao' ? `<p class="mini">Usa o cabeçalho da Configuração: ${esc(imagem(CAB_PADRAO.img).nome)}, ${CAB_PADRAO.largura} px, à esquerda. Mudar lá muda todos os modelos que usam o padrão.</p>` : ''}
       ${c.modo === 'sem' ? '<p class="mini">O e-mail começa direto no primeiro bloco.</p>' : ''}
       ${c.modo === 'outra' ? `<div class="eb-campos-bloco">
@@ -396,7 +397,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text
         ${alinhamento(c.alinh, 'cab-alinh', ['esquerda', 'centro'])}
         ${seletorCor('Fundo da faixa', c.fundo || '', 'cab-fundo', true)}
         <label>Link ao clicar <span class="mini">opcional</span><input type="url" value="${esc(c.link)}" data-cab-campo="link" placeholder="https://"></label></div>` : ''}`;
-    alvo.querySelectorAll('[data-cab]').forEach((b) => { b.onclick = () => { guardar(); E.cab.modo = b.dataset.cab; if (E.cab.modo === 'outra' && !E.cab.img) Object.assign(E.cab, CAB_PADRAO); desenharCabecalho(); mudou({ pilha: false }); }; });
+    alvo.querySelectorAll('[data-cab-modo]').forEach((b) => { b.onclick = () => { guardar(); E.cab.modo = b.dataset.cabModo; if (E.cab.modo === 'outra' && !E.cab.img) Object.assign(E.cab, CAB_PADRAO); mudou(); }; });
     alvo.querySelectorAll('[data-cab-campo]').forEach((i) => {
       i.addEventListener('input', () => {
         guardarDigitando();
@@ -407,7 +408,7 @@ ${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text
     });
     ligarAlinhamento(alvo, 'cab-alinh', (v) => { E.cab.alinh = v; });
     ligarCor(alvo, 'cab-fundo', (v) => { E.cab.fundo = v; });
-    ligarEscolhaImagem(alvo, 'cab', (id) => { E.cab.img = id; desenharCabecalho(); });
+    ligarEscolhaImagem(alvo, 'cab', (id) => { E.cab.img = id; });
   }
 
   function desenharFundo() {
@@ -437,7 +438,16 @@ ${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text
   function desenharPilha() {
     const p = raiz.querySelector('#eb-pilha');
     const inserir = (i) => `<li class="eb-inserir"><button type="button" class="eb-inserir__b" data-inserir="${i}" aria-label="Adicionar bloco na posição ${i + 1}">${ic('mais')}</button></li>`;
-    p.innerHTML = E.blocos.map((b, i) => {
+    const cab = E.cab;
+    const resumoCab = cab.modo === 'sem' ? 'sem cabeçalho' : cab.modo === 'padrao' ? `padrão · ${imagem(CAB_PADRAO.img).nome}` : `outra imagem · ${imagem(cab.img) ? imagem(cab.img).nome : 'sem imagem'}`;
+    const cartaoCab = `<li class="eb-card eb-card--cab${sel === 'cab' ? ' eb-card--aberto' : ''}${cab.modo === 'sem' ? ' eb-card--sem' : ''}" data-card="cab">
+        <div class="eb-card__topo"><span class="eb-alca eb-alca--fixa" aria-hidden="true" title="O cabeçalho fica sempre no topo">${ic('imagem')}</span>
+          <button type="button" class="eb-card__abrir" data-sel="cab" aria-expanded="${sel === 'cab'}"><span class="eb-card__tipo">Cabeçalho</span><span class="eb-card__resumo">${esc(resumoCab)}</span></button>
+          <span class="eb-card__acoes">${cab.modo === 'sem'
+            ? '<button type="button" class="btn sec eb-cab-volta" data-cab-volta>Pôr de volta</button>'
+            : `<button type="button" class="ag-icone" data-cab-tirar aria-label="Tirar o cabeçalho deste e-mail" title="Tirar o cabeçalho">${ic('apagar')}</button>`}</span></div>
+        ${sel === 'cab' ? '<div class="eb-card__corpo"><div id="eb-cab"></div></div>' : ''}</li>`;
+    p.innerHTML = cartaoCab + E.blocos.map((b, i) => {
       const av = avisosDoBloco(b);
       const aberto = b.id === sel;
       return `${inserir(i)}<li class="eb-card${aberto ? ' eb-card--aberto' : ''}${av.length ? ' eb-card--aviso' : ''}" data-card="${b.id}">
@@ -458,6 +468,11 @@ ${cabecalhoHtml(E)}${blocos || `<tr data-vazio><td style="padding:40px 28px;text
     }).join('') + `<li class="eb-fim"><button type="button" class="btn sec" data-inserir="${E.blocos.length}">${ic('mais')} Adicionar bloco</button></li>`;
 
     p.querySelectorAll('[data-sel]').forEach((b) => { b.onclick = () => selecionar(sel === b.dataset.sel ? null : b.dataset.sel); });
+    const tirar = p.querySelector('[data-cab-tirar]');
+    if (tirar) tirar.onclick = () => { guardar(); E.cab.antes = E.cab.modo; E.cab.modo = 'sem'; mudou(); U.avisar('Cabeçalho tirado deste e-mail. "Pôr de volta" ou Ctrl+Z desfaz.'); };
+    const volta = p.querySelector('[data-cab-volta]');
+    if (volta) volta.onclick = () => { guardar(); E.cab.modo = E.cab.antes && E.cab.antes !== 'sem' ? E.cab.antes : 'padrao'; mudou(); };
+    if (sel === 'cab') desenharCabecalho();
     p.querySelectorAll('[data-mover]').forEach((b) => { b.onclick = () => mover(b.dataset.id, Number(b.dataset.mover)); });
     p.querySelectorAll('[data-duplicar]').forEach((b) => { b.onclick = () => { guardar(); const i = E.blocos.findIndex((x) => x.id === b.dataset.duplicar); const c = { ...JSON.parse(JSON.stringify(E.blocos[i])), id: novoId() }; E.blocos.splice(i + 1, 0, c); sel = c.id; mudou(); U.avisar('Bloco duplicado logo abaixo.'); }; });
     p.querySelectorAll('[data-apagar]').forEach((b) => { b.onclick = () => { guardar(); const i = E.blocos.findIndex((x) => x.id === b.dataset.apagar); const nome = rotuloBloco(E.blocos[i]); E.blocos.splice(i, 1); if (sel === b.dataset.apagar) sel = null; mudou(); U.avisar(`${nome} apagado. Ctrl+Z desfaz.`); }; });
