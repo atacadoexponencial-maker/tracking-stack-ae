@@ -369,8 +369,8 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     camp = opcoes.modo === 'campanha' ? { nome: '', conteudo: 'modelo', modelo: 'convite', segs: new Set(), quando: 'agora', resumo: false } : null;
     EMODELO = camp ? exemplo() : null;
     E = inicial || exemplo();
-    if (camp) { E.nome = ''; E.assunto = ''; E.previa = ''; E.blocos = [blocoNovo('texto')]; }
-    if (apenasCab) {
+    if (camp && !inicial) { E.nome = ''; E.assunto = ''; E.previa = ''; E.blocos = [blocoNovo('texto')]; }
+    if (apenasCab && !inicial) {
       E.nome = 'Cabeçalho padrão'; E.assunto = ''; E.previa = '';
       E.cab = { modo: 'proprio', fundo: CAB_PADRAO.fundo };
       E.blocos = CAB_PADRAO.blocos.map((b) => ({ ...JSON.parse(JSON.stringify(b)), id: novoId(), zona: 'cab' }));
