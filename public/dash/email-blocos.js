@@ -1115,53 +1115,57 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   }
 
   // ---------------------------------------------------------------------------
-  // Biblioteca de imagens (spec, módulo 4) · PROTÓTIPO 390
+  // Biblioteca de imagens (spec, módulo 4; issue 392) · ligada à API
+  // GET/POST /api/email/imagens. Quem confere tipo, peso e medidas é o servidor;
+  // a tela só antecipa o óbvio e mostra a resposta dele.
   // ---------------------------------------------------------------------------
   const PESO_MAX = 1024 * 1024;
   const pesoTxt = (b) => (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
-  const pesoKb = (t) => { const m = /([\d,.]+)\s*(KB|MB)/.exec(t || ''); return m ? parseFloat(m[1].replace(',', '.')) * (m[2] === 'MB' ? 1024 : 1) : 0; };
-  let bib = null; // { el, busca, aberta, fila, cenario }
+  const dataCurta = (t) => new Date(t * 1000).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' });
+  let bib = null; // { el, imgs, busca, aberta, fila, erro }
 
-  function biblioteca(el, opcoes) {
+  async function biblioteca(el, opcoes) {
     ctx = opcoes.ctx; U = opcoes.util;
-    bib = { el, voltar: opcoes.voltar, busca: '', aberta: null, fila: [], cenario: 'normal' };
-    desenharBib();
+    bib = { el, imgs: null, busca: '', aberta: null, fila: [], erro: null };
+    el.innerHTML = `<div class="esq-tabela" role="status" aria-label="Carregando as imagens…">${'<span class="esq esq-linha"></span>'.repeat(4)}</div>`;
+    await carregarBib();
+  }
+  async function carregarBib() {
+    try { bib.imgs = (await ctx.fetchJson(`/api/email/imagens?_=${Date.now()}`)).imagens; bib.erro = null; }
+    catch (e) { bib.erro = e.message || 'erro'; }
+    if (bib.el.isConnected) desenharBib();
   }
 
   function desenharBib() {
     const { el } = bib;
-    const vazio = bib.cenario === 'vazio';
-    const imgs = vazio ? [] : BIBLIOTECA.filter((i) => !bib.busca || i.nome.toLowerCase().includes(bib.busca.toLowerCase()));
-    const total = vazio ? 0 : BIBLIOTECA.length;
-    const pesoTotal = vazio ? 0 : BIBLIOTECA.reduce((s, i) => s + pesoKb(i.peso), 0);
-    const CEN = [['normal', 'Com imagens'], ['vazio', 'Biblioteca vazia'], ['subindo', 'Imagens subindo'], ['erros', 'Envios com erro']];
+    if (bib.erro) { el.innerHTML = `<div class="aviso falha">Não foi possível carregar as imagens (${esc(bib.erro)}). Tente de novo em instantes.</div>`; return; }
+    const todas = bib.imgs || [];
+    const b = bib.busca.trim().toLowerCase();
+    const imgs = todas.filter((i) => !b || i.nome.toLowerCase().includes(b));
+    const pesoTotal = todas.reduce((t, i) => t + i.tamanho, 0);
+    const vazio = !todas.length;
     el.innerHTML = `
-      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Biblioteca de imagens com dados de exemplo. O que você subir aqui fica só neste navegador.</span>
-        <label class="em-proto__cen">Ver estado <select data-bib-cen aria-label="Estado de exemplo">${CEN.map(([v, r]) => `<option value="${v}"${v === bib.cenario ? ' selected' : ''}>${r}</option>`).join('')}</select></label></div>
-      <div class="em-barra"><button class="btn sec em-voltar" type="button" data-bib-voltar>${ic('voltar')} Modelos</button>
+      <div class="em-barra"><p class="mini">Imagens dos e-mails. Cada uma tem um endereço permanente: continua aparecendo em e-mails já enviados.</p>
         <div class="ag-acoes"><button class="btn" type="button" data-bib-subir>${ic('mais')} Subir imagens</button></div></div>
       <div class="eb-bib">
         <div class="eb-bib__principal">
-          <div class="eb-bib__topo">
+          ${vazio ? '' : `<div class="eb-bib__topo">
             <input type="search" data-bib-busca placeholder="Buscar imagem pelo nome" aria-label="Buscar imagem" value="${esc(bib.busca)}">
-            <span class="mini">${total} ${total === 1 ? 'imagem' : 'imagens'}${total ? ` · ${pesoTotal >= 1024 ? `${(pesoTotal / 1024).toFixed(1).replace('.', ',')} MB` : `${Math.round(pesoTotal)} KB`} no total` : ''}</span>
-          </div>
+            <span class="mini">${todas.length} ${todas.length === 1 ? 'imagem' : 'imagens'} · ${pesoTxt(pesoTotal)} no total</span></div>`}
           <div class="eb-solta eb-bib__solta${vazio ? ' eb-bib__solta--grande' : ''}" data-bib-solta>${ic('imagem')}<span><b>${vazio ? 'Nenhuma imagem ainda. Arraste imagens para cá' : 'Arraste imagens para cá'}</b><span class="mini">ou use "Subir imagens" · JPG, PNG, GIF ou WebP, até 1 MB cada · largura ideal de 600 a 1200 px · várias de uma vez</span></span></div>
           <ul class="eb-bib__fila" data-bib-fila aria-live="polite"></ul>
           ${imgs.length ? `<div class="eb-bib__grade">${imgs.map((i) => `<button type="button" class="eb-bib__item${bib.aberta === i.id ? ' eb-bib__item--aberta' : ''}" data-bib-img="${i.id}">
-              <span class="eb-bib__mini"><img src="${esc(i.url)}" alt=""></span>
+              <span class="eb-bib__mini"><img src="${esc(i.url)}" alt="" loading="lazy"></span>
               <span class="eb-bib__nome">${esc(i.nome)}</span>
-              <span class="mini">${i.w} × ${i.h} px · ${esc(i.peso)} · ${esc(i.data || 'hoje')}${i.gif ? ' · GIF' : ''}</span>
-              ${i.usos && i.usos.length ? `<span class="carimbo neutro eb-bib__uso">Em uso · ${i.usos.length}</span>` : '<span class="mini eb-bib__livre">Não usada</span>'}
+              <span class="mini">${i.largura} × ${i.altura} px · ${pesoTxt(i.tamanho)} · ${dataCurta(i.criada_em)}${i.extensao === 'gif' ? ' · GIF' : ''}</span>
+              ${i.usos.length ? `<span class="carimbo neutro eb-bib__uso">Em uso · ${i.usos.length}</span>` : '<span class="mini eb-bib__livre">Não usada</span>'}
             </button>`).join('')}</div>`
             : vazio ? '' : `<p class="aviso">Nenhuma imagem com "${esc(bib.busca)}" no nome.</p>`}
         </div>
         <aside class="eb-bib__painel" data-bib-painel ${bib.aberta ? '' : 'hidden'}></aside>
       </div>`;
-    el.querySelector('[data-bib-cen]').onchange = (ev) => { bib.cenario = ev.target.value; bib.aberta = null; bib.fila = []; if (bib.cenario === 'subindo') simularSubida(); if (bib.cenario === 'erros') simularErros(); desenharBib(); };
-    el.querySelector('[data-bib-voltar]').onclick = () => bib.voltar();
     const busca = el.querySelector('[data-bib-busca]');
-    busca.addEventListener('input', () => { bib.busca = busca.value; const pos = busca.selectionStart; desenharBib(); const b2 = bib.el.querySelector('[data-bib-busca]'); b2.focus(); b2.setSelectionRange(pos, pos); });
+    if (busca) busca.addEventListener('input', () => { bib.busca = busca.value; const pos = busca.selectionStart; desenharBib(); const b2 = bib.el.querySelector('[data-bib-busca]'); b2.focus(); b2.setSelectionRange(pos, pos); });
     el.querySelector('[data-bib-subir]').onclick = () => {
       const inp = document.createElement('input');
       inp.type = 'file'; inp.multiple = true; inp.accept = 'image/jpeg,image/png,image/gif,image/webp';
@@ -1172,96 +1176,94 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     zona.addEventListener('dragover', (ev) => { if ([...ev.dataTransfer.types].includes('Files')) { ev.preventDefault(); zona.classList.add('eb-solta--sobre'); } });
     zona.addEventListener('dragleave', () => zona.classList.remove('eb-solta--sobre'));
     zona.addEventListener('drop', (ev) => { ev.preventDefault(); zona.classList.remove('eb-solta--sobre'); subirVarias([...ev.dataTransfer.files]); });
-    el.querySelectorAll('[data-bib-img]').forEach((b) => { b.onclick = () => { bib.aberta = bib.aberta === b.dataset.bibImg ? null : b.dataset.bibImg; desenharBib(); }; });
+    el.querySelectorAll('[data-bib-img]').forEach((x) => { x.onclick = () => { const id = Number(x.dataset.bibImg); bib.aberta = bib.aberta === id ? null : id; desenharBib(); }; });
     desenharFila();
     desenharPainel();
   }
 
-  // Fila de envios: subindo (com barra), pronta (some sozinha) e com erro (motivo e dispensar).
+  // Fila de envios: subindo (barra de progresso real), aviso (dispensável) e erro (motivo do servidor).
   function desenharFila() {
     const f = bib.el.querySelector('[data-bib-fila]');
     if (!f) return;
     f.innerHTML = bib.fila.map((x) => `<li class="eb-bib__envio eb-bib__envio--${x.estado}">
         <span class="eb-bib__envio-nome">${esc(x.nome)} <span class="mini">${esc(x.peso)}</span></span>
-        ${x.estado === 'subindo' ? `<span class="eb-bib__barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${x.pct}" aria-label="Subindo ${esc(x.nome)}"><i style="width:${x.pct}%"></i></span>` : ''}
+        ${x.estado === 'subindo' ? `<span class="eb-bib__barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(x.pct)}" aria-label="Subindo ${esc(x.nome)}"><i style="width:${x.pct}%"></i></span>` : ''}
         ${x.estado === 'erro' ? `<span class="eb-bib__erro">${esc(x.erro)}</span><button type="button" class="ag-link-linha" data-bib-dispensar="${x.id}">Dispensar</button>` : ''}
         ${x.estado === 'aviso' ? `<span class="eb-bib__aviso">${esc(x.erro)}</span><button type="button" class="ag-link-linha" data-bib-dispensar="${x.id}">Ok</button>` : ''}
       </li>`).join('');
     f.querySelectorAll('[data-bib-dispensar]').forEach((b) => { b.onclick = () => { bib.fila = bib.fila.filter((x) => x.id !== b.dataset.bibDispensar); desenharFila(); }; });
   }
 
-  function subirVarias(arquivos) {
-    if (bib.cenario === 'vazio') bib.cenario = 'normal';
-    arquivos.forEach((f) => {
-      const item = { id: novoId(), nome: f.name, peso: pesoTxt(f.size), estado: 'subindo', pct: 0 };
-      if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) { Object.assign(item, { estado: 'erro', erro: 'Formato não aceito. Use JPG, PNG, GIF ou WebP.' }); bib.fila.push(item); return; }
-      if (f.size > PESO_MAX) { Object.assign(item, { estado: 'erro', erro: `Tem ${pesoTxt(f.size)} e o limite é 1 MB. Exporte menor e suba de novo.` }); bib.fila.push(item); return; }
+  // Sobe UM arquivo, com progresso (XHR: o fetch não informa o envio).
+  function enviarArquivo(f, progresso) {
+    return new Promise((ok) => {
+      const fd = new FormData();
+      fd.append('arquivo', f);
+      const x = new XMLHttpRequest();
+      x.open('POST', `/api/email/imagens?key=${encodeURIComponent(ctx.key())}`);
+      x.upload.onprogress = (ev) => { if (ev.lengthComputable) progresso((ev.loaded / ev.total) * 95); };
+      x.onload = () => { let d = {}; try { d = JSON.parse(x.responseText); } catch (e) { /* resposta sem JSON */ } ok({ status: x.status, d }); };
+      x.onerror = () => ok({ status: 0, d: { error: 'Sem conexão. Tente de novo.' } });
+      x.send(fd);
+    });
+  }
+
+  async function subirVarias(arquivos) {
+    const novos = arquivos.map((f) => ({ f, item: { id: novoId(), nome: f.name, peso: pesoTxt(f.size), estado: 'subindo', pct: 2 } }));
+    novos.forEach(({ f, item }) => {
+      // O óbvio já na tela; o resto o servidor confere pelos bytes.
+      if (!/^image\/(jpeg|png|gif|webp)$/.test(f.type)) Object.assign(item, { estado: 'erro', erro: 'Formato não aceito. Use JPG, PNG, GIF ou WebP.' });
+      else if (f.size > PESO_MAX) Object.assign(item, { estado: 'erro', erro: `Tem ${pesoTxt(f.size)} e o limite é 1 MB. Exporte menor e suba de novo.` });
       bib.fila.push(item);
-      const leitor = new FileReader();
-      leitor.onload = () => {
-        const img = new Image();
-        img.onload = () => animarSubida(item, () => {
-          const nova = { id: novoId(), nome: f.name.replace(/\.[^.]+$/, ''), url: leitor.result, w: img.naturalWidth, h: img.naturalHeight, peso: pesoTxt(f.size), gif: f.type === 'image/gif', data: 'hoje', usos: [] };
-          BIBLIOTECA.unshift(nova);
-          if (nova.w > 1200) Object.assign(item, { estado: 'aviso', erro: `Subiu, mas tem ${nova.w} px de largura. Acima de 1200 px vale reduzir; no e-mail ela aparece reduzida.` });
-          else bib.fila = bib.fila.filter((x) => x !== item);
-          desenharBib();
-        });
-        img.src = leitor.result;
-      };
-      leitor.readAsDataURL(f);
     });
     desenharBib();
-  }
-  function animarSubida(item, fim) {
-    const passo = () => {
-      item.pct = Math.min(100, item.pct + 12 + Math.random() * 18);
-      desenharFila();
-      if (item.pct < 100) setTimeout(passo, 120); else fim();
-    };
-    setTimeout(passo, 120);
-  }
-  // Estados de exemplo para ver o desenho sem ter arquivos à mão.
-  function simularSubida() {
-    bib.fila = [
-      { id: novoId(), nome: 'banner-black-friday.png', peso: '640 KB', estado: 'subindo', pct: 35 },
-      { id: novoId(), nome: 'foto-turma.jpg', peso: '410 KB', estado: 'subindo', pct: 80 },
-    ];
-  }
-  function simularErros() {
-    bib.fila = [
-      { id: novoId(), nome: 'apresentacao.pdf', peso: '2,3 MB', estado: 'erro', erro: 'Formato não aceito. Use JPG, PNG, GIF ou WebP.' },
-      { id: novoId(), nome: 'foto-palco-original.jpg', peso: '4,8 MB', estado: 'erro', erro: 'Tem 4,8 MB e o limite é 1 MB. Exporte menor e suba de novo.' },
-      { id: novoId(), nome: 'banner-largo.png', peso: '520 KB', estado: 'aviso', erro: 'Subiu, mas tem 2400 px de largura. Acima de 1200 px vale reduzir; no e-mail ela aparece reduzida.' },
-    ];
+    for (const { f, item } of novos) {
+      if (item.estado !== 'subindo') continue;
+      const r = await enviarArquivo(f, (p) => { item.pct = p; desenharFila(); });
+      if (r.status === 200 && r.d.imagem) {
+        bib.imgs = [r.d.imagem, ...(bib.imgs || [])];
+        if (r.d.imagem.aviso) Object.assign(item, { estado: 'aviso', erro: `Subiu. ${r.d.imagem.aviso}` });
+        else bib.fila = bib.fila.filter((x) => x !== item);
+      } else Object.assign(item, { estado: 'erro', erro: r.d.error || `Não foi possível subir (erro ${r.status}).` });
+      if (bib.el.isConnected) desenharBib();
+    }
   }
 
   // Painel da imagem: maior, renomear, endereço público, onde é usada e apagar.
   function desenharPainel() {
     const p = bib.el.querySelector('[data-bib-painel]');
-    const i = imagem(bib.aberta);
+    const i = (bib.imgs || []).find((x) => x.id === bib.aberta);
     if (!p || !i) return;
-    const endereco = `https://img.atacadoexponencial.com/${encodeURIComponent(i.nome.toLowerCase().replace(/\s+/g, '-'))}.${i.gif ? 'gif' : 'png'}`;
-    const usada = i.usos && i.usos.length;
-    p.innerHTML = `<div class="eb-bib__painel-topo"><b>Detalhes da imagem</b><button type="button" class="ag-icone" data-bib-fechar aria-label="Fechar">${ic('voltar')}</button></div>
+    const usada = i.usos.length;
+    p.innerHTML = `<div class="eb-bib__painel-topo"><b>Detalhes da imagem</b><button type="button" class="ag-icone" data-bib-fechar aria-label="Fechar detalhes">${ic('voltar')}</button></div>
       <div class="eb-bib__grande"><img src="${esc(i.url)}" alt=""></div>
       <label class="eb-bib__campo">Nome <span class="mini">só para achar na biblioteca</span><input type="text" data-bib-nome value="${esc(i.nome)}" maxlength="100"></label>
-      <dl class="ag-dl"><dt>Tamanho</dt><dd>${i.w} × ${i.h} px${i.w > 1200 ? ' <span class="carimbo alerta">acima de 1200 px</span>' : ''}</dd><dt>Peso</dt><dd>${esc(i.peso)}</dd><dt>Enviada</dt><dd>${esc(i.data || 'hoje')}</dd>${i.gif ? '<dt>Tipo</dt><dd>GIF animado</dd>' : ''}</dl>
+      <dl class="ag-dl"><dt>Tamanho</dt><dd>${i.largura} × ${i.altura} px${i.largura > 1200 ? ' <span class="carimbo alerta">acima de 1200 px</span>' : ''}</dd><dt>Peso</dt><dd>${pesoTxt(i.tamanho)}</dd><dt>Enviada</dt><dd>${dataCurta(i.criada_em)}</dd>${i.extensao === 'gif' ? '<dt>Tipo</dt><dd>GIF (anima no Gmail, Apple Mail e celular)</dd>' : ''}</dl>
       <label class="eb-bib__campo">Endereço público <span class="mini">permanente: e-mails já enviados continuam mostrando</span>
-        <span class="eb-bib__end"><input type="text" value="${esc(endereco)}" readonly><button type="button" class="btn sec" data-bib-copiar>Copiar</button></span></label>
+        <span class="eb-bib__end"><input type="text" value="${esc(i.url)}" readonly><button type="button" class="btn sec" data-bib-copiar>Copiar</button></span></label>
       <div><span class="ag-campo__rotulo">Onde é usada</span>${usada ? `<ul class="eb-bib__usos">${i.usos.map((u) => `<li>${esc(u)}</li>`).join('')}</ul>` : '<p class="mini">Em nenhum modelo nem no cabeçalho padrão.</p>'}</div>
       <div class="eb-bib__apagar">${usada
-        ? `<button type="button" class="btn perigo" disabled>Apagar</button><p class="mini">Não dá para apagar: está em uso em ${i.usos.length} ${i.usos.length === 1 ? 'lugar' : 'lugares'}. Troque a imagem lá antes.</p>`
+        ? `<button type="button" class="btn perigo" disabled>Apagar</button><p class="mini">Não dá para apagar: está em uso em ${usada} ${usada === 1 ? 'lugar' : 'lugares'}. Troque a imagem lá antes.</p>`
         : '<button type="button" class="btn perigo" data-bib-apagar>Apagar</button>'}</div>`;
     p.querySelector('[data-bib-fechar]').onclick = () => { bib.aberta = null; desenharBib(); };
     const nome = p.querySelector('[data-bib-nome]');
-    nome.addEventListener('change', () => { const v = nome.value.trim(); if (!v) { nome.value = i.nome; return; } i.nome = v; U.avisar('Nome trocado.'); desenharBib(); });
-    p.querySelector('[data-bib-copiar]').onclick = () => { try { navigator.clipboard.writeText(endereco); } catch (e) { /* sem área de transferência */ } U.avisar('Endereço copiado.'); };
+    nome.addEventListener('change', async () => {
+      const v = nome.value.trim();
+      if (!v || v === i.nome) { nome.value = i.nome; return; }
+      try { const r = await ctx.postJson('/api/email/imagens', { acao: 'renomear', id: i.id, nome: v }); i.nome = r.imagem.nome; U.avisar('Nome trocado.'); desenharBib(); }
+      catch (e) { nome.value = i.nome; U.avisar(U.msgErro(e), 'erro'); }
+    });
+    p.querySelector('[data-bib-copiar]').onclick = async () => {
+      try { await navigator.clipboard.writeText(i.url); U.avisar('Endereço copiado.'); }
+      catch (e) { p.querySelector('.eb-bib__end input').select(); U.avisar('Copie com Ctrl+C: o endereço ficou selecionado.'); }
+    };
     const ap = p.querySelector('[data-bib-apagar]');
-    if (ap) ap.onclick = () => ctx.pedirConfirmacao(ap, 'Apagar da biblioteca? E-mails já enviados continuam mostrando a imagem; ela só sai daqui.', () => {
-      const k = BIBLIOTECA.indexOf(i); if (k >= 0) BIBLIOTECA.splice(k, 1);
-      bib.aberta = null; desenharBib(); U.avisar('Imagem apagada da biblioteca.');
-      return true;
+    if (ap) ap.onclick = () => ctx.pedirConfirmacao(ap, 'Apagar da biblioteca? E-mails já enviados continuam mostrando a imagem; ela só sai daqui.', async () => {
+      try {
+        await ctx.postJson('/api/email/imagens', { acao: 'apagar', id: i.id });
+        bib.imgs = bib.imgs.filter((x) => x.id !== i.id); bib.aberta = null; desenharBib(); U.avisar('Imagem apagada da biblioteca.');
+        return true;
+      } catch (e) { U.avisar(U.msgErro(e), 'erro'); await carregarBib(); return false; }
     });
   }
 

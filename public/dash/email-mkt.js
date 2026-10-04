@@ -16,18 +16,19 @@
 (() => {
   'use strict';
 
-  const VISTAS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
+  const VISTAS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'imagens', 'configuracao'];
   // Vistas ligadas ao backend (377, 378, 380–385).
-  const VISTAS_REAIS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'configuracao'];
+  const VISTAS_REAIS = ['campanhas', 'relatorio', 'fluxos', 'contatos', 'segmentos', 'modelos', 'imagens', 'configuracao'];
   const TITULO_VISTA = {
     campanhas: 'Campanhas de e-mail', relatorio: 'Resultados do e-mail', fluxos: 'Fluxos automáticos',
-    contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', configuracao: 'Configuração de e-mail',
+    contatos: 'Contatos de e-mail', segmentos: 'Segmentos', modelos: 'Modelos de e-mail', imagens: 'Imagens dos e-mails', configuracao: 'Configuração de e-mail',
   };
-  const ROTULO_SUBNAV = { campanhas: 'Campanhas', relatorio: 'Resultados', fluxos: 'Fluxos', contatos: 'Contatos', segmentos: 'Segmentos', modelos: 'Modelos', configuracao: 'Configuração' };
+  const ROTULO_SUBNAV = { campanhas: 'Campanhas', relatorio: 'Resultados', fluxos: 'Fluxos', contatos: 'Contatos', segmentos: 'Segmentos', modelos: 'Modelos', imagens: 'Imagens', configuracao: 'Configuração' };
   const NOTA_VISTA = {
     campanhas: 'disparos do canal de marketing', relatorio: 'resultado de cada disparo e do canal',
     fluxos: 'sequências que começam sozinhas', contatos: 'quem pode receber marketing',
     segmentos: 'grupos de contatos montados por regra', modelos: 'textos reutilizáveis dos dois canais',
+    imagens: 'biblioteca usada nos modelos e no cabeçalho',
     configuracao: 'remetentes, rodapé e situação do serviço de envio',
   };
 
@@ -356,7 +357,7 @@
     let tit = document.getElementById('em-titulo-vista');
     if (!tit) { tit = document.createElement('h2'); tit.id = 'em-titulo-vista'; tit.className = 'so-leitor'; el.parentNode.insertBefore(tit, el); }
     tit.textContent = TITULO_VISTA[api.vista] || '';
-    ({ campanhas, relatorio, fluxos, contatos, segmentos, modelos, configuracao })[api.vista](el);
+    ({ campanhas, relatorio, fluxos, contatos, segmentos, modelos, imagens, configuracao })[api.vista](el);
   }
 
   // ===========================================================================
@@ -1155,7 +1156,6 @@
   let filtroModelo = 'todos';
   let modeloAberto = null;
   let protoBlocos = false; // 389: protótipo do editor por blocos (email-blocos.js)
-  let protoBib = false; // 390: protótipo da biblioteca de imagens
   let protoCab = false; // 390: protótipo do cabeçalho padrão (Configuração)
   let modelosEstado = null; // { modelos, campos }
   let paraTeste = '';
@@ -1178,6 +1178,12 @@
     if (i >= 0) modelosEstado.modelos[i] = m; else modelosEstado.modelos.unshift(m);
   }
 
+  // 392 · Biblioteca de imagens (ligada ao backend: GET/POST /api/email/imagens)
+  function imagens(el) {
+    if (!window.EmailBlocos) { el.innerHTML = '<div class="aviso falha">A biblioteca não carregou. Recarregue a página.</div>'; return; }
+    window.EmailBlocos.biblioteca(el, { ctx, util: api.util });
+  }
+
   async function modelos(el) {
     if (!modelosEstado) {
       el.innerHTML = carregando('Carregando os modelos');
@@ -1187,9 +1193,6 @@
         el.innerHTML = `<div class="aviso falha">Não foi possível carregar os modelos (${esc(e.message)}). Tente de novo em instantes.</div>`;
         return;
       }
-    }
-    if (protoBib && window.EmailBlocos) {
-      return window.EmailBlocos.biblioteca(el, { ctx, util: api.util, voltar: () => { protoBib = false; listaModelos(el); } });
     }
     if (protoBlocos && window.EmailBlocos) {
       return window.EmailBlocos.prototipo(el, { ctx, util: api.util, voltar: () => { protoBlocos = false; listaModelos(el); } });
@@ -1207,12 +1210,11 @@
         <div class="ag-subvistas" role="group" aria-label="Filtrar modelos">${FILTROS_M.map(([k, r]) => `<button type="button" class="ag-subvista" data-fm="${k}" aria-pressed="${k === filtroModelo}">${r} <span class="ag-cont">${todos.filter((m) => casaFiltro(m, k)).length}</span></button>`).join('')}</div>
         <div class="ag-acoes"><button class="btn" type="button" data-novo="marketing">Novo modelo de marketing</button><button class="btn sec" type="button" data-novo="transacional">Novo transacional</button></div>
       </div>
-      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Editor novo por blocos, com imagens, cores e cabeçalho editável.</span><button class="btn sec" type="button" data-proto-blocos>Ver o editor novo</button><button class="btn sec" type="button" data-proto-bib>Ver a biblioteca de imagens</button></div>
+      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Editor novo por blocos, com imagens, cores e cabeçalho editável.</span><button class="btn sec" type="button" data-proto-blocos>Ver o editor novo</button></div>
       <div class="tabela-wrap" id="em-mod-lista"></div>`;
     el.querySelectorAll('[data-fm]').forEach((b) => { b.onclick = () => { filtroModelo = b.dataset.fm; listaModelos(el); }; });
     el.querySelectorAll('[data-novo]').forEach((b) => { b.onclick = () => novoModelo(el, b.dataset.novo); });
     el.querySelector('[data-proto-blocos]').onclick = () => { protoBlocos = true; modelos(el); window.scrollTo(0, 0); };
-    el.querySelector('[data-proto-bib]').onclick = () => { protoBib = true; modelos(el); window.scrollTo(0, 0); };
     const alvo = el.querySelector('#em-mod-lista');
     ctx.tabela(alvo, [
       { titulo: 'Modelo', campo: 'nome', render: (m) => `<button type="button" class="ag-link-linha" data-acao="editar" data-id="${m.id}">${esc(m.nome)}</button>` },
