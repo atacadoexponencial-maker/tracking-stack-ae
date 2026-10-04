@@ -15,7 +15,7 @@ export async function onRequestGet({ request, env }) {
   const p = url.searchParams;
   try {
     if (p.get('campanha') && p.get('lista')) return json(await pessoasDaCampanha(env, p.get('campanha'), p.get('lista'), p.get('pagina') || 1));
-    if (p.get('campanha')) return json(await relatorioCampanha(env, p.get('campanha')));
+    if (p.get('campanha')) return json(await relatorioCampanha(env, p.get('campanha'), new URL(request.url).origin));
     return json(await visaoCanal(env, p.get('periodo') || 'mes'));
   } catch (e) {
     if (e instanceof ErroCampanha) return json({ error: e.message }, e.status);

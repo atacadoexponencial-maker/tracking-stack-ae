@@ -14,6 +14,7 @@ import { lerConfig, remetente } from './_email-config.js';
 import { montarEmail } from './_email-render.js';
 import { STREAMS, enviarLote } from './_postmark.js';
 import { validarModelo, ErroModelo } from './_email-modelos.js';
+import { lerDocumento } from './_email-blocos.js';
 import { sqlDasRegras } from './_email-segmentos.js';
 import { ymdBrt, inicioDoDiaBrt } from './_data-brt.js';
 
@@ -120,6 +121,32 @@ async function modeloDaCampanha(env, modeloId, { exigir }) {
   return m;
 }
 
+/**
+ * O e-mail da campanha (398): escrito nela (ou congelado no disparo) quando há
+ * `corpo`; senão, o do modelo. Devolve { canal, assunto, previa, corpo,
+ * atualizado_em, refTeste } ou null (sem conteúdo e sem `exigir`).
+ */
+async function conteudoDe(env, c, { exigir }) {
+  if (c.corpo) {
+    const m = { nome: 'Campanha', canal: 'marketing', assunto: c.assunto || '', previa: c.previa || '', corpo: c.corpo, atualizado_em: c.atualizado_em || 0 };
+    if (exigir) {
+      try { Object.assign(m, validarModelo(m)); } catch (e) { if (e instanceof ErroModelo) throw new ErroCampanha(`O e-mail da campanha precisa de ajuste: ${e.message}`); throw e; }
+    }
+    return { ...m, refTeste: c.id ? `campanha:${c.id}` : null };
+  }
+  if (!c.modelo_id && exigir) throw new ErroCampanha('Escolha um modelo ou escreva o e-mail da campanha.');
+  const m = await modeloDaCampanha(env, c.modelo_id, { exigir });
+  return m ? { ...m, refTeste: `modelo:${m.id}` } : null;
+}
+
+/** E-mail escrito na campanha, limpo (sem exigir completo: é rascunho). */
+function conteudoProprio(conteudo) {
+  if (!conteudo || typeof conteudo !== 'object') return null;
+  const assunto = String(conteudo.assunto ?? '').replace(/\r?\n/g, ' ').trim().slice(0, 200);
+  const previa = String(conteudo.previa ?? '').replace(/\r?\n/g, ' ').trim().slice(0, 200);
+  return { assunto, previa, corpo: JSON.stringify(lerDocumento(conteudo.corpo && typeof conteudo.corpo === 'object' ? conteudo.corpo : String(conteudo.corpo ?? ''))) };
+}
+
 async function segmentosValidos(env, ids, { exigir }) {
   const lista = [...new Set((Array.isArray(ids) ? ids : []).map(Number).filter((n) => Number.isInteger(n) && n > 0))];
   if (!lista.length) {
@@ -131,45 +158,54 @@ async function segmentosValidos(env, ids, { exigir }) {
   return r.map((s) => ({ id: s.id, regras: JSON.parse(s.regras_json || '[]') }));
 }
 
-export async function salvarCampanha(env, { id, nome, modelo_id: modeloId, segmentos, dia, hora }) {
+// `conteudo` ({ assunto, previa, corpo }) = e-mail escrito na campanha (398);
+// sem ele, a campanha usa `modelo_id` e o que estava escrito é descartado.
+export async function salvarCampanha(env, { id, nome, modelo_id: modeloId, segmentos, dia, hora, conteudo }) {
   const n = String(nome || '').trim();
   if (!n) throw new ErroCampanha('Dê um nome à campanha.');
   if (n.length > MAX_NOME) throw new ErroCampanha(`O nome passa de ${MAX_NOME} caracteres.`);
   const t = agora();
+  const proprio = conteudoProprio(conteudo);
+  const campos = async (exigir) => {
+    const m = proprio ? null : await modeloDaCampanha(env, modeloId, { exigir: exigir && !proprio });
+    if (exigir) await conteudoDe(env, { ...(proprio || {}), modelo_id: m ? m.id : null, id }, { exigir: true });
+    const segs = await segmentosValidos(env, segmentos, { exigir });
+    return [m ? m.id : null, JSON.stringify(segs.map((s) => s.id)), proprio ? proprio.assunto : null, proprio ? proprio.previa : null, proprio ? proprio.corpo : null];
+  };
   if (id) {
     const c = await lerCampanha(env, id);
     if (c.situacao === 'agendada') {
       // Agendada (383): edita até o horário, com tudo preenchido.
-      const m = await modeloDaCampanha(env, modeloId, { exigir: true });
-      const segs = await segmentosValidos(env, segmentos, { exigir: true });
+      const v = await campos(true);
       const para = dia || hora ? quandoBrt(dia, hora, t) : c.agendada_para;
       const r = await env.DB.prepare(
-        "UPDATE email_campanhas SET nome = ?, modelo_id = ?, segmentos_json = ?, agendada_para = ?, atualizado_em = ? WHERE id = ? AND situacao = 'agendada'",
-      ).bind(n, m.id, JSON.stringify(segs.map((s) => s.id)), para, t, c.id).run();
+        "UPDATE email_campanhas SET nome = ?, modelo_id = ?, segmentos_json = ?, assunto = ?, previa = ?, corpo = ?, agendada_para = ?, atualizado_em = ? WHERE id = ? AND situacao = 'agendada'",
+      ).bind(n, ...v, para, t, c.id).run();
       if (r.meta.changes !== 1) throw new ErroCampanha('A campanha já começou a sair.', 409);
       return detalheCampanha(env, c.id);
     }
     if (c.situacao !== 'rascunho') throw new ErroCampanha('Só dá para editar campanha em rascunho ou agendada.', 409);
-    const m = await modeloDaCampanha(env, modeloId, { exigir: false });
-    const segs = await segmentosValidos(env, segmentos, { exigir: false });
-    await env.DB.prepare('UPDATE email_campanhas SET nome = ?, modelo_id = ?, segmentos_json = ?, atualizado_em = ? WHERE id = ?')
-      .bind(n, m ? m.id : null, JSON.stringify(segs.map((s) => s.id)), t, c.id).run();
+    const v = await campos(false);
+    await env.DB.prepare('UPDATE email_campanhas SET nome = ?, modelo_id = ?, segmentos_json = ?, assunto = ?, previa = ?, corpo = ?, atualizado_em = ? WHERE id = ?')
+      .bind(n, ...v, t, c.id).run();
     return detalheCampanha(env, c.id);
   }
-  const m = await modeloDaCampanha(env, modeloId, { exigir: false });
-  const segs = await segmentosValidos(env, segmentos, { exigir: false });
+  const v = await campos(false);
   const ins = await env.DB.prepare(
-    "INSERT INTO email_campanhas (nome, modelo_id, segmentos_json, situacao, criado_em, atualizado_em) VALUES (?, ?, ?, 'rascunho', ?, ?)",
-  ).bind(n, m ? m.id : null, JSON.stringify(segs.map((s) => s.id)), t, t).run();
+    "INSERT INTO email_campanhas (nome, modelo_id, segmentos_json, assunto, previa, corpo, situacao, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?, ?, 'rascunho', ?, ?)",
+  ).bind(n, ...v, t, t).run();
   return detalheCampanha(env, ins.meta.last_row_id);
 }
 
 export async function duplicarCampanha(env, id) {
   const c = await lerCampanha(env, id);
   const t = agora();
+  // Com modelo, a cópia aponta para o modelo (o que foi congelado no disparo
+  // fica só na original); com e-mail escrito, a cópia leva o e-mail.
+  const escrito = !c.modelo_id && c.corpo;
   const ins = await env.DB.prepare(
-    "INSERT INTO email_campanhas (nome, modelo_id, segmentos_json, situacao, criado_em, atualizado_em) VALUES (?, ?, ?, 'rascunho', ?, ?)",
-  ).bind(`Cópia de ${c.nome}`.slice(0, MAX_NOME), c.modelo_id, c.segmentos_json, t, t).run();
+    "INSERT INTO email_campanhas (nome, modelo_id, segmentos_json, assunto, previa, corpo, situacao, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?, ?, 'rascunho', ?, ?)",
+  ).bind(`Cópia de ${c.nome}`.slice(0, MAX_NOME), c.modelo_id, c.segmentos_json, escrito ? c.assunto : null, escrito ? c.previa : null, escrito ? c.corpo : null, t, t).run();
   return detalheCampanha(env, ins.meta.last_row_id);
 }
 
@@ -207,23 +243,26 @@ export async function publico(env, segs, t = agora()) {
 
 const usaNome = (m) => /\{\{\s*(nome|primeiro_nome)\s*\}\}/.test(`${m.assunto}\n${m.previa}\n${m.corpo}`);
 
-/** Resumo antes de disparar (de um rascunho ou do formulário ainda não salvo). */
-export async function resumo(env, { modelo_id: modeloId, segmentos }) {
-  const m = await modeloDaCampanha(env, modeloId, { exigir: true });
-  const segs = await segmentosValidos(env, segmentos, { exigir: true });
+/** Resumo antes de disparar. `c`: a campanha (ou { modelo_id, segmentos } de um formulário). */
+export async function resumo(env, c) {
+  return (await prepararResumo(env, c)).r;
+}
+async function prepararResumo(env, c) {
+  const m = await conteudoDe(env, c, { exigir: true });
+  const segs = await segmentosValidos(env, c.segmentos, { exigir: true });
   const p = await publico(env, segs);
   // Último teste deste modelo (Modelos › Mandar teste grava ref_id "modelo:<id>").
   // É conselho, não trava: o resumo avisa quando não houve teste depois da última mudança.
   const [uso, cfg, teste] = await Promise.all([usoDoMes(env), lerConfig(env), env.DB.prepare(
     "SELECT destinatario, enviado_em FROM email_envios WHERE origem = 'teste' AND ref_id = ? AND message_id IS NOT NULL ORDER BY id DESC LIMIT 1",
-  ).bind(`modelo:${m.id}`).first()]);
+  ).bind(m.refTeste || '').first()]);
   const recebem = p.ativos.length;
   const bloqueio = cfg.marketing_liberado !== '1' ? 'O marketing está marcado como não liberado na configuração. O disparo fica bloqueado até ligar a opção.'
     : !env.POSTMARK_SERVER_TOKEN ? SEM_ACESSO
     : !recebem ? 'Nenhum contato ativo nesses segmentos.'
     : recebem > uso.restam ? `Este envio tem ${recebem} pessoas e restam ${uso.restam} e-mails no mês. Diminua o segmento ou espere o limite renovar no dia 1º.`
     : null;
-  return {
+  const resposta = {
     recebem,
     em_dois: p.em_dois,
     fora: p.fora,
@@ -233,7 +272,9 @@ export async function resumo(env, { modelo_id: modeloId, segmentos }) {
     uso,
     bloqueio,
     ultimo_teste: teste ? { para: teste.destinatario, em: teste.enviado_em, antes_da_mudanca: teste.enviado_em < (m.atualizado_em || 0) } : null,
+    conteudo: c.corpo && !c.modelo_id ? 'escrito' : 'modelo',
   };
+  return { r: resposta, m };
 }
 
 // ---------------------------------------------------------------------------
@@ -248,9 +289,9 @@ export async function resumo(env, { modelo_id: modeloId, segmentos }) {
 export async function disparar(env, id, t = agora()) {
   const c = await lerCampanha(env, id);
   if (c.situacao !== 'rascunho') throw new ErroCampanha('Esta campanha já foi disparada.', 409);
-  const r = await resumo(env, { modelo_id: c.modelo_id, segmentos: c.segmentos });
+  const { r, m } = await prepararResumo(env, c);
   if (r.bloqueio) throw new ErroCampanha(r.bloqueio, 409);
-  if (!(await iniciarEnvio(env, c, 'rascunho', r.assunto, t))) throw new ErroCampanha('Esta campanha já foi disparada.', 409);
+  if (!(await iniciarEnvio(env, c, 'rascunho', m, t))) throw new ErroCampanha('Esta campanha já foi disparada.', 409);
   return detalheCampanha(env, c.id);
 }
 
@@ -259,12 +300,14 @@ export async function disparar(env, id, t = agora()) {
  * situação uma vez só, recalcula a lista de ativos e grava os destinatários.
  * Devolve false quando outra chamada já trocou.
  */
-async function iniciarEnvio(env, c, de, assunto, t) {
+// `m`: o conteúdo (do modelo ou escrito), congelado na campanha (398): os lotes
+// e o relatório usam o e-mail que saiu, mesmo que o modelo mude depois.
+async function iniciarEnvio(env, c, de, m, t) {
   const segs = await segmentosValidos(env, c.segmentos, { exigir: true });
   const p = await publico(env, segs, t);
   const troca = await env.DB.prepare(
-    "UPDATE email_campanhas SET situacao = 'enviando', assunto = ?, total = ?, disparada_em = ?, atualizado_em = ? WHERE id = ? AND situacao = ?",
-  ).bind(assunto, p.ativos.length, t, t, c.id, de).run();
+    "UPDATE email_campanhas SET situacao = 'enviando', assunto = ?, previa = ?, corpo = ?, total = ?, disparada_em = ?, atualizado_em = ? WHERE id = ? AND situacao = ?",
+  ).bind(m.assunto, m.previa || '', m.corpo, p.ativos.length, t, t, c.id, de).run();
   if (troca.meta.changes !== 1) return false;
   // O D1 aceita até 100 valores por comando: 3 por destinatário, 30 por vez.
   for (let i = 0; i < p.ativos.length; i += 30) {
@@ -299,7 +342,7 @@ export function quandoBrt(dia, hora, t = agora()) {
 export async function agendar(env, id, { dia, hora }, t = agora()) {
   const c = await lerCampanha(env, id);
   if (c.situacao !== 'rascunho') throw new ErroCampanha('Só rascunho pode ser agendado.', 409);
-  await modeloDaCampanha(env, c.modelo_id, { exigir: true });
+  await conteudoDe(env, c, { exigir: true });
   await segmentosValidos(env, c.segmentos, { exigir: true });
   const para = quandoBrt(dia, hora, t);
   const r = await env.DB.prepare(
@@ -331,9 +374,9 @@ export async function processarAgendadas(env, t = agora()) {
   let iniciadas = 0;
   for (const l of prontas) {
     const c = daLinha(l);
-    let r;
+    let r, m;
     try {
-      r = await resumo(env, { modelo_id: c.modelo_id, segmentos: c.segmentos });
+      ({ r, m } = await prepararResumo(env, c));
     } catch (e) {
       if (!(e instanceof ErroCampanha)) throw e;
       r = { bloqueio: e.message };
@@ -343,7 +386,7 @@ export async function processarAgendadas(env, t = agora()) {
         .bind(`Não saiu no horário: ${r.bloqueio}`, t, t, c.id).run();
       continue;
     }
-    if (await iniciarEnvio(env, c, 'agendada', r.assunto, t)) iniciadas++;
+    if (await iniciarEnvio(env, c, 'agendada', m, t)) iniciadas++;
   }
   return iniciadas;
 }
@@ -472,7 +515,9 @@ export async function processarEnvio(env, { campanhaId = null, lotes = 3, t = ag
   const cfg = await lerConfig(env);
   for (const c of campanhas) {
     resumoRodada.campanhas++;
-    const modelo = await env.DB.prepare('SELECT * FROM email_modelos WHERE id = ?').bind(c.modelo_id).first();
+    const modelo = c.corpo
+      ? { canal: 'marketing', assunto: c.assunto, previa: c.previa || '', corpo: c.corpo }
+      : await env.DB.prepare('SELECT * FROM email_modelos WHERE id = ?').bind(c.modelo_id).first();
     if (!modelo) { await pararCampanha(env, c.id, 'O modelo da campanha não existe mais.', t); continue; }
     for (let i = 0; i < lotes; i++) {
       const seguiu = await enviarUmLote(env, c, modelo, cfg, t);
@@ -482,4 +527,15 @@ export async function processarEnvio(env, { campanhaId = null, lotes = 3, t = ag
     await concluirSePronto(env, c.id, t);
   }
   return resumoRodada;
+}
+
+/**
+ * Conteúdo para o teste da campanha com e-mail escrito (398): o rascunho da tela
+ * (sem salvar) ou o guardado. Devolve { canal, assunto, previa, corpo } validado.
+ */
+export async function conteudoParaTeste(env, id, rascunho) {
+  const c = await lerCampanha(env, id);
+  const fonte = rascunho ? { ...conteudoProprio(rascunho), id: c.id } : c;
+  if (!fonte.corpo) throw new ErroCampanha('Esta campanha usa um modelo: mande o teste pelo modelo.');
+  return conteudoDe(env, fonte, { exigir: true });
 }

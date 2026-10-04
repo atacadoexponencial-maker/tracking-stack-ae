@@ -27,7 +27,7 @@ const AGORA = Math.floor(Date.now() / 1000);
 
 beforeEach(() => {
   db = new DatabaseSync(':memory:');
-  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0053_email_contatos.sql', '0054_email_segmentos.sql', '0055_email_campanhas.sql', '0056_email_campanhas_agendadas.sql']) {
+  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0053_email_contatos.sql', '0054_email_segmentos.sql', '0055_email_campanhas.sql', '0056_email_campanhas_agendadas.sql', '0061_email_campanhas_conteudo.sql']) {
     db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   }
   env = { DB: d1(db), DASH_KEY: 'k' };

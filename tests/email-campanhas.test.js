@@ -54,7 +54,7 @@ beforeEach(async () => {
     CREATE TABLE lead_dispatch (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT, email TEXT, task_id TEXT);
     CREATE TABLE crm_status_log (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, status TEXT NOT NULL, recebido_em INTEGER NOT NULL, hist_id TEXT, hist_date INTEGER);
   `);
-  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0053_email_contatos.sql', '0054_email_segmentos.sql', '0055_email_campanhas.sql', '0056_email_campanhas_agendadas.sql']) {
+  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0053_email_contatos.sql', '0054_email_segmentos.sql', '0055_email_campanhas.sql', '0056_email_campanhas_agendadas.sql', '0061_email_campanhas_conteudo.sql']) {
     db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   }
   db.prepare(`INSERT INTO email_modelos (id, nome, canal, assunto, previa, corpo, arquivado, criado_em, atualizado_em) VALUES
@@ -370,4 +370,88 @@ test('travas: modelo e segmento usados em campanha agendada', async () => {
   assert.match(exc.corpo.error, /campanha agendada "Convite outubro"/);
   await camp({ acao: 'cancelar', id });
   assert.equal((await api(segApi, { acao: 'excluir', id: s })).status, 200);
+});
+
+// ---------------------------------------------------------------------------
+// 398 · Campanha com e-mail escrito na hora
+// ---------------------------------------------------------------------------
+const DOC = (titulo) => ({ formato: 'blocos', versao: 1, cab: { modo: 'sem', fundo: '' }, fundo: {}, blocos: [{ id: 't1', tipo: 'titulo', texto: titulo }, { id: 'b1', tipo: 'botao', texto: 'Ir', link: 'https://atacadoexponencial.com' }] });
+const ESCRITO = { assunto: 'Oi, {{primeiro_nome}}', previa: 'Só nesta campanha', corpo: DOC('Escrito na campanha') };
+
+test('e-mail escrito: rascunho guarda, resumo usa, disparo congela e os lotes saem dele', async () => {
+  await contatos([['ana@x.com', 'Ana', 'workshop']]);
+  const s = await segmento('Workshop', 'workshop');
+  let r = await camp({ acao: 'salvar', nome: 'Sem modelo', segmentos: [s], conteudo: ESCRITO });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  const id = r.corpo.campanha.id;
+  const linha = db.prepare('SELECT modelo_id, assunto, previa, corpo FROM email_campanhas WHERE id = ?').get(id);
+  assert.equal(linha.modelo_id, null);
+  assert.equal(JSON.parse(linha.corpo).blocos[0].texto, 'Escrito na campanha');
+  r = await camp({ acao: 'resumo', id });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.deepEqual([r.corpo.recebem, r.corpo.assunto, r.corpo.conteudo, r.corpo.ultimo_teste], [1, 'Oi, {{primeiro_nome}}', 'escrito', null]);
+  assert.equal((await camp({ acao: 'disparar', id })).status, 200);
+  await processarEnvio(env, { campanhaId: id, t: AGORA + 5 });
+  const m = pm.lotes.flat()[0];
+  assert.equal(m.Subject, 'Oi, Ana');
+  assert.match(m.HtmlBody, /Escrito na campanha/);
+});
+
+test('campanha com modelo: o conteúdo congela no disparo; mudar o modelo depois não muda o que sai', async () => {
+  await contatos([['ana@x.com', 'Ana', 'workshop']]);
+  const s = await segmento('Workshop', 'workshop');
+  const id = await rascunho([s]);
+  assert.equal((await camp({ acao: 'disparar', id })).status, 200);
+  const congelado = db.prepare('SELECT assunto, corpo FROM email_campanhas WHERE id = ?').get(id);
+  assert.equal(congelado.assunto, 'Oi, {{primeiro_nome}}');
+  assert.ok(congelado.corpo, 'o corpo do modelo ficou guardado na campanha');
+  db.prepare("UPDATE email_modelos SET assunto = 'Mudou depois', corpo = 'Outro texto.' WHERE id = 1").run();
+  db.prepare("UPDATE email_campanha_destinatarios SET situacao = 'pendente' WHERE campanha_id = ?").run(id);
+  db.prepare("UPDATE email_campanhas SET situacao = 'enviando' WHERE id = ?").run(id);
+  pm.lotes = [];
+  await processarEnvio(env, { campanhaId: id, t: AGORA + 5 });
+  assert.equal(pm.lotes.flat()[0].Subject, 'Oi, Ana');
+  // Duplicar a campanha com modelo aponta para o modelo, sem o congelado.
+  const dup = (await camp({ acao: 'duplicar', id })).corpo.campanha;
+  assert.deepEqual([dup.modelo_id, dup.corpo], [1, null]);
+});
+
+test('duplicar campanha com e-mail escrito leva o e-mail; trocar para modelo descarta', async () => {
+  const s = await segmento('Workshop', 'workshop');
+  const id = (await camp({ acao: 'salvar', nome: 'Escrita', segmentos: [s], conteudo: ESCRITO })).corpo.campanha.id;
+  const dup = (await camp({ acao: 'duplicar', id })).corpo.campanha;
+  assert.equal(JSON.parse(dup.corpo).blocos[0].texto, 'Escrito na campanha');
+  const r = await camp({ acao: 'salvar', id, nome: 'Escrita', segmentos: [s], modelo_id: 1 });
+  assert.deepEqual([r.corpo.campanha.modelo_id, r.corpo.campanha.corpo], [1, null]);
+});
+
+test('teste do e-mail escrito (com o que está na tela) e salvar como modelo', async () => {
+  const s = await segmento('Workshop', 'workshop');
+  const id = (await camp({ acao: 'salvar', nome: 'Escrita', segmentos: [s], conteudo: ESCRITO })).corpo.campanha.id;
+  const unicos = [];
+  const f0 = globalThis.fetch;
+  globalThis.fetch = async (url, op = {}) => {
+    if (new URL(String(url)).pathname === '/email') { const c = JSON.parse(op.body); unicos.push(c); return new Response(JSON.stringify({ ErrorCode: 0, MessageID: 'u1', To: c.To }), { status: 200, headers: { 'Content-Type': 'application/json' } }); }
+    return f0(url, op);
+  };
+  let r = await camp({ acao: 'enviar_teste', id, para: 'eu@x.com', conteudo: { ...ESCRITO, corpo: DOC('Só na tela') } });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.match(unicos[0].HtmlBody, /Só na tela/);
+  assert.equal(db.prepare('SELECT ref_id FROM email_envios WHERE id = ?').get(r.corpo.envio_id).ref_id, `campanha:${id}`);
+  globalThis.fetch = f0;
+  db.prepare("UPDATE email_envios SET enviado_em = ? WHERE id = ?").run(AGORA + 100, r.corpo.envio_id);
+  r = await camp({ acao: 'resumo', id });
+  assert.equal(r.corpo.ultimo_teste.para, 'eu@x.com');
+  // Com modelo, o teste é o do modelo.
+  const comModelo = await rascunho([s]);
+  assert.equal((await camp({ acao: 'enviar_teste', id: comModelo, para: 'eu@x.com' })).status, 400);
+
+  r = await camp({ acao: 'salvar_como_modelo', nome: 'Da campanha', conteudo: ESCRITO });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.equal(r.corpo.modelo.canal, 'marketing');
+  assert.equal(JSON.parse(r.corpo.modelo.corpo).blocos[0].texto, 'Escrito na campanha');
+  const antes = db.prepare('SELECT COUNT(*) AS n FROM email_modelos').get().n;
+  r = await camp({ acao: 'salvar_como_modelo', nome: 'Ruim', conteudo: { ...ESCRITO, corpo: { ...DOC('x'), blocos: [] } } });
+  assert.equal(r.status, 400);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM email_modelos').get().n, antes, 'não sobra modelo vazio');
 });

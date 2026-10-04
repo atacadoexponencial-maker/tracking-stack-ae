@@ -3,7 +3,9 @@
 // POST /api/email/campanhas?key=...  → { acao: 'salvar', id?, nome, modelo_id?, segmentos?, dia?, hora? }  (dia/hora: reagendar uma agendada)
 //                                      { acao: 'agendar', id, dia: 'AAAA-MM-DD', hora: 'HH:MM' }   (Brasília; 383)
 //                                      { acao: 'cancelar', id }   (só agendada; 383)
-//                                      { acao: 'resumo', modelo_id, segmentos }   (sem gravar)
+//                                      { acao: 'resumo', id } | { acao: 'resumo', modelo_id, segmentos }   (sem gravar)
+//                                      { acao: 'enviar_teste', id, para, conteudo? }   (e-mail escrito; 398)
+//                                      { acao: 'salvar_como_modelo', nome, conteudo }  (398)
 //                                      { acao: 'disparar' | 'duplicar' | 'excluir', id }
 //
 // Spec spec-email-proprio.md, módulo 6 (issue 382). Regras em ../_email-campanhas.js.
@@ -12,8 +14,12 @@
 // POST /api/email/modelos (enviar_teste) com o modelo da campanha.
 import {
   ErroCampanha, listarCampanhas, detalheCampanha, usoDoMes, salvarCampanha, resumo, disparar,
-  duplicarCampanha, excluirCampanha, processarEnvio, agendar, cancelarAgendada,
+  duplicarCampanha, excluirCampanha, processarEnvio, agendar, cancelarAgendada, lerCampanha, conteudoParaTeste,
 } from '../_email-campanhas.js';
+import { montarEmail } from '../_email-render.js';
+import { exemplos } from '../_email-campos.js';
+import { enviarTeste } from './config.js';
+import { ErroModelo, validarModelo, criarModelo, salvarModelo } from '../_email-modelos.js';
 import { listarSegmentos } from '../_email-segmentos.js';
 import { lerConfig, remetente } from '../_email-config.js';
 
@@ -51,7 +57,22 @@ export async function onRequestPost({ request, env, waitUntil }) {
   try {
     switch (corpo.acao) {
       case 'salvar': return json({ ok: true, campanha: await salvarCampanha(env, corpo) });
-      case 'resumo': return json(await resumo(env, corpo));
+      // Resumo da campanha salva (`id`) ou de um formulário ({ modelo_id, segmentos }).
+      case 'resumo': return json(await resumo(env, corpo.id ? await lerCampanha(env, corpo.id) : corpo));
+      // Teste do e-mail escrito na campanha, com o que está na tela (398).
+      case 'enviar_teste': {
+        const m = await conteudoParaTeste(env, corpo.id, corpo.conteudo || null);
+        const cfg = await lerConfig(env);
+        const e = montarEmail(m, cfg, { valores: exemplos('marketing'), site: new URL(request.url).origin });
+        return enviarTeste(env, { canal: 'marketing', para: corpo.para, assunto: e.assunto, html: e.html, texto: e.texto, tag: 'teste-campanha', refId: `campanha:${corpo.id}` });
+      }
+      // Cópia do e-mail escrito vira modelo de marketing novo (398).
+      case 'salvar_como_modelo': {
+        const dados = { nome: corpo.nome, canal: 'marketing', ...(corpo.conteudo || {}) };
+        validarModelo(dados); // confere antes de criar, para não sobrar modelo vazio
+        const novo = await criarModelo(env, { nome: dados.nome, canal: 'marketing' });
+        return json({ ok: true, modelo: await salvarModelo(env, novo.id, dados) });
+      }
       case 'disparar': {
         const campanha = await disparar(env, corpo.id);
         const envio = processarEnvio(env, { campanhaId: campanha.id }).catch((e) => console.error('campanha: envio', e.message));
@@ -65,7 +86,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       default: return json({ error: 'Ação desconhecida.' }, 400);
     }
   } catch (e) {
-    if (e instanceof ErroCampanha) return json({ error: e.message }, e.status);
+    if (e instanceof ErroCampanha || e instanceof ErroModelo) return json({ error: e.message }, e.status);
     return json({ error: 'Não foi possível concluir agora. Tente de novo.' }, 500);
   }
 }

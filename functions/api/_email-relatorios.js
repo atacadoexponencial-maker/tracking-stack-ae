@@ -13,6 +13,9 @@
 // Prefixo "_": o Cloudflare Pages não transforma o arquivo em rota.
 import { ErroCampanha, detalheCampanha, usoDoMes } from './_email-campanhas.js';
 import { ymdBrt, inicioDoDiaBrt } from './_data-brt.js';
+import { montarEmail } from './_email-render.js';
+import { lerConfig } from './_email-config.js';
+import { exemplos } from './_email-campos.js';
 
 const agora = () => Math.floor(Date.now() / 1000);
 const POR_PAGINA = 50;
@@ -53,7 +56,7 @@ function comTaxas(n) {
 
 const SEM_RELATORIO = ['rascunho', 'agendada', 'cancelada'];
 
-export async function relatorioCampanha(env, id) {
+export async function relatorioCampanha(env, id, site) {
   const c = await detalheCampanha(env, id);
   if (SEM_RELATORIO.includes(c.situacao)) throw new ErroCampanha('Esta campanha ainda não saiu: não tem relatório.', 409);
   const [n, links] = await Promise.all([
@@ -65,7 +68,14 @@ export async function relatorioCampanha(env, id) {
         GROUP BY link ORDER BY pessoas DESC, link LIMIT 20`,
     ).bind(String(c.id)).all(),
   ]);
-  return { campanha: c, destinatarios: c.total, ...comTaxas(n), links: links.results || [] };
+  // O e-mail que saiu (398): o conteúdo congelado no disparo, com dados de exemplo.
+  let email = null;
+  if (c.corpo) {
+    const e = montarEmail({ canal: 'marketing', assunto: c.assunto, previa: c.previa || '', corpo: c.corpo }, await lerConfig(env), { valores: exemplos('marketing'), site, descadastro: '#' });
+    email = { assunto: e.assunto, previa: e.previa, html: e.html };
+  }
+  const { corpo, ...campanha } = c;
+  return { campanha, destinatarios: c.total, ...comTaxas(n), links: links.results || [], email };
 }
 
 const COLUNA_LISTA = { abriram: 'aberto_em', clicaram: 'clicado_em', voltaram: 'voltou_em', descadastraram: 'descadastrou_em' };
