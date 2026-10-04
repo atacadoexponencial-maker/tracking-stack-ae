@@ -70,6 +70,7 @@ function postmarkFalso() {
 beforeEach(() => {
   db = new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../migrations/0050_email.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0051_email_modelos.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0053_email_contatos.sql', import.meta.url), 'utf8'));
   env = {
     DB: d1(db), DASH_KEY: 'k',
@@ -356,4 +357,24 @@ test('checagem de credenciais: Postmark aceito e recusado', async () => {
   await executarChecagem(env, { origem: 'manual', agora: 2000, fetchImpl });
   s = db.prepare("SELECT situacao FROM credenciais_estado WHERE nome = 'POSTMARK_SERVER_TOKEN'").get();
   assert.equal(s.situacao, 'problema');
+});
+
+test('cabeçalho padrão (397): guarda limpo, recusa vazio e link sem https, e o GET diz quem usa', async () => {
+  let r = await dash({ acao: 'salvar', campos: { cabecalho_padrao: { fundo: '#161513', blocos: [{ tipo: 'titulo', texto: 'Atacado', cor: '#ffffff' }, { tipo: 'video' }] } } });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  const salvo = JSON.parse(r.corpo.config.cabecalho_padrao);
+  assert.equal(salvo.fundo, '#161513');
+  assert.deepEqual(salvo.blocos.map((b) => [b.tipo, b.zona]), [['titulo', 'cab']]);
+
+  r = await dash({ acao: 'salvar', campos: { cabecalho_padrao: { blocos: [] } } });
+  assert.equal(r.status, 400);
+  assert.match(r.corpo.error, /está vazio/);
+  r = await dash({ acao: 'salvar', campos: { cabecalho_padrao: { blocos: [{ tipo: 'botao', texto: 'Site', link: 'www.a.com' }] } } });
+  assert.equal(r.status, 400);
+  assert.match(r.corpo.error, /^Cabeçalho, Botão: link sem https/);
+
+  db.exec("DELETE FROM email_modelos");
+  db.prepare("INSERT INTO email_modelos (nome, canal, assunto, previa, corpo, arquivado, criado_em, atualizado_em) VALUES ('Antigo', 'transacional', 'a', '', 'Oi.', 0, 0, 0), ('Sem', 'marketing', 'b', '', ?, 0, 0, 0)")
+    .run(JSON.stringify({ formato: 'blocos', versao: 1, cab: { modo: 'sem' }, fundo: {}, blocos: [{ tipo: 'texto', html: '<p>x</p>' }] }));
+  assert.deepEqual((await dash()).corpo.usam_cabecalho_padrao, ['Antigo']);
 });

@@ -7,6 +7,7 @@
 // Spec spec-email-proprio.md, módulos 1 e 8 (issue 377). Validação em
 // ../_email-config.js; Postmark em ../_postmark.js.
 import { lerConfig, validarConfig, salvarConfig, emailValido, DOMINIOS } from '../_email-config.js';
+import { lerDocumento } from '../_email-blocos.js';
 import {
   STREAMS, consultarServidor, listarDominios, listarWebhooks, criarWebhook, editarWebhook,
 } from '../_postmark.js';
@@ -84,7 +85,13 @@ async function estado(env, request) {
       }),
     };
   }
-  return { config, conta, dominios, resultados: await situacaoResultados(env, request, conta), testes };
+  return { config, conta, dominios, resultados: await situacaoResultados(env, request, conta), testes, usam_cabecalho_padrao: await usamCabecalhoPadrao(env) };
+}
+
+/** Modelos (não arquivados) que saem com o cabeçalho padrão (397). */
+async function usamCabecalhoPadrao(env) {
+  const { results } = await env.DB.prepare('SELECT nome, corpo FROM email_modelos WHERE arquivado = 0 ORDER BY nome').all();
+  return (results || []).filter((m) => lerDocumento(m.corpo).cab.modo === 'padrao').map((m) => m.nome);
 }
 
 export async function onRequestGet({ request, env }) {

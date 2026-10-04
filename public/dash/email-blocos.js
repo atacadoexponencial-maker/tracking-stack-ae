@@ -294,6 +294,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   const SEGS_EX = [['s1', 'Workshop: últimos 30 dias', 8], ['s2', 'Sessão estratégica', 49], ['s3', 'Lives semanais', 112]];
   const USAM_PADRAO = ['Confirmação de reunião', 'Lembrete 24h antes', 'Lembrete 1h antes', 'Convite workshop 05/11']; // tipo vindo da paleta (o dado só é legível ao soltar)
 
+  const usamPadrao = () => (real && OPC && OPC.usam ? OPC.usam : USAM_PADRAO);
   const snap = () => JSON.stringify(E);
   const sujo = () => snap() !== salvo;
   function guardar() {
@@ -336,6 +337,26 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     return montarTela(el, { ...opcoes, modo: 'modelo' }, inicial);
   }
 
+  // 397: o cabeçalho padrão (Configuração). opcoes: { ctx, util, cabecalho: { fundo, blocos } | null,
+  // usam: [nomes de modelos], remetente, salvar(cab), voltar() }
+  async function editorCabecalho(el, opcoes) {
+    real = true;
+    OPC = { ...opcoes, modelo: { usos: [] } };
+    CAMPOS = [['primeiro_nome', 'Primeiro nome', 'Ana'], ['nome', 'Nome completo', 'Ana Lima'], ['email', 'E-mail', 'ana.lima@exemplo.com']];
+    EXEMPLO = Object.fromEntries(CAMPOS.map(([c, , v]) => [c, v]));
+    try { IMAGENS = (await opcoes.ctx.fetchJson(`/api/email/imagens?_=${Date.now()}`)).imagens || []; } catch (e) { IMAGENS = []; }
+    const cab = opcoes.cabecalho || { fundo: '', blocos: LOGO_PADRAO() };
+    const inicial = {
+      nome: 'Cabeçalho padrão', assunto: '', previa: '', canal: 'marketing',
+      cab: { modo: 'proprio', fundo: cab.fundo || '' },
+      fundo: { fora: '#f3f1ec', conteudo: '#ffffff' },
+      blocos: cab.blocos.map((b) => ({ ...b, id: b.id || novoId(), zona: 'cab' })),
+    };
+    return montarTela(el, { ...opcoes, modo: 'cabecalho' }, inicial);
+  }
+  // A logo de hoje, como bloco (quando não há cabeçalho padrão salvo).
+  const LOGO_PADRAO = () => [{ id: novoId(), tipo: 'imagem', fixa: 'logo', alt: 'Atacado Exponencial', largura: 'px', px: 150, alinh: 'esquerda', link: '', zona: 'cab' }];
+
   function prototipo(el, opcoes) {
     real = false;
     OPC = null;
@@ -369,7 +390,7 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
         <div class="eb-editor">
           ${apenasCab
             ? `<div class="eb-cab-intro"><h3 class="ag-h3">Cabeçalho padrão</h3><p>A faixa do topo de todo modelo que usa o padrão. Monte com os mesmos blocos do corpo: logo, texto, links, botão.</p>
-              <p class="mini">Usado hoje por <b>${USAM_PADRAO.length} modelos</b>: ${USAM_PADRAO.map(esc).join(', ')}. Mudar aqui vale para os próximos envios deles.</p></div>`
+              <p class="mini">Usado hoje por <b>${usamPadrao().length} ${usamPadrao().length === 1 ? 'modelo' : 'modelos'}</b>${usamPadrao().length ? `: ${usamPadrao().map(esc).join(', ')}` : ''}. Mudar aqui vale para os próximos envios deles.</p></div>`
             : `<form class="ag-form" onsubmit="return false">
             ${camp ? '<h3 class="ag-h3 eb-camp__titulo-email">E-mail desta campanha</h3>' : `<div class="linha"><label>Nome<input type="text" data-e="nome" maxlength="100"></label>
               <label>Canal<input type="text" value="${E.canal === 'transacional' ? 'Transacional (envio.)' : 'Marketing (news.)'}" disabled></label></div>`}
@@ -471,6 +492,21 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
   // Salvar no servidor (394). Modelo em uso: avisa onde antes de gravar.
   function salvarDeVerdade(botao) {
     const erro = raiz.querySelector('#eb-erro');
+    if (apenasCab) {
+      if (!blocosCab().length) return U.avisar('O cabeçalho padrão está vazio. Adicione pelo menos um bloco, ou use "Sem cabeçalho" em cada modelo.', 'erro');
+      const n = usamPadrao().length;
+      return ctx.pedirConfirmacao(botao, `Salvar? O cabeçalho muda em ${n} ${n === 1 ? 'modelo' : 'modelos'}, nos próximos envios.`, () => U.ocupado(botao, async () => {
+        try {
+          await OPC.salvar({ fundo: E.cab.fundo || '', blocos: E.blocos.map(({ zona, ...b }) => b) });
+          salvo = snap(); erro.innerHTML = ''; mudou({ pilha: false });
+          U.avisar('Cabeçalho padrão salvo.');
+        } catch (e) {
+          erro.innerHTML = `<div class="aviso falha"><b>Não foi salvo.</b> ${esc(U.msgErro(e))}</div>`;
+          U.avisar(U.msgErro(e), 'erro');
+        }
+        return true;
+      }));
+    }
     const gravar = () => U.ocupado(botao, async () => {
       try {
         const m = await OPC.salvar(rascunho());
@@ -519,13 +555,14 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const c = E.cab;
     const MODOS = [['padrao', 'Padrão da Configuração'], ['proprio', 'Personalizado'], ['sem', 'Sem cabeçalho']];
     alvo.innerHTML = `<div class="ag-subvistas" role="radiogroup" aria-label="Cabeçalho deste modelo">${MODOS.map(([k, r]) => `<button type="button" class="ag-subvista" role="radio" data-cab-modo="${k}" aria-checked="${c.modo === k}" aria-pressed="${c.modo === k}">${r}</button>`).join('')}</div>
-      ${c.modo === 'padrao' ? '<p class="mini">Usa o cabeçalho da Configuração (hoje, a logo à esquerda). Mudar lá muda todos os modelos que usam o padrão.</p><div><button type="button" class="btn sec" data-cab-personalizar>Personalizar a partir do padrão</button></div>' : ''}
+      ${c.modo === 'padrao' ? '<p class="mini">Usa o cabeçalho padrão da Configuração. Mudar lá muda todos os modelos que usam o padrão.</p><div><button type="button" class="btn sec" data-cab-personalizar>Personalizar a partir do padrão</button></div>' : ''}
       ${c.modo === 'sem' ? '<p class="mini">O e-mail começa direto no primeiro bloco do corpo.</p>' : ''}
       ${c.modo === 'proprio' ? `<p class="mini">Monte a faixa com os mesmos blocos do corpo: logo, texto, links, botão, imagem com texto. Os blocos do cabeçalho aparecem logo abaixo deste cartão; arraste blocos entre o cabeçalho e o corpo à vontade.</p>
         ${seletorCor('Fundo da faixa', c.fundo || '', 'cab-fundo', true)}` : ''}`;
     const personalizar = () => {
       if (!blocosCab().length) {
-        const base = real ? [{ tipo: 'imagem', fixa: 'logo', alt: 'Atacado Exponencial', largura: 'px', px: 150, alinh: 'esquerda', link: '' }] : CAB_PADRAO.blocos;
+        const base = real ? ((OPC.cabPadrao && OPC.cabPadrao.blocos) || LOGO_PADRAO()) : CAB_PADRAO.blocos;
+        if (real && OPC.cabPadrao && !c.fundo) c.fundo = OPC.cabPadrao.fundo || '';
         E.blocos.unshift(...base.map((b) => ({ ...JSON.parse(JSON.stringify(b)), id: novoId(), zona: 'cab' })));
         if (!c.fundo) c.fundo = CAB_PADRAO.fundo;
       }
@@ -1105,11 +1142,15 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     const moldura = raiz.querySelector('#eb-moldura');
     const frame = raiz.querySelector('#eb-frame');
     const texto = raiz.querySelector('#eb-texto');
+    raiz.querySelector('#eb-caixa').hidden = apenasCab;
     raiz.querySelector('#eb-caixa').innerHTML = `<div class="eb-entrada"><span class="eb-entrada__de"><b>${esc(OPC.remetente.nome)}</b> <span class="mini">${esc(OPC.remetente.email)}</span></span><span class="eb-entrada__assunto"><b>${esc(preencherTexto(E.assunto) || '(sem assunto)')}</b> <span class="mini">${esc(preencherTexto(E.previa))}</span></span></div>`;
     moldura.classList.toggle('eb-moldura--celular', tamanho === 'celular');
     let r;
     try {
-      r = await ctx.postJson('/api/email/modelos', { acao: 'previa', editor: true, modelo: { canal: E.canal, assunto: E.assunto, previa: E.previa, corpo: docDeE() } });
+      const corpo = apenasCab
+        ? { ...docDeE(), blocos: [...E.blocos, { id: 'lugarcorpo', tipo: 'texto', html: '<p>Aqui entra o corpo de cada modelo.</p>', alinh: 'centro', cor: '#8a837a' }] }
+        : docDeE();
+      r = await ctx.postJson('/api/email/modelos', { acao: 'previa', editor: true, modelo: { canal: E.canal, assunto: E.assunto || 'Cabeçalho padrão', previa: E.previa, corpo } });
     } catch (e) {
       if (n === pedidoPrevia) { texto.hidden = false; frame.hidden = true; texto.textContent = `Não foi possível montar a prévia agora (${U.msgErro(e)}). Ela volta na próxima mudança.`; }
       return;
@@ -1402,5 +1443,5 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     });
   }
 
-  window.EmailBlocos = { prototipo, editor, biblioteca };
+  window.EmailBlocos = { prototipo, editor, editorCabecalho, biblioteca };
 })();

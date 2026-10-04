@@ -3,6 +3,7 @@
 // a mensagem que volta.
 //
 // Prefixo "_": o Cloudflare Pages não transforma o arquivo em rota.
+import { normalizarBloco, linksDoDocumento } from './_email-blocos.js';
 
 /** Domínio verificado de cada canal. */
 export const DOMINIOS = {
@@ -19,6 +20,9 @@ export const PADROES = {
   resposta_marketing: '',
   rodape: '',
   marketing_liberado: '1',
+  // Cabeçalho padrão montado com blocos (spec-editor-email.md, módulo 3; issue 397).
+  // Vazio = a logo de hoje (CAB_PADRAO_INICIAL em _email-blocos.js).
+  cabecalho_padrao: '',
 };
 
 const MAX_NOME = 100;
@@ -44,6 +48,12 @@ export function validarConfig(campos) {
   const valores = {};
   for (const [chave, bruto] of Object.entries(campos)) {
     if (!(chave in PADROES)) return { erro: `Campo desconhecido: ${chave}.` };
+    if (chave === 'cabecalho_padrao') {
+      const r = validarCabecalho(bruto);
+      if (r.erro) return r;
+      valores[chave] = r.valor;
+      continue;
+    }
     const v = bruto === null || bruto === undefined ? '' : String(bruto);
     const canal = /transacional/.test(chave) ? 'transacional' : 'marketing';
     if (chave.endsWith('_nome')) {
@@ -81,6 +91,22 @@ export async function salvarConfig(env, valores, agora = Math.floor(Date.now() /
        ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor, atualizado_em = excluded.atualizado_em`,
     ).bind(chave, valor, agora).run();
   }
+}
+
+/** Cabeçalho padrão: { fundo, blocos } limpo; vazio não vale (use "Sem cabeçalho" no modelo). */
+function validarCabecalho(bruto) {
+  let d = bruto;
+  if (typeof d === 'string') { try { d = JSON.parse(d); } catch { return { erro: 'Cabeçalho padrão inválido.' }; } }
+  const blocos = (Array.isArray(d?.blocos) ? d.blocos : []).slice(0, 20).map(normalizarBloco).filter(Boolean).map((b) => ({ ...b, zona: 'cab' }));
+  if (!blocos.length) return { erro: 'O cabeçalho padrão está vazio. Adicione pelo menos um bloco, ou use "Sem cabeçalho" em cada modelo.' };
+  const fundo = /^#[0-9a-f]{6}$/i.test(String(d?.fundo || '')) ? String(d.fundo).toLowerCase() : '';
+  const doc = { blocos };
+  for (const { trecho, url } of linksDoDocumento(doc)) {
+    const soCampo = /^\{\{\s*[a-z_]+\s*\}\}$/i.test(url);
+    if (!url) return { erro: `${trecho}: o botão precisa de um link.` };
+    if (!soCampo && !/^https:\/\/[^\s]+\.[^\s]+/i.test(url) && !/^mailto:[^\s@]+@[^\s@]+$/i.test(url)) return { erro: `${trecho}: link sem https:// ("${url}").` };
+  }
+  return { valor: JSON.stringify({ fundo, blocos }) };
 }
 
 /** Remetente no formato do cabeçalho From: "Nome" <endereço>. */

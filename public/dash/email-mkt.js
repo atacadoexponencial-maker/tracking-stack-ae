@@ -1155,7 +1155,7 @@
   // ficam lá. Aqui só a tela.
   let filtroModelo = 'todos';
   let modeloAberto = null;
-  let protoCab = false; // 390: protótipo do cabeçalho padrão (Configuração)
+  let editandoCab = false; // 397: editor do cabeçalho padrão aberto na Configuração
   let modelosEstado = null; // { modelos, campos }
   let paraTeste = '';
 
@@ -1320,7 +1320,7 @@
     const k = m.canal === 'marketing' ? 'marketing' : 'transacional';
     const fechar = () => { modeloAberto = null; listaModelos(el); };
     window.EmailBlocos.editor(el, {
-      ctx, util: api.util, modelo: m, campos: modelosEstado.campos[m.canal] || [],
+      ctx, util: api.util, modelo: m, campos: modelosEstado.campos[m.canal] || [], cabPadrao: lerCabecalho(cfg.cabecalho_padrao),
       remetente: { nome: cfg[`remetente_${k}_nome`] || 'Atacado Exponencial', email: cfg[`remetente_${k}_email`] || '' },
       voltar: fechar,
       salvar: async (rasc) => {
@@ -1362,9 +1362,7 @@
   let cfgEstado = null;
 
   async function configuracao(el) {
-    if (protoCab && window.EmailBlocos) {
-      return window.EmailBlocos.prototipo(el, { ctx, util: api.util, modo: 'cabecalho', voltar: () => { protoCab = false; configuracao(el); } });
-    }
+    if (editandoCab && window.EmailBlocos) return abrirCabecalhoPadrao(el);
     el.innerHTML = carregando('Carregando a configuração');
     try {
       cfgEstado = await ctx.fetchJson('/api/email/config?_=' + Date.now());
@@ -1373,6 +1371,24 @@
       return;
     }
     desenharConfig(el);
+  }
+
+  // 397 · Cabeçalho padrão (editor por blocos só com a faixa do topo).
+  function lerCabecalho(bruto) {
+    if (!bruto) return null;
+    try { const d = JSON.parse(bruto); return Array.isArray(d.blocos) ? d : null; } catch (e) { return null; }
+  }
+  async function abrirCabecalhoPadrao(el) {
+    el.innerHTML = carregando('Abrindo o cabeçalho padrão');
+    let S;
+    try { S = await ctx.fetchJson('/api/email/config?_=' + Date.now()); } catch (e) { editandoCab = false; el.innerHTML = `<div class="aviso falha">Não foi possível abrir (${esc(e.message)}).</div>`; return; }
+    const voltar = () => { editandoCab = false; configuracao(el); };
+    window.EmailBlocos.editorCabecalho(el, {
+      ctx, util: api.util, cabecalho: lerCabecalho(S.config.cabecalho_padrao), usam: S.usam_cabecalho_padrao || [],
+      remetente: { nome: S.config.remetente_marketing_nome, email: S.config.remetente_marketing_email },
+      voltar,
+      salvar: async (cab) => { await ctx.postJson('/api/email/config', { acao: 'salvar', campos: { cabecalho_padrao: cab } }); },
+    });
   }
 
   // Os outros protótipos passam a mostrar os remetentes de verdade.
@@ -1439,7 +1455,6 @@
       </tr>`;
     };
     el.innerHTML = `
-      <div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span><span>Cabeçalho padrão montado com blocos (logo, texto, links, botão).</span><button class="btn sec" type="button" data-proto-cab>Ver o cabeçalho padrão novo</button></div>
       <div class="faixa-estado ${geral}">
         <span class="selo-estado">${geral === 'incidente' ? 'Com problema' : geral === 'atencao' ? (contaOk && mktLiberado && !semResultados && !domRuins.length ? `Funcionando, com ${pendencias.length} ${pendencias.length === 1 ? 'pendência' : 'pendências'}` : 'Pendente') : 'Tudo certo'}</span>
         <div><p>${frase}</p>${geral === 'atencao' && contaOk && mktLiberado && !semResultados && !domRuins.length && pendencias.length
@@ -1495,10 +1510,15 @@
       </div>
       <div class="em-erro" aria-live="polite"></div>
       <div class="ag-acoes"><button class="btn" type="submit" disabled>Salvar alterações</button><span class="mini" data-cfg-nota>Nada mudou.</span></div>
-      </form>`;
+      </form>
+      <div class="bloco"><h2>Cabeçalho padrão <small>a faixa do topo dos modelos que usam o padrão</small></h2>
+        <p>${C.cabecalho_padrao ? 'Montado com blocos.' : 'Hoje: a logo do Atacado Exponencial, à esquerda.'} Usado por <b>${int((S.usam_cabecalho_padrao || []).length)} ${(S.usam_cabecalho_padrao || []).length === 1 ? 'modelo' : 'modelos'}</b>${(S.usam_cabecalho_padrao || []).length ? `: ${(S.usam_cabecalho_padrao || []).map(esc).join(', ')}` : ''}.</p>
+        <p class="mini">Cada modelo pode usar este cabeçalho, ter um próprio ou sair sem cabeçalho.</p>
+        <div class="ag-acoes"><button class="btn sec" type="button" data-editar-cab>Editar cabeçalho padrão</button></div>
+      </div>`;
 
     // Remetentes e rodapé: um "Salvar alterações", ativo só quando algo mudou.
-    el.querySelector('[data-proto-cab]').onclick = () => { protoCab = true; configuracao(el); window.scrollTo(0, 0); };
+    el.querySelector('[data-editar-cab]').onclick = () => { editandoCab = true; configuracao(el); window.scrollTo(0, 0); };
     const fc = el.querySelector('form[data-config]');
     const CAMPOS_CFG = ['remetente_transacional_nome', 'remetente_transacional_email', 'resposta_transacional',
       'remetente_marketing_nome', 'remetente_marketing_email', 'resposta_marketing', 'rodape'];
