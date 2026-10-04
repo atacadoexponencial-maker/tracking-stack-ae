@@ -224,8 +224,25 @@ async function linhaDoFluxo(env, id) {
 
 /** Fluxo com os problemas de agora. */
 export async function lerFluxo(env, id) {
-  const f = daLinha(await linhaDoFluxo(env, id));
-  return { ...f, problemas: await problemas(env, f.grafo, f.id) };
+  const l = await linhaDoFluxo(env, id);
+  const f = daLinha(l);
+  return { ...f, problemas: await problemas(env, f.grafo, f.id), ...(await versoes(env, l)) };
+}
+
+/**
+ * Rascunho x versão no ar (387): `mudancas` quando são diferentes e
+ * `saem_ao_publicar` = quantos estão em cartões que não existem no rascunho.
+ */
+async function versoes(env, l) {
+  if (!l.publicado_json || l.situacao === 'rascunho') return { mudancas: false, saem_ao_publicar: 0 };
+  const mudancas = l.rascunho_json !== l.publicado_json;
+  if (!mudancas) return { mudancas, saem_ao_publicar: 0 };
+  const ids = JSON.parse(l.rascunho_json).nos.map((n) => n.id);
+  const r = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM email_fluxo_pessoas WHERE fluxo_id = ? AND situacao IN ('andando', 'esperando')
+       AND no_atual NOT IN (${ids.map(() => '?').join(',')})`,
+  ).bind(l.id, ...ids).first().catch(() => null);
+  return { mudancas, saem_ao_publicar: r?.n || 0 };
 }
 
 export async function listarFluxos(env, { arquivados = false } = {}) {
@@ -257,7 +274,8 @@ export async function salvarFluxo(env, id, { nome, grafo, versao }) {
   const r = await env.DB.prepare('UPDATE email_fluxos SET nome = ?, rascunho_json = ?, versao = versao + 1, atualizado_em = ? WHERE id = ? AND versao = ?')
     .bind(n, JSON.stringify(g), t, atual.id, Number(versao)).run();
   if (r.meta.changes !== 1) throw new ErroFluxo('Este fluxo foi mudado em outra aba. Recarregue para continuar.', 409);
-  return { versao: atual.versao + 1, atualizado_em: t, problemas: await problemas(env, g, atual.id) };
+  const depois = { ...atual, rascunho_json: JSON.stringify(g), versao: atual.versao + 1 };
+  return { versao: atual.versao + 1, atualizado_em: t, problemas: await problemas(env, g, atual.id), ...(await versoes(env, depois)) };
 }
 
 export async function duplicarFluxo(env, id) {
@@ -364,17 +382,109 @@ export async function opcoes(env, t = agora()) {
  * quem disparou o gatilho antes não entra (o motor compara com ela).
  * Publicar mudanças num fluxo já ativo é da 387.
  */
-export async function publicarFluxo(env, id, t = agora()) {
+export async function publicarFluxo(env, id, { versao } = {}, t = agora()) {
   const f = await linhaDoFluxo(env, id);
   if (f.arquivado) throw new ErroFluxo('Tire o fluxo do arquivo antes de publicar.', 409);
-  if (f.situacao !== 'rascunho') throw new ErroFluxo('Este fluxo já está publicado.', 409);
+  if (versao !== undefined && versao !== null && Number(versao) !== f.versao) throw new ErroFluxo('Este fluxo foi mudado em outra aba. Recarregue para continuar.', 409);
   const grafo = JSON.parse(f.rascunho_json);
   const probs = await problemas(env, grafo, f.id);
   if (probs.length) throw new ErroFluxo(`Não dá para publicar: ${probs.length} ${probs.length > 1 ? 'problemas marcados' : 'problema marcado'} no quadro.`, 409);
+  if (f.situacao !== 'rascunho') return publicarMudancas(env, f, grafo, t);
   const r = await env.DB.prepare("UPDATE email_fluxos SET situacao = 'ativo', publicado_json = rascunho_json, publicado_em = ?, atualizado_em = ? WHERE id = ? AND situacao = 'rascunho'")
     .bind(t, t, f.id).run();
   if (r.meta.changes !== 1) throw new ErroFluxo('Este fluxo já está publicado.', 409);
   return lerFluxo(env, f.id);
+}
+
+/**
+ * Publicar mudanças num fluxo ativo ou pausado (387): a versão no ar passa a
+ * ser o rascunho. Quem está num cartão que continua existindo segue dali;
+ * quem está num cartão excluído sai, com o registro.
+ */
+async function publicarMudancas(env, f, grafo, t) {
+  if (f.rascunho_json === f.publicado_json) throw new ErroFluxo('Não há mudanças para publicar.', 409);
+  const r = await env.DB.prepare('UPDATE email_fluxos SET publicado_json = rascunho_json, atualizado_em = ? WHERE id = ? AND versao = ?')
+    .bind(t, f.id, f.versao).run();
+  if (r.meta.changes !== 1) throw new ErroFluxo('Este fluxo foi mudado em outra aba. Recarregue para continuar.', 409);
+  const ids = grafo.nos.map((n) => n.id);
+  const fora = (await env.DB.prepare(
+    `SELECT id, no_atual FROM email_fluxo_pessoas WHERE fluxo_id = ? AND situacao IN ('andando', 'esperando')
+       AND no_atual NOT IN (${ids.map(() => '?').join(',')})`,
+  ).bind(f.id, ...ids).all()).results || [];
+  const motivo = 'O cartão em que estava foi excluído ao publicar mudanças.';
+  for (const p of fora) {
+    await env.DB.prepare("UPDATE email_fluxo_pessoas SET situacao = 'saiu', motivo_saida = ?, espera_ate = NULL, espera_json = NULL, atualizado_em = ? WHERE id = ?")
+      .bind(motivo, t, p.id).run();
+    await env.DB.prepare("INSERT INTO email_fluxo_passos (pessoa_id, fluxo_id, no_id, tipo, detalhe, em) VALUES (?, ?, ?, 'saiu', ?, ?)")
+      .bind(p.id, f.id, p.no_atual, motivo, t).run();
+  }
+  return { ...(await lerFluxo(env, f.id)), sairam: fora.length };
+}
+
+/** Descartar mudanças (387): o rascunho volta a ser a versão no ar. */
+export async function descartarMudancas(env, id, { versao } = {}, t = agora()) {
+  const f = await linhaDoFluxo(env, id);
+  if (f.situacao === 'rascunho' || !f.publicado_json) throw new ErroFluxo('Este fluxo ainda não foi publicado: não há versão no ar para voltar.', 409);
+  const r = await env.DB.prepare('UPDATE email_fluxos SET rascunho_json = publicado_json, versao = versao + 1, atualizado_em = ? WHERE id = ? AND versao = ?')
+    .bind(t, f.id, Number(versao ?? f.versao)).run();
+  if (r.meta.changes !== 1) throw new ErroFluxo('Este fluxo foi mudado em outra aba. Recarregue para continuar.', 409);
+  return lerFluxo(env, f.id);
+}
+
+// ---------------------------------------------------------------------------
+// Teste passo a passo (387): anda pelo RASCUNHO, um cartão por chamada.
+// Não coloca ninguém no fluxo. O envio do e-mail vem de fora (rota), que
+// usa o mesmo teste do modelo (origem 'teste').
+// ---------------------------------------------------------------------------
+
+const ESCOLHAS = {
+  desvio: [['sim', 'Seguir por sim'], ['nao', 'Seguir por não']],
+  espera: [['aconteceu', 'Aconteceu'], ['nao_aconteceu', 'Não aconteceu']],
+};
+
+/**
+ * Executa o cartão `no` (o início quando vazio). Devolve
+ * { no, tipo, texto, escolhas?, proximo, fim, repetir? }.
+ * `enviarEmail(modelo)` → { ok, assunto } | { ok: false, erro }.
+ */
+export async function passoDeTeste(env, id, { no, saida } = {}, { enviarEmail }) {
+  const f = await linhaDoFluxo(env, id);
+  const grafo = JSON.parse(f.rascunho_json);
+  const probs = await problemas(env, grafo, f.id);
+  if (probs.length) throw new ErroFluxo('Resolva os problemas marcados no quadro antes de testar.', 409);
+  const n = no ? grafo.nos.find((x) => x.id === no) : grafo.nos.find((x) => x.tipo === 'inicio');
+  if (!n) throw new ErroFluxo('Cartão não encontrado no rascunho.', 404);
+  const seguir = (s) => {
+    const prox = (grafo.arestas.find((a) => a.de === n.id && a.saida === s) || {}).para || null;
+    return { proximo: prox, fim: !prox };
+  };
+  const base = { no: n.id, tipo: n.tipo };
+  const d = n.dados;
+  switch (n.tipo) {
+    case 'inicio': return { ...base, texto: 'Entrou, como se tivesse disparado o gatilho.', ...seguir('proximo') };
+    case 'email': {
+      const modelo = await env.DB.prepare('SELECT * FROM email_modelos WHERE id = ?').bind(Number(d.modelo)).first();
+      const r = await enviarEmail(modelo);
+      if (!r.ok) return { ...base, texto: r.erro, repetir: true, proximo: n.id, fim: false };
+      return { ...base, texto: `E-mail enviado: "${r.assunto}".`, ...seguir('proximo') };
+    }
+    case 'espera':
+      if (d.modo !== 'evento') return { ...base, texto: 'Espera pulada (no teste não se espera).', ...seguir('proximo') };
+      if (!saida) return { ...base, texto: 'Espera até algo acontecer: escolha o que aconteceu.', escolhas: ESCOLHAS.espera, proximo: null, fim: false };
+      if (!ESCOLHAS.espera.some(([k]) => k === saida)) throw new ErroFluxo('Escolha uma saída da espera.');
+      return { ...base, texto: saida === 'aconteceu' ? 'Aconteceu (escolhido no teste).' : 'Não aconteceu no prazo (escolhido no teste).', ...seguir(saida) };
+    case 'desvio':
+      if (!saida) return { ...base, texto: 'Desvio: escolha o caminho.', escolhas: ESCOLHAS.desvio, proximo: null, fim: false };
+      if (!ESCOLHAS.desvio.some(([k]) => k === saida)) throw new ErroFluxo('Escolha sim ou não.');
+      return { ...base, texto: `Seguiu por "${saida === 'sim' ? 'sim' : 'não'}" (escolhido no teste).`, ...seguir(saida) };
+    case 'objetivo': return { ...base, texto: 'Chegou ao objetivo.', ...seguir('proximo') };
+    case 'ir_fluxo': {
+      const destino = await env.DB.prepare('SELECT nome FROM email_fluxos WHERE id = ?').bind(Number(d.fluxo)).first();
+      return { ...base, texto: `Iria para o fluxo "${destino ? destino.nome : '?'}". O teste para aqui.`, proximo: null, fim: true };
+    }
+    case 'fim': return { ...base, texto: 'Concluiu o fluxo.', proximo: null, fim: true };
+    default: return { ...base, texto: 'Cartão sem execução no teste.', ...seguir('proximo') };
+  }
 }
 
 /** Ninguém novo entra e quem está dentro para onde está. */

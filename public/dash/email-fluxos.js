@@ -10,8 +10,8 @@
 //
 // O rascunho é salvo sozinho a cada mudança (com versão, para duas abas não se
 // atropelarem) e os problemas que impedem publicar vêm do servidor. Publicar,
-// pausar e retomar (386) também; testar e editar ativo (387) e os números nos
-// cartões (388) chegam depois.
+// pausar e retomar (386), descartar e publicar mudanças e o teste passo a passo
+// (387) também. Os números nos cartões (388) chegam depois.
 (() => {
   'use strict';
 
@@ -200,7 +200,7 @@
     OPC = d.opcoes;
     MODELOS = m.modelos;
     const f = d.fluxo;
-    F = { id: f.id, nome: f.nome, situacao: f.situacao, versao: f.versao, nos: f.grafo.nos, arestas: f.grafo.arestas, notas: f.grafo.notas, problemas: f.problemas, salvoEm: quandoCurto(f.atualizado_em).slice(-5) };
+    F = { id: f.id, nome: f.nome, situacao: f.situacao, versao: f.versao, nos: f.grafo.nos, arestas: f.grafo.arestas, notas: f.grafo.notas, problemas: f.problemas, salvoEm: quandoCurto(f.atualizado_em).slice(-5), mudancas: f.mudancas, saem: f.saem_ao_publicar };
     sel = null; selAresta = null; desfazer = []; refazer = []; marcados = new Set();
     salvar = { timer: null, rodando: false, pendente: false, erro: null };
     quadro();
@@ -226,6 +226,8 @@
       const r = await postFluxos({ acao: 'salvar', id: fluxo.id, nome: fluxo.nome, versao: fluxo.versao, grafo: { nos: fluxo.nos, arestas: fluxo.arestas, notas: fluxo.notas } });
       fluxo.versao = r.versao;
       fluxo.problemas = r.problemas;
+      fluxo.mudancas = r.mudancas;
+      fluxo.saem = r.saem_ao_publicar;
       fluxo.salvoEm = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       salvar.erro = null;
     } catch (e) {
@@ -396,11 +398,13 @@
       : salvar.rodando || salvar.timer ? 'Salvando…'
       : `Rascunho salvo às ${esc(F.salvoEm)}. Ninguém entra até publicar.`;
     const s = F.situacao;
-    const notaSit = s === 'ativo' ? 'No ar. Quem dispara o gatilho entra; quem já esteve não entra de novo. Mudanças feitas aqui ficam no rascunho, sem afetar quem está dentro.'
+    if (s !== 'rascunho' && F.mudancas) estado += ' <span class="carimbo alerta">Mudanças não publicadas</span>';
+    const notaSit = s !== 'rascunho' && F.mudancas ? `Rascunho salvo às ${esc(F.salvoEm)}. O fluxo no ar segue a versão anterior até você publicar.`
+      : s === 'ativo' ? 'No ar. Quem dispara o gatilho entra; quem já esteve não entra de novo.'
       : s === 'pausado' ? 'Pausado. Ninguém novo entra e quem está dentro parou onde estava.' : nota;
-    const botoes = s === 'rascunho' ? '<button class="btn" type="button" data-s="publicar">Publicar</button>'
-      : s === 'ativo' ? '<button class="btn sec" type="button" data-s="pausar">Pausar</button>'
-      : '<button class="btn" type="button" data-s="retomar">Retomar</button>';
+    const testar = '<button class="btn sec" type="button" data-s="testar">Testar</button>';
+    const botoes = s === 'rascunho' ? `${testar}<button class="btn" type="button" data-s="publicar">Publicar</button>`
+      : `${testar}${F.mudancas ? '<button class="btn perigo" type="button" data-s="descartar">Descartar mudanças</button><button class="btn" type="button" data-s="publicar">Publicar mudanças</button>' : ''}${s === 'ativo' ? '<button class="btn sec" type="button" data-s="pausar">Pausar</button>' : '<button class="btn" type="button" data-s="retomar">Retomar</button>'}`;
     alvo.innerHTML = `<div class="fx-estado">${estado}<span class="mini">${s === 'rascunho' ? nota : `${notaSit}${salvar.erro ? ` ${nota}` : ''}`}</span></div><div class="ag-acoes">${botoes}</div>`;
     alvo.querySelectorAll('[data-s]').forEach((b) => { b.onclick = () => acaoSituacao(b.dataset.s, b); });
     const caixa = $q('#fx-problemas');
@@ -410,28 +414,73 @@
 
   // Publicar (só rascunho sem problemas), pausar e retomar: o servidor decide.
   function acaoSituacao(acao, b) {
+    if (acao === 'testar') return testarFluxo();
+    const mudancas = F.situacao !== 'rascunho';
     const PERGUNTA = {
-      publicar: 'Publicar? Quem disparar o gatilho a partir de agora entra; quem disparou antes fica de fora.',
+      publicar: mudancas
+        ? `Publicar mudanças? Quem está dentro continua do cartão em que está. ${F.saem ? `${F.saem} ${F.saem > 1 ? 'pessoas estão em cartões excluídos e vão sair' : 'pessoa está num cartão excluído e vai sair'} do fluxo.` : 'Ninguém sai.'}`
+        : 'Publicar? Quem disparar o gatilho a partir de agora entra; quem disparou antes fica de fora.',
+      descartar: 'Descartar tudo que não foi publicado? O quadro volta para a versão no ar.',
       pausar: 'Pausar? Ninguém novo entra e quem está dentro para onde está.',
       retomar: 'Retomar? Cada pessoa segue de onde parou, sem receber de uma vez o que acumulou.',
     };
-    const AVISO = { publicar: 'Fluxo publicado.', pausar: 'Fluxo pausado.', retomar: 'Fluxo retomado.' };
+    const AVISO = { publicar: mudancas ? 'Mudanças publicadas.' : 'Fluxo publicado.', descartar: 'Mudanças descartadas. O quadro voltou para a versão no ar.', pausar: 'Fluxo pausado.', retomar: 'Fluxo retomado.' };
     ctx.pedirConfirmacao(b, PERGUNTA[acao], async () => {
       try {
         clearTimeout(salvar.timer);
         if (salvar.rodando || salvar.pendente || salvar.erro || salvar.timer) await salvarAgora();
-        const r = await postFluxos({ acao, id: F.id });
-        F.situacao = r.fluxo.situacao;
-        F.problemas = r.fluxo.problemas;
+        const r = await postFluxos({ acao, id: F.id, versao: F.versao });
+        Object.assign(F, { situacao: r.fluxo.situacao, problemas: r.fluxo.problemas, versao: r.fluxo.versao, mudancas: r.fluxo.mudancas, saem: r.fluxo.saem_ao_publicar });
+        if (acao === 'descartar') {
+          Object.assign(F, { nos: r.fluxo.grafo.nos, arestas: r.fluxo.grafo.arestas, notas: r.fluxo.grafo.notas });
+          desfazer = []; refazer = []; fecharPainel(); desenharTudo();
+        }
         desenharSituacao();
-        U().avisar(AVISO[acao]);
+        U().avisar(acao === 'publicar' && r.fluxo.sairam ? `${AVISO.publicar} ${r.fluxo.sairam} ${r.fluxo.sairam > 1 ? 'pessoas saíram' : 'pessoa saiu'} por estar em cartão excluído.` : AVISO[acao]);
       } catch (e) {
         U().avisar(U().msgErro(e), 'erro');
         const p = problemas();
         if (acao === 'publicar' && p.length) { focarNo(p[0].no); selecionar(p[0].no); }
         return false;
       }
-    }, [{ valor: true, rotulo: { publicar: 'Publicar', pausar: 'Pausar', retomar: 'Retomar' }[acao] }]);
+    }, [{ valor: true, rotulo: { publicar: mudancas ? 'Publicar mudanças' : 'Publicar', descartar: 'Descartar', pausar: 'Pausar', retomar: 'Retomar' }[acao] }]);
+  }
+
+  // --- Teste passo a passo (387): o servidor anda um cartão do rascunho por vez ---
+  let paraTesteFluxo = '';
+  async function testarFluxo() {
+    clearTimeout(salvar.timer);
+    if (salvar.rodando || salvar.pendente || salvar.erro || salvar.timer) await salvarAgora();
+    if (problemas().length) return U().avisar('Resolva os problemas marcados no quadro antes de testar.', 'erro');
+    const g = U().gaveta({
+      titulo: 'Testar o fluxo', sub: 'a pessoa de teste percorre o rascunho pulando as esperas; ninguém entra no fluxo',
+      corpo: `<form class="ag-form" data-teste-form novalidate><label class="ag-campo"><span class="ag-campo__rotulo">Mandar os e-mails para</span>
+          <input type="email" name="para" value="${esc(paraTesteFluxo)}" placeholder="e-mail da equipe" autocomplete="email"></label></form>
+        <ol class="ag-hist em-hist fx-teste" id="fx-teste"></ol><div class="ag-acoes" id="fx-teste-acao"><button class="btn" type="button" data-comecar>Começar o teste</button></div>`,
+    });
+    const lista = g.querySelector('#fx-teste'), acao = g.querySelector('#fx-teste-acao'), f = g.querySelector('[data-teste-form]');
+    const linha = (html) => { lista.insertAdjacentHTML('beforeend', `<li>${html}</li>`); };
+    const passo = async (no, saida) => {
+      acao.innerHTML = '<span class="mini">Andando…</span>';
+      let r;
+      try { r = await postFluxos({ acao: 'testar', id: F.id, para: f.para.value, no, saida }); }
+      catch (e) { acao.innerHTML = ''; linha(`<span class="queda">${esc(U().msgErro(e))}</span>`); return; }
+      const n = no ? F.nos.find((x) => x.id === r.no) : null;
+      linha(`<b>${esc(n ? rotuloNo(n) : TIPOS[r.tipo].rotulo)}</b> <span class="mini">${esc(r.texto)}</span>`);
+      if (r.escolhas) {
+        acao.innerHTML = r.escolhas.map(([k, rot]) => `<button class="btn sec" type="button" data-escolha="${k}">${esc(rot)}</button>`).join('');
+        acao.querySelectorAll('[data-escolha]').forEach((b) => { b.onclick = () => passo(r.no, b.dataset.escolha); });
+        return;
+      }
+      if (r.repetir) { acao.innerHTML = '<button class="btn sec" type="button" data-de-novo>Tentar este cartão de novo</button>'; acao.querySelector('[data-de-novo]').onclick = () => passo(r.no); return; }
+      if (r.fim || !r.proximo) { acao.innerHTML = '<span class="mini">Fim do teste. Os e-mails aparecem em Configuração › Últimos testes.</span>'; return; }
+      passo(r.proximo);
+    };
+    g.querySelector('[data-comecar]').onclick = () => {
+      paraTesteFluxo = f.para.value.trim();
+      lista.innerHTML = '';
+      passo(undefined);
+    };
   }
 
   function rotuloNo(n) {

@@ -86,10 +86,10 @@ A usuária edita um fluxo ativo, confere que ninguém recebeu nada novo, descart
 
 ## Checklist
 
-- [ ] Aviso de mudanças e contagem de quem sai, vindos do servidor
-- [ ] Descartar mudanças
-- [ ] Publicar mudanças num fluxo ativo ou pausado, com a saída registrada de quem estava em cartão excluído
-- [ ] Teste passo a passo pelo rascunho (e-mail na hora, espera pulada, escolha nos desvios)
-- [ ] Barra e gaveta do teste no quadro
-- [ ] Testes `email-fluxos-versoes` passando (`npm test`)
+- [x] Aviso de mudanças e contagem de quem sai, vindos do servidor
+- [x] Descartar mudanças
+- [x] Publicar mudanças num fluxo ativo ou pausado, com a saída registrada de quem estava em cartão excluído
+- [x] Teste passo a passo pelo rascunho (e-mail na hora, espera pulada, escolha nos desvios)
+- [x] Barra e gaveta do teste no quadro
+- [x] Testes `email-fluxos-versoes` passando (`npm test`)
 - [ ] Usuária edita um fluxo ativo, confere que ninguém recebeu nada novo, descarta, edita de novo e publica; roda o teste e recebe na hora todos os e-mails do caminho escolhido

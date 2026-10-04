@@ -3,16 +3,22 @@
 // POST /api/email/fluxos?key=...  → { acao: 'criar', nome? }
 //                                   { acao: 'salvar', id, nome, grafo, versao }   (rascunho; conflito entre abas → 409)
 //                                   { acao: 'duplicar' | 'arquivar' | 'desarquivar', id }
-//                                   { acao: 'publicar' | 'pausar' | 'retomar', id }   (386)
+//                                   { acao: 'publicar' | 'pausar' | 'retomar', id, versao? }   (386; publicar mudanças: 387)
+//                                   { acao: 'descartar', id, versao }   (387)
+//                                   { acao: 'testar', id, para, no?, saida? }   → um cartão do rascunho por vez (387)
 //                                   { acao: 'estimar', gatilho }   → quantos contatos teriam entrado nos últimos 30 dias (386)
 //
 // Spec spec-email-proprio.md, módulo 9 (issues 385 e 386). Regras em ../_email-fluxos.js;
 // a rodada que faz os fluxos andarem é /api/sync/email-fluxos.
 import {
   ErroFluxo, listarFluxos, lerFluxo, criarFluxo, salvarFluxo, duplicarFluxo, arquivarFluxo, opcoes,
-  publicarFluxo, pausarFluxo, retomarFluxo,
+  publicarFluxo, pausarFluxo, retomarFluxo, descartarMudancas, passoDeTeste,
 } from '../_email-fluxos.js';
 import { contarUltimos30 } from '../_email-acontecimentos.js';
+import { enviarTeste } from './config.js';
+import { lerConfig, emailValido } from '../_email-config.js';
+import { montarEmail } from '../_email-render.js';
+import { exemplos } from '../_email-campos.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') === env.DASH_KEY;
@@ -34,6 +40,22 @@ export async function onRequestGet({ request, env }) {
   return responder(() => listarFluxos(env, { arquivados: url.searchParams.get('arquivados') === '1' }));
 }
 
+// Teste passo a passo (387): o e-mail sai pelo mesmo teste do modelo (origem 'teste').
+async function testar(env, request, corpo) {
+  const para = String(corpo.para || '').trim().toLowerCase();
+  if (!emailValido(para)) throw new ErroFluxo('Digite um e-mail válido para receber o teste.');
+  const site = new URL(request.url).origin;
+  return passoDeTeste(env, corpo.id, corpo, {
+    enviarEmail: async (modelo) => {
+      const cfg = await lerConfig(env);
+      const e = montarEmail(modelo, cfg, { valores: exemplos('marketing'), site });
+      const r = await enviarTeste(env, { canal: 'marketing', para, assunto: e.assunto, html: e.html, texto: e.texto, tag: 'teste-fluxo', refId: `fluxo:${corpo.id}` });
+      const d = await r.json();
+      return r.ok ? { ok: true, assunto: e.assunto } : { ok: false, erro: d.error };
+    },
+  });
+}
+
 export async function onRequestPost({ request, env }) {
   if (!autorizado(new URL(request.url), env)) return json({ error: 'Unauthorized' }, 401);
   const corpo = await request.json().catch(() => ({}));
@@ -43,7 +65,9 @@ export async function onRequestPost({ request, env }) {
     case 'duplicar': return responder(async () => ({ ok: true, fluxo: await duplicarFluxo(env, corpo.id) }));
     case 'arquivar': return responder(async () => ({ ok: true, fluxo: await arquivarFluxo(env, corpo.id, true) }));
     case 'desarquivar': return responder(async () => ({ ok: true, fluxo: await arquivarFluxo(env, corpo.id, false) }));
-    case 'publicar': return responder(async () => ({ ok: true, fluxo: await publicarFluxo(env, corpo.id) }));
+    case 'publicar': return responder(async () => ({ ok: true, fluxo: await publicarFluxo(env, corpo.id, corpo) }));
+    case 'descartar': return responder(async () => ({ ok: true, fluxo: await descartarMudancas(env, corpo.id, corpo) }));
+    case 'testar': return responder(() => testar(env, request, corpo));
     case 'pausar': return responder(async () => ({ ok: true, fluxo: await pausarFluxo(env, corpo.id) }));
     case 'retomar': return responder(async () => ({ ok: true, fluxo: await retomarFluxo(env, corpo.id) }));
     case 'estimar': return responder(async () => ({ pessoas: await contarUltimos30(env, corpo.gatilho || {}) }));
