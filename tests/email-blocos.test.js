@@ -107,3 +107,30 @@ test('conversão dos modelos guardados: uma vez só, sem mexer em atualizado_em'
   const { texto } = montarEmail({ canal: 'transacional', assunto: 'a', previa: '', corpo: a.corpo }, { rodape: '' }, { valores: exemplos('transacional') });
   assert.equal(texto, 'Oi.\n\nEntrar: https://meet.google.com/abc-defg-hij\n');
 });
+
+test('imagem com texto (395): duas colunas que empilham no celular, GIF aceito, texto alternativo no texto puro', () => {
+  const d = doc([{ tipo: 'imgtexto', img: { chave: CHAVE, ext: 'gif', w: 600, h: 200 }, alt: 'Contagem', html: '<p>Faltam <b>3 dias</b></p>', lado: 'direita' }]);
+  const { html, texto } = montarEmail(modelo(JSON.stringify(d)), cfg, { valores: {}, site: 'https://s.com' });
+  assert.equal((html.match(/class="eb-col"/g) || []).length, 2);
+  assert.match(html, /@media only screen and \(max-width:480px\)\{\.eb-col\{display:block!important/);
+  assert.match(html, new RegExp(`src="https://s.com/email/i/${CHAVE}.gif"`));
+  assert.ok(html.indexOf('Faltam') < html.indexOf(`${CHAVE}.gif`), 'lado direito: texto antes da imagem');
+  assert.match(texto, /\[Contagem\]\nFaltam 3 dias/);
+});
+
+test('cores (396): as escolhidas saem no e-mail; código inválido volta ao padrão', () => {
+  const d = doc([
+    { tipo: 'titulo', texto: 'T', cor: '#AA0000' },
+    { tipo: 'texto', html: '<p><a href="https://a.com">x</a></p>', cor: '#333333', corLink: '#0066cc' },
+    { tipo: 'botao', texto: 'B', link: 'https://a.com', estilo: 'contorno', fundo: '#123456' },
+    { tipo: 'divisoria', cor: 'azul' },
+  ], { fundo: { fora: '#000000', conteudo: '#fafafa' } });
+  const { html } = montarEmail(modelo(JSON.stringify(d)), cfg, { valores: {} });
+  assert.match(html, /color:#aa0000/);
+  assert.match(html, /color:#333333/);
+  assert.match(html, /color:#0066cc;text-decoration:underline/);
+  assert.match(html, /border:2px solid #123456/);
+  assert.match(html, /border-top:1px solid #e5e2da/, 'cor inválida da divisória volta ao padrão');
+  assert.match(html, /<body style="margin:0;padding:0;background:#000000">/);
+  assert.match(html, /background:#fafafa;border:1px solid/);
+});

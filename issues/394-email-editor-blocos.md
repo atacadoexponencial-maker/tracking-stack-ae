@@ -41,8 +41,15 @@ Ela abre um modelo, monta e reordena blocos, vê a prévia mudar na hora, salva,
 
 ## Checklist
 
-- [ ] Prévia do servidor marcada para o editor
-- [ ] Teste com rascunho e usos na lista
-- [ ] Editor real ligado em Modelos
-- [ ] Conversão única rodada no remoto e conferida
-- [ ] Testes passando e conferido no navegador
+- [x] Prévia do servidor marcada para o editor
+- [x] Teste com rascunho e usos na lista
+- [x] Editor real ligado em Modelos
+- [x] Conversão única rodada no remoto e conferida
+- [x] Testes passando e conferido no navegador
+
+## Execução (04/10/2026)
+
+- Modelos abre o editor por blocos (`EmailBlocos.editor`); o editor de texto antigo e o botão do protótipo saíram.
+- Prévia do servidor com `editor: true` (linhas marcadas, blocos vazios como lugar marcado); seleção marcada na prévia sem novo pedido.
+- Conversão única rodada no remoto: 6 modelos (5 da agenda e "Modelo de Teste Mkt"); a segunda rodada não converteu nada. Conferido: texto puro e links de cada e-mail iguais antes e depois. Cópia dos corpos antigos guardada no scratchpad da sessão.
+- Conferido na prévia com gravações bloqueadas: abrir, editar (prévia atualiza), clicar na logo da prévia abre o cabeçalho, imagem da biblioteca num bloco.
