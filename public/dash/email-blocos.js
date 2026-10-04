@@ -553,7 +553,8 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
 
   // --- pilha de blocos ---
   function resumo(b) {
-    const t = (html) => limpar(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    // Texto do bloco para o resumo: sem tags e com as entidades (&nbsp; &amp;) lidas.
+    const t = (html) => { const d = document.createElement('div'); d.innerHTML = limpar(html).replace(/<[^>]+>/g, ' '); return d.textContent.replace(/\s+/g, ' ').trim(); };
     if (b.tipo === 'titulo') return b.texto || 'vazio';
     if (b.tipo === 'texto') return t(b.html) || 'vazio';
     if (b.tipo === 'imagem') return imgDoBloco(b) ? imgDoBloco(b).nome : 'sem imagem';
