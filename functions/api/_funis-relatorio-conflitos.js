@@ -45,6 +45,14 @@ export function reconhecerCampanha(campanhaNome, { override = null, funisAtivos 
     }
   }
 
+  // Funil arquivado continua dono das próprias campanhas (o histórico dele não
+  // vira "sem funil"), mas o ativo vence: um arquivado nunca tira campanha de
+  // funil ativo nem cria conflito com ele.
+  if (blocos.length > 1) {
+    const ativosQueCasam = blocos.filter((b) => !b.arquivado);
+    if (ativosQueCasam.length === 1) blocos = ativosQueCasam;
+  }
+
   let motivo = null;
   if (blocos.length > 1) motivo = 'casou com mais de um funil';
   else if (!blocos.length) motivo = funil ? `funil ${funil} não cadastrado no relatório` : 'nenhum funil reconhecido';
@@ -77,8 +85,14 @@ export function reconhecerGastos(gastos, { overrides = [], funisAtivos = [], fun
 
 // Campanhas com investimento que casam com mais de um funil ativo ou com
 // nenhum, com o valor em reais (duas casas), da maior para a menor.
+// Campanha que casa só com um funil ARQUIVADO também entra: o gasto dela não
+// some (vai para o bloco do arquivado), mas é dinheiro rodando num funil que
+// a gestora desativou.
 export function listarConflitosCampanhas(gastos, ctx = {}) {
   return reconhecerGastos(gastos, ctx)
+    .map((r) => (!r.motivo && r.blocos.length === 1 && r.blocos[0].arquivado
+      ? { ...r, motivo: `casou com o funil arquivado ${r.blocos[0].nome}; o gasto aparece no bloco dele, marcado como arquivado` }
+      : r))
     .filter((r) => r.motivo)
     .map((r) => ({ campanha: r.campanha, valor: r.spend_cents / 100, motivo: r.motivo }))
     .sort((a, b) => b.valor - a.valor || a.campanha.localeCompare(b.campanha));

@@ -137,6 +137,7 @@ a.btn { display: inline-block; text-decoration: none; }
 /* ---------- Bloco de conteúdo: só um fio superior forte, sem caixa ---------- */
 .bloco, .card { margin-bottom: 1.8rem; min-width: 0; }
 .bloco h2, .card h2 { font-size: 0.95rem; font-weight: 700; border-top: 2px solid var(--fio-forte); padding-top: 0.6rem; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.bloco--desativado .grid-etiquetas { opacity: 0.75; }
 .bloco h2 small, .card h2 small { font-weight: 400; color: var(--apagado); font-size: 0.76rem; }
 /* O primeiro bloco da aba encosta no fio forte do topo: sem segundo fio colado. */
 .secao > .bloco:first-child > h2 { border-top: 0; padding-top: 0; }
@@ -2851,7 +2852,9 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
     const txA = cA && cA.visitors ? cA.rate * 100 : null, txB = cB && cB.visitors ? cB.rate * 100 : null;
     const nome = r.funnel === 'sem-funil' ? 'Sem funil' : r.funnel;
     const semGasto = r.spend > 0 ? 'nenhum lead novo' : 'sem investimento';
-    return `<div class="bloco"><h2>${esc(nome)} <small>${r.spend > 0 ? money(r.spend) + ' investidos' : 'sem investimento no período'}</small></h2>
+    // Funil desativado (cadastro arquivado no relatório): só chega aqui quando teve gasto ou lead no período.
+    const desativado = r.desativado ? ' <span class="carimbo neutro">desativado</span>' : '';
+    return `<div class="bloco${r.desativado ? ' bloco--desativado' : ''}"><h2><span>${esc(nome)}${desativado}</span> <small>${r.spend > 0 ? money(r.spend) + ' investidos' : 'sem investimento no período'}</small></h2>
       <div class="grid-etiquetas">${[
         { rotulo: 'Leads', valor: fmtInt(r.leads), delta: d(r.leads, ant.leads) },
         { rotulo: 'Leads novos', valor: fmtInt(r.leads_novos), delta: d(r.leads_novos, ant.leads_novos) },

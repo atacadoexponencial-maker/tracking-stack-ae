@@ -106,3 +106,15 @@ export function trocaDePosicao(linhas, id, direcao) {
 export function confirmacaoArquivar(nome) {
   return `O bloco ${nome} sai do relatório. O investimento e os leads dele passam a aparecer em 'sem funil', inclusive se um dia passado for consultado de novo.`;
 }
+
+// Funis do tracking (`funil_tracking`) que só têm cadastro arquivado no
+// relatório: nenhum funil ativo os usa. A Visão geral marca como desativado.
+export function funisDesativados(linhas) {
+  const ativos = new Set();
+  const arquivados = new Set();
+  for (const l of linhas || []) {
+    if (!l.funil_tracking) continue;
+    (l.situacao === 'ativo' ? ativos : arquivados).add(l.funil_tracking);
+  }
+  return new Set([...arquivados].filter((f) => !ativos.has(f)));
+}

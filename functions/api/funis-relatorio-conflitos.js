@@ -37,9 +37,11 @@ export async function onRequestGet(context) {
       HAVING SUM(spend_cents) > 0
     `).bind(inicio, fim).all(),
     env.DB.prepare('SELECT campaign_id, funnel FROM campaign_funnel_map').all(),
+    // Arquivados entram para o reconhecimento ser o mesmo do relatório: a
+    // campanha deles aparece aqui com o motivo "funil arquivado".
     env.DB.prepare(`
-      SELECT id, nome, funil_tracking, trecho_campanha
-      FROM funis_relatorio WHERE situacao = 'ativo'
+      SELECT id, nome, funil_tracking, trecho_campanha, situacao
+      FROM funis_relatorio WHERE situacao IN ('ativo', 'arquivado')
     `).all(),
     listarFunisConhecidos(env.DB),
   ]);
@@ -49,7 +51,7 @@ export async function onRequestGet(context) {
     fim,
     conflitos: listarConflitosCampanhas(gastos.results || [], {
       overrides: overrides.results || [],
-      funisAtivos: ativos.results || [],
+      funisAtivos: (ativos.results || []).map((f) => ({ ...f, arquivado: f.situacao === 'arquivado' })),
       funisConhecidos,
     }),
   });

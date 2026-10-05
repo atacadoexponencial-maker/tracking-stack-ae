@@ -140,7 +140,11 @@ export function atribuirCards({ cards = [], funisAtivos = [], limites, taskIdsEx
     if (excluidos.has(id)) continue;
 
     const opcao = opcaoFunilDoCard(card);
-    const donos = opcao ? funis.filter((f) => f.idsOpcoes.has(opcao.id)) : [];
+    // Funil arquivado continua dono dos leads da opção dele, para o histórico não
+    // virar "sem funil"; se um funil ativo usa a mesma opção, o ativo vence.
+    const todosDonos = opcao ? funis.filter((f) => f.idsOpcoes.has(opcao.id)) : [];
+    const donosAtivos = todosDonos.filter((f) => !f.arquivado);
+    const donos = donosAtivos.length ? donosAtivos : todosDonos;
     // Comprador (venda na Greenn) nunca é lead; opção de funil Manual é contada
     // pela equipe — nenhum dos dois entra em bloco nem em "sem funil".
     if (donos.some((f) => f.tipo === 'venda_greenn' || f.tipo === 'manual')) continue;

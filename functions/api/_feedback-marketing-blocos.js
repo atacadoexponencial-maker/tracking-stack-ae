@@ -89,6 +89,18 @@ export function montarBlocoVenda({ funil, investimento, compras }) {
 
 // Sem funil ativo de venda na Greenn, as vendas não aparecem em bloco nenhum —
 // e não podem sumir em silêncio. Com 0 vendas não há o que avisar.
+// Funil arquivado só aparece no período em que teve movimento: gasto, lead ou
+// MQL. Compras da Greenn não têm funil (são todas as vendas pagas do período),
+// então o funil de venda arquivado só as mostra quando não há outro funil de
+// venda ativo — senão a mesma venda contaria duas vezes.
+export function arquivadoTemMovimento(bloco, haVendaAtiva) {
+  if (Number(bloco.investido) > 0) return true;
+  const m = bloco.metricas || {};
+  if (bloco.tipo === 'lead_mql') return Number(m.novos_leads) > 0 || Number(m.mqls) > 0;
+  if (bloco.tipo === 'venda_greenn') return !haVendaAtiva && Number(m.compras_realizadas) > 0;
+  return false;
+}
+
 export function avisoVendasSemFunilDeVenda(funisAtivos, totalCompras) {
   if (!(totalCompras > 0)) return [];
   if ((funisAtivos || []).some((f) => f.tipo === 'venda_greenn')) return [];

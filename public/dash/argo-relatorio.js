@@ -235,8 +235,8 @@
   function painelFunis(p) {
     if (!p.funis || !p.funis.length) return `<section class="bloco"><h2>Resultados por funil</h2><p class="aviso">Sem números por funil nesta semana.</p></section>`;
     return `<section class="bloco"><h2>Resultados por funil <small>semana anterior · média das 4 semanas anteriores · meta</small></h2>
-      <div class="ar-funis">${p.funis.map((f) => `<article class="ar-funil${f.sem_investimento ? ' ar-funil--parado' : ''}">
-        <h3>${esc(f.nome)}${f.sem_investimento ? ' <span class="mini">sem gasto na semana</span>' : ''}</h3>
+      <div class="ar-funis">${p.funis.map((f) => `<article class="ar-funil${f.sem_investimento || f.arquivado ? ' ar-funil--parado' : ''}">
+        <h3>${esc(f.nome)}${f.arquivado ? ' <span class="carimbo neutro">desativado</span>' : ''}${f.sem_funil ? ' <span class="mini">campanhas e leads que não casam com nenhum funil</span>' : ''}${f.sem_investimento ? ' <span class="mini">sem gasto na semana</span>' : ''}</h3>
         ${f.metricas.map((m) => {
           const comp = [];
           comp.push(m.ant_id ? `anterior ${esc(valor(m.ant_id))}` : 'sem semana anterior');

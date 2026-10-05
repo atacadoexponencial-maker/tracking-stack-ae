@@ -58,6 +58,13 @@ const metricasDoTipo = (tipo) => (tipo === 'lead_mql' ? METRICAS_LEAD : tipo ===
 const div = (a, b) => (a == null || b == null || !a || !b ? null : Math.round(a / b));
 const numOuNulo = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
+/** O "sem funil" do relatório de marketing com a cara de um bloco de lead. */
+export function blocoSemFunil(r) {
+  if (!r || !r.sem_funil) return null;
+  const sf = r.sem_funil;
+  return { nome: 'Sem funil', tipo: 'lead_mql', sem_funil: true, investido: Number(sf.investido || 0), metricas: { novos_leads: sf.novos_leads, mqls: sf.mqls } };
+}
+
 /** Números de um bloco do relatório de marketing, em centavos. `semanas` divide os volumes. */
 export function numerosDoBloco(bloco, semanas = 1) {
   if (!bloco) return null;
@@ -162,8 +169,14 @@ export function montarPacote(fontes) {
   const atuaisLead = [];
   const anterioresLead = [];
   if (okRes(res.atual)) {
-    for (const bloco of res.atual.blocos) {
-      const achar = (r) => (okRes(r) ? r.blocos.find((b) => b.nome === bloco.nome) : null);
+    // "Sem funil" entra como mais um painel quando teve gasto ou lead: dinheiro
+    // fora de qualquer funil não pode sumir do relatório.
+    const semFunilAtual = blocoSemFunil(res.atual);
+    const blocosDaSemana = [...res.atual.blocos, ...(semFunilAtual && (semFunilAtual.investido > 0 || semFunilAtual.metricas.novos_leads > 0) ? [semFunilAtual] : [])];
+    for (const bloco of blocosDaSemana) {
+      // O nome nos fatos diz que o funil foi desativado: a análise não trata como funil vivo.
+      const nomeFunil = bloco.arquivado ? `${bloco.nome} (desativado)` : bloco.nome;
+      const achar = (r) => (!okRes(r) ? null : bloco.sem_funil ? blocoSemFunil(r) : r.blocos.find((b) => b.nome === bloco.nome));
       const atual = numerosDoBloco(bloco, 1);
       const ant = numerosDoBloco(achar(res.anterior), 1);
       const media = numerosDoBloco(achar(res.media4), 4);
@@ -192,18 +205,18 @@ export function montarPacote(fontes) {
         const semValorDe = (x) => (x && x.gasto === 0 && m.menorMelhor === true ? 'sem gasto' : SEM_DENOMINADOR[m.id]);
         const semValor = semValorDe(atual);
         const marcasNulo = (x) => (x == null && !semValor ? ['indisponivel'] : []);
-        const fatoId = fato('Resultados por funil', `${m.nome} · ${bloco.nome}`, atual[m.id], m.unidade, { fonte, marcas: marcasAtual, semValor });
-        const antId = ant ? fato('Comparações', `${m.nome} · ${bloco.nome} · semana anterior`, ant[m.id], m.unidade, { fonte, periodo: janelas.anterior.rotulo, marcas: marcasNulo(ant[m.id]), semValor: semValorDe(ant) }) : null;
-        const mediaId = media ? fato('Comparações', `${m.nome} · ${bloco.nome} · média das 4 semanas anteriores`, media[m.id], m.unidade, { fonte, periodo: janelas.media4.rotulo, marcas: marcasNulo(media[m.id]), semValor: semValorDe(media) }) : null;
+        const fatoId = fato('Resultados por funil', `${m.nome} · ${nomeFunil}`, atual[m.id], m.unidade, { fonte, marcas: marcasAtual, semValor });
+        const antId = ant ? fato('Comparações', `${m.nome} · ${nomeFunil} · semana anterior`, ant[m.id], m.unidade, { fonte, periodo: janelas.anterior.rotulo, marcas: marcasNulo(ant[m.id]), semValor: semValorDe(ant) }) : null;
+        const mediaId = media ? fato('Comparações', `${m.nome} · ${nomeFunil} · média das 4 semanas anteriores`, media[m.id], m.unidade, { fonte, periodo: janelas.media4.rotulo, marcas: marcasNulo(media[m.id]), semValor: semValorDe(media) }) : null;
         const metaValor = metaDe(m.id);
-        const metaId = metaValor != null ? fato('Metas', `Meta de ${m.nome} · ${bloco.nome}${['leads', 'mqls'].includes(m.id) ? ' (semanal, proporcional à mensal)' : ''}`, metaValor, m.unidade, { fonte: 'Metas por funil (dash)' }) : null;
+        const metaId = metaValor != null ? fato('Metas', `Meta de ${m.nome} · ${nomeFunil}${['leads', 'mqls'].includes(m.id) ? ' (semanal, proporcional à mensal)' : ''}`, metaValor, m.unidade, { fonte: 'Metas por funil (dash)' }) : null;
         const sinal = sinalDaMetrica({ valor: atual[m.id], meta: metaValor, media: media ? media[m.id] : null, menorMelhor: m.menorMelhor, amostraPequena: marcasAtual.includes('amostra_pequena') });
         // A variação vira fato próprio: a análise cita o número pronto e não faz conta.
         let variacaoId = null;
         if (sinal && sinal.pct != null) {
           const ref = sinal.contra === 'meta' ? 'meta' : 'média das 4 semanas anteriores';
           const sentido = sinal.pct < 0 ? 'abaixo' : 'acima';
-          variacaoId = fato('Comparações', `Variação de ${m.nome} · ${bloco.nome} frente à ${ref}`, null, 'texto', {
+          variacaoId = fato('Comparações', `Variação de ${m.nome} · ${nomeFunil} frente à ${ref}`, null, 'texto', {
             texto: `${pct(Math.abs(sinal.pct), 0)} ${sentido} da ${ref} (${sinal.tipo === 'estavel' ? 'estável' : sinal.tipo}).`, fonte: 'Cálculo do relatório', marcas: marcasAtual,
           });
         }
@@ -213,7 +226,7 @@ export function montarPacote(fontes) {
           sinal,
         };
       });
-      funis.push({ nome: bloco.nome, tipo: bloco.tipo, sem_investimento: !!bloco.sem_investimento, amostra_pequena: !!amostraPequena, metricas });
+      funis.push({ nome: bloco.nome, tipo: bloco.tipo, sem_investimento: !!bloco.sem_investimento, amostra_pequena: !!amostraPequena, arquivado: !!bloco.arquivado, sem_funil: !!bloco.sem_funil, metricas });
     }
     if (okRes(res.media4)) resumoGasto.media = Math.round(res.media4.blocos.reduce((s, b) => s + Math.round(Number(b.investido || 0) * 100), 0) / 4);
   }

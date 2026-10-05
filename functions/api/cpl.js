@@ -9,6 +9,7 @@
 import { custoPorReuniao } from './_agenda-funil.js';
 import { calcularCpl, montarAvisosCpl } from './_cpl-calculo.js';
 import { listarFunisConhecidos } from './_funil-campanha.js';
+import { funisDesativados } from './_funis-relatorio.js';
 import { clausulasBotIpSql } from '../_bots.js';
 import { ymdBrt } from './_data-brt.js';
 import { respostaJson, respostaEmCache } from './_cache.js';
@@ -104,9 +105,21 @@ export async function onRequestGet(context) {
     leads: leads.results || [],
   });
 
+  // Funil desativado: o funil do tracking cujo cadastro no relatório está todo
+  // arquivado. A Visão geral mostra a marca; o funil continua aparecendo só
+  // quando teve gasto ou lead no período (o painel já esconde o resto).
+  let porFunil = resultado.por_funil;
+  try {
+    const { results } = await env.DB.prepare(`SELECT funil_tracking, situacao FROM funis_relatorio WHERE funil_tracking IS NOT NULL`).all();
+    const desativados = funisDesativados(results || []);
+    porFunil = (resultado.por_funil || []).map((r) => (desativados.has(r.funnel) ? { ...r, desativado: true } : r));
+  } catch (e) {
+    console.error('cpl: funis desativados', e.message);
+  }
+
   // `por_canal` é uma LISTA ordenada por CANAIS (ver _cpl-calculo.js); a linha
   // 'meta-ads' só existe quando houve gasto ou lead pago no período.
-  return respostaJson(request, { ...resultado, avisos, reunioes }, { until, context });
+  return respostaJson(request, { ...resultado, por_funil: porFunil, avisos, reunioes }, { until, context });
 }
 
 function clampInt(raw, fallback, min, max) {

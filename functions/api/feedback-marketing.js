@@ -45,6 +45,7 @@ import {
 import { montarResposta, ERRO_FALHA_INESPERADA } from './_feedback-marketing-resposta.js';
 import {
   montarBlocoLead,
+  arquivadoTemMovimento,
   montarBlocoManual,
   montarBlocoVenda,
   avisoVendasSemFunilDeVenda,
@@ -106,10 +107,13 @@ export async function montarFeedback(env, periodo, avisosDoPeriodo) {
       GROUP BY campaign_id
     `).bind(periodo.inicio, periodo.fim).all(),
     env.DB.prepare('SELECT campaign_id, funnel FROM campaign_funnel_map').all(),
+    // Ativos e arquivados: o arquivado continua dono das próprias campanhas e
+    // leads (o histórico dele não vira "sem funil"), mas só aparece no período
+    // em que teve movimento, marcado como arquivado; o ativo vence em conflito.
     env.DB.prepare(`
-      SELECT id, nome, tipo, posicao, funil_tracking, trecho_campanha, opcoes_crm, origem_lead
-      FROM funis_relatorio WHERE situacao = 'ativo'
-      ORDER BY posicao, id
+      SELECT id, nome, tipo, posicao, funil_tracking, trecho_campanha, opcoes_crm, origem_lead, situacao
+      FROM funis_relatorio WHERE situacao IN ('ativo', 'arquivado')
+      ORDER BY (situacao = 'ativo') DESC, posicao, id
     `).all(),
     // Funis de venda ativos E arquivados: a opção de comprador nunca vira lead.
     env.DB.prepare(`SELECT opcoes_crm FROM funis_relatorio WHERE tipo = 'venda_greenn'`).all(),
@@ -124,16 +128,17 @@ export async function montarFeedback(env, periodo, avisosDoPeriodo) {
   ]);
 
   const gastos = gastosRes.results || [];
-  const funisAtivos = ativosRes.results || [];
+  const funisDoPeriodo = (ativosRes.results || []).map((f) => ({ ...f, arquivado: f.situacao === 'arquivado' }));
+  const funisAtivos = funisDoPeriodo.filter((f) => !f.arquivado);
   const reconhecimento = reconhecerCampanhasDoPeriodo(gastos, {
     overrides: overridesRes.results || [],
-    funisAtivos,
+    funisAtivos: funisDoPeriodo,
     funisConhecidos,
   });
   const investimento = montarInvestimento({
     gastos,
     campanhas: reconhecimento.campanhas,
-    funisAtivos,
+    funisAtivos: funisDoPeriodo,
     ultimaAtualizacaoUnix: sync ? sync.ultimo : null,
     periodo,
   });
@@ -141,7 +146,7 @@ export async function montarFeedback(env, periodo, avisosDoPeriodo) {
   // CRM indisponível (ou acima do teto de páginas): leads vêm null, nunca 0.
   const excluidos = crm.ok ? await lerTaskIdsDeTesteOuBot(env.DB, crm.cards.map((c) => c.id)) : [];
   const leads = crm.ok
-    ? atribuirCards({ cards: crm.cards, funisAtivos, limites, taskIdsExcluidos: excluidos, funisDeVenda: vendaRes.results || [] })
+    ? atribuirCards({ cards: crm.cards, funisAtivos: funisDoPeriodo, limites, taskIdsExcluidos: excluidos, funisDeVenda: vendaRes.results || [] })
     : null;
 
   // Compras realizadas na Greenn (issue 261): todas as vendas pagas no período.
@@ -150,18 +155,24 @@ export async function montarFeedback(env, periodo, avisosDoPeriodo) {
   const sessoesCheckout = await lerSessoesCheckout(env.DB, vendas.compras.map((c) => c.trk));
   const comprasPorOrigem = contarPorOrigem(vendas.compras, sessoesCheckout);
 
-  const blocos = funisAtivos.map((f) => {
+  const haVendaAtiva = funisAtivos.some((f) => f.tipo === 'venda_greenn');
+  const blocos = funisDoPeriodo.map((f) => {
     const inv = investimento.blocos.get(f.id);
+    let bloco;
     if (f.tipo === 'lead_mql') {
-      return montarBlocoLead({ funil: f, investimento: inv, cards: leads ? leads.blocos.get(f.id) : null });
+      bloco = montarBlocoLead({ funil: f, investimento: inv, cards: leads ? leads.blocos.get(f.id) : null });
+    } else if (f.tipo === 'manual') {
+      bloco = montarBlocoManual({ funil: f, investimento: inv });
+    } else {
+      bloco = montarBlocoVenda({
+        funil: f,
+        investimento: inv,
+        compras: { total: vendas.compras.length, por_origem: comprasPorOrigem },
+      });
     }
-    if (f.tipo === 'manual') return montarBlocoManual({ funil: f, investimento: inv });
-    return montarBlocoVenda({
-      funil: f,
-      investimento: inv,
-      compras: { total: vendas.compras.length, por_origem: comprasPorOrigem },
-    });
-  });
+    return f.arquivado ? { ...bloco, arquivado: true } : bloco;
+  }).filter((b) => !b.arquivado || arquivadoTemMovimento(b, haVendaAtiva));
+  const funisMostrados = funisDoPeriodo.filter((f) => !f.arquivado || blocos.some((b) => b.arquivado && b.nome === f.nome));
 
   return montarResposta({
     periodo,
@@ -178,7 +189,7 @@ export async function montarFeedback(env, periodo, avisosDoPeriodo) {
       ...(crm.ok ? [] : [crm.aviso]),
       ...avisosOpcoesInexistentes(funisAtivos, opcoesCrm.ok ? opcoesCrm.opcoes : null),
       ...avisosGreenn({ ilegiveis: vendas.ilegiveis, ultimoEventoUnix: greenn.ultimoEventoUnix, limites }),
-      ...avisoVendasSemFunilDeVenda(funisAtivos, vendas.compras.length),
+      ...avisoVendasSemFunilDeVenda(funisMostrados, vendas.compras.length),
       ...avisoInvestimentoSemFunil(investimento.sem_funil.investido),
     ],
   });
