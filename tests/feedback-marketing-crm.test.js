@@ -79,7 +79,7 @@ test('lerCampo acha pelo id ou pelo nome e pula valor vazio', () => {
 });
 
 test('cards estruturais: FUNIL, GERAL, LEADS MÊS ANTERIOR e nome vazio', () => {
-  for (const n of ['FUNIL SE', 'funil lives', 'GERAL', 'LEADS MÊS ANTERIOR', 'Leads mes anterior', '', '  ']) {
+  for (const n of ['FUNIL SE', 'funil lives', 'GERAL', 'LEADS MÊS ANTERIOR', 'Leads mes anterior', 'LEADS DO MÊS ANTERIOR', '', '  ']) {
     assert.equal(cardEstrutural(n), true, n);
   }
   for (const n of ['Maria Funil', 'Geraldo Silva', 'FUNILARIA X', 'Leads']) {

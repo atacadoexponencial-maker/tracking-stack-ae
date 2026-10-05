@@ -31,7 +31,8 @@ export const ROTULO_SEM_OPCAO = 'sem opção de funil no CRM';
 export const CAMPO_UTM_SOURCE = { id: CU_FIELD.utmSource, nomes: ['utm_source'] };
 
 // Cards de organização da lista, não leads (mesmos padrões do relatório atual).
-const ESTRUTURAIS = [/^FUNIL\b/i, /^GERAL\b/i, /^LEADS\s+M[ÊE]S\s+ANTERIOR\b/i];
+// "LEADS DO MÊS ANTERIOR" também existe na lista (card de 02/07/2026).
+const ESTRUTURAIS = [/^FUNIL\b/i, /^GERAL\b/i, /^LEADS\s+(DO\s+)?M[ÊE]S\s+ANTERIOR\b/i];
 
 // Sem acento, minúsculo, espaços colapsados (normalize_text do relatório atual).
 export function normalizarTexto(valor) {
