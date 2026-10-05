@@ -201,10 +201,10 @@ export function montarPacote(fontes) {
         // A variação vira fato próprio: a análise cita o número pronto e não faz conta.
         let variacaoId = null;
         if (sinal && sinal.pct != null) {
-          const ref = sinal.contra === 'meta' ? 'a meta' : 'a média das 4 semanas anteriores';
-          const sentido = sinal.pct < 0 ? 'abaixo de' : 'acima de';
-          variacaoId = fato('Comparações', `Variação de ${m.nome} · ${bloco.nome} frente a ${ref}`, null, 'texto', {
-            texto: `${pct(Math.abs(sinal.pct), 0)} ${sentido} ${ref} (${sinal.tipo === 'estavel' ? 'estável' : sinal.tipo}).`, fonte: 'Cálculo do relatório', marcas: marcasAtual,
+          const ref = sinal.contra === 'meta' ? 'meta' : 'média das 4 semanas anteriores';
+          const sentido = sinal.pct < 0 ? 'abaixo' : 'acima';
+          variacaoId = fato('Comparações', `Variação de ${m.nome} · ${bloco.nome} frente à ${ref}`, null, 'texto', {
+            texto: `${pct(Math.abs(sinal.pct), 0)} ${sentido} da ${ref} (${sinal.tipo === 'estavel' ? 'estável' : sinal.tipo}).`, fonte: 'Cálculo do relatório', marcas: marcasAtual,
           });
         }
         return {

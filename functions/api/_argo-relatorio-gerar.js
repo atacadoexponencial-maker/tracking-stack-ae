@@ -56,12 +56,12 @@ async function gravar(sql, linha) {
  * Gera e grava o relatório da semana que termina ontem. Nunca lança: falha
  * geral vira uma linha `falhou` com o motivo, para a aba e o Slack dizerem.
  */
-export async function gerarRelatorio(env, sql, { origem, hoje }) {
+export async function gerarRelatorio(env, sql, { origem, hoje, cliente = null }) {
   const semana = janelasDoRelatorio(hoje).semana;
   try {
     const fontes = await coletarFontes(env, sql, hoje);
     const pacote = montarPacote(fontes);
-    const a = await analisarPacote(env, sql, pacote);
+    const a = await analisarPacote(env, sql, pacote, cliente ? { cliente } : {});
     const linha = {
       semana, origem, pacote, situacao: a.situacao, analise: a.blocos, removidos: a.removidos, checagem: a.checagem,
       erro: a.erro, modelo: a.modelo, instrucoes_versao: a.instrucoes_versao, uso: a.uso,
