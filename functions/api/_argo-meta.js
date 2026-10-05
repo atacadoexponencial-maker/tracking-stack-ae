@@ -4,7 +4,7 @@
 // O tracking sincroniza o Meta só em `level=campaign` (sync/meta-ads.js). O
 // registro de testes e o relatório precisam de anúncio e conjunto, então este
 // módulo lê direto da Graph API com o mesmo token de anúncios do sync
-// (`META_ADS_ACCESS_TOKEN`). Só leitura: nada aqui altera a conta.
+// (`ARGO_META_TOKEN`, o token do Argo; cai no de anúncios do sync). Só leitura.
 //
 // `fetchImpl` é injetável para os testes. Erro do Meta vira `{ ok:false,
 // aviso }`, nunca exceção nem lista vazia com cara de resposta boa: "nenhum
@@ -16,7 +16,9 @@ const CONTA_PADRAO = '4577256079174658';
 const MAX_PAGINAS = 20;
 
 export const contaMeta = (env) => String((env && env.META_ADS_ACCOUNT_ID) || CONTA_PADRAO).replace(/^act_/, '');
-const tokenMeta = (env) => (env && (env.META_ADS_ACCESS_TOKEN || env.META_ACCESS_TOKEN)) || '';
+// O token do Argo (o mesmo que pausa anúncios na VPS) vem primeiro: o de anúncios
+// do sync ficou sem uso desde que o sync passou pelo Windsor.
+const tokenMeta = (env) => (env && (env.ARGO_META_TOKEN || env.META_ADS_ACCESS_TOKEN || env.META_ACCESS_TOKEN)) || '';
 
 async function lerPaginas(url, fetchImpl) {
   const linhas = [];
