@@ -117,7 +117,7 @@ test('troca de posição: pontas, arquivado, inexistente ou direção inválida 
 test('confirmação de arquivar traz o nome do bloco e a consequência', () => {
   assert.equal(
     confirmacaoArquivar('LIVE'),
-    "O bloco LIVE sai do relatório. O investimento e os leads dele passam a aparecer em 'sem funil', inclusive se um dia passado for consultado de novo.",
+    "O bloco LIVE sai do relatório quando não tiver movimento. O histórico dele continua: em qualquer período em que teve gasto ou lead, ele aparece marcado como arquivado, e não em 'sem funil'.",
   );
 });
 

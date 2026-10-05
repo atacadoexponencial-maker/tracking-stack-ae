@@ -104,7 +104,7 @@ export function trocaDePosicao(linhas, id, direcao) {
 // Texto que o dashboard mostra antes de arquivar. Montado aqui para a tela não
 // escrever regra: quem explica a consequência é o servidor.
 export function confirmacaoArquivar(nome) {
-  return `O bloco ${nome} sai do relatório. O investimento e os leads dele passam a aparecer em 'sem funil', inclusive se um dia passado for consultado de novo.`;
+  return `O bloco ${nome} sai do relatório quando não tiver movimento. O histórico dele continua: em qualquer período em que teve gasto ou lead, ele aparece marcado como arquivado, e não em 'sem funil'.`;
 }
 
 // Funis do tracking (`funil_tracking`) que só têm cadastro arquivado no
