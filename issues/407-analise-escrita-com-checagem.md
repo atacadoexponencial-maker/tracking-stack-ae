@@ -41,8 +41,14 @@ Sem `ANTHROPIC_API_KEY` ou API fora: o relatório sai só com a parte calculada 
 - [x] Segunda tentativa com as violações; parcial e não passou
 - [x] Registro de checagem visível na aba
 - [x] Testado com respostas simuladas (17 testes) e com um modelo simulado sobre o pacote real (tentativa 1 reprovou por número inventado, tentativa 2 removeu a sugestão com número inexistente: parcial)
-- [ ] Rodar com a IA de verdade: falta cadastrar `ANTHROPIC_API_KEY` no Pages (decisão da gestora sobre o custo)
+- [x] Rodar com a IA de verdade: feito com o próprio Argo (ver atualização de 05/10)
 
 ## Implementação (04/10/2026)
 
 Não há chave de API da Anthropic no projeto (a do Hermes é um token OAuth de assinatura, que não deve ser usado num servidor). Sem a chave, o relatório funciona só com a parte calculada e diz isso no topo.
+
+## Atualização (05/10/2026): a análise é escrita pelo próprio Argo
+
+Decisão da gestora: sem chave de API separada. Sem `ANTHROPIC_API_KEY`, o relatório nasce `aguardando_analise` com um pedido em `argo.analise_pedidos` (migration `0011_analise_pelo_argo.sql`, aplicada em 05/10). O job `argo_relatorio_semanal.py` (modos `gerar` e `fila`) pega o pedido em `GET /api/argo/analise-pedidos`, roda `hermes -p gestor-ia chat --query-file ... -Q --oneshot -t ""` e devolve em `POST /api/argo/analise-pedidos`; a checagem (`_argo-relatorio-pedidos.js` sobre `_argo-relatorio-checagem.js`) decide e publica. Com chave configurada, o caminho direto pela API continua valendo.
+
+Ponta a ponta com o Argo real (05/10, semana de 28/09 a 04/10, relatório de teste apagado depois): 27 mil caracteres de consulta, resposta em 56 s, passou na checagem na primeira tentativa, todas as frases com fatos citados, "sem conclusão" nos fatos de amostra pequena e nas ações sem veredito.

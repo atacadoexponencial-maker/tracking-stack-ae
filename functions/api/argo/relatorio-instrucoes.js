@@ -4,8 +4,8 @@
 // Issue 410. Antes de uma versão nova das instruções da análise valer, ela
 // escreve de novo as últimas semanas guardadas e passa pela mesma checagem
 // (`_argo-relatorio-avaliacao.js`). "Ativar" só aceita versão com teste
-// aprovado. Testar chama o modelo uma ou duas vezes por semana guardada: custa
-// e demora alguns minutos.
+// aprovado. Sem chave da API, o teste vira pedidos na fila e o próprio Argo
+// reescreve as semanas (resultado em até algumas dezenas de minutos).
 import { conectar, CONTA } from '../_argo-db.js';
 import { recusarSemChave } from '../_argo-auth.js';
 import { VERSOES_INSTRUCOES } from '../_argo-relatorio-instrucoes.js';
@@ -61,13 +61,27 @@ export async function onRequestPost({ request, env }) {
       return Response.json(await estado(sql));
     }
     if (corpo.acao !== 'testar') return erro('Ação desconhecida.', 400);
-    if (!env.ANTHROPIC_API_KEY) return erro('A chave da API da Anthropic não está configurada.', 409);
     if (versao === ativa) return erro('Esta já é a versão que vale.', 409);
 
     const rels = await sql`
       SELECT id, pacote, analise, situacao FROM argo.relatorios
        WHERE conta = ${CONTA} AND substituido_em IS NULL AND situacao IN ('verificada', 'parcial', 'nao_passou')
        ORDER BY semana_inicio DESC LIMIT ${SEMANAS_NO_TESTE}`;
+    if (!rels.length) return erro('Não há semanas guardadas com análise para comparar.', 409);
+
+    // Sem chave da API: quem reescreve as semanas é o próprio Argo, pela fila.
+    // O resultado sai quando o último pedido for conferido (argo/analise-pedidos.js).
+    if (!env.ANTHROPIC_API_KEY) {
+      const pend = await sql`SELECT id FROM argo.instrucoes_avaliacoes WHERE conta = ${CONTA} AND versao = ${versao} AND situacao = 'pendente'`;
+      if (pend.length) return erro('Já há um teste desta versão esperando o Argo.', 409);
+      const av = await sql`
+        INSERT INTO argo.instrucoes_avaliacoes (conta, versao, versao_base, situacao) VALUES (${CONTA}, ${versao}, ${ativa}, 'pendente') RETURNING id`;
+      for (const r of rels) {
+        await sql`INSERT INTO argo.analise_pedidos (conta, tipo, relatorio_id, avaliacao_id, versao) VALUES (${CONTA}, 'avaliacao', ${r.id}, ${av[0].id}, ${versao})`;
+      }
+      return Response.json(await estado(sql));
+    }
+
     const semanas = [];
     for (const r of rels) {
       const errados = (await sql`SELECT bloco FROM argo.relatorio_reacoes WHERE relatorio_id = ${r.id} AND tipo = 'errado'`).map((x) => x.bloco);

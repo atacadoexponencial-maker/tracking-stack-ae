@@ -219,3 +219,4 @@
 8. **Quem lê:** só a gestora.
 9. **Amostra e duração mínimas dos testes:** partem das mesmas réguas que o Argo já usa (piso de lead e de impressões).
 10. **Semana atípica por verba:** variação de 30% ou mais no gasto total frente à média das 4 semanas anteriores.
+11. **Quem escreve a análise (05/10):** o próprio Argo (perfil gestor-ia do Hermes), sem chave de API separada. O tracking prepara o pacote e deixa um pedido; o job do Argo na VPS escreve e devolve; a checagem continua no tracking e vale para qualquer modelo.

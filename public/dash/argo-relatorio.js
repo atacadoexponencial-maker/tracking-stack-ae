@@ -22,6 +22,7 @@
   const rotuloSemana = (s) => (s.rotulo || `${dataBR(s.inicio + 'T12:00:00Z')} a ${dataBR(s.fim + 'T12:00:00Z')}`);
 
   const SITUACAO = {
+    aguardando_analise: ['Argo escrevendo a análise', 'neutro'],
     verificada: ['Análise verificada', 'alta'], parcial: ['Análise parcial', 'alerta'], nao_passou: ['Não passou na checagem', 'queda'],
     sem_analise: ['Só a parte calculada', 'neutro'], falhou: ['Falhou', 'queda'], substituida: ['Substituída', 'neutro'],
   };
@@ -166,6 +167,7 @@
     const avisos = [];
     if (r.substituido_em) avisos.push(['explica', `Esta versão foi substituída em ${dataHora(r.substituido_em)} por uma geração mais nova.`]);
     if (r.situacao === 'falhou') avisos.push(['falha', esc(r.erro || 'A geração falhou.')]);
+    if (r.situacao === 'aguardando_analise') avisos.push(['explica', 'Os números abaixo já valem. A análise escrita está com o Argo: o job dele roda a cada 10 minutos, escreve, e o texto só aparece aqui depois de passar na checagem. Recarregue em alguns minutos.']);
     if (r.situacao === 'sem_analise') avisos.push(['explica', `${esc(r.erro || 'Sem análise escrita nesta semana.')} Os números abaixo valem normalmente.`]);
     if (r.situacao === 'nao_passou') avisos.push(['falha', 'A análise escrita não passou na checagem depois de 2 tentativas. Abaixo, só a parte calculada. <button type="button" class="ar-link" data-ar-checagem>Ver por quê</button>']);
     if (r.situacao === 'parcial') avisos.push(['alerta', `${r.removidos.length === 1 ? '1 bloco removido' : `${r.removidos.length} blocos removidos`} pela checagem: ${r.removidos.map((x) => esc(x.titulo.toLowerCase())).join(', ')}. <button type="button" class="ar-link" data-ar-checagem>Ver por quê</button>`]);
@@ -364,12 +366,12 @@
       return `<tr><td>${esc(a.versao)} <span class="mini">contra ${esc(a.versao_base)}</span></td><td>${esc(dataHora(a.criado_em))}</td>
         <td class="num">${r.base ? fmt(r.base.aprovacao) : ''} → ${r.candidata ? fmt(r.candidata.aprovacao) : ''}</td>
         <td class="num">${r.candidata ? `${r.candidata.repetidos} de ${r.base.errados}` : ''}</td>
-        <td><span class="carimbo ${a.situacao === 'aprovada' ? 'alta' : 'queda'}">${a.situacao}</span>${a.ativada_em ? ' <span class="mini">ativada</span>' : ''}</td></tr>`;
+        <td><span class="carimbo ${a.situacao === 'aprovada' ? 'alta' : a.situacao === 'pendente' ? 'neutro' : 'queda'}">${a.situacao === 'pendente' ? 'esperando o Argo' : a.situacao}</span>${a.ativada_em ? ' <span class="mini">ativada</span>' : ''}</td></tr>`;
     }).join('');
     const outras = instrucoes.versoes.filter((v) => v.versao !== instrucoes.ativa);
     const aprovada = (v) => instrucoes.avaliacoes.some((a) => a.versao === v && a.situacao === 'aprovada');
     return `<section class="bloco"><h2>Instruções da análise <small>vale a versão ${esc(instrucoes.ativa)}</small></h2>
-      <p class="mini">Uma versão nova das instruções só passa a valer depois de escrever de novo as últimas semanas guardadas sem passar menos na checagem nem repetir trechos que você marcou como errado. Testar chama a IA algumas vezes: custa e leva alguns minutos.</p>
+      <p class="mini">Uma versão nova das instruções só passa a valer depois de escrever de novo as últimas semanas guardadas sem passar menos na checagem nem repetir trechos que você marcou como errado. Quem reescreve é o próprio Argo, pela fila dele: o resultado aparece aqui em até algumas dezenas de minutos.</p>
       ${outras.length ? `<div class="ar-sug__acoes">${outras.map((v) => `<button type="button" class="btn sec" data-ar-testar="${esc(v.versao)}"${testandoInstrucoes ? ' disabled' : ''}>${testandoInstrucoes ? 'Testando…' : `Testar ${esc(v.versao)} nas semanas passadas`}</button>${aprovada(v.versao) ? `<button type="button" class="btn" data-ar-ativar="${esc(v.versao)}">Ativar ${esc(v.versao)}</button>` : ''}`).join('')}</div>` : '<p class="mini">Nenhuma versão nova esperando teste.</p>'}
       ${linhas ? `<div class="tabela-wrap"><table><thead><tr><th>Versão</th><th>Testada</th><th class="num">Aprovação na checagem</th><th class="num">Erros repetidos</th><th>Resultado</th></tr></thead><tbody>${linhas}</tbody></table></div>` : ''}
     </section>`;
@@ -501,10 +503,10 @@
   }
 
   async function instrucaoAcao(acao, versao) {
-    if (acao === 'testar') { testandoInstrucoes = true; desenhar(); avisar('Testando a versão nas semanas passadas. Pode levar alguns minutos.'); }
+    if (acao === 'testar') { testandoInstrucoes = true; desenhar(); }
     try {
       instrucoes = await ctx.argoApi('/api/argo/relatorio-instrucoes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ acao, versao }) });
-      avisar(acao === 'ativar' ? `A versão ${versao} passou a valer a partir do próximo relatório.` : 'Teste concluído. O resultado está na tabela.');
+      avisar(acao === 'ativar' ? `A versão ${versao} passou a valer a partir do próximo relatório.` : 'Teste enviado ao Argo. O resultado aparece na tabela quando ele terminar as semanas.');
     } catch (e) {
       avisar(e.mensagemUsuario || 'Não foi possível concluir agora.', 'erro');
     }
@@ -529,11 +531,11 @@
   async function gerar() {
     gerando = true;
     desenhar();
-    avisar('Gerando o relatório da semana que terminou ontem. Pode levar alguns minutos.');
+    avisar('Gerando os números da semana que terminou ontem. A análise escrita vem depois, pelo Argo.');
     try {
       painel = await post({ acao: 'gerar' });
       modo = 'relatorio';
-      avisar('Relatório gerado. A versão anterior ficou no histórico como substituída.');
+      avisar('Números prontos. O Argo escreve a análise em até 10 minutos; a versão anterior ficou no histórico como substituída.');
     } catch (e) {
       avisar(e.mensagemUsuario || 'Não foi possível gerar agora.', 'erro');
     }

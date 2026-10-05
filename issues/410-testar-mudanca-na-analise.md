@@ -37,4 +37,10 @@ Sem `ANTHROPIC_API_KEY`: 409 com o motivo.
 - [x] Comparação pura e testada (4 testes)
 - [x] Testar e ativar, com ativar travado sem teste aprovado
 - [x] Bloco na tela
-- [ ] Rodar um teste de verdade: depende da chave da API e de uma segunda versão das instruções (hoje só existe a v1)
+- [ ] Rodar um teste de verdade: depende de existir uma segunda versão das instruções (hoje só existe a v1); sem chave, o teste vai pela fila do Argo
+
+## Atualização (05/10/2026): a análise é escrita pelo próprio Argo
+
+Decisão da gestora: sem chave de API separada. Sem `ANTHROPIC_API_KEY`, o relatório nasce `aguardando_analise` com um pedido em `argo.analise_pedidos` (migration `0011_analise_pelo_argo.sql`, aplicada em 05/10). O job `argo_relatorio_semanal.py` (modos `gerar` e `fila`) pega o pedido em `GET /api/argo/analise-pedidos`, roda `hermes -p gestor-ia chat --query-file ... -Q --oneshot -t ""` e devolve em `POST /api/argo/analise-pedidos`; a checagem (`_argo-relatorio-pedidos.js` sobre `_argo-relatorio-checagem.js`) decide e publica. Com chave configurada, o caminho direto pela API continua valendo.
+
+Ponta a ponta com o Argo real (05/10, semana de 28/09 a 04/10, relatório de teste apagado depois): 27 mil caracteres de consulta, resposta em 56 s, passou na checagem na primeira tentativa, todas as frases com fatos citados, "sem conclusão" nos fatos de amostra pequena e nas ações sem veredito.

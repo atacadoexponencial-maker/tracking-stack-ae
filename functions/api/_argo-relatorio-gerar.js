@@ -1,16 +1,20 @@
 // Geração do relatório semanal do Argo (issues 405 a 407).
 //
-// Coleta as fontes, monta o pacote de fatos, pede a análise escrita (que só é
-// publicada se passar na checagem, `_argo-relatorio-analise.js`) e grava uma
-// linha nova em `argo.relatorios`. "Gerar de novo" nunca sobrescreve: a versão
+// Coleta as fontes, monta o pacote de fatos e grava uma linha nova em
+// `argo.relatorios`. A análise escrita é do próprio Argo (perfil gestor-ia do
+// Hermes, decisão da gestora em 05/10): o relatório nasce "aguardando_analise"
+// com um pedido na fila (`argo/analise-pedidos.js`), e só o que passar na
+// checagem é publicado. Com `ANTHROPIC_API_KEY` configurada, a análise é
+// escrita direto pela API (`_argo-relatorio-analise.js`), com a mesma checagem. "Gerar de novo" nunca sobrescreve: a versão
 // anterior da mesma semana fica marcada como substituída, com quem a substituiu.
 import { CONTA } from './_argo-db.js';
 import { coletarFontes } from './_argo-relatorio-fontes.js';
 import { montarPacote } from './_argo-relatorio-pacote.js';
 import { janelasDoRelatorio } from './_argo-relatorio-semana.js';
-import { analisarPacote } from './_argo-relatorio-analise.js';
+import { analisarPacote, versaoAtiva } from './_argo-relatorio-analise.js';
 
 export const ROTULO_SITUACAO = {
+  aguardando_analise: 'números prontos; o Argo está escrevendo a análise',
   verificada: 'análise verificada', parcial: 'análise parcial', nao_passou: 'a análise escrita não passou na checagem',
   sem_analise: 'só a parte calculada', falhou: 'falhou',
 };
@@ -61,6 +65,13 @@ export async function gerarRelatorio(env, sql, { origem, hoje, cliente = null })
   try {
     const fontes = await coletarFontes(env, sql, hoje);
     const pacote = montarPacote(fontes);
+    if (!cliente && !env.ANTHROPIC_API_KEY) {
+      const versao = await versaoAtiva(sql);
+      const linha = { semana, origem, pacote, situacao: 'aguardando_analise', instrucoes_versao: versao };
+      const g = await gravar(sql, linha);
+      await sql`INSERT INTO argo.analise_pedidos (conta, tipo, relatorio_id, versao) VALUES (${CONTA}, 'relatorio', ${g.id}, ${versao})`;
+      return { ...linha, ...g };
+    }
     const a = await analisarPacote(env, sql, pacote, cliente ? { cliente } : {});
     const linha = {
       semana, origem, pacote, situacao: a.situacao, analise: a.blocos, removidos: a.removidos, checagem: a.checagem,
