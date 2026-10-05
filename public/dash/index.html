@@ -1458,10 +1458,14 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 .at-escolha__item { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.84rem; padding: 0.2rem 0; }
 .at-escolha__item input { width: auto; flex: none; margin-top: 0.2rem; }
 .at-escolha__item > span { min-width: 0; overflow-wrap: anywhere; }
+.at-escolha__item[hidden] { display: none; }
+.at-lados-escolha { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.8rem; }
+.at-escolha__busca { width: 100%; box-sizing: border-box; margin-bottom: 0.3rem; }
+.at-escolha__lista { max-height: 15rem; overflow-y: auto; border: 1px solid var(--fio); border-radius: 2px; padding: 0.3rem 0.5rem; background: var(--papel); }
 @media (max-width: 760px) {
   .at-filtros { grid-template-columns: minmax(0, 1fr); }
   .at-lista { grid-template-columns: minmax(0, 1fr); }
-  .at-lados { grid-template-columns: minmax(0, 1fr); }
+  .at-lados, .at-lados-escolha { grid-template-columns: minmax(0, 1fr); }
 }
 </style>
 </head>
@@ -1988,9 +1992,9 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
       <div id="argo-vista-propostas" hidden></div>
       <!-- Relatório semanal (issue 399): PROTÓTIPO em public/dash/argo-relatorio.js. -->
       <div id="argo-vista-relatorio" hidden></div>
-      <!-- Contexto do negócio (issue 400): PROTÓTIPO em public/dash/argo-contexto.js. -->
+      <!-- Contexto do negócio (issues 400 e 402): public/dash/argo-contexto.js, dados de /api/argo/contexto. -->
       <div id="argo-vista-contexto" hidden></div>
-      <!-- Registro de testes (issue 401): PROTÓTIPO em public/dash/argo-testes.js. -->
+      <!-- Registro de testes (issues 401, 403, 404): public/dash/argo-testes.js, dados de /api/argo/testes. -->
       <div id="argo-vista-testes" hidden></div>
       <div id="argo-vista-controle">
       <div class="bloco argo-comando">
@@ -5406,9 +5410,9 @@ function mostrarVistaArgo() {
   $('#argo-vista-relatorio').hidden = argoVista !== 'relatorio';
   if (argoVista === 'relatorio' && window.ArgoRelatorio) window.ArgoRelatorio.abrir($('#argo-vista-relatorio'));
   $('#argo-vista-contexto').hidden = argoVista !== 'contexto';
-  if (argoVista === 'contexto' && window.ArgoContexto) window.ArgoContexto.abrir($('#argo-vista-contexto'));
+  if (argoVista === 'contexto' && window.ArgoContexto) window.ArgoContexto.abrir($('#argo-vista-contexto'), { argoApi });
   $('#argo-vista-testes').hidden = argoVista !== 'testes';
-  if (argoVista === 'testes' && window.ArgoTestes) window.ArgoTestes.abrir($('#argo-vista-testes'));
+  if (argoVista === 'testes' && window.ArgoTestes) window.ArgoTestes.abrir($('#argo-vista-testes'), { argoApi });
   document.querySelectorAll('.argo-vistas [data-argo-vista]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.argoVista === argoVista));
   });
