@@ -83,6 +83,9 @@ export async function onRequestPost({ request, env }) {
     const t = transicao(v.acao, atual.situacao);
     if (!t.ok) return Response.json({ erro: t.erro }, { status: 409 });
     if (v.acao === 'iniciar') {
+      // Teste aceito de uma sugestão do relatório nasce sem os lados.
+      const semLados = atual.tipo === 'pagina' ? !atual.ab_test_id : !(atual.controle || []).length || !(atual.variante || []).length;
+      if (semLados) return Response.json({ erro: 'Escolha os lados do teste (Editar) antes de iniciar.' }, { status: 409 });
       await sql`UPDATE argo.testes SET situacao = 'rodando', inicio = ${hojeBrt()}, atualizado_em = now() WHERE conta = ${CONTA} AND id = ${v.id}`;
       await historico(sql, v.id, 'Teste iniciado.');
     } else if (v.acao === 'concluir') {
