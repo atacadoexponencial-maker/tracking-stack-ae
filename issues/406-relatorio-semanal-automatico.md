@@ -35,7 +35,7 @@ Tracking fora ou sem resposta: o job imprime mensagem fixa "não foi gerado" (se
 - [x] Rota agendada com `ARGO_KEY` e mensagem curta
 - [x] Histórico com substituída e falhou, abrir semana antiga, comparar duas semanas
 - [x] Job do Hermes escrito e testado (4 testes)
-- [ ] Job cadastrado no `jobs.json` da VPS: só depois do merge (a rota não existe em produção antes disso)
+- [x] Jobs cadastrados no Hermes em 05/10 (seg 07h `0a16e114a3cb` e fila a cada 10 min), depois do merge na main
 
 ## Implementação (04/10/2026)
 
@@ -46,3 +46,7 @@ Conferido localmente com o Neon real: duas semanas geradas, a regeração da mes
 Decisão da gestora: sem chave de API separada. Sem `ANTHROPIC_API_KEY`, o relatório nasce `aguardando_analise` com um pedido em `argo.analise_pedidos` (migration `0011_analise_pelo_argo.sql`, aplicada em 05/10). O job `argo_relatorio_semanal.py` (modos `gerar` e `fila`) pega o pedido em `GET /api/argo/analise-pedidos`, roda `hermes -p gestor-ia chat --query-file ... -Q --oneshot -t ""` e devolve em `POST /api/argo/analise-pedidos`; a checagem (`_argo-relatorio-pedidos.js` sobre `_argo-relatorio-checagem.js`) decide e publica. Com chave configurada, o caminho direto pela API continua valendo.
 
 Ponta a ponta com o Argo real (05/10, semana de 28/09 a 04/10, relatório de teste apagado depois): 27 mil caracteres de consulta, resposta em 56 s, passou na checagem na primeira tentativa, todas as frases com fatos citados, "sem conclusão" nos fatos de amostra pequena e nas ações sem veredito.
+
+## No ar (05/10/2026)
+
+Main `271efe6` (fast-forward da branch). Segredo novo `ARGO_META_TOKEN` no Pages (o token do Argo; o `META_ADS_ACCESS_TOKEN` de produção não lia anúncios). Jobs no perfil gestor-ia: `argo_relatorio_semanal_gerar.py` (seg 07h) e `argo_relatorio_semanal.py` (fila, 10 min), entrega em `slack:C0BJK31RGM9`. Primeiro relatório real (semana de 28/09 a 04/10) gerado em 05/10: análise do Argo verificada na primeira tentativa; a primeira geração saiu sem os anúncios (token) e foi refeita depois da correção, com a anterior marcada como substituída.
