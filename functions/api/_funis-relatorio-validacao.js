@@ -89,13 +89,24 @@ export function validarTipoEOrigem({ tipo, origem_lead } = {}) {
 // `funisConhecidos` = listarFunisConhecidos(env.DB); `aquisicao` entra aqui,
 // como em /api/campaign-funnel. Com null, a existência não é conferida — a
 // reativação só revalida unicidade.
-export function validarFunilTracking(tipo, funilTracking, outros = [], { funisConhecidos = null } = {}) {
+// "Webinar" → "webinar"; "Tráfego Atacado" → "trafego-atacado".
+export const slugDoNome = (nome) => String(nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+export function validarFunilTracking(tipo, funilTracking, outros = [], { funisConhecidos = null, nome = '' } = {}) {
   if (!campoAplica(tipo, 'funil_tracking')) return { valor: null };
 
   const valor = (funilTracking == null ? '' : String(funilTracking)).trim();
   // Funil de lead que só existe no CRM (ex.: webinar, sem campanha nem página
-  // no site) não tem funil do tracking: conta só pelos leads da opção do CRM.
-  if (!valor && tipo === 'lead_mql') return { valor: null };
+  // no site): sem funil do tracking escolhido, grava um identificador tirado do
+  // nome. O banco exige funil do tracking em funil de lead, e um identificador
+  // que nenhum lead do tracking usa não casa campanha nenhuma: o bloco conta só
+  // os leads da opção do CRM.
+  if (!valor && tipo === 'lead_mql' && slugDoNome(nome)) {
+    const proprio = `crm-${slugDoNome(nome)}`;
+    const dono = (outros || []).find((l) => l.situacao === 'ativo' && l.funil_tracking === proprio);
+    return dono ? { erro: `Esse funil já pertence ao bloco ${dono.nome}.` } : { valor: proprio };
+  }
   if (!valor) return { erro: 'Escolha o funil do tracking.' };
 
   if (Array.isArray(funisConhecidos) && !new Set([...funisConhecidos, CANAL_AQUISICAO]).has(valor)) {
@@ -195,7 +206,7 @@ export function validarFunil(corpo = {}, { outros = [], funisConhecidos = null, 
   if (tipoOrigem.erro) return tipoOrigem;
   const { tipo, origem_lead } = tipoOrigem.valor;
 
-  const funil = validarFunilTracking(tipo, entrada.funil_tracking, outros, { funisConhecidos });
+  const funil = validarFunilTracking(tipo, entrada.funil_tracking, outros, { funisConhecidos, nome: nome.valor });
   if (funil.erro) return funil;
 
   const opcoes = validarOpcoesCrm({ tipo, origem_lead }, entrada.opcoes_crm, outros, { opcoesCrm });

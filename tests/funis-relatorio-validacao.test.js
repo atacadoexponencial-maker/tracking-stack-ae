@@ -106,8 +106,10 @@ test('funil do tracking: venda_greenn não exige e descarta o valor', () => {
 test('funil do tracking: obrigatório no manual; opcional no lead_mql (funil só do CRM)', () => {
   for (const v of [undefined, null, '', '   ']) {
     assert.deepEqual(validarFunilTracking('manual', v, [], { funisConhecidos: CONHECIDOS }), { erro: 'Escolha o funil do tracking.' });
-    assert.deepEqual(validarFunilTracking('lead_mql', v, [], { funisConhecidos: CONHECIDOS }), { valor: null });
+    assert.deepEqual(validarFunilTracking('lead_mql', v, [], { funisConhecidos: CONHECIDOS, nome: 'Webinar Ágil' }), { valor: 'crm-webinar-agil' });
   }
+  assert.deepEqual(validarFunilTracking('lead_mql', '', [], { funisConhecidos: CONHECIDOS }), { erro: 'Escolha o funil do tracking.' });
+  assert.equal(validarFunilTracking('lead_mql', '', [{ situacao: 'ativo', nome: 'WEBINAR', funil_tracking: 'crm-webinar' }], { nome: 'webinar' }).erro, 'Esse funil já pertence ao bloco WEBINAR.');
 });
 
 test('funil do tracking: fora da lista é desconhecido; aquisicao sempre vale', () => {
