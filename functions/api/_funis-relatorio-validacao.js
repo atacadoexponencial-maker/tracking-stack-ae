@@ -93,6 +93,9 @@ export function validarFunilTracking(tipo, funilTracking, outros = [], { funisCo
   if (!campoAplica(tipo, 'funil_tracking')) return { valor: null };
 
   const valor = (funilTracking == null ? '' : String(funilTracking)).trim();
+  // Funil de lead que só existe no CRM (ex.: webinar, sem campanha nem página
+  // no site) não tem funil do tracking: conta só pelos leads da opção do CRM.
+  if (!valor && tipo === 'lead_mql') return { valor: null };
   if (!valor) return { erro: 'Escolha o funil do tracking.' };
 
   if (Array.isArray(funisConhecidos) && !new Set([...funisConhecidos, CANAL_AQUISICAO]).has(valor)) {

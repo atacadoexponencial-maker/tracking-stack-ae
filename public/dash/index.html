@@ -1837,7 +1837,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
           <!-- Notas por tipo: texto e regra de exibição vêm de /api/funis-relatorio-opcoes. -->
           <p class="mini" id="funisrel-nota-manual" hidden></p>
           <label id="funisrel-funil-tracking-wrap">Funil do tracking
-            <select id="funisrel-funil-tracking" style="width:100%"><option value="">— escolha —</option></select></label>
+            <select id="funisrel-funil-tracking" style="width:100%"><option value="">nenhum (só leads do CRM)</option></select></label>
           <fieldset style="border:1px solid var(--fio); border-radius:0.5rem; padding:0.5rem 0.7rem">
             <legend class="mini">Opção do campo "🔻 Funil" no CRM (uma ou mais)</legend>
             <div id="funisrel-crm-erro" class="aviso falha" hidden></div>
@@ -4208,7 +4208,8 @@ function desenharConflitosFunisRel(dados) {
 
 function desenharOpcoesFunisRel(opcoes) {
   const sel = $('#funisrel-funil-tracking'), atual = sel.value;
-  sel.innerHTML = '<option value="">— escolha —</option>'
+  // Vazio vale para funil de lead que só existe no CRM (sem campanha nem página); o manual exige.
+  sel.innerHTML = '<option value="">nenhum (só leads do CRM)</option>'
     + (opcoes.funis_tracking || []).map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
   sel.value = atual;
   const crm = opcoes.crm || {};

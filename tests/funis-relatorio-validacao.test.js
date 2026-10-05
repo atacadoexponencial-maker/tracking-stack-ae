@@ -103,11 +103,10 @@ test('funil do tracking: venda_greenn não exige e descarta o valor', () => {
   assert.deepEqual(validarFunilTracking('venda_greenn', '', []), { valor: null });
 });
 
-test('funil do tracking: obrigatório em lead_mql e manual', () => {
-  for (const tipo of ['lead_mql', 'manual']) {
-    for (const v of [undefined, null, '', '   ']) {
-      assert.deepEqual(validarFunilTracking(tipo, v, [], { funisConhecidos: CONHECIDOS }), { erro: 'Escolha o funil do tracking.' });
-    }
+test('funil do tracking: obrigatório no manual; opcional no lead_mql (funil só do CRM)', () => {
+  for (const v of [undefined, null, '', '   ']) {
+    assert.deepEqual(validarFunilTracking('manual', v, [], { funisConhecidos: CONHECIDOS }), { erro: 'Escolha o funil do tracking.' });
+    assert.deepEqual(validarFunilTracking('lead_mql', v, [], { funisConhecidos: CONHECIDOS }), { valor: null });
   }
 });
 
