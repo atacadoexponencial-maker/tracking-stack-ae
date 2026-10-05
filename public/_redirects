@@ -40,3 +40,9 @@
 /lives-semanais-v1/ /workshop-gratuito 302
 /lives-semanais-v2 /workshop-gratuito 302
 /lives-semanais-v2/ /workshop-gratuito 302
+
+# O site do Felipe saiu do AE em 05/10/2026 e virou projeto próprio no Pages
+# (felipe-santos), no domínio felipesantosae.com.br. O splat cobre a barra
+# final e as imagens antigas (/felipesantos/img/x → /img/x).
+/felipesantos https://felipesantosae.com.br/ 301
+/felipesantos/* https://felipesantosae.com.br/:splat 301
