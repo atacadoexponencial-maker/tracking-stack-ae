@@ -15,11 +15,14 @@ const PAINEL = 'pages-worker--16433236-production';
 const AGORA = Date.UTC(2026, 9, 15, 17, 5);
 
 const linha = (scriptName, requests) => ({ dimensions: { scriptName }, sum: { requests } });
+const dia = (date, requests) => ({ dimensions: { date }, sum: { requests } });
 
-function cloudflareFalsa(pages, workers = []) {
-  const f = async () => {
+// `extra` traz as partes da S1-03 (pagesDias, pagesEstouros, workersDias, workersEstouros).
+function cloudflareFalsa(pages, workers = [], extra = {}) {
+  const f = async (url, init) => {
     f.chamadas += 1;
-    return new Response(JSON.stringify({ data: { viewer: { accounts: [{ pages, workers }] } }, errors: null }), { status: 200 });
+    f.consulta = JSON.parse(init.body).query;
+    return new Response(JSON.stringify({ data: { viewer: { accounts: [{ pages, workers, ...extra }] } }, errors: null }), { status: 200 });
   };
   f.chamadas = 0;
   return f;
@@ -122,4 +125,64 @@ test('CA-S1-13: a barra muda de cor perto do teto (59.999 folga, 60.000 e 80.000
     assert.equal(d.hoje.faixa, faixa, String(n));
     assert.equal(d.hoje.palavra, palavra, String(n));
   }
+});
+
+// ---------------------------------------------------------------- S1-03
+
+test('CA-S1-02: logo depois das 21h de Brasília a barra mostra só o dia novo e o dia que terminou vai para a lista', async () => {
+  const agora = Date.UTC(2026, 9, 16, 0, 30); // 21h30 de 15/10 em Brasília
+  const fetchFn = cloudflareFalsa([linha(TRACKING, 500)], [], {
+    pagesDias: [dia('2026-10-15', 80000), dia('2026-10-16', 500)],
+  });
+  const d = await lerUso({ env: ENV, fetchFn, cache: cacheEmMemoria(), agoraMs: agora });
+  assert.equal(d.hoje.requisicoes, 500);
+  assert.equal(d.hoje.zera_as, '21h de Brasília');
+  const ultimo = d.dias[d.dias.length - 1];
+  const anterior = d.dias[d.dias.length - 2];
+  assert.deepEqual(ultimo, { dia: '2026-10-16', requisicoes: 500, estouros: 0 });
+  assert.deepEqual(anterior, { dia: '2026-10-15', requisicoes: 80000, estouros: 0 });
+  // A parte de hoje da consulta começa às 00:00 UTC de 16/10 (21h de 15/10 em Brasília).
+  assert.match(fetchFn.consulta, /datetime_geq: "2026-10-16T00:00:00.000Z"/);
+});
+
+test('CA-S1-04: lista dos últimos 30 dias com total e estouros de CPU, e o teto de referência', async () => {
+  const fetchFn = cloudflareFalsa([linha(TRACKING, 4000)], [], {
+    pagesDias: [dia('2026-10-12', 9000), dia('2026-10-14', 7852)],
+    workersDias: [dia('2026-10-12', 649)],
+    pagesEstouros: [dia('2026-10-12', 874)],
+  });
+  const d = await lerUso({ env: ENV, fetchFn, cache: cacheEmMemoria(), agoraMs: AGORA });
+  assert.equal(d.dias.length, 30);
+  assert.equal(d.dias[0].dia, '2026-09-16');
+  assert.equal(d.dias[29].dia, '2026-10-15');
+  assert.deepEqual(d.dias.find((x) => x.dia === '2026-10-12'), { dia: '2026-10-12', requisicoes: 9649, estouros: 874 });
+  assert.equal(d.teto, 100000);
+  // Os estouros vêm filtrados por status; os dias, agrupados só por data.
+  assert.match(fetchFn.consulta, /status: "exceededResources"/);
+});
+
+test('CA-S1-05: dia sem nenhuma requisição aparece como zero e não some da lista', async () => {
+  const fetchFn = cloudflareFalsa([], [], { pagesDias: [dia('2026-10-01', 9000), dia('2026-10-03', 9100)] });
+  const d = await lerUso({ env: ENV, fetchFn, cache: cacheEmMemoria(), agoraMs: AGORA });
+  assert.equal(d.dias.length, 30);
+  assert.deepEqual(d.dias.find((x) => x.dia === '2026-10-02'), { dia: '2026-10-02', requisicoes: 0, estouros: 0 });
+  assert.equal(d.indisponivel, undefined);
+});
+
+test('CA-S1-06: total acumulado do mês, só do dia 1º até hoje, sem barra nem porcentagem', async () => {
+  const fetchFn = cloudflareFalsa([], [], {
+    pagesDias: [dia('2026-09-30', 99999), dia('2026-10-01', 100000), dia('2026-10-15', 50000)],
+    pagesEstouros: [dia('2026-09-30', 777), dia('2026-10-01', 2000), dia('2026-10-15', 1000)],
+  });
+  const d = await lerUso({ env: ENV, fetchFn, cache: cacheEmMemoria(), agoraMs: AGORA });
+  assert.deepEqual(d.mes, { requisicoes: 150000, estouros: 3000 });
+});
+
+test('CA-S1-06: no dia 31 o mês ainda soma desde o dia 1º, mesmo fora dos 30 dias da lista', async () => {
+  const agora = Date.UTC(2026, 9, 31, 12, 0);
+  const fetchFn = cloudflareFalsa([], [], { pagesDias: [dia('2026-10-01', 1000), dia('2026-10-31', 2000)] });
+  const d = await lerUso({ env: ENV, fetchFn, cache: cacheEmMemoria(), agoraMs: agora });
+  assert.equal(d.dias[0].dia, '2026-10-02');
+  assert.deepEqual(d.mes, { requisicoes: 3000, estouros: 0 });
+  assert.match(fetchFn.consulta, /datetime_geq: "2026-10-01T00:00:00.000Z"/);
 });

@@ -1,44 +1,18 @@
 // Aba Cloudflare: requisições de Functions da conta × teto do plano Free
 // (spec-uso-cloudflare.md, série S1).
 //
-// Hoje, por projeto e o horário da leitura vêm prontos de /api/cloudflare-uso
-// (S1-02): números, faixa de cor, palavra e motivo de falha são decididos lá;
-// aqui só se desenha. Últimos 30 dias e mês ainda são EXEMPLO fixo, marcados
-// na tela, até a S1-03.
+// Tudo vem pronto de /api/cloudflare-uso (S1-02 e S1-03): hoje, por projeto,
+// os 30 dias, o mês, a faixa de cor, a palavra e o motivo de falha são
+// decididos lá; aqui só se desenha.
 //
 // O index.html chama `CloudflareUso.abrir(raiz, ctx)` quando a aba aparece;
 // ctx traz { esc, fmtInt, fmtPct, barras, api } do próprio dash.
 (() => {
   'use strict';
 
-  const TETO = 100000;
-
-  // 30 dias de exemplo terminando em 15/10 (12/10 = 9.649 e 874, como na spec;
-  // 02/10 com zero para mostrar que dia vazio não some).
-  const DIAS_EXEMPLO = (() => {
-    const base = [7700, 7820, 8105, 7990, 8340, 8012, 7655, 7410, 8230, 8475, 8120,
-      7980, 8310, 8650, 8840, 9120, 9480, 9905, 0, 9310, 9560,
-      9820, 10240, 10410, 9980, 10560, 9649, 6120, 5890, 5710];
-    const estouros = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 40, 131,
-      340, 241, 179, 210, 592, 874, 163, 22, 8];
-    const fim = new Date(Date.UTC(2026, 9, 15));
-    return base.map((req, i) => {
-      const d = new Date(fim.getTime() - (29 - i) * 86400000);
-      return { dia: d.toISOString().slice(0, 10), requisicoes: req, estouros: estouros[i] };
-    });
-  })();
-
-  // Mês de exemplo (S1-03 troca pelo real): soma dos dias de outubro do exemplo.
-  const MES_EXEMPLO = {
-    requisicoes: DIAS_EXEMPLO.slice(-15).reduce((s, d) => s + d.requisicoes, 0),
-    estouros: DIAS_EXEMPLO.slice(-15).reduce((s, d) => s + d.estouros, 0),
-  };
-
   const dataBR = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
   const CARIMBO = { folga: 'alta', atencao: 'alerta', perto: 'queda' };
-  const seloExemplo = '<span class="em-proto__selo">Exemplo</span>';
 
   function desenhar(raiz, ctx, d) {
     const { esc, fmtInt, fmtPct } = ctx;
@@ -70,31 +44,31 @@
         </table></div>
       </div>
       <div class="bloco">
-        <h2><span>Últimos 30 dias ${seloExemplo}</span> <small>teto: ${fmtInt(d.teto)} por dia · para cima, requisições · para baixo, estouros de CPU</small></h2>
+        <h2>Últimos 30 dias <small>teto: ${fmtInt(d.teto)} por dia · para cima, requisições · para baixo, estouros de CPU</small></h2>
         <div class="grafico" id="cf-grafico"></div>
         <details class="cf-dias">
           <summary class="mini">ver os 30 dias em tabela</summary>
           <div class="tabela-wrap"><table class="cf-tabela-dias">
             <thead><tr><th>Dia</th><th class="num">Requisições</th><th class="num">Estouros de CPU</th></tr></thead>
-            <tbody>${DIAS_EXEMPLO.slice().reverse().map((x) => `<tr><td data-rot="Dia">${dataBR(x.dia)}</td><td class="num" data-rot="Requisições">${fmtInt(x.requisicoes)}</td><td class="num" data-rot="Estouros de CPU">${fmtInt(x.estouros)}</td></tr>`).join('')}</tbody>
+            <tbody>${d.dias.slice().reverse().map((x) => `<tr><td data-rot="Dia">${dataBR(x.dia)}</td><td class="num" data-rot="Requisições">${fmtInt(x.requisicoes)}</td><td class="num" data-rot="Estouros de CPU">${fmtInt(x.estouros)}</td></tr>`).join('')}</tbody>
           </table></div>
         </details>
       </div>
       <div class="bloco">
-        <h2><span>Mês corrente ${seloExemplo}</span> <small>acumulado desde o dia 1º · o plano Free não tem limite mensal</small></h2>
+        <h2>Mês corrente <small>acumulado desde o dia 1º · o plano Free não tem limite mensal</small></h2>
         <div class="grid-etiquetas">
-          <div class="etiqueta"><div class="ref">Requisições no mês</div><div class="valor">${fmtInt(MES_EXEMPLO.requisicoes)}</div></div>
-          <div class="etiqueta"><div class="ref">Estouros de CPU no mês</div><div class="valor">${fmtInt(MES_EXEMPLO.estouros)}</div></div>
+          <div class="etiqueta"><div class="ref">Requisições no mês</div><div class="valor">${fmtInt(d.mes.requisicoes)}</div></div>
+          <div class="etiqueta"><div class="ref">Estouros de CPU no mês</div><div class="valor">${fmtInt(d.mes.estouros)}</div></div>
         </div>
       </div>
       <p class="mini cf-lido">lido às ${esc(d.lido_as)} (horário de Brasília)</p>`;
 
-    ctx.barras(raiz.querySelector('#cf-grafico'), DIAS_EXEMPLO.map((x) => ({
+    ctx.barras(raiz.querySelector('#cf-grafico'), d.dias.map((x) => ({
       v: x.requisicoes,
       v2: x.estouros,
       rot: dataBR(x.dia),
       dica: `${dataBR(x.dia)}<b>${fmtInt(x.requisicoes)} requisições</b><b>${fmtInt(x.estouros)} estouros de CPU</b>`,
-    })), { resumo: 'Exemplo: requisições e estouros de CPU por dia, últimos 30 dias' });
+    })), { resumo: 'Requisições e estouros de CPU por dia, últimos 30 dias' });
   }
 
   window.CloudflareUso = {

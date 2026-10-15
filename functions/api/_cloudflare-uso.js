@@ -1,5 +1,5 @@
 // Uso da Cloudflare: requisições de Functions da conta × teto do plano Free
-// (spec-uso-cloudflare.md, série S1; issue S1-02).
+// (spec-uso-cloudflare.md, série S1; issues S1-02 e S1-03).
 //
 // Toda regra mora aqui: teto, faixas de cor e suas palavras, nome de cada
 // projeto, o "dia" que o teto usa (00:00 UTC = 21h de Brasília), a tradução de
@@ -59,14 +59,62 @@ export function horaBrasilia(agoraMs) {
   return new Date(agoraMs).toLocaleTimeString('pt-BR', { timeZone: FUSO_BRT, hour: '2-digit', minute: '2-digit' });
 }
 
-function consultaHoje(agoraMs) {
-  const de = inicioDoDiaUtc(agoraMs).toISOString();
+const DIA_MS = 86400000;
+export const DIAS_NA_LISTA = 30;
+const isoDia = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+// Começo da janela dos dias: o menor entre "hoje − 29 dias" e o dia 1º do mês
+// (UTC). No dia 31 dá 31 dias, dentro do limite da Cloudflare de 32 por consulta.
+export function inicioDaJanela(agoraMs) {
+  const hoje = inicioDoDiaUtc(agoraMs);
+  const ha29 = hoje.getTime() - (DIAS_NA_LISTA - 1) * DIA_MS;
+  const dia1 = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1);
+  return new Date(Math.min(ha29, dia1));
+}
+
+// Uma consulta só. Os dias são agrupados SÓ por `date`: agrupar por dia e
+// status junto faz a Cloudflare amostrar (14/10 dava 8.050 em vez de 7.848,
+// conferido em 15/10). Por isso os estouros vêm numa parte própria, filtrada.
+function consulta(agoraMs) {
   const ate = new Date(agoraMs).toISOString();
-  const filtro = `{ datetime_geq: "${de}", datetime_lt: "${ate}" }`;
+  const hoje = `{ datetime_geq: "${inicioDoDiaUtc(agoraMs).toISOString()}", datetime_lt: "${ate}" }`;
+  const janela = `datetime_geq: "${inicioDaJanela(agoraMs).toISOString()}", datetime_lt: "${ate}"`;
+  const estouro = `{ ${janela}, status: "exceededResources" }`;
   return `{ viewer { accounts(filter: { accountTag: "${CONTA_CLOUDFLARE}" }) {
-    pages: pagesFunctionsInvocationsAdaptiveGroups(limit: 1000, filter: ${filtro}) { sum { requests } dimensions { scriptName } }
-    workers: workersInvocationsAdaptive(limit: 1000, filter: ${filtro}) { sum { requests } dimensions { scriptName } }
+    pages: pagesFunctionsInvocationsAdaptiveGroups(limit: 1000, filter: ${hoje}) { sum { requests } dimensions { scriptName } }
+    workers: workersInvocationsAdaptive(limit: 1000, filter: ${hoje}) { sum { requests } dimensions { scriptName } }
+    pagesDias: pagesFunctionsInvocationsAdaptiveGroups(limit: 1000, filter: { ${janela} }) { sum { requests } dimensions { date } }
+    workersDias: workersInvocationsAdaptive(limit: 1000, filter: { ${janela} }) { sum { requests } dimensions { date } }
+    pagesEstouros: pagesFunctionsInvocationsAdaptiveGroups(limit: 1000, filter: ${estouro}) { sum { requests } dimensions { date } }
+    workersEstouros: workersInvocationsAdaptive(limit: 1000, filter: ${estouro}) { sum { requests } dimensions { date } }
   } } }`;
+}
+
+function somaPorDia(linhas) {
+  const m = new Map();
+  for (const l of linhas || []) {
+    const dia = l?.dimensions?.date;
+    if (dia) m.set(dia, (m.get(dia) || 0) + Number(l?.sum?.requests || 0));
+  }
+  return m;
+}
+
+// Os 30 dias, do mais antigo até hoje (dia UTC); dia sem linha entra com zero.
+export function montarDias(porDia, estourosPorDia, agoraMs) {
+  const hoje = inicioDoDiaUtc(agoraMs).getTime();
+  const dias = [];
+  for (let i = DIAS_NA_LISTA - 1; i >= 0; i--) {
+    const dia = isoDia(hoje - i * DIA_MS);
+    dias.push({ dia, requisicoes: porDia.get(dia) || 0, estouros: estourosPorDia.get(dia) || 0 });
+  }
+  return dias;
+}
+
+// Acumulado do dia 1º do mês (UTC) até hoje. Sem teto: o Free não tem limite mensal.
+export function montarMes(porDia, estourosPorDia, agoraMs) {
+  const prefixo = isoDia(agoraMs).slice(0, 7);
+  const soma = (m) => [...m].filter(([dia]) => dia.startsWith(prefixo)).reduce((s, [, n]) => s + n, 0);
+  return { requisicoes: soma(porDia), estouros: soma(estourosPorDia) };
 }
 
 // Soma por projeto (várias linhas do mesmo projeto, uma por status, viram uma),
@@ -98,7 +146,7 @@ export function montarHoje(linhas, agoraMs) {
 
 const ehErroDeAutenticacao = (erros) => erros.some((e) => /auth|token|permission|not authorized/i.test(String(e?.message || '')));
 
-// Lê a Cloudflare. Devolve o bloco de hoje ou { indisponivel, motivo }.
+// Lê a Cloudflare. Devolve hoje, os 30 dias e o mês, ou { indisponivel, motivo }.
 export async function consultarCloudflare({ token, fetchFn = fetch, agoraMs }) {
   if (!token) return { indisponivel: true, motivo: MOTIVOS.semCredencial };
   let resp, corpo;
@@ -106,7 +154,7 @@ export async function consultarCloudflare({ token, fetchFn = fetch, agoraMs }) {
     resp = await fetchFn(GRAPHQL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: consultaHoje(agoraMs) }),
+      body: JSON.stringify({ query: consulta(agoraMs) }),
     });
   } catch {
     return { indisponivel: true, motivo: MOTIVOS.foraDoAr };
@@ -120,7 +168,13 @@ export async function consultarCloudflare({ token, fetchFn = fetch, agoraMs }) {
   if (!resp.ok || !corpo || erros.length) return { indisponivel: true, motivo: MOTIVOS.foraDoAr };
   const conta = corpo?.data?.viewer?.accounts?.[0];
   if (!conta) return { indisponivel: true, motivo: MOTIVOS.recusada };
-  return montarHoje([...(conta.pages || []), ...(conta.workers || [])], agoraMs);
+  const porDia = somaPorDia([...(conta.pagesDias || []), ...(conta.workersDias || [])]);
+  const estourosPorDia = somaPorDia([...(conta.pagesEstouros || []), ...(conta.workersEstouros || [])]);
+  return {
+    ...montarHoje([...(conta.pages || []), ...(conta.workers || [])], agoraMs),
+    dias: montarDias(porDia, estourosPorDia, agoraMs),
+    mes: montarMes(porDia, estourosPorDia, agoraMs),
+  };
 }
 
 // Cache no `caches.default`. Só existe no runtime da Cloudflare; no node vira

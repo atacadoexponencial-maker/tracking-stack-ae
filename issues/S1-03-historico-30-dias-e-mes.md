@@ -34,3 +34,63 @@ A gestora abre a aba "Cloudflare" e vê, com números reais, cada um dos último
 |---|---|---|---|
 | PER-S1-03 | Mostrar os estouros de CPU? | respondida | Sim, por dia. Marcelle, 15/10 |
 | PER-S1-05 | Contra o que comparar o mês? | respondida | Nada, só o acumulado. Marcelle, 15/10 |
+
+## Cenários
+
+### Happy Path
+1. A gestora abre a aba. A mesma chamada `GET /api/cloudflare-uso` da S1-02 passa a trazer também `dias` (30 itens) e `mes`.
+2. Se não houver leitura guardada, o servidor faz **uma única** consulta GraphQL. A janela vai do menor entre "hoje − 29 dias" e "dia 1º do mês" (UTC) até agora, e a consulta tem quatro partes:
+   - hoje por projeto (a mesma da S1-02);
+   - requisições por **dia** (`date`) em `pagesFunctionsInvocationsAdaptiveGroups` e em `workersInvocationsAdaptive`, agrupadas **só por dia** (agrupar por dia e status junto faz a Cloudflare amostrar: 14/10 dava 8.050 em vez de 7.848);
+   - estouros por dia, com filtro `status: "exceededResources"`, nos dois datasets.
+3. O servidor monta os 30 dias, do mais antigo para hoje. Dia sem nenhuma linha entra com 0 e 0. O mês é a soma de requisições e estouros do dia 1º do mês (UTC) até hoje. Tudo é guardado junto, no mesmo cache de 15 minutos.
+4. A aba desenha o gráfico e a tabela com os dias reais, as etiquetas do mês e tira os selos "EXEMPLO".
+
+### Edge Cases
+- **Logo depois das 21h de Brasília:** o "hoje" (UTC) acabou de virar. O dia que terminou vai para a lista como dia anterior, e a barra mostra só o que veio depois das 21h.
+- **Dia 31:** a janela vai do dia 1º até hoje (31 dias), dentro do limite da Cloudflare de 32 dias por consulta.
+- **Começo do mês (dia 1º a 3):** o mês soma só os poucos dias do mês, embora a lista mostre 30 dias.
+
+### Cenário de Erro
+- O mesmo da S1-02: qualquer falha da consulta (que agora é uma só) deixa a aba inteira como indisponível, com o motivo e sem nenhum número.
+
+## Prova
+
+| Critério | Prova | Onde | O que confere |
+|---|---|---|---|
+| CA-S1-02 | automática | `tests/cloudflare-uso.test.js` | às 00:30 UTC de 16/10, 500 requisições hoje e 80.000 em 15/10: `hoje.requisicoes` é 500, o item de 15/10 em `dias` tem 80.000 e `zera_as` diz 21h de Brasília |
+| CA-S1-04 | automática | `tests/cloudflare-uso.test.js` | `dias` tem 30 itens terminando hoje, o de 12/10 com 9.649 requisições e 874 estouros, e `teto` é 100.000 |
+| CA-S1-05 | automática | `tests/cloudflare-uso.test.js` | um dia sem linha na resposta da Cloudflare aparece em `dias` com 0 e 0, e a lista continua com 30 itens |
+| CA-S1-06 | automática | `tests/cloudflare-uso.test.js` | o `mes` soma só do dia 1º até hoje (150.000 e 3.000), ignora os dias do mês anterior que estão na lista e não traz teto nem porcentagem |
+| CA-S1-11 | manual | roteiro abaixo | os totais de ontem e de hoje batem com o painel da Cloudflare |
+| CA-S1-12 | manual | roteiro abaixo | o visual da aba no computador e no celular |
+
+### Roteiro manual — CA-S1-11
+1. Abra o dash → Diagnóstico → Cloudflare e anote o total de hoje e o de ontem (tabela "ver os 30 dias em tabela").
+2. No painel da Cloudflare, abra Workers & Pages → aba de uso/métricas da conta (Requests), com o período em "últimas 24 h" ou por dia.
+3. Compare. Os números devem ser iguais. Uma diferença de poucos minutos é aceitável, porque a aba guarda a leitura por 15 minutos e o painel mostra o horário dele.
+
+### Roteiro manual — CA-S1-12
+1. Abra a aba no computador. Ela deve seguir o visual do resto do dash (etiquetas, régua, fios), sem os selos "EXEMPLO".
+2. Abra no celular. A barra de hoje e a lista dos 30 dias devem ser legíveis, a tabela dos dias vira lista e não pode haver rolagem para o lado.
+
+## Banco de Dados
+
+Nenhum.
+
+## Arquivos
+
+- **Modificar:** `functions/api/_cloudflare-uso.js` — a consulta passa a pedir também os dias e os estouros (uma chamada só), com a janela do menor entre hoje − 29 e o dia 1º. Novas funções: `montarDias` (30 dias com zero onde faltar) e `montarMes`. A resposta ganha `dias` e `mes`.
+- **Modificar:** `public/dash/cloudflare.js` — tira `DIAS_EXEMPLO`, `MES_EXEMPLO` e os selos "EXEMPLO" e desenha `d.dias` e `d.mes`.
+- **Modificar:** `tests/cloudflare-uso.test.js` — acrescenta os testes de CA-S1-02, 04, 05 e 06. A Cloudflare falsa da S1-02 passa a devolver também as partes de dias e estouros, sem mudar o que os testes da S1-02 conferem.
+
+## Dependências Externas
+
+- A mesma API GraphQL da S1-02. Limite conferido em 15/10: no máximo 32 dias por consulta ("4w4d").
+
+## Checklist
+
+- [x] Estender `functions/api/_cloudflare-uso.js` (consulta, dias, mês)
+- [x] Desenhar dias e mês reais em `public/dash/cloudflare.js`
+- [x] Testes de CA-S1-02, 04, 05 e 06 em `tests/cloudflare-uso.test.js` e suíte inteira passando
+- [ ] Publicar e conferir a rota no ar
