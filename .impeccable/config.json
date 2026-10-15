@@ -1,0 +1,30 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "arial",
+        "files": [
+          "functions/api/_email-render.js",
+          "public/dash/email-blocos.js",
+          "functions/api/_email-blocos.js"
+        ],
+        "createdAt": "2026-10-03T19:15:44.710Z",
+        "reason": "Claude: HTML de e-mail exige fonte segura de cliente de e-mail; o protótipo aprovado (373) já usava Arial no e-mail"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "files": [
+          "functions/api/_email-render.js",
+          "public/dash/email-blocos.js",
+          "functions/api/_email-blocos.js"
+        ],
+        "createdAt": "2026-10-03T19:23:04.533Z",
+        "reason": "Claude: HTML de e-mail precisa de fonte segura em clientes de e-mail; o protótipo aprovado (373) já usava Arial"
+      }
+    ]
+  }
+}
