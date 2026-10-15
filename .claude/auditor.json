@@ -1,0 +1,3 @@
+{
+  "comandoTeste": "node --test --test-reporter=./.claude/auditor-reporter.mjs --test-reporter-destination={saida} {arquivos}"
+}
