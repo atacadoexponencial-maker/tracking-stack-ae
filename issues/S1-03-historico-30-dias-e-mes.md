@@ -93,4 +93,4 @@ Nenhum.
 - [x] Estender `functions/api/_cloudflare-uso.js` (consulta, dias, mês)
 - [x] Desenhar dias e mês reais em `public/dash/cloudflare.js`
 - [x] Testes de CA-S1-02, 04, 05 e 06 em `tests/cloudflare-uso.test.js` e suíte inteira passando
-- [ ] Publicar e conferir a rota no ar
+- [x] Publicar e conferir a rota no ar
