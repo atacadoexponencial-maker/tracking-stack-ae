@@ -600,6 +600,24 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 /* Abas internas: Controle (o que ele pode fazer) e Propostas (o que ele
    pede). Trocar entre elas só esconde e mostra — a grade não é redesenhada,
    para não perder alteração ainda não salva. */
+/* Cloudflare (public/dash/cloudflare.js): régua do teto com a cor da faixa. */
+.cf-regua.folga i { background: var(--alta); }
+.cf-regua.atencao i { background: var(--alerta); }
+.cf-regua.perto i { background: var(--queda); }
+.etiqueta .valor .cf-de { font-size: 0.45em; font-weight: 400; color: var(--apagado); letter-spacing: 0; }
+.cf-estado { display: inline-flex; gap: 0.4rem; align-items: center; margin-left: auto; }
+.cf-total td { font-weight: 700; border-top: 1px solid var(--fio-forte); }
+.cf-dias { margin-top: 0.8rem; }
+.cf-dias summary { cursor: pointer; margin-bottom: 0.5rem; }
+.cf-lido { margin-top: -0.6rem; }
+@media (max-width: 640px) {
+  .cf-tabela-dias thead { display: none; }
+  .cf-tabela-dias tr { display: flex; justify-content: space-between; gap: 0.6rem; border-bottom: 1px solid var(--fio); padding: 0.35rem 0; }
+  .cf-tabela-dias td { border: 0; padding: 0; }
+  .cf-tabela-dias td.num[data-rot]::before { content: attr(data-rot) " "; color: var(--apagado); font-size: 0.7rem; }
+  .cf-estado { margin-left: 0; }
+}
+
 /* Agenda (public/dash/agenda.js) */
 input[type="time"] { font: inherit; padding: 0.35rem 0.45rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); color: var(--tinta); }
 .ag-form { display: grid; gap: 0.75rem; max-width: 760px; }
@@ -1535,6 +1553,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
         <a href="#jornada" data-secao="jornada">Jornada</a>
         <a href="#eventos" data-secao="eventos">Eventos</a>
         <a href="#saude-meta" data-secao="saude-meta">Saúde das integrações</a>
+        <a href="#cloudflare" data-secao="cloudflare">Cloudflare</a>
         <a href="#argo" data-secao="argo">Argo</a>
       </div>
       <div class="nav-grupo" role="group" aria-labelledby="nav-marketing" data-app="marketing">
@@ -1983,6 +2002,10 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
       </div>
     </section>
 
+    <!-- Aba Cloudflare (spec-uso-cloudflare.md, série S1): desenhada por
+         public/dash/cloudflare.js. PROTÓTIPO S1-01: números de exemplo. -->
+    <section class="secao" id="secao-cloudflare"></section>
+
     <!-- Aba Argo (spec 2026-09-20-argo-controle-ae-design.md): o Argo já opera
          esta conta sozinho desde agosto — pausa campanhas de tráfego todo dia
          útil às 8h50. Esta aba mostra o que ele fez e comanda o que ele pode
@@ -2133,6 +2156,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-relatorio.js"></script>
 <script src="/dash/argo-contexto.js"></script>
 <script src="/dash/argo-testes.js"></script>
+<script src="/dash/cloudflare.js"></script>
 <script>
 (() => {
 'use strict';
@@ -4641,6 +4665,11 @@ async function saudeApi(caminho, init) {
   return dados;
 }
 
+// Aba Cloudflare (spec-uso-cloudflare.md): public/dash/cloudflare.js desenha.
+R.cloudflare = async () => {
+  if (window.CloudflareUso) window.CloudflareUso.abrir($('#secao-cloudflare'), { esc, fmtInt, fmtPct, barras: barrasIg });
+};
+
 R['saude-meta'] = async () => {
   const p = intervalo();
   let d;
@@ -6519,7 +6548,7 @@ R['mkt-email'] = () => window.EmailMkt.render(emailCtx());
 R['agenda-emails'] = () => window.EmailMkt.renderAgenda(emailCtx());
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
+const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', cloudflare: 'Cloudflare', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
@@ -6541,6 +6570,7 @@ const FILTROS = {
   jornada: { nota: 'busca por e-mail · não usa o filtro de datas' },
   eventos: { nota: 'eventos mais recentes · não usa o filtro de datas' },
   'saude-meta': { periodo: true },
+  cloudflare: { nota: 'uso da conta · não usa o filtro de datas' },
   argo: { nota: 'últimas rodadas · não usa o filtro de datas' },
   // Público é o retrato atual e avisa na própria sub-aba que não segue as datas.
   instagram: { periodo: true, compara: true },

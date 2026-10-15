@@ -1,0 +1,7 @@
+# Séries de issues
+
+As issues até a 410 foram criadas antes das séries e seguem numeradas soltas nesta pasta.
+
+| Série | Spec | Pasta de concluídas |
+|---|---|---|
+| S1 | spec-uso-cloudflare.md | issues/concluidas_S1 |
