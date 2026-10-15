@@ -4667,7 +4667,13 @@ async function saudeApi(caminho, init) {
 
 // Aba Cloudflare (spec-uso-cloudflare.md): public/dash/cloudflare.js desenha.
 R.cloudflare = async () => {
-  if (window.CloudflareUso) window.CloudflareUso.abrir($('#secao-cloudflare'), { esc, fmtInt, fmtPct, barras: barrasIg });
+  if (!window.CloudflareUso) return;
+  try {
+    await window.CloudflareUso.abrir($('#secao-cloudflare'), { esc, fmtInt, fmtPct, barras: barrasIg, api: saudeApi });
+  } catch (e) {
+    e.mensagemUsuario = e.mensagemUsuario || 'Não foi possível carregar o uso da Cloudflare agora.';
+    throw e;
+  }
 };
 
 R['saude-meta'] = async () => {

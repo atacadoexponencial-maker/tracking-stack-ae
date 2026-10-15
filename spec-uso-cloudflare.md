@@ -146,6 +146,7 @@
 | SUP-S1-04 | As chamadas dos crons da VPS contam como requisições de Functions e aparecem misturadas ao resto, sem separação própria. | confirmada | Marcelle, 15/10 |
 | SUP-S1-05 | A barra de hoje não muda de cor nem dá alerta perto do teto. Mostra só número e porcentagem. | invalidada | Marcelle, 15/10: a barra muda de cor (verde até 60%, amarelo de 60% a 80%, vermelho acima de 80%), ver CA-S1-13 |
 | SUP-S1-06 | O teto de 100 mil aparece como texto no título do gráfico dos 30 dias ("teto: 100.000 por dia"), não como linha no gráfico: com os dias em torno de 10 mil, uma linha em 100 mil achataria as barras até ficarem ilegíveis. Os estouros de CPU aparecem como barras vermelhas para baixo no mesmo gráfico. | aberta | — |
+| SUP-S1-07 | O nome de cada projeto vem de uma tabela fixa no servidor (tracking-ae, painel-atacadoexponencial), porque a credencial de Analytics não lê a lista de projetos do Pages. Projeto novo aparece com o nome técnico da Cloudflare até entrar na tabela. A versão de prévia de um projeto aparece separada, como "tracking-ae (prévia)", porque também conta no teto. | confirmada | Marcelle, 15/10 |
 
 ## Perguntas em aberto
 
