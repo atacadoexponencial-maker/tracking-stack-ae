@@ -101,4 +101,4 @@ Reaproveitados: `recusarSemChave` (`functions/api/_argo-auth.js`), `FUSO_BRT` (`
 - [x] Criar `functions/api/cloudflare-uso.js`
 - [x] Ligar `public/dash/cloudflare.js` e `R.cloudflare` à rota
 - [x] Escrever `tests/cloudflare-uso.test.js` e rodar a suíte
-- [ ] Publicar e conferir a aba no ar com números reais
+- [x] Publicar e conferir a aba no ar com números reais
