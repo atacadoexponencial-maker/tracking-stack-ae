@@ -775,7 +775,7 @@
       else previa.textContent = descricao.value;
       previa.classList.toggle('vazia', !descricao.value.trim());
     };
-    import('/agenda-formatar.js').then((m) => { desenharDescricao = m.desenharDescricao; atualizarPrevia(); }).catch(() => {});
+    import('/agenda-formatar.js?v=2026-10-16').then((m) => { desenharDescricao = m.desenharDescricao; atualizarPrevia(); }).catch(() => {});
     descricao.addEventListener('input', atualizarPrevia);
     atualizarPrevia();
     form.querySelector('.ag-fmt__barra').onclick = (ev) => {
