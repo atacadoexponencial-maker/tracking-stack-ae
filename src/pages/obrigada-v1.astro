@@ -2,21 +2,27 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo.png';
-import Testimonials from '../components/sections/Testimonials.astro';
-import Pillars from '../components/sections/Pillars.astro';
+import VideoTestimonials from '../components/sections/VideoTestimonials.astro';
 import AboutFelipe from '../components/sections/AboutFelipe.astro';
+import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
+import EquacaoMetodo from '../components/obrigada/EquacaoMetodo.astro';
 
-// Proposta A da página de obrigada: ângulo de seleção. Em aprovação, nenhum
+// Proposta A da página de obrigada: ângulo de seleção. O topo é um
+// acompanhamento de status, como o de um pedido. Em aprovação: nenhum
 // formulário redireciona para cá ainda.
-const passos = [
-  { number: '1', title: 'Análise da aplicação', description: 'O time confere se a sua marca vende para revendedora e se a operação já tem tração para colocar o plano em prática. A resposta sai em até 24 horas.' },
-  { number: '2', title: 'Contato pelo WhatsApp', description: 'Se a sua marca for selecionada, você recebe uma mensagem do número +55 19 98170-2315 para marcar o horário.' },
-  { number: '3', title: 'A consultoria', description: 'Videochamada individual de 35 minutos com um especialista do Atacado Exponencial, olhando a sua operação.' },
+const etapas = [
+  { estado: 'feito', titulo: 'Aplicação recebida', texto: 'Suas respostas chegaram para o nosso time.' },
+  { estado: 'agora', titulo: 'Análise da aplicação', quando: 'Em até 24 horas', texto: 'O time confere se a sua marca vende para revendedora e se a operação já tem tração para colocar o plano em prática.' },
+  { estado: 'depois', titulo: 'Contato pelo WhatsApp', texto: 'Se a sua marca for selecionada, você recebe uma mensagem do número +55 19 98170-2315 para marcar o horário.' },
+  { estado: 'depois', titulo: 'A consultoria', quando: '35 minutos', texto: 'Videochamada individual com um especialista do Atacado Exponencial, olhando a sua operação.' },
 ];
 
-const pilares = [
-  { number: 'Pilar 1', title: 'Entrada Previsível de novos revendedores', description: 'Revendedora nova chegando todo mês por um processo que a sua marca controla. Indicação vira bônus, deixa de ser o plano.' },
-  { number: 'Pilar 2', title: 'Recompra Escalável de revendedores ativos', description: 'A primeira compra da revendedora é sempre um teste. No atacado, a venda começa na reposição: o lucro mora no segundo pedido, no terceiro, no quarto.' },
+// Os mesmos depoimentos em vídeo da home
+const depoimentos = [
+  { name: 'Jaque', videoId: '101c1525-fa13-4fe6-a61e-fe38600dec12' },
+  { name: 'Barraca do Willinha', videoId: 'a7d5602a-4f1e-4d28-9b83-9cfc53fde08a' },
+  { name: 'Adriana', videoId: '03f4e18a-1f52-40f5-844a-3f900f705126' },
+  { name: 'Jossanclê', videoId: 'd8d67535-9b07-4713-a21f-14eb4cd70f6b' },
 ];
 
 const stats = [
@@ -38,76 +44,113 @@ const bio = [
   showHeader={false}
   noindex
 >
-  <section class="confirm">
-    <div class="container confirm__inner">
-      <Image src={logo} alt="Atacado Exponencial" height={72} class="confirm__logo" />
-      <span class="confirm__badge">Aplicação recebida</span>
-      <h1 class="confirm__title">Sua aplicação entrou na fila de análise.</h1>
-      <p class="confirm__sub">As vagas da consultoria individual gratuita são poucas por semana, porque cada sessão é feita na mão pelo nosso time. Agora a gente lê o que você respondeu e vê se a sua marca está no momento certo para a conversa.</p>
-    </div>
-  </section>
-
-  <section class="section steps">
+  <section class="topo">
     <div class="container">
-      <div class="section-head">
-        <span class="eyebrow">O que acontece agora</span>
-      </div>
-      <ol class="steps__list">
-        {passos.map((p) => (
-          <li class="steps__item">
-            <span class="steps__num">{p.number}</span>
-            <div>
-              <h3 class="steps__title">{p.title}</h3>
-              <p class="steps__desc">{p.description}</p>
+      <Image src={logo} alt="Atacado Exponencial" height={72} class="topo__logo" />
+      <h1 class="topo__titulo">Sua aplicação entrou na fila de análise.</h1>
+      <p class="topo__sub">As vagas da consultoria individual gratuita são poucas por semana, porque cada sessão é feita na mão pelo nosso time. Agora a gente lê o que você respondeu e vê se a sua marca está no momento certo para a conversa.</p>
+
+      <ol class="status" aria-label="O que acontece agora">
+        {etapas.map((e) => (
+          <li class={`status__etapa status__etapa--${e.estado}`} aria-current={e.estado === 'agora' ? 'step' : undefined}>
+            <span class="status__marca" aria-hidden="true">
+              {e.estado === 'feito' && (
+                <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              )}
+            </span>
+            <div class="status__corpo">
+              <p class="status__titulo">{e.titulo}</p>
+              {e.estado === 'agora' && <p class="status__agora">Agora</p>}
+              {e.quando && <p class="status__quando">{e.quando}</p>}
+              <p class="status__texto">{e.texto}</p>
             </div>
           </li>
         ))}
       </ol>
-      <div class="steps__box">
-        <p>Salve o nosso número agora. Se a mensagem chegar e ficar sem resposta, a vaga passa para a próxima marca da fila.</p>
-        <a class="btn-cta steps__btn" href="/contato-atacado-exponencial.vcf" download="Atacado Exponencial.vcf">Salvar o número no WhatsApp</a>
-      </div>
     </div>
   </section>
 
-  <Testimonials title="Marcas que já passaram por essa conversa" />
+  <section class="section aviso">
+    <div class="container">
+      <ContatoWhatsapp titulo="Salve o nosso número agora.">
+        <p>Se a mensagem chegar e ficar sem resposta, a vaga passa para a próxima marca da fila.</p>
+      </ContatoWhatsapp>
+    </div>
+  </section>
 
-  <Pillars eyebrow="O método" title="Todo atacado que escala resolve a mesma conta" pillars={pilares} footer="Atacado é venda complexa, não transacional. Na consultoria, a gente descobre qual dos dois lados está travando a sua marca, porque a ação certa para um é a errada para o outro.">
-    <p slot="sub" class="equation">
-      <span>Entrada Previsível de novos revendedores</span>
-      <span class="equation__op">+</span>
-      <span>Recompra Escalável de revendedores ativos</span>
-      <span class="equation__op">=</span>
-      <strong>Atacado Exponencial</strong>
-    </p>
-  </Pillars>
+  <VideoTestimonials title="Marcas que já passaram por essa conversa" videos={depoimentos} />
+
+  <EquacaoMetodo
+    titulo="Todo atacado que escala resolve a mesma conta"
+    entrada="Revendedora nova chegando todo mês por um processo que a sua marca controla. Indicação vira bônus, deixa de ser o plano."
+    recompra="A primeira compra da revendedora é sempre um teste. No atacado, a venda começa na reposição: o lucro mora no segundo pedido, no terceiro, no quarto."
+    fecho="Atacado é venda complexa, não transacional. Na consultoria, a gente descobre qual dos dois lados está travando a sua marca, porque a ação certa para um é a errada para o outro."
+  />
 
   <AboutFelipe bio={bio} stats={stats} />
 </BaseLayout>
 
 <style>
-  .confirm { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); padding-block: 3.5rem; }
-  .confirm__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.25rem; }
-  .confirm__logo { height: 2.25rem; width: auto; filter: brightness(0); }
-  .confirm__badge {
-    display: inline-block; border: 1px solid rgba(30, 30, 30, 0.15); border-radius: 9999px;
-    padding: 0.5rem 1.25rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: rgba(30, 30, 30, 0.7);
+  .topo { padding-block: 2.5rem 4rem; }
+  .topo__logo { height: 1.75rem; width: auto; }
+  .topo__titulo {
+    margin-top: 3.5rem;
+    font-size: clamp(2.25rem, 7vw, 4.5rem);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+    max-width: 14ch;
   }
-  .confirm__title { font-size: clamp(1.75rem, 5vw, 3rem); line-height: 1.08; max-width: 36rem; }
-  .confirm__sub { color: rgba(30, 30, 30, 0.7); max-width: 36rem; line-height: 1.6; }
-  .steps__list { list-style: none; padding: 0; margin: 2rem auto 0; max-width: 44rem; display: flex; flex-direction: column; }
-  .steps__item { display: flex; gap: 1.5rem; padding-block: 1.5rem; border-bottom: 1px solid hsl(var(--border)); }
-  .steps__num { font-weight: 700; font-size: 2.25rem; line-height: 1; color: hsl(var(--muted-foreground)); flex-shrink: 0; width: 2rem; }
-  .steps__title { font-size: 1.1rem; margin-bottom: 0.4rem; }
-  .steps__desc { color: hsl(var(--muted-foreground)); font-size: 0.95rem; line-height: 1.6; }
-  .steps__box {
-    margin: 2.5rem auto 0; max-width: 44rem; border: 1px solid hsl(var(--foreground) / 0.25); border-radius: 1rem;
-    padding: 1.75rem; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; text-align: center;
+  .topo__sub {
+    margin-top: 1.5rem;
+    color: hsl(var(--muted-foreground));
+    font-size: 1.1rem;
+    line-height: 1.6;
+    max-width: 36rem;
   }
-  .steps__box p { font-size: 1.05rem; line-height: 1.6; }
-  .steps__btn { background: hsl(var(--foreground)); color: hsl(var(--background)); text-decoration: none; justify-content: center; }
-  .equation { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; font-size: 1.05rem; color: rgba(30, 30, 30, 0.75); }
-  .equation strong { color: hsl(var(--light-fg)); font-size: 1.2rem; }
-  .equation__op { font-weight: 700; font-size: 1.4rem; color: rgba(30, 30, 30, 0.4); line-height: 1; }
+
+  /* Acompanhamento de status: vertical no celular, horizontal no desktop.
+     A linha entre as marcas fica cheia até a etapa atual. */
+  .status { list-style: none; padding: 0; margin-top: 3.5rem; display: grid; }
+  .status__etapa { position: relative; display: grid; grid-template-columns: 1.75rem 1fr; gap: 1.25rem; padding-bottom: 2rem; }
+  .status__etapa:last-child { padding-bottom: 0; }
+  .status__etapa::before {
+    content: ''; position: absolute; left: calc(0.875rem - 1px); top: 1.75rem; bottom: 0;
+    width: 2px; background: hsl(var(--border));
+  }
+  .status__etapa:last-child::before { display: none; }
+  .status__etapa--feito::before { background: hsl(var(--light-bg)); }
+  .status__marca {
+    width: 1.75rem; height: 1.75rem; border-radius: 50%;
+    display: grid; place-items: center;
+    border: 2px solid hsl(var(--border));
+    background: hsl(var(--background));
+    position: relative; z-index: 1;
+  }
+  .status__etapa--feito .status__marca { background: hsl(var(--light-bg)); border-color: hsl(var(--light-bg)); color: hsl(var(--light-fg)); }
+  .status__etapa--agora .status__marca { border-color: hsl(var(--light-bg)); }
+  .status__etapa--agora .status__marca::after {
+    content: ''; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: hsl(var(--light-bg));
+    animation: pulso 1.8s ease-in-out infinite;
+  }
+  @keyframes pulso { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+  @media (prefers-reduced-motion: reduce) { .status__etapa--agora .status__marca::after { animation: none; } }
+
+  .status__titulo { font-weight: 700; font-size: 1.1rem; line-height: 1.75rem; }
+  .status__etapa--depois .status__titulo { color: hsl(var(--muted-foreground)); }
+  .status__agora {
+    display: inline-block; margin-top: 0.35rem; margin-right: 0.5rem;
+    background: hsl(var(--light-bg)); color: hsl(var(--light-fg));
+    font-size: 0.75rem; font-weight: 700; padding: 0.15rem 0.6rem; border-radius: 9999px;
+  }
+  .status__quando { display: inline-block; margin-top: 0.35rem; font-size: 0.85rem; font-weight: 700; }
+  .status__texto { margin-top: 0.5rem; color: hsl(var(--muted-foreground)); font-size: 0.95rem; line-height: 1.6; max-width: 30rem; }
+
+  @media (min-width: 900px) {
+    .status { grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+    .status__etapa { grid-template-columns: 1fr; align-content: start; gap: 1rem; padding-bottom: 0; }
+    .status__etapa::before { left: 1.75rem; right: -1.5rem; top: calc(0.875rem - 1px); bottom: auto; width: auto; height: 2px; }
+    .status__etapa--agora::before { background: linear-gradient(90deg, hsl(var(--light-bg)) 0 40%, hsl(var(--border)) 40%); }
+  }
+
+  .aviso { border-top: 1px solid hsl(var(--border)); }
 </style>

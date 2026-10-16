@@ -1,0 +1,91 @@
+---
+// A equação do método escrita em tipografia grande, com cada pilar preso ao
+// termo dele. Usada nas páginas de obrigada (/obrigada-v1 e -v2); cada
+// proposta passa o próprio título, o texto de cada pilar e o fecho.
+interface Props {
+  titulo: string;
+  entrada: string;
+  recompra: string;
+  fecho: string;
+}
+const { titulo, entrada, recompra, fecho } = Astro.props;
+---
+
+<section class="section section--light eq">
+  <div class="container eq__inner">
+    <span class="eyebrow">O método</span>
+    <h2 class="eq__titulo">{titulo}</h2>
+
+    <div class="eq__conta">
+      <div class="eq__linha">
+        <p class="eq__termo"><span class="eq__op" aria-hidden="true"></span>Entrada Previsível<small>de novos revendedores</small></p>
+        <p class="eq__pilar"><strong>Pilar 1.</strong> {entrada}</p>
+      </div>
+      <div class="eq__linha">
+        <p class="eq__termo"><span class="eq__op">+</span>Recompra Escalável<small>de revendedores ativos</small></p>
+        <p class="eq__pilar"><strong>Pilar 2.</strong> {recompra}</p>
+      </div>
+      <div class="eq__linha eq__linha--total">
+        <p class="eq__termo"><span class="eq__op">=</span>Atacado Exponencial</p>
+      </div>
+    </div>
+
+    <p class="eq__fecho">{fecho}</p>
+  </div>
+</section>
+
+<style>
+  /* Branco, para não colar no bege dos depoimentos que vêm logo antes */
+  .eq { background: #fff; }
+  .eq__inner { max-width: 60rem; }
+  .eq__titulo { font-size: clamp(1.5rem, 3.5vw, 2.25rem); line-height: 1.15; margin-top: 0.75rem; max-width: 34rem; }
+  .eq__conta { margin-top: 3rem; }
+  .eq__linha {
+    display: grid;
+    gap: 0.75rem;
+    padding-block: 1.75rem;
+    border-top: 1px solid rgba(30, 30, 30, 0.14);
+  }
+  /* A linha do resultado fecha a conta com o traço duplo de soma */
+  .eq__linha--total { border-top: 3px double rgba(30, 30, 30, 0.6); }
+  .eq__termo {
+    position: relative;
+    font-weight: 700;
+    font-size: clamp(2rem, 6.5vw, 4rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    padding-left: clamp(2rem, 5vw, 3.5rem);
+  }
+  .eq__termo small {
+    display: block;
+    font-weight: 400;
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
+    color: rgba(30, 30, 30, 0.6);
+    margin-top: 0.6rem;
+  }
+  .eq__op {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: rgba(30, 30, 30, 0.35);
+  }
+  .eq__pilar {
+    color: rgba(30, 30, 30, 0.75);
+    font-size: 1rem;
+    line-height: 1.65;
+    max-width: 34rem;
+    padding-left: clamp(2rem, 5vw, 3.5rem);
+  }
+  .eq__pilar strong { color: hsl(var(--light-fg)); }
+  .eq__fecho {
+    margin-top: 2.5rem;
+    font-size: clamp(1.1rem, 2.4vw, 1.35rem);
+    line-height: 1.5;
+    max-width: 40rem;
+  }
+  @media (min-width: 900px) {
+    .eq__linha { grid-template-columns: 1.15fr 1fr; align-items: start; gap: 2.5rem; }
+    .eq__pilar { padding-left: 0; padding-top: 0.4rem; }
+  }
+</style>
