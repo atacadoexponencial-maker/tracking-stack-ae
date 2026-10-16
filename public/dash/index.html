@@ -625,6 +625,18 @@ input[type="time"] { font: inherit; padding: 0.35rem 0.45rem; border: 1px solid 
 .ag-form label { display: grid; gap: 0.25rem; font-size: 0.8rem; color: var(--tinta-2); }
 .ag-form label.marca { display: flex; gap: 0.5rem; align-items: center; color: var(--tinta); font-size: 0.86rem; }
 .ag-form fieldset { border: 1px solid var(--fio); border-radius: 2px; padding: 0.7rem 0.9rem; display: grid; gap: 0.5rem; }
+.ag-fmt-campo { display: grid; gap: 0.3rem; min-width: 0; }
+.ag-fmt { border: 1px solid var(--fio-forte); border-radius: 2px; background: var(--etiqueta); min-width: 0; }
+.ag-fmt__barra { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; padding: 0.3rem; border-bottom: 1px solid var(--fio); }
+.ag-fmt__barra button { font: inherit; font-size: 0.82rem; min-width: 2rem; height: 1.9rem; padding: 0 0.5rem; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--tinta); cursor: pointer; }
+.ag-fmt__barra button:hover, .ag-fmt__barra button:focus-visible { border-color: var(--fio-forte); }
+.ag-fmt__barra .mini { margin-left: 0.35rem; }
+.ag-gaveta__corpo .ag-fmt textarea { border: none; border-radius: 0; display: block; }
+.ag-fmt__previa-rotulo { margin-top: 0.4rem; }
+.ag-fmt__previa { border: 1px dashed var(--fio-forte); border-radius: 2px; padding: 0.7rem 0.9rem; font-size: 0.86rem; line-height: 1.55; color: var(--tinta); display: grid; gap: 0.6rem; }
+.ag-fmt__previa p { margin: 0; white-space: pre-line; }
+.ag-fmt__previa ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.25rem; }
+.ag-fmt__previa.vazia::before { content: 'A descrição aparece aqui.'; color: var(--apagado); }
 .ag-form legend { font-size: 0.8rem; color: var(--tinta-2); padding: 0 0.3rem; }
 .ag-dia { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.6rem; align-items: start; padding: 0.45rem 0; border-bottom: 1px solid var(--fio); }
 .ag-dia:last-child { border-bottom: none; }

@@ -268,6 +268,49 @@
     };
     g.querySelectorAll('[data-fechar]').forEach((b) => { b.onclick = () => g.pedirFechar(); });
   }
+  /**
+   * Põe ou tira a marca de formatação no trecho selecionado da caixa de texto.
+   * Negrito **x**, itálico *x*, sublinhado __x__; lista põe/tira "- " no começo
+   * de cada linha selecionada (ou da linha do cursor).
+   */
+  const MARCA_FMT = { negrito: '**', italico: '*', sublinhado: '__' };
+  function formatarSelecao(ta, fmt) {
+    const v = ta.value;
+    let ini = ta.selectionStart;
+    let fim = ta.selectionEnd;
+    if (fmt === 'lista') {
+      ini = v.lastIndexOf('\n', ini - 1) + 1;
+      const quebra = v.indexOf('\n', fim > ini && v[fim - 1] === '\n' ? fim - 1 : fim);
+      fim = quebra === -1 ? v.length : quebra;
+      const linhas = v.slice(ini, fim).split('\n');
+      const todas = linhas.filter((l) => l.trim()).every((l) => /^\s*[-•]\s+/.test(l));
+      const novo = linhas.map((l) => (!l.trim() ? l : todas ? l.replace(/^\s*[-•]\s+/, '') : `- ${l}`)).join('\n');
+      ta.setRangeText(novo, ini, fim, 'select');
+    } else {
+      const m = MARCA_FMT[fmt];
+      // Não leva espaço nem quebra das pontas para dentro da marca.
+      while (ini < fim && /\s/.test(v[ini])) ini++;
+      while (fim > ini && /\s/.test(v[fim - 1])) fim--;
+      const sel = v.slice(ini, fim);
+      const marcadoFora = v.slice(ini - m.length, ini) === m && v.slice(fim, fim + m.length) === m
+        // Itálico "*" ao lado de outro "*" é negrito, não itálico.
+        && !(fmt === 'italico' && (v[ini - 2] === '*' || v[fim + 1] === '*'));
+      if (marcadoFora) {
+        ta.setRangeText(sel, ini - m.length, fim + m.length, 'select');
+      } else if (sel.length > 2 * m.length && sel.startsWith(m) && sel.endsWith(m)) {
+        ta.setRangeText(sel.slice(m.length, -m.length), ini, fim, 'select');
+      } else if (sel) {
+        ta.setRangeText(m + sel + m, ini, fim, 'end');
+        ta.setSelectionRange(ini + m.length, fim + m.length);
+      } else {
+        avisar('Selecione o trecho que quer formatar.', 'erro');
+        ta.focus();
+        return;
+      }
+    }
+    ta.focus();
+  }
+
   const SAIR_HTML = `<div class="ag-sair" role="alertdialog" aria-label="Alterações não salvas" hidden>
       <p><b>Você tem alterações não salvas.</b> O que quer fazer?</p>
       <div class="ag-acoes"><button class="btn" type="button" data-sair="salvar">Salvar</button>
@@ -645,8 +688,21 @@
           <label>Endereço do link <span class="mini">atacadoexponencial.com/agendar/…</span><input type="text" name="slug" value="${ctx.esc(v.slug)}" placeholder="consultoria-individual" required></label>
           <div class="aviso alerta" id="ag-slug-aviso" hidden>Os links já divulgados com o endereço antigo vão parar de funcionar.</div>
           <label>Duração (min) <input type="number" name="duracao_min" value="${v.duracao_min}" min="5"></label>
-          <label>Descrição <span class="mini">aparece ao lado do calendário</span>
-            <textarea name="descricao" rows="7" maxlength="2000" placeholder="O que a pessoa está agendando, quanto tempo dura, o que vai receber.">${ctx.esc(v.descricao || '')}</textarea></label>
+          <div class="ag-fmt-campo">
+          <label for="ag-descricao">Descrição <span class="mini">aparece ao lado do calendário</span></label>
+          <div class="ag-fmt">
+            <div class="ag-fmt__barra" role="toolbar" aria-label="Formatar a descrição">
+              <button type="button" data-fmt="negrito" title="Negrito" aria-label="Negrito"><b>B</b></button>
+              <button type="button" data-fmt="italico" title="Itálico" aria-label="Itálico"><i>I</i></button>
+              <button type="button" data-fmt="sublinhado" title="Sublinhado" aria-label="Sublinhado"><u>U</u></button>
+              <button type="button" data-fmt="lista" title="Lista com marcadores" aria-label="Lista com marcadores">• Lista</button>
+              <span class="mini">Selecione o texto e clique</span>
+            </div>
+            <textarea id="ag-descricao" name="descricao" rows="7" maxlength="2000" placeholder="O que a pessoa está agendando, quanto tempo dura, o que vai receber.">${ctx.esc(v.descricao || '')}</textarea>
+          </div>
+          <div class="ag-fmt__previa-rotulo mini">Prévia</div>
+          <div class="ag-fmt__previa" id="ag-descricao-previa" aria-live="polite"></div>
+          </div>
         </section>
         <section data-painel="horarios" id="ag-pnl-horarios" role="tabpanel" aria-labelledby="ag-aba-horarios" hidden>
           <label>Grade de disponibilidade <select name="grade_id">${opt(opcoes.grades.map((x) => [x.id, `${x.nome}: ${x.resumo}`]), v.grade_id)}</select></label>
@@ -707,6 +763,26 @@
       const prox = abas[(i + (ev.key === 'ArrowRight' ? 1 : -1) + abas.length) % abas.length];
       irAba(prox);
       prox.focus();
+    };
+
+    // Formatação da descrição: os botões só põem/tiram as marcas no texto; a
+    // prévia usa o mesmo código da página pública (/agenda-formatar.js).
+    const descricao = form.querySelector('[name="descricao"]');
+    const previa = ctx.$('#ag-descricao-previa');
+    let desenharDescricao = null;
+    const atualizarPrevia = () => {
+      if (desenharDescricao) desenharDescricao(previa, descricao.value);
+      else previa.textContent = descricao.value;
+      previa.classList.toggle('vazia', !descricao.value.trim());
+    };
+    import('/agenda-formatar.js').then((m) => { desenharDescricao = m.desenharDescricao; atualizarPrevia(); }).catch(() => {});
+    descricao.addEventListener('input', atualizarPrevia);
+    atualizarPrevia();
+    form.querySelector('.ag-fmt__barra').onclick = (ev) => {
+      const b = ev.target.closest('[data-fmt]');
+      if (!b) return;
+      formatarSelecao(descricao, b.dataset.fmt);
+      atualizarPrevia();
     };
 
     // Endereço mudou num tipo já publicado: avisa que links antigos quebram.

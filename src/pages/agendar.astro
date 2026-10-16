@@ -56,7 +56,7 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
               <span id="ag-info-quando-texto"></span>
             </li>
           </ul>
-          <p class="ag__descricao" id="ag-descricao" hidden></p>
+          <div class="ag__descricao" id="ag-descricao" hidden></div>
           <button type="button" class="ag__link ag__ler-mais" id="ag-ler-mais" hidden>Ler mais</button>
         </aside>
 
@@ -187,18 +187,13 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
     $('#ag-nome').textContent = tipo.nome;
     if (tipo.descricao) {
       const d = $('#ag-descricao');
-      // Trecho entre **asteriscos** sai em negrito, como no chat. Monta os nós
-      // um a um (nada de innerHTML), então o texto nunca vira HTML.
-      String(tipo.descricao).split('**').forEach((parte, i) => {
-        if (!parte) return;
-        if (i % 2 === 1) {
-          const forte = document.createElement('strong');
-          forte.textContent = parte;
-          d.appendChild(forte);
-        } else {
-          d.appendChild(document.createTextNode(parte));
-        }
-      });
+      // Negrito, itálico, sublinhado e lista, com o mesmo código da prévia do
+      // dash (public/agenda-formatar.js). Se não carregar, sai o texto puro.
+      try {
+        const formatar = '/agenda-formatar.js';
+        const { desenharDescricao } = await import(/* @vite-ignore */ formatar);
+        desenharDescricao(d, tipo.descricao);
+      } catch { d.textContent = tipo.descricao; }
       d.hidden = false;
       // No celular o texto começa recolhido, para o calendário aparecer logo.
       d.classList.add('recolhida');
@@ -340,12 +335,15 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   .ag__meta svg { width: 1.15rem; height: 1.15rem; flex: none; margin-top: 0.1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .ag__meta-quando { color: #1e1e1e; font-weight: 700; }
   .ag__meta-quando span::first-letter { text-transform: uppercase; }
+  .ag__descricao { margin: 0.25rem 0 0; line-height: 1.55; color: rgba(30, 30, 30, 0.8); font-size: 0.95rem; display: grid; gap: 0.75rem; }
+  .ag__descricao[hidden] { display: none; }
+  .ag__descricao p { margin: 0; white-space: pre-line; }
+  .ag__descricao ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.3rem; }
   .ag__descricao strong { color: #1e1e1e; }
-  .ag__descricao { margin: 0.25rem 0 0; white-space: pre-line; line-height: 1.55; color: rgba(30, 30, 30, 0.8); font-size: 0.95rem; }
   .ag__principal { padding: 1.25rem; min-width: 0; }
   .ag__ler-mais { align-self: flex-start; font-size: 0.9rem; }
   @media (max-width: 899px) {
-    .ag__descricao.recolhida { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .ag__descricao.recolhida { max-height: calc(0.95rem * 1.55 * 4); overflow: hidden; }
   }
   @media (min-width: 900px) { .ag__ler-mais { display: none; } }
   /* O aviso de cookies fica preso no rodapé do celular: espaço para o fim da página não ficar embaixo dele. */
