@@ -226,7 +226,6 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
       // No celular o texto começa recolhido, para o calendário aparecer logo.
       d.classList.add('recolhida');
       const mais = $('#ag-ler-mais');
-      mais.hidden = !(d.scrollHeight > d.clientHeight + 2);
       mais.onclick = () => { d.classList.remove('recolhida'); mais.hidden = true; };
     }
     $('#ag-duracao').textContent = tipo.duracao_min;
@@ -249,6 +248,9 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
     $('#ag-calendario').innerHTML = '<p class="ag__carregando-horarios">Carregando horários…</p>';
     $('#ag-carregando').hidden = true;
     $('#ag-app').hidden = false;
+    // Só dá para medir se o texto passou do recolhido com a página visível.
+    const desc = $('#ag-descricao');
+    if (!desc.hidden) $('#ag-ler-mais').hidden = !(desc.scrollHeight > desc.clientHeight + 2);
     const { dias, erro } = await pedidoHorarios;
     if (erro) return indisponivel(erro);
     $('#ag-calendario').innerHTML = '';
