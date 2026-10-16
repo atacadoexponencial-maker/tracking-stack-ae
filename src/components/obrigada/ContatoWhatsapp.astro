@@ -1,0 +1,89 @@
+---
+// Cartão de contato da página de obrigada (/obrigada): desenhado
+// como a tela de contato do celular. O botão abre a conversa no WhatsApp com
+// a mensagem de confirmação já escrita (site não consegue salvar contato no
+// celular, e baixar arquivo soa suspeito). O texto ao lado vem pelo slot,
+// porque cada proposta fala de um jeito.
+import { Image } from 'astro:assets';
+import logo from '../../assets/brand/logo.png';
+
+interface Props {
+  titulo?: string;
+}
+const { titulo } = Astro.props;
+
+const WHATSAPP = `https://wa.me/5519981702315?text=${encodeURIComponent('Quero confirmar minha aplicação para a consultoria')}`;
+---
+
+<div class="contato">
+  <div class="contato__texto">
+    {titulo && <h2 class="contato__titulo">{titulo}</h2>}
+    <slot />
+  </div>
+
+  <div class="contato__fone" aria-label="Contato do Atacado Exponencial">
+    <div class="contato__avatar">
+      <Image src={logo} alt="" height={48} class="contato__logo" />
+    </div>
+    <p class="contato__nome">Atacado Exponencial</p>
+    <p class="contato__numero">+55 19 98170-2315</p>
+    <span class="contato__selo">
+      <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2.1 1-2.4c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>
+      WhatsApp
+    </span>
+    <a class="contato__btn" href={WHATSAPP} target="_blank" rel="noopener">Confirmar minha aplicação</a>
+  </div>
+</div>
+
+<style>
+  .contato {
+    display: grid;
+    gap: 2rem;
+    align-items: center;
+    max-width: 56rem;
+    margin-inline: auto;
+  }
+  .contato__titulo { font-size: clamp(1.4rem, 3vw, 1.9rem); line-height: 1.15; margin-bottom: 0.75rem; }
+  .contato__texto :global(p) { color: hsl(var(--muted-foreground)); font-size: 1.05rem; line-height: 1.6; max-width: 30rem; }
+  .contato__texto :global(strong) { color: hsl(var(--foreground)); }
+
+  /* A "tela" do celular: cantos bem redondos e fundo um tom acima do da página */
+  .contato__fone {
+    justify-self: center;
+    width: min(100%, 19rem);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 2rem;
+    padding: 2.25rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .contato__avatar {
+    width: 5.5rem; height: 5.5rem; border-radius: 50%;
+    background: hsl(var(--light-bg));
+    display: grid; place-items: center;
+    margin-bottom: 1rem;
+  }
+  .contato__logo { width: 4.25rem; height: auto; filter: brightness(0); }
+  .contato__nome { font-weight: 700; font-size: 1.2rem; }
+  .contato__numero { color: hsl(var(--muted-foreground)); margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+  .contato__selo {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    margin-top: 0.75rem; font-size: 0.8rem; color: #25d366;
+  }
+  .contato__btn {
+    margin-top: 1.5rem; width: 100%;
+    background: #25d366; color: #0d2b18;
+    font-weight: 700; font-size: 0.95rem; text-decoration: none;
+    padding: 0.95rem 1rem; border-radius: 9999px;
+    transition: opacity 0.2s ease;
+  }
+  .contato__btn:hover { opacity: 0.88; }
+  .contato__btn:focus-visible { outline: 2px solid hsl(var(--foreground)); outline-offset: 3px; }
+
+  @media (min-width: 768px) {
+    .contato { grid-template-columns: 1fr auto; gap: 3rem; }
+  }
+</style>
