@@ -360,10 +360,11 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   .ag__ultimos svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   @media (min-width: 900px) {
-    /* No computador a agenda ocupa a tela inteira, sem cartão flutuando. */
+    /* No computador a agenda ocupa a tela inteira, sem cartão flutuando, e o
+       conteúdo fica no meio da tela. */
     .ag { padding: 0; align-items: stretch; }
     .ag__inner:has(.ag__painel:not([hidden])) { max-width: none; }
-    .ag__painel { grid-template-columns: 24rem minmax(0, 1fr); min-height: 100dvh; border-radius: 0; box-shadow: none; }
+    .ag__painel { grid-template-columns: 24rem minmax(0, 44rem); justify-content: center; min-height: 100dvh; border-radius: 0; box-shadow: none; }
     .ag__info { padding: 2.5rem 2.25rem; border-bottom: none; border-right: 1px solid rgba(30, 30, 30, 0.1); }
     .ag__principal { padding: 2.5rem 3rem; }
     #ag-passo-dados { max-width: 30rem; }
