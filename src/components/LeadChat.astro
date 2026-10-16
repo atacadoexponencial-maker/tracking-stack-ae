@@ -198,7 +198,8 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
   const STEPS: Step[] = [
     { kind: 'messages', texts: [
       'Bem-vindo à inscrição da consultoria individual e gratuita do Atacado Exponencial. 👋',
-      'Estamos muito felizes pelo seu interesse, mas lembre-se: o preenchimento não garante vaga 🚨 Esse é um trabalho bem cuidadoso e personalizado, então não é possível de ser feito com todos os interessados.',
+      'Estamos muito felizes pelo seu interesse, mas lembre-se: **o preenchimento não garante vaga**',
+      '🚨 Esse é um trabalho bem cuidadoso e personalizado, então não é possível de ser feito com todos os interessados.',
       'Preencha com bastante atenção algumas perguntas bem rápidas 👇🏼',
     ] },
     { kind: 'start', button: 'Toque para começar' },
@@ -207,7 +208,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
     { kind: 'input', key: 'email', inputType: 'email', before: ['(Só lembrando que vou mandar o link da sessão por lá)'], question: 'Qual o seu melhor email?', placeholder: 'Digite seu email', validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), errorMsg: 'Digite um email válido.' },
     { kind: 'input', key: 'instagram', inputType: 'text', question: 'Excelente! Qual o @instagram da sua marca?', placeholder: 'Digite o @ do Instagram', validate: (v) => v.trim().length >= 1, errorMsg: 'Digite o @ da sua marca.' },
     { kind: 'choice', key: 'faturamento', before: ['Show!'], question: 'qual o faturamento MENSAL do seu negócio?', options: FAT_OPTIONS },
-    { kind: 'input', key: 'justificativa', inputType: 'text', question: 'Qual o principal desafio do seu negócio hoje?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
+    { kind: 'input', key: 'justificativa', inputType: 'text', question: 'Qual o principal desafio do seu atacado hoje?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
     { kind: 'input', key: 'objetivo', inputType: 'text', question: 'E qual o seu maior objetivo para os próximos meses?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
   ];
 
@@ -266,12 +267,27 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
       av.alt = '';
       const b = document.createElement('div');
       b.className = 'lead-chat__bubble';
-      b.textContent = text;
+      preencherComNegrito(b, text);
       row.appendChild(av);
       row.appendChild(b);
       messagesEl!.appendChild(row);
       lastSender = 'bot';
       scrollDown();
+    }
+
+    // Trecho entre **asteriscos** sai em negrito. Monta os nós um a um (nada
+    // de innerHTML), então o texto nunca vira HTML.
+    function preencherComNegrito(el: HTMLElement, text: string) {
+      text.split('**').forEach((parte, i) => {
+        if (!parte) return;
+        if (i % 2 === 1) {
+          const strong = document.createElement('strong');
+          strong.textContent = parte;
+          el.appendChild(strong);
+        } else {
+          el.appendChild(document.createTextNode(parte));
+        }
+      });
     }
 
     async function botSay(text: string) {
@@ -388,8 +404,8 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
     }
 
     async function submit() {
-      await botSay('Parabéns! Você foi selecionado(a) para falar com nossos especialistas do Atacado Exponencial. Estamos muito felizes pelo seu interesse! 🎉');
-      await botSay('Estamos te direcionando agora…');
+      await botSay('Recebemos a sua aplicação! 🎉 Agora o nosso time vai analisar as suas respostas com atenção.');
+      await botSay('Estamos te levando para o próximo passo…');
       let redirect = '';
       const eventId = 'lead-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
       try { if (typeof (window as any).fbq === 'function') (window as any).fbq('track', 'Lead', {}, { eventID: eventId }); } catch (e) { /* espelho browser nunca bloqueia o envio */ }
@@ -421,6 +437,9 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
         /* mesmo sem resposta, segue para o destino padrão abaixo */
       }
       if (redirect) {
+        // 2 segundos para a pessoa ler as mensagens antes de trocar de página.
+        // O lead já foi enviado acima; só o redirecionamento espera.
+        await sleep(2000);
         window.location.href = redirect;
       } else {
         await botSay('Clique no botão abaixo para falar com nossos especialistas 👇🏼');
