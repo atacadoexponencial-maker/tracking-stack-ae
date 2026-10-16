@@ -1,0 +1,113 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+import Testimonials from '../components/sections/Testimonials.astro';
+import Pillars from '../components/sections/Pillars.astro';
+import AboutFelipe from '../components/sections/AboutFelipe.astro';
+
+// Proposta A da página de obrigada: ângulo de seleção. Em aprovação, nenhum
+// formulário redireciona para cá ainda.
+const passos = [
+  { number: '1', title: 'Análise da aplicação', description: 'O time confere se a sua marca vende para revendedora e se a operação já tem tração para colocar o plano em prática. A resposta sai em até 24 horas.' },
+  { number: '2', title: 'Contato pelo WhatsApp', description: 'Se a sua marca for selecionada, você recebe uma mensagem do número +55 19 98170-2315 para marcar o horário.' },
+  { number: '3', title: 'A consultoria', description: 'Videochamada individual de 35 minutos com um especialista do Atacado Exponencial, olhando a sua operação.' },
+];
+
+const pilares = [
+  { number: 'Pilar 1', title: 'Entrada Previsível de novos revendedores', description: 'Revendedora nova chegando todo mês por um processo que a sua marca controla. Indicação vira bônus, deixa de ser o plano.' },
+  { number: 'Pilar 2', title: 'Recompra Escalável de revendedores ativos', description: 'A primeira compra da revendedora é sempre um teste. No atacado, a venda começa na reposição: o lucro mora no segundo pedido, no terceiro, no quarto.' },
+];
+
+const stats = [
+  { value: '+100', label: 'marcas atendidas' },
+  { value: '2013', label: 'no digital' },
+  { value: '1º', label: 'método próprio para atacado' },
+];
+
+const bio = [
+  'Comecei no varejo em 2013. Em 2018, a convite de uma grande influenciadora de moda do país, me mudei para o Bom Retiro, no coração do atacado de São Paulo, e passei quase dois anos gerenciando uma marca de atacado de moda feminina com uma missão: fazer ela vender pela internet.',
+  'Quase tudo que funcionava no varejo não funcionava ali. Tive que descobrir na prática o que funciona no atacado.',
+  'De lá pra cá foram mais de 100 marcas atendidas e o Atacado Exponencial, o primeiro método construído do zero para o mercado atacado.',
+];
+---
+
+<BaseLayout
+  title="Aplicação recebida | Atacado Exponencial"
+  description="Sua aplicação entrou na fila de análise."
+  showHeader={false}
+  noindex
+>
+  <section class="confirm">
+    <div class="container confirm__inner">
+      <Image src={logo} alt="Atacado Exponencial" height={72} class="confirm__logo" />
+      <span class="confirm__badge">Aplicação recebida</span>
+      <h1 class="confirm__title">Sua aplicação entrou na fila de análise.</h1>
+      <p class="confirm__sub">As vagas da consultoria individual gratuita são poucas por semana, porque cada sessão é feita na mão pelo nosso time. Agora a gente lê o que você respondeu e vê se a sua marca está no momento certo para a conversa.</p>
+    </div>
+  </section>
+
+  <section class="section steps">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">O que acontece agora</span>
+      </div>
+      <ol class="steps__list">
+        {passos.map((p) => (
+          <li class="steps__item">
+            <span class="steps__num">{p.number}</span>
+            <div>
+              <h3 class="steps__title">{p.title}</h3>
+              <p class="steps__desc">{p.description}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div class="steps__box">
+        <p>Salve o nosso número agora. Se a mensagem chegar e ficar sem resposta, a vaga passa para a próxima marca da fila.</p>
+        <a class="btn-cta steps__btn" href="/contato-atacado-exponencial.vcf" download="Atacado Exponencial.vcf">Salvar o número no WhatsApp</a>
+      </div>
+    </div>
+  </section>
+
+  <Testimonials title="Marcas que já passaram por essa conversa" />
+
+  <Pillars eyebrow="O método" title="Todo atacado que escala resolve a mesma conta" pillars={pilares} footer="Atacado é venda complexa, não transacional. Na consultoria, a gente descobre qual dos dois lados está travando a sua marca, porque a ação certa para um é a errada para o outro.">
+    <p slot="sub" class="equation">
+      <span>Entrada Previsível de novos revendedores</span>
+      <span class="equation__op">+</span>
+      <span>Recompra Escalável de revendedores ativos</span>
+      <span class="equation__op">=</span>
+      <strong>Atacado Exponencial</strong>
+    </p>
+  </Pillars>
+
+  <AboutFelipe bio={bio} stats={stats} />
+</BaseLayout>
+
+<style>
+  .confirm { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); padding-block: 3.5rem; }
+  .confirm__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.25rem; }
+  .confirm__logo { height: 2.25rem; width: auto; filter: brightness(0); }
+  .confirm__badge {
+    display: inline-block; border: 1px solid rgba(30, 30, 30, 0.15); border-radius: 9999px;
+    padding: 0.5rem 1.25rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: rgba(30, 30, 30, 0.7);
+  }
+  .confirm__title { font-size: clamp(1.75rem, 5vw, 3rem); line-height: 1.08; max-width: 36rem; }
+  .confirm__sub { color: rgba(30, 30, 30, 0.7); max-width: 36rem; line-height: 1.6; }
+  .steps__list { list-style: none; padding: 0; margin: 2rem auto 0; max-width: 44rem; display: flex; flex-direction: column; }
+  .steps__item { display: flex; gap: 1.5rem; padding-block: 1.5rem; border-bottom: 1px solid hsl(var(--border)); }
+  .steps__num { font-weight: 700; font-size: 2.25rem; line-height: 1; color: hsl(var(--muted-foreground)); flex-shrink: 0; width: 2rem; }
+  .steps__title { font-size: 1.1rem; margin-bottom: 0.4rem; }
+  .steps__desc { color: hsl(var(--muted-foreground)); font-size: 0.95rem; line-height: 1.6; }
+  .steps__box {
+    margin: 2.5rem auto 0; max-width: 44rem; border: 1px solid hsl(var(--foreground) / 0.25); border-radius: 1rem;
+    padding: 1.75rem; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; text-align: center;
+  }
+  .steps__box p { font-size: 1.05rem; line-height: 1.6; }
+  .steps__btn { background: hsl(var(--foreground)); color: hsl(var(--background)); text-decoration: none; justify-content: center; }
+  .equation { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; font-size: 1.05rem; color: rgba(30, 30, 30, 0.75); }
+  .equation strong { color: hsl(var(--light-fg)); font-size: 1.2rem; }
+  .equation__op { font-weight: 700; font-size: 1.4rem; color: rgba(30, 30, 30, 0.4); line-height: 1; }
+</style>

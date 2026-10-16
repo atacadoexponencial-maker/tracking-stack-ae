@@ -1,0 +1,119 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+import Testimonials from '../components/sections/Testimonials.astro';
+import Pillars from '../components/sections/Pillars.astro';
+import AboutFelipe from '../components/sections/AboutFelipe.astro';
+
+// Proposta B da página de obrigada: ângulo de preparação. Em aprovação,
+// nenhum formulário redireciona para cá ainda.
+const pilares = [
+  { number: 'Pilar 1', title: 'Entrada Previsível de novos revendedores', description: 'A internet ensinou o atacado a ser um varejo disfarçado. O Pilar 1 coloca anúncio, perfil e comercial falando com a lojista, para a revendedora nova entrar todo mês por um caminho que a marca controla.' },
+  { number: 'Pilar 2', title: 'Recompra Escalável de revendedores ativos', description: 'Atacado é relacionamento. O Pilar 2 é o processo depois do primeiro pedido, que faz a revendedora voltar para repor sem depender de a marca correr atrás dela toda vez.' },
+];
+
+const stats = [
+  { value: '+100', label: 'marcas atendidas' },
+  { value: '2013', label: 'no digital' },
+  { value: '1º', label: 'método próprio para atacado' },
+];
+
+const bio = [
+  'Comecei no varejo em 2013. Em 2018, a convite de uma grande influenciadora de moda do país, me mudei para o Bom Retiro, no coração do atacado de São Paulo, e passei quase dois anos gerenciando uma marca de atacado de moda feminina com uma missão: fazer ela vender pela internet.',
+  'Quase tudo que funcionava no varejo não funcionava ali. Tive que descobrir na prática o que funciona no atacado.',
+  'De lá pra cá foram mais de 100 marcas atendidas e o Atacado Exponencial, o primeiro método construído do zero para o mercado atacado.',
+];
+---
+
+<BaseLayout
+  title="Aplicação recebida | Atacado Exponencial"
+  description="Você está concorrendo a uma das vagas desta semana."
+  showHeader={false}
+  noindex
+>
+  <section class="confirm">
+    <div class="container confirm__inner">
+      <Image src={logo} alt="Atacado Exponencial" height={72} class="confirm__logo" />
+      <span class="confirm__badge">Aplicação recebida</span>
+      <h1 class="confirm__title">Você está concorrendo a uma das vagas desta semana.</h1>
+      <p class="confirm__sub">Nosso time vai analisar a sua aplicação. Se a sua marca for selecionada, a gente chama você no WhatsApp para marcar a consultoria. Enquanto isso, faça a conta abaixo. É por ela que a conversa começa.</p>
+    </div>
+  </section>
+
+  <section class="section conta">
+    <div class="container conta__inner">
+      <div class="section-head">
+        <span class="eyebrow">Responda de cabeça</span>
+        <h2 class="section-title">Quantas revendedoras voltaram?</h2>
+      </div>
+      <ol class="conta__perguntas">
+        <li><span class="conta__num">1</span>Quantas revendedoras novas fizeram o primeiro pedido no último mês?</li>
+        <li><span class="conta__num">2</span>Dessas, quantas já voltaram para repor?</li>
+      </ol>
+      <div class="conta__regua">
+        <p><strong>A régua do Felipe:</strong> a cada 10 revendedoras novas, pelo menos 6 precisam fazer a reposição. Abaixo disso, a marca paga caro demais por cada pedido.</p>
+        <p class="conta__frase">No atacado, a venda começa na reposição.</p>
+      </div>
+      <p class="conta__nota">Não sabe esses números de cabeça? Anote o que souber. Descobrir o resto faz parte da consultoria.</p>
+    </div>
+  </section>
+
+  <section class="section whats">
+    <div class="container whats__box">
+      <h2 class="whats__title">Fique de olho no WhatsApp</h2>
+      <p>O contato vem do número +55 19 98170-2315. Salve agora: se a mensagem ficar sem resposta, a vaga passa para a próxima marca da fila. A análise sai em até 24 horas.</p>
+      <a class="btn-cta whats__btn" href="/contato-atacado-exponencial.vcf" download="Atacado Exponencial.vcf">Salvar o número no WhatsApp</a>
+    </div>
+  </section>
+
+  <Testimonials title="O que muda quando a conta fecha" />
+
+  <Pillars eyebrow="O método" title="O Atacado Exponencial cabe numa equação" pillars={pilares} footer="A maioria das marcas tenta resolver os dois ao mesmo tempo. Na consultoria, a gente mostra qual atacar primeiro.">
+    <p slot="sub" class="equation">
+      <span>Entrada Previsível de novos revendedores</span>
+      <span class="equation__op">+</span>
+      <span>Recompra Escalável de revendedores ativos</span>
+      <span class="equation__op">=</span>
+      <strong>Atacado Exponencial</strong>
+    </p>
+  </Pillars>
+
+  <AboutFelipe bio={bio} stats={stats} />
+</BaseLayout>
+
+<style>
+  .confirm { background: hsl(var(--light-bg)); color: hsl(var(--light-fg)); padding-block: 3.5rem; }
+  .confirm__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.25rem; }
+  .confirm__logo { height: 2.25rem; width: auto; filter: brightness(0); }
+  .confirm__badge {
+    display: inline-block; border: 1px solid rgba(30, 30, 30, 0.15); border-radius: 9999px;
+    padding: 0.5rem 1.25rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: rgba(30, 30, 30, 0.7);
+  }
+  .confirm__title { font-size: clamp(1.75rem, 5vw, 3rem); line-height: 1.08; max-width: 36rem; }
+  .confirm__sub { color: rgba(30, 30, 30, 0.7); max-width: 36rem; line-height: 1.6; }
+  .conta__inner { max-width: 44rem; }
+  .conta__perguntas { list-style: none; padding: 0; margin-top: 2rem; display: flex; flex-direction: column; gap: 1rem; }
+  .conta__perguntas li {
+    display: flex; gap: 1.25rem; align-items: baseline; font-size: 1.1rem; line-height: 1.5;
+    padding: 1.25rem 1.5rem; border: 1px solid hsl(var(--border)); border-radius: 1rem; background: hsl(var(--card));
+  }
+  .conta__num { font-weight: 700; font-size: 1.75rem; line-height: 1; color: hsl(var(--muted-foreground)); flex-shrink: 0; }
+  .conta__regua { margin-top: 2rem; display: flex; flex-direction: column; gap: 1rem; line-height: 1.6; }
+  .conta__regua p { color: hsl(var(--muted-foreground)); }
+  .conta__regua strong { color: hsl(var(--foreground)); }
+  .conta__frase { font-size: clamp(1.25rem, 3vw, 1.6rem); font-weight: 700; color: hsl(var(--foreground)) !important; line-height: 1.25; }
+  .conta__nota { margin-top: 1.5rem; font-size: 0.9rem; color: hsl(var(--muted-foreground)); }
+  .whats { padding-top: 0; }
+  .whats__box {
+    max-width: 44rem; border: 1px solid hsl(var(--foreground) / 0.25); border-radius: 1rem;
+    padding: 1.75rem; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; text-align: center;
+  }
+  .whats__title { font-size: 1.35rem; }
+  .whats__box p { line-height: 1.6; color: hsl(var(--muted-foreground)); }
+  .whats__btn { background: hsl(var(--foreground)); color: hsl(var(--background)); text-decoration: none; justify-content: center; }
+  .equation { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; font-size: 1.05rem; color: rgba(30, 30, 30, 0.75); }
+  .equation strong { color: hsl(var(--light-fg)); font-size: 1.2rem; }
+  .equation__op { font-weight: 700; font-size: 1.4rem; color: rgba(30, 30, 30, 0.4); line-height: 1; }
+</style>
