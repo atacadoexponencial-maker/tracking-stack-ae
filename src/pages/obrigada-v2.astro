@@ -7,9 +7,10 @@ import AboutFelipe from '../components/sections/AboutFelipe.astro';
 import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
 import EquacaoMetodo from '../components/obrigada/EquacaoMetodo.astro';
 
-// Proposta B da página de obrigada: ângulo de preparação. O centro da página
-// é a conta: as duas perguntas e a régua do Felipe desenhada (10 revendedoras
-// novas, 6 voltando para repor). Em aprovação: nenhum formulário redireciona
+// Proposta B da página de obrigada: ângulo de preparação. O topo leva a ação
+// principal (confirmar no WhatsApp); logo abaixo vem a conta, com as duas
+// perguntas e a régua do Felipe desenhada (10 revendedoras novas, 6 voltando
+// para repor). Em aprovação: nenhum formulário redireciona
 // para cá ainda.
 const regua = Array.from({ length: 10 }, (_, i) => i < 6);
 
@@ -41,46 +42,36 @@ const bio = [
   noindex
 >
   <section class="topo">
-    <div class="container topo__grid">
-      <div class="topo__texto">
-        <Image src={logo} alt="Atacado Exponencial" height={72} class="topo__logo" />
-        <p class="topo__selo">Aplicação recebida</p>
-        <h1 class="topo__titulo">Você está concorrendo a uma das vagas desta semana.</h1>
-        <p class="topo__sub">O seu horário está reservado, e agora o nosso time analisa a sua aplicação. Se a sua marca for selecionada, o horário fica confirmado. Se não for, ele é cancelado e a gente avisa você pelo WhatsApp. Enquanto isso, faça a conta abaixo. É por ela que a conversa começa.</p>
-      </div>
-
-      <div class="conta">
-        <p class="conta__rotulo">Responda de cabeça</p>
-        <h2 class="conta__titulo">Quantas revendedoras voltaram?</h2>
-        <ol class="conta__perguntas">
-          <li>Quantas revendedoras novas fizeram o primeiro pedido no último mês?</li>
-          <li>Dessas, quantas já voltaram para repor?</li>
-        </ol>
-        <ul class="conta__fila" aria-label="A régua do Felipe: de 10 revendedoras novas, 6 voltam para repor">
-          {regua.map((repos) => (
-            <li class={repos ? 'conta__rev conta__rev--repos' : 'conta__rev'}>
-              <svg viewBox="0 0 24 32" aria-hidden="true"><circle cx="12" cy="8" r="6" /><path d="M1 31c0-7 5-12 11-12s11 5 11 12Z" /></svg>
-            </li>
-          ))}
-        </ul>
-        <p class="conta__legenda">A régua: de cada 10 novas, 6 voltam para repor</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="section regua">
-    <div class="container regua__inner">
-      <p class="regua__texto"><strong>A régua do Felipe:</strong> a cada 10 revendedoras novas, pelo menos 6 precisam fazer a reposição. Abaixo disso, a marca paga caro demais por cada pedido.</p>
-      <p class="regua__frase">No atacado, a venda começa na reposição.</p>
-      <p class="regua__nota">Não sabe esses números de cabeça? Anote o que souber. Descobrir o resto faz parte da consultoria.</p>
-    </div>
-  </section>
-
-  <section class="section aviso">
     <div class="container">
-      <ContatoWhatsapp titulo="Fique de olho no WhatsApp">
-        <p>O resultado da análise chega pelo número <strong>+55 19 98170-2315</strong>, em até 24 horas. Confirme a sua aplicação agora: a conversa abre com a mensagem pronta, é só enviar. Se a nossa mensagem ficar sem resposta, o horário passa para a próxima marca da fila.</p>
+      <ContatoWhatsapp>
+        <Image src={logo} alt="Atacado Exponencial" height={72} class="topo__logo" />
+        <span class="topo__selo">Aplicação recebida</span>
+        <h1 class="topo__titulo">Você está concorrendo a uma das vagas desta semana.</h1>
+        <p class="topo__sub">O seu horário está reservado, e agora o nosso time analisa a sua aplicação. Se a sua marca for selecionada, o horário fica confirmado. Se não for, ele é cancelado e a gente avisa você pelo WhatsApp.</p>
+        <p class="topo__sub">O resultado da análise chega pelo número <strong>+55 19 98170-2315</strong>, em até 24 horas. Confirme a sua aplicação agora: a conversa abre com a mensagem pronta, é só enviar. Se a nossa mensagem ficar sem resposta, o horário passa para a próxima marca da fila.</p>
       </ContatoWhatsapp>
+    </div>
+  </section>
+
+  <section class="section conta">
+    <div class="container conta__inner">
+      <p class="conta__intro">Enquanto isso, faça esta conta. É por ela que a conversa começa.</p>
+      <h2 class="conta__titulo">Quantas revendedoras voltaram?</h2>
+      <p class="conta__rotulo">Responda de cabeça</p>
+      <ol class="conta__perguntas">
+        <li>Quantas revendedoras novas fizeram o primeiro pedido no último mês?</li>
+        <li>Dessas, quantas já voltaram para repor?</li>
+      </ol>
+      <ul class="conta__fila" aria-label="A régua do Felipe: de 10 revendedoras novas, 6 voltam para repor">
+        {regua.map((repos) => (
+          <li class={repos ? 'conta__rev conta__rev--repos' : 'conta__rev'}>
+            <svg viewBox="0 0 24 32" aria-hidden="true"><circle cx="12" cy="8" r="6" /><path d="M1 31c0-7 5-12 11-12s11 5 11 12Z" /></svg>
+          </li>
+        ))}
+      </ul>
+      <p class="conta__texto"><strong>A régua do Felipe:</strong> a cada 10 revendedoras novas, pelo menos 6 precisam fazer a reposição. Abaixo disso, a marca paga caro demais por cada pedido.</p>
+      <p class="conta__frase">No atacado, a venda começa na reposição.</p>
+      <p class="conta__nota">Não sabe esses números de cabeça? Anote o que souber. Descobrir o resto faz parte da consultoria.</p>
     </div>
   </section>
 
@@ -98,10 +89,9 @@ const bio = [
 
 <style>
   .topo { padding-block: 2.5rem 4rem; }
-  .topo__grid { display: grid; gap: 3rem; align-items: center; }
   .topo__logo { height: 1.75rem; width: auto; }
   .topo__selo {
-    margin-top: 3rem; display: inline-flex; align-items: center; gap: 0.5rem;
+    margin-top: 3rem; display: flex; align-items: center; gap: 0.5rem;
     font-size: 0.9rem; font-weight: 700;
   }
   .topo__selo::before {
@@ -109,43 +99,29 @@ const bio = [
   }
   .topo__titulo {
     margin-top: 1rem;
-    font-size: clamp(2.1rem, 6vw, 3.75rem);
+    font-size: clamp(2.1rem, 6vw, 3.5rem);
     line-height: 1.04;
     letter-spacing: -0.04em;
     max-width: 15ch;
   }
-  .topo__sub { margin-top: 1.5rem; color: hsl(var(--muted-foreground)); font-size: 1.05rem; line-height: 1.6; max-width: 34rem; }
+  .topo__sub { margin-top: 1.25rem; }
 
-  /* A conta: painel bege com os dois campos e as 10 figuras que acendem */
-  .conta {
-    background: hsl(var(--light-bg));
-    color: hsl(var(--light-fg));
-    border-radius: 1.25rem;
-    padding: clamp(1.5rem, 4vw, 2.25rem);
-  }
-  .conta__rotulo { font-size: 0.9rem; color: rgba(30, 30, 30, 0.6); }
-  .conta__titulo { font-size: clamp(1.4rem, 3vw, 1.75rem); line-height: 1.2; margin-top: 0.35rem; }
-  .conta__perguntas { margin-top: 1.25rem; padding-left: 1.25rem; display: grid; gap: 0.75rem; font-size: 1.02rem; line-height: 1.5; }
+  /* A conta: preparação para a consultoria, abaixo da ação principal */
+  .conta { border-top: 1px solid hsl(var(--border)); }
+  .conta__inner { max-width: 48rem; }
+  .conta__intro { color: hsl(var(--muted-foreground)); font-size: 1.05rem; }
+  .conta__titulo { font-size: clamp(1.6rem, 4vw, 2.25rem); line-height: 1.15; margin-top: 0.75rem; }
+  .conta__rotulo { margin-top: 1.5rem; font-size: 0.9rem; color: hsl(var(--muted-foreground)); }
+  .conta__perguntas { margin-top: 0.75rem; padding-left: 1.25rem; display: grid; gap: 0.75rem; font-size: 1.05rem; line-height: 1.5; }
   .conta__perguntas li::marker { font-weight: 700; }
   .conta__fila {
-    list-style: none; padding: 1.75rem 0 0; margin: 1.75rem 0 0;
-    border-top: 1px solid rgba(30, 30, 30, 0.12);
+    list-style: none; padding: 0; margin-top: 2.25rem; max-width: 30rem;
     display: grid; grid-template-columns: repeat(10, 1fr); gap: clamp(0.25rem, 1.2vw, 0.6rem);
   }
-  .conta__rev svg { width: 100%; height: auto; display: block; fill: none; stroke: rgba(30, 30, 30, 0.35); stroke-width: 1.5; }
-  .conta__rev--repos svg { fill: hsl(var(--light-fg)); stroke: hsl(var(--light-fg)); }
-  .conta__legenda { margin-top: 1rem; font-size: 0.9rem; color: rgba(30, 30, 30, 0.65); }
-
-  @media (min-width: 960px) {
-    .topo__grid { grid-template-columns: 1fr 1fr; gap: 4rem; }
-  }
-
-  .regua { border-top: 1px solid hsl(var(--border)); }
-  .regua__inner { max-width: 48rem; }
-  .regua__texto { font-size: 1.1rem; line-height: 1.6; color: hsl(var(--muted-foreground)); max-width: 36rem; }
-  .regua__texto strong { color: hsl(var(--foreground)); }
-  .regua__frase { margin-top: 1.25rem; font-size: clamp(1.5rem, 4vw, 2.25rem); font-weight: 700; line-height: 1.15; letter-spacing: -0.03em; }
-  .regua__nota { margin-top: 1.5rem; font-size: 0.95rem; color: hsl(var(--muted-foreground)); }
-
-  .aviso { border-top: 1px solid hsl(var(--border)); }
+  .conta__rev svg { width: 100%; height: auto; display: block; fill: none; stroke: hsl(var(--muted-foreground)); stroke-width: 1.5; }
+  .conta__rev--repos svg { fill: hsl(var(--light-bg)); stroke: hsl(var(--light-bg)); }
+  .conta__texto { margin-top: 1.5rem; font-size: 1.05rem; line-height: 1.6; color: hsl(var(--muted-foreground)); max-width: 36rem; }
+  .conta__texto strong { color: hsl(var(--foreground)); }
+  .conta__frase { margin-top: 1.25rem; font-size: clamp(1.4rem, 3.5vw, 2rem); font-weight: 700; line-height: 1.15; letter-spacing: -0.03em; }
+  .conta__nota { margin-top: 1.25rem; font-size: 0.95rem; color: hsl(var(--muted-foreground)); }
 </style>
