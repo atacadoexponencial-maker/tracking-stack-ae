@@ -187,7 +187,18 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
     $('#ag-nome').textContent = tipo.nome;
     if (tipo.descricao) {
       const d = $('#ag-descricao');
-      d.textContent = tipo.descricao;
+      // Trecho entre **asteriscos** sai em negrito, como no chat. Monta os nós
+      // um a um (nada de innerHTML), então o texto nunca vira HTML.
+      String(tipo.descricao).split('**').forEach((parte, i) => {
+        if (!parte) return;
+        if (i % 2 === 1) {
+          const forte = document.createElement('strong');
+          forte.textContent = parte;
+          d.appendChild(forte);
+        } else {
+          d.appendChild(document.createTextNode(parte));
+        }
+      });
       d.hidden = false;
       // No celular o texto começa recolhido, para o calendário aparecer logo.
       d.classList.add('recolhida');
@@ -329,6 +340,7 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   .ag__meta svg { width: 1.15rem; height: 1.15rem; flex: none; margin-top: 0.1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .ag__meta-quando { color: #1e1e1e; font-weight: 700; }
   .ag__meta-quando span::first-letter { text-transform: uppercase; }
+  .ag__descricao strong { color: #1e1e1e; }
   .ag__descricao { margin: 0.25rem 0 0; white-space: pre-line; line-height: 1.55; color: rgba(30, 30, 30, 0.8); font-size: 0.95rem; }
   .ag__principal { padding: 1.25rem; min-width: 0; }
   .ag__ler-mais { align-self: flex-start; font-size: 0.9rem; }
@@ -348,9 +360,12 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   .ag__ultimos svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   @media (min-width: 900px) {
-    .ag__painel { grid-template-columns: 18rem minmax(0, 1fr); min-height: 30rem; }
-    .ag__info { padding: 2rem 1.75rem; border-bottom: none; border-right: 1px solid rgba(30, 30, 30, 0.1); }
-    .ag__principal { padding: 1.75rem 2rem; }
+    /* No computador a agenda ocupa a tela inteira, sem cartão flutuando. */
+    .ag { padding: 0; align-items: stretch; }
+    .ag__inner:has(.ag__painel:not([hidden])) { max-width: none; }
+    .ag__painel { grid-template-columns: 24rem minmax(0, 1fr); min-height: 100dvh; border-radius: 0; box-shadow: none; }
+    .ag__info { padding: 2.5rem 2.25rem; border-bottom: none; border-right: 1px solid rgba(30, 30, 30, 0.1); }
+    .ag__principal { padding: 2.5rem 3rem; }
     #ag-passo-dados { max-width: 30rem; }
   }
 
