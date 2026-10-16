@@ -11,9 +11,9 @@ import EquacaoMetodo from '../components/obrigada/EquacaoMetodo.astro';
 // acompanhamento de status, como o de um pedido. Em aprovação: nenhum
 // formulário redireciona para cá ainda.
 const etapas = [
-  { estado: 'feito', titulo: 'Aplicação recebida', texto: 'Suas respostas chegaram para o nosso time.' },
+  { estado: 'feito', titulo: 'Aplicação recebida e horário reservado', texto: 'Suas respostas chegaram para o nosso time e o seu horário está guardado.' },
   { estado: 'agora', titulo: 'Análise da aplicação', quando: 'Em até 24 horas', texto: 'O time confere se a sua marca vende para revendedora e se a operação já tem tração para colocar o plano em prática.' },
-  { estado: 'depois', titulo: 'Contato pelo WhatsApp', texto: 'Se a sua marca for selecionada, você recebe uma mensagem do número +55 19 98170-2315 para marcar o horário.' },
+  { estado: 'depois', titulo: 'Resultado pelo WhatsApp', texto: 'Se a sua marca for selecionada, o horário fica confirmado e você recebe a confirmação do número +55 19 98170-2315. Se não for, o horário é cancelado e a gente avisa por lá.' },
   { estado: 'depois', titulo: 'A consultoria', quando: '35 minutos', texto: 'Videochamada individual com um especialista do Atacado Exponencial, olhando a sua operação.' },
 ];
 
@@ -48,7 +48,7 @@ const bio = [
     <div class="container">
       <Image src={logo} alt="Atacado Exponencial" height={72} class="topo__logo" />
       <h1 class="topo__titulo">Sua aplicação entrou na fila de análise.</h1>
-      <p class="topo__sub">As vagas da consultoria individual gratuita são poucas por semana, porque cada sessão é feita na mão pelo nosso time. Agora a gente lê o que você respondeu e vê se a sua marca está no momento certo para a conversa.</p>
+      <p class="topo__sub">O seu horário já está reservado, mas as vagas da consultoria individual gratuita são poucas por semana, porque cada sessão é feita na mão pelo nosso time. Agora a gente lê o que você respondeu e vê se a sua marca está no momento certo para a conversa. Se não estiver, o horário é cancelado e a gente avisa você pelo WhatsApp.</p>
 
       <ol class="status" aria-label="O que acontece agora">
         {etapas.map((e) => (
@@ -72,8 +72,8 @@ const bio = [
 
   <section class="section aviso">
     <div class="container">
-      <ContatoWhatsapp titulo="Salve o nosso número agora.">
-        <p>Se a mensagem chegar e ficar sem resposta, a vaga passa para a próxima marca da fila.</p>
+      <ContatoWhatsapp titulo="Confirme a sua aplicação no WhatsApp.">
+        <p>Toque no botão e envie a mensagem que já vem escrita. É por essa conversa que você recebe o resultado da análise. Se a nossa mensagem ficar sem resposta, o horário passa para a próxima marca da fila.</p>
       </ContatoWhatsapp>
     </div>
   </section>

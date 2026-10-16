@@ -1,7 +1,9 @@
 ---
 // Cartão de contato das páginas de obrigada (/obrigada-v1 e -v2): desenhado
-// como a tela de contato do celular, com o botão que baixa o .vcf da marca.
-// O texto ao lado vem pelo slot, porque cada proposta fala de um jeito.
+// como a tela de contato do celular. O botão abre a conversa no WhatsApp com
+// a mensagem de confirmação já escrita (site não consegue salvar contato no
+// celular, e baixar arquivo soa suspeito). O texto ao lado vem pelo slot,
+// porque cada proposta fala de um jeito.
 import { Image } from 'astro:assets';
 import logo from '../../assets/brand/logo.png';
 
@@ -9,6 +11,8 @@ interface Props {
   titulo?: string;
 }
 const { titulo } = Astro.props;
+
+const WHATSAPP = `https://wa.me/5519981702315?text=${encodeURIComponent('Quero confirmar minha aplicação para a consultoria')}`;
 ---
 
 <div class="contato">
@@ -27,7 +31,7 @@ const { titulo } = Astro.props;
       <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2.1 1-2.4c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>
       WhatsApp
     </span>
-    <a class="contato__btn" href="/contato-atacado-exponencial.vcf" download="Atacado Exponencial.vcf">Salvar o número no WhatsApp</a>
+    <a class="contato__btn" href={WHATSAPP} target="_blank" rel="noopener">Confirmar minha aplicação</a>
   </div>
 </div>
 

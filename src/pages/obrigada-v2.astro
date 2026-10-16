@@ -8,10 +8,12 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
 import EquacaoMetodo from '../components/obrigada/EquacaoMetodo.astro';
 
 // Proposta B da página de obrigada: ângulo de preparação. O centro da página
-// é a folha de caderno com a conta e a régua do Felipe desenhada (10
-// revendedoras novas, 6 repondo). Em aprovação: nenhum formulário
-// redireciona para cá ainda.
-const regua = Array.from({ length: 10 }, (_, i) => i < 6);
+// é a conta interativa: a pessoa digita quantas revendedoras novas entraram e
+// quantas voltaram para repor, e as 10 figuras mostram a taxa contra a régua
+// do Felipe (6 de cada 10). É só visual: nada é salvo nem enviado.
+// Em aprovação: nenhum formulário redireciona para cá ainda.
+const REGUA = 6;
+const figuras = Array.from({ length: 10 }, (_, i) => i);
 
 // Os mesmos depoimentos em vídeo da home
 const depoimentos = [
@@ -46,51 +48,49 @@ const bio = [
         <Image src={logo} alt="Atacado Exponencial" height={72} class="topo__logo" />
         <p class="topo__selo">Aplicação recebida</p>
         <h1 class="topo__titulo">Você está concorrendo a uma das vagas desta semana.</h1>
-        <p class="topo__sub">Nosso time vai analisar a sua aplicação. Se a sua marca for selecionada, a gente chama você no WhatsApp para marcar a consultoria. Enquanto isso, faça a conta abaixo. É por ela que a conversa começa.</p>
+        <p class="topo__sub">O seu horário está reservado, e agora o nosso time analisa a sua aplicação. Se a sua marca for selecionada, o horário fica confirmado. Se não for, ele é cancelado e a gente avisa você pelo WhatsApp. Enquanto isso, faça a conta abaixo. É por ela que a conversa começa.</p>
       </div>
 
-      <!-- A folha de caderno: pautada, com espaço para a resposta -->
-      <div class="folha">
-        <p class="folha__rotulo">Responda de cabeça</p>
-        <h2 class="folha__titulo">Quantas revendedoras voltaram?</h2>
-        <ol class="folha__perguntas">
-          <li>
+      <div class="conta" data-conta data-regua={REGUA}>
+        <p class="conta__rotulo">Responda de cabeça</p>
+        <h2 class="conta__titulo">Quantas revendedoras voltaram?</h2>
+
+        <div class="conta__campos">
+          <label class="conta__campo">
             <span>Quantas revendedoras novas fizeram o primeiro pedido no último mês?</span>
-            <span class="folha__resposta" aria-hidden="true"></span>
-          </li>
-          <li>
+            <input type="number" inputmode="numeric" min="0" step="1" placeholder="0" data-novas />
+          </label>
+          <label class="conta__campo">
             <span>Dessas, quantas já voltaram para repor?</span>
-            <span class="folha__resposta" aria-hidden="true"></span>
-          </li>
-        </ol>
-        <p class="folha__nota">Não sabe esses números de cabeça? Anote o que souber. Descobrir o resto faz parte da consultoria.</p>
+            <input type="number" inputmode="numeric" min="0" step="1" placeholder="0" data-voltaram />
+          </label>
+        </div>
+
+        <ul class="conta__fila" aria-hidden="true">
+          {figuras.map((i) => (
+            <li class={i === REGUA - 1 ? 'conta__rev conta__rev--regua' : 'conta__rev'} data-figura>
+              <svg viewBox="0 0 24 32"><circle cx="12" cy="8" r="6" /><path d="M1 31c0-7 5-12 11-12s11 5 11 12Z" /></svg>
+            </li>
+          ))}
+        </ul>
+
+        <p class="conta__resultado" aria-live="polite" data-resultado>Preencha os dois números para ver onde a sua marca está na régua.</p>
       </div>
     </div>
   </section>
 
   <section class="section regua">
     <div class="container regua__inner">
-      <p class="regua__nome">A régua do Felipe</p>
-      <ul class="regua__fila" aria-label="De 10 revendedoras novas, 6 fazem a reposição">
-        {regua.map((repos) => (
-          <li class={repos ? 'regua__rev regua__rev--repos' : 'regua__rev'}>
-            <svg viewBox="0 0 24 32" aria-hidden="true"><circle cx="12" cy="8" r="6" /><path d="M1 31c0-7 5-12 11-12s11 5 11 12Z" /></svg>
-          </li>
-        ))}
-      </ul>
-      <div class="regua__legenda" aria-hidden="true">
-        <span><i class="regua__ponto regua__ponto--repos"></i>voltaram para repor</span>
-        <span><i class="regua__ponto"></i>ficaram no primeiro pedido</span>
-      </div>
-      <p class="regua__texto">A cada 10 revendedoras novas, pelo menos 6 precisam fazer a reposição. Abaixo disso, a marca paga caro demais por cada pedido.</p>
+      <p class="regua__texto"><strong>A régua do Felipe:</strong> a cada 10 revendedoras novas, pelo menos 6 precisam fazer a reposição. Abaixo disso, a marca paga caro demais por cada pedido.</p>
       <p class="regua__frase">No atacado, a venda começa na reposição.</p>
+      <p class="regua__nota">Não sabe esses números de cabeça? Anote o que souber. Descobrir o resto faz parte da consultoria.</p>
     </div>
   </section>
 
   <section class="section aviso">
     <div class="container">
       <ContatoWhatsapp titulo="Fique de olho no WhatsApp">
-        <p>O contato vem do número <strong>+55 19 98170-2315</strong>. Salve agora: se a mensagem ficar sem resposta, a vaga passa para a próxima marca da fila. A análise sai em até 24 horas.</p>
+        <p>O resultado da análise chega pelo número <strong>+55 19 98170-2315</strong>, em até 24 horas. Confirme a sua aplicação agora: a conversa abre com a mensagem pronta, é só enviar. Se a nossa mensagem ficar sem resposta, o horário passa para a próxima marca da fila.</p>
       </ContatoWhatsapp>
     </div>
   </section>
@@ -106,6 +106,46 @@ const bio = [
 
   <AboutFelipe bio={bio} stats={stats} />
 </BaseLayout>
+
+<script>
+  // Conta da régua: só mostra a taxa na tela, nada sai do navegador.
+  const conta = document.querySelector<HTMLElement>('[data-conta]');
+  if (conta) {
+    const regua = Number(conta.dataset.regua);
+    const novasEl = conta.querySelector<HTMLInputElement>('[data-novas]')!;
+    const voltaramEl = conta.querySelector<HTMLInputElement>('[data-voltaram]')!;
+    const figuras = conta.querySelectorAll<HTMLElement>('[data-figura]');
+    const resultado = conta.querySelector<HTMLElement>('[data-resultado]')!;
+    const fmt = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+
+    const atualizar = () => {
+      const novas = Math.floor(Number(novasEl.value));
+      const voltaram = Math.floor(Number(voltaramEl.value));
+      conta.classList.remove('conta--acima', 'conta--abaixo');
+      figuras.forEach((f) => f.classList.remove('conta__rev--acesa'));
+
+      if (!novasEl.value || voltaramEl.value === '' || novas <= 0 || voltaram < 0) {
+        resultado.textContent = 'Preencha os dois números para ver onde a sua marca está na régua.';
+        return;
+      }
+      if (voltaram > novas) {
+        resultado.textContent = 'Quem voltou para repor não pode passar do número de revendedoras novas.';
+        return;
+      }
+
+      const deCada10 = (voltaram / novas) * 10;
+      const acesas = Math.round(deCada10);
+      figuras.forEach((f, i) => f.classList.toggle('conta__rev--acesa', i < acesas));
+
+      const acima = deCada10 >= regua;
+      conta.classList.add(acima ? 'conta--acima' : 'conta--abaixo');
+      resultado.textContent = `${fmt.format(deCada10)} de cada 10 voltaram para repor. ${acima ? 'Dentro da régua.' : 'Abaixo da régua.'}`;
+    };
+
+    novasEl.addEventListener('input', atualizar);
+    voltaramEl.addEventListener('input', atualizar);
+  }
+</script>
 
 <style>
   .topo { padding-block: 2.5rem 4rem; }
@@ -127,29 +167,49 @@ const bio = [
   }
   .topo__sub { margin-top: 1.5rem; color: hsl(var(--muted-foreground)); font-size: 1.05rem; line-height: 1.6; max-width: 34rem; }
 
-  /* Folha pautada: as linhas saem de um gradiente repetido, a margem
-     vermelha de caderno fica à esquerda */
-  .folha {
-    --pauta: 2.25rem;
-    position: relative;
-    background-color: hsl(var(--light-bg));
-    background-image:
-      linear-gradient(90deg, transparent 2.75rem, rgba(190, 70, 70, 0.35) 2.75rem, rgba(190, 70, 70, 0.35) calc(2.75rem + 1px), transparent calc(2.75rem + 1px)),
-      repeating-linear-gradient(180deg, transparent 0 calc(var(--pauta) - 1px), rgba(30, 30, 30, 0.12) calc(var(--pauta) - 1px) var(--pauta));
+  /* A conta: painel bege com os dois campos e as 10 figuras que acendem */
+  .conta {
+    background: hsl(var(--light-bg));
     color: hsl(var(--light-fg));
-    border-radius: 0.5rem;
-    padding: var(--pauta) 1.5rem var(--pauta) 3.75rem;
-    line-height: var(--pauta);
-    transform: rotate(-1.2deg);
-    box-shadow: 0 1.5rem 3rem -1.5rem rgba(0, 0, 0, 0.6);
+    border-radius: 1.25rem;
+    padding: clamp(1.5rem, 4vw, 2.25rem);
   }
-  .folha__rotulo { font-size: 0.9rem; color: rgba(30, 30, 30, 0.6); }
-  .folha__titulo { font-size: clamp(1.4rem, 3vw, 1.75rem); line-height: var(--pauta); }
-  .folha__perguntas { margin-top: var(--pauta); padding-left: 1.1rem; font-size: 1.02rem; }
-  .folha__perguntas li + li { margin-top: var(--pauta); }
-  .folha__perguntas li::marker { font-weight: 700; }
-  .folha__resposta { display: block; height: calc(var(--pauta) * 1); }
-  .folha__nota { margin-top: var(--pauta); font-size: 0.9rem; color: rgba(30, 30, 30, 0.7); }
+  .conta__rotulo { font-size: 0.9rem; color: rgba(30, 30, 30, 0.6); }
+  .conta__titulo { font-size: clamp(1.4rem, 3vw, 1.75rem); line-height: 1.2; margin-top: 0.35rem; }
+  .conta__campos { margin-top: 1.5rem; display: grid; gap: 1rem; }
+  .conta__campo { display: grid; grid-template-columns: 1fr 6.5rem; gap: 1rem; align-items: center; font-size: 0.98rem; line-height: 1.45; }
+  .conta__campo input {
+    width: 100%;
+    font: inherit; font-weight: 700; font-size: 1.6rem; text-align: center;
+    font-variant-numeric: tabular-nums;
+    color: hsl(var(--light-fg));
+    background: #fff;
+    border: 1.5px solid rgba(30, 30, 30, 0.2);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.25rem;
+    -moz-appearance: textfield;
+  }
+  .conta__campo input::-webkit-outer-spin-button,
+  .conta__campo input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .conta__campo input:focus-visible { outline: 2px solid hsl(var(--light-fg)); outline-offset: 2px; border-color: transparent; }
+
+  .conta__fila {
+    list-style: none; padding: 1.75rem 0 0; margin: 1.75rem 0 0;
+    border-top: 1px solid rgba(30, 30, 30, 0.12);
+    display: grid; grid-template-columns: repeat(10, 1fr); gap: clamp(0.25rem, 1.2vw, 0.6rem);
+  }
+  .conta__rev { position: relative; }
+  .conta__rev svg { width: 100%; height: auto; display: block; fill: none; stroke: rgba(30, 30, 30, 0.35); stroke-width: 1.5; transition: fill 0.25s ease, stroke 0.25s ease; }
+  .conta__rev--acesa svg { fill: hsl(var(--light-fg)); stroke: hsl(var(--light-fg)); }
+  /* A régua de 6: um traço depois da 6ª figura */
+  .conta__rev--regua::after {
+    content: ''; position: absolute; top: -0.5rem; bottom: -0.5rem;
+    right: calc(clamp(0.25rem, 1.2vw, 0.6rem) / -2 - 1px);
+    width: 2px; background: rgba(30, 30, 30, 0.55);
+  }
+  .conta__resultado { margin-top: 1.25rem; font-weight: 700; font-size: 1.05rem; line-height: 1.45; min-height: 3em; }
+  .conta--abaixo .conta__resultado { color: #9c2f2f; }
+  @media (prefers-reduced-motion: reduce) { .conta__rev svg { transition: none; } }
 
   @media (min-width: 960px) {
     .topo__grid { grid-template-columns: 1fr 1fr; gap: 4rem; }
@@ -157,19 +217,10 @@ const bio = [
 
   .regua { border-top: 1px solid hsl(var(--border)); }
   .regua__inner { max-width: 48rem; }
-  .regua__nome { font-weight: 700; font-size: 1.1rem; }
-  .regua__fila {
-    list-style: none; padding: 0; margin-top: 1.5rem;
-    display: grid; grid-template-columns: repeat(10, 1fr); gap: clamp(0.25rem, 1.5vw, 0.9rem);
-  }
-  .regua__rev svg { width: 100%; height: auto; display: block; fill: none; stroke: hsl(var(--muted-foreground)); stroke-width: 1.5; }
-  .regua__rev--repos svg { fill: hsl(var(--light-bg)); stroke: hsl(var(--light-bg)); }
-  .regua__legenda { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; font-size: 0.85rem; color: hsl(var(--muted-foreground)); }
-  .regua__legenda span { display: inline-flex; align-items: center; gap: 0.5rem; }
-  .regua__ponto { width: 0.7rem; height: 0.7rem; border-radius: 50%; border: 1.5px solid hsl(var(--muted-foreground)); }
-  .regua__ponto--repos { background: hsl(var(--light-bg)); border-color: hsl(var(--light-bg)); }
-  .regua__texto { margin-top: 2rem; font-size: 1.1rem; line-height: 1.6; color: hsl(var(--muted-foreground)); max-width: 36rem; }
+  .regua__texto { font-size: 1.1rem; line-height: 1.6; color: hsl(var(--muted-foreground)); max-width: 36rem; }
+  .regua__texto strong { color: hsl(var(--foreground)); }
   .regua__frase { margin-top: 1.25rem; font-size: clamp(1.5rem, 4vw, 2.25rem); font-weight: 700; line-height: 1.15; letter-spacing: -0.03em; }
+  .regua__nota { margin-top: 1.5rem; font-size: 0.95rem; color: hsl(var(--muted-foreground)); }
 
   .aviso { border-top: 1px solid hsl(var(--border)); }
 </style>
