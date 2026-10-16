@@ -123,4 +123,7 @@ const bio = [
   .conta__texto strong { color: hsl(var(--foreground)); }
   .conta__frase { margin-top: 1.25rem; font-size: clamp(1.4rem, 3.5vw, 2rem); font-weight: 700; line-height: 1.15; letter-spacing: -0.03em; }
   .conta__nota { margin-top: 1.25rem; font-size: 0.95rem; color: hsl(var(--muted-foreground)); }
+  /* Rótulos de seção (Resultados, O método, Quem é) maiores só nesta página;
+     o .eyebrow global do site fica como está */
+  :global(body .eyebrow) { font-size: 0.9rem; letter-spacing: 0.12em; }
 </style>
