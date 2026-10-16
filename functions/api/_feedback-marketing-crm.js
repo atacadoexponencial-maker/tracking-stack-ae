@@ -196,12 +196,78 @@ export function avisosOpcoesInexistentes(funisAtivos, opcoesCrm) {
   return avisos;
 }
 
+// Cache da leitura (revisão de desperdício de 16/10/2026). Quatro telas leem os
+// mesmos cards (relatório de marketing, leads por anúncio, testes do Argo e o
+// relatório semanal), cada abertura com até 30 páginas de task inteira do
+// ClickUp — o JSON de task é grande e o parse dele é CPU, no plano de 10 ms.
+// Guardamos por 5 minutos só os campos que essas telas leem: um card mudado no
+// CRM leva no máximo isso para aparecer.
+export const CACHE_CARDS_SEGUNDOS = 300;
+const CAMPOS_DO_CARD = ['id', 'name', 'status', 'date_created', 'custom_fields', 'url'];
+
+export function cardEnxuto(card) {
+  const enxuto = {};
+  for (const campo of CAMPOS_DO_CARD) {
+    if (card && card[campo] !== undefined) enxuto[campo] = card[campo];
+  }
+  return enxuto;
+}
+
+// Duas telas pedem "até agora" (`ate` = Date.now()), que muda a cada chamada e
+// nunca acertaria o cache. Quando o fim é agora (ou futuro), ele sobe até o
+// próximo múltiplo de 5 minutos: o pedaço a mais só cobre cards que ainda não
+// foram criados, então o resultado é o mesmo. Fim no passado fica exato — subir
+// ali traria cards reais de fora do período.
+export function fimDaChave(ate, agoraSeg = Math.floor(Date.now() / 1000)) {
+  const fim = Number(ate);
+  if (fim < agoraSeg - 60) return fim;
+  return Math.ceil(fim / CACHE_CARDS_SEGUNDOS) * CACHE_CARDS_SEGUNDOS;
+}
+
+function cachePadrao() {
+  try {
+    return typeof caches !== 'undefined' && caches && caches.default ? caches.default : null;
+  } catch {
+    return null;
+  }
+}
+
 // Cards criados em [desde, ate) (unix segundos, limites de Brasília), página a
 // página até `last_page`. { ok: true, cards } ou { ok: false, aviso }. Nunca
 // lança: CRM fora do ar não derruba o relatório — leads vêm vazios, não zero.
-export async function lerCardsCriadosNoPeriodo(env, { desde, ate }, { tetoPaginas = TETO_PAGINAS_CRM } = {}) {
+// Só leitura que deu certo vai para o cache; falha de cache cai no ClickUp.
+export async function lerCardsCriadosNoPeriodo(env, { desde, ate }, { tetoPaginas = TETO_PAGINAS_CRM, agoraSeg } = {}) {
   if (!env || !env.CLICKUP_API_TOKEN) return { ok: false, aviso: AVISO_CRM_INDISPONIVEL };
   const listId = env.CLICKUP_LIST_ID || CU_DEFAULT_LIST;
+  const fim = fimDaChave(ate, agoraSeg);
+  const cache = cachePadrao();
+  const chave = new Request(`https://cache.interno/clickup-cards?lista=${listId}&desde=${desde}&ate=${fim}&teto=${tetoPaginas}`);
+
+  if (cache) {
+    try {
+      const guardada = await cache.match(chave);
+      if (guardada) return { ok: true, cards: await guardada.json() };
+    } catch {
+      // segue para o ClickUp
+    }
+  }
+
+  const lido = await lerCardsDoClickup(env, listId, { desde, ate: fim }, tetoPaginas);
+  if (!lido.ok) return lido;
+  const cards = lido.cards.map(cardEnxuto);
+  if (cache) {
+    try {
+      await cache.put(chave, new Response(JSON.stringify(cards), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${CACHE_CARDS_SEGUNDOS}` },
+      }));
+    } catch {
+      // sem cache, a resposta segue igual
+    }
+  }
+  return { ok: true, cards };
+}
+
+async function lerCardsDoClickup(env, listId, { desde, ate }, tetoPaginas) {
   const cards = [];
   try {
     for (let page = 0; page < tetoPaginas; page++) {

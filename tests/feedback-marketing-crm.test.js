@@ -11,6 +11,9 @@ import {
   avisosOpcoesInexistentes,
   lerCardsCriadosNoPeriodo,
   lerTaskIdsDeTesteOuBot,
+  cardEnxuto,
+  fimDaChave,
+  CACHE_CARDS_SEGUNDOS,
   AVISO_CRM_INDISPONIVEL,
   AVISO_CRM_TETO,
   ROTULO_SEM_OPCAO,
@@ -326,4 +329,77 @@ test('teste/bot no SQLite: junk, bot por user-agent e bot por IP saem; sem sess�
   };
   const r = await lerTaskIdsDeTesteOuBot(db, casos.map((c) => c[0]));
   assert.deepEqual(r.sort(), ['ip-24', 'ip-64', 'ip-exato', 'junk', 'ua']);
+});
+
+// --- Cache da leitura de cards (revisão de desperdício, 16/10/2026) ----------
+
+function simularCache() {
+  const guardado = new Map();
+  globalThis.caches = {
+    default: {
+      async match(req) { const r = guardado.get(req.url); return r ? r.clone() : null; },
+      async put(req, res) { guardado.set(req.url, res); },
+    },
+  };
+  return { guardado, restaurar: () => { delete globalThis.caches; } };
+}
+
+test('cardEnxuto guarda só os campos que as telas leem', () => {
+  const c = card({ id: 'x', opcao: SESSAO.id });
+  const cheio = { ...c, description: 'texto longo', assignees: [{ id: 1 }], tags: [], url: 'https://app.clickup.com/t/x' };
+  assert.deepEqual(cardEnxuto(cheio), { ...c, url: 'https://app.clickup.com/t/x' });
+  assert.deepEqual(cardEnxuto({ id: 'a' }), { id: 'a' });
+});
+
+test('fimDaChave: fim agora ou futuro sobe ao próximo múltiplo de 5 min; fim no passado fica exato', () => {
+  const agora = 1_800_000_123;
+  const proximo = Math.ceil(agora / CACHE_CARDS_SEGUNDOS) * CACHE_CARDS_SEGUNDOS;
+  assert.equal(fimDaChave(agora, agora), proximo);
+  assert.equal(fimDaChave(agora - 1, agora), proximo);
+  assert.equal(fimDaChave(agora - 3600, agora), agora - 3600);
+  assert.equal(fimDaChave(LIMITES.ate, agora), LIMITES.ate);
+});
+
+test('segunda leitura do mesmo período vem do cache, sem chamar o ClickUp', async () => {
+  const cache = simularCache();
+  const f = simularFetch([{ status: 200, body: { tasks: [{ id: 'a', description: 'grande' }], last_page: true } }]);
+  try {
+    assert.deepEqual(await lerCardsCriadosNoPeriodo(ENV, LIMITES), { ok: true, cards: [{ id: 'a' }] });
+    assert.deepEqual(await lerCardsCriadosNoPeriodo(ENV, LIMITES), { ok: true, cards: [{ id: 'a' }] });
+    assert.equal(f.chamadas.length, 1);
+    const [guardada] = cache.guardado.values();
+    assert.equal(guardada.headers.get('Cache-Control'), `public, max-age=${CACHE_CARDS_SEGUNDOS}`);
+  } finally { f.restaurar(); cache.restaurar(); }
+});
+
+test('"até agora" em chamadas seguidas acerta o mesmo cache e pede o fim arredondado ao ClickUp', async () => {
+  const cache = simularCache();
+  const agoraSeg = 1_800_000_123;
+  const f = simularFetch([{ status: 200, body: { tasks: [{ id: 'a' }], last_page: true } }]);
+  try {
+    await lerCardsCriadosNoPeriodo(ENV, { desde: LIMITES.desde, ate: agoraSeg }, { agoraSeg });
+    await lerCardsCriadosNoPeriodo(ENV, { desde: LIMITES.desde, ate: agoraSeg + 2 }, { agoraSeg: agoraSeg + 2 });
+    assert.equal(f.chamadas.length, 1);
+    const fim = Math.ceil(agoraSeg / CACHE_CARDS_SEGUNDOS) * CACHE_CARDS_SEGUNDOS;
+    assert.equal(new URL(f.chamadas[0].url).searchParams.get('date_created_lt'), String(fim * 1000));
+  } finally { f.restaurar(); cache.restaurar(); }
+});
+
+test('falha do CRM não vai para o cache: a próxima leitura tenta o ClickUp de novo', async () => {
+  const cache = simularCache();
+  const f = simularFetch([{ status: 500, body: {} }, { status: 200, body: { tasks: [{ id: 'a' }], last_page: true } }]);
+  try {
+    assert.deepEqual(await lerCardsCriadosNoPeriodo(ENV, LIMITES), { ok: false, aviso: AVISO_CRM_INDISPONIVEL });
+    assert.equal(cache.guardado.size, 0);
+    assert.deepEqual(await lerCardsCriadosNoPeriodo(ENV, LIMITES), { ok: true, cards: [{ id: 'a' }] });
+    assert.equal(f.chamadas.length, 2);
+  } finally { f.restaurar(); cache.restaurar(); }
+});
+
+test('cache quebrado não derruba a leitura', async () => {
+  globalThis.caches = { default: { async match() { throw new Error('x'); }, async put() { throw new Error('y'); } } };
+  const f = simularFetch([{ status: 200, body: { tasks: [{ id: 'a' }], last_page: true } }]);
+  try {
+    assert.deepEqual(await lerCardsCriadosNoPeriodo(ENV, LIMITES), { ok: true, cards: [{ id: 'a' }] });
+  } finally { f.restaurar(); delete globalThis.caches; }
 });
