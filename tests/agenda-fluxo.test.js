@@ -341,3 +341,28 @@ test('tipo de teste: some das listas e dos números, a página pública segue fu
   const comTestes = await dash(tipos, null, '&testes=1');
   assert.equal(comTestes.corpo.tipos[0].teste, true);
 });
+
+test('saúde da agenda: leitura OK não regrava a cada visita; erro grava sempre', async () => {
+  await configurar({ comercial: false });
+  const marca = () => db.prepare('SELECT ultima_leitura_ok, ultimo_erro FROM agenda_calendarios WHERE id = ?').get(CAL);
+  assert.equal((await publico(pubHorarios, { qs: '?slug=consultoria-individual' })).status, 200);
+  const primeira = marca().ultima_leitura_ok;
+  assert.ok(primeira > 0);
+  // Visita seguinte, minutos depois: não grava de novo.
+  db.prepare('UPDATE agenda_calendarios SET ultima_leitura_ok = ? WHERE id = ?').run(primeira - 120, CAL);
+  await publico(pubHorarios, { qs: '?slug=consultoria-individual' });
+  assert.equal(marca().ultima_leitura_ok, primeira - 120);
+  // Passou do intervalo: grava.
+  db.prepare('UPDATE agenda_calendarios SET ultima_leitura_ok = ? WHERE id = ?').run(primeira - 3600, CAL);
+  await publico(pubHorarios, { qs: '?slug=consultoria-individual' });
+  assert.ok(marca().ultima_leitura_ok >= primeira);
+  // Google falhou: grava o erro na hora, mesmo com leitura OK recente.
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, op) => (String(url).endsWith('/freeBusy') ? new Response('{}', { status: 500 }) : original(url, op));
+  assert.equal((await publico(pubHorarios, { qs: '?slug=consultoria-individual' })).status, 503);
+  globalThis.fetch = original;
+  assert.ok(marca().ultimo_erro);
+  // Voltou a funcionar: limpa o erro na hora.
+  await publico(pubHorarios, { qs: '?slug=consultoria-individual' });
+  assert.equal(marca().ultimo_erro, null);
+});

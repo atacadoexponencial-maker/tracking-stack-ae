@@ -175,6 +175,9 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
 
   async function iniciar() {
     if (!slug) return indisponivel('Endereço de agenda inválido.');
+    // Horários pedidos junto com o tipo (não dependem dele): a página não
+    // espera uma resposta para só então pedir a outra.
+    const pedidoHorarios = horarios().then((dias) => ({ dias }), (e) => ({ erro: e.message }));
     const qs = new URLSearchParams({ slug });
     if (convite) qs.set('c', convite);
     const r = await fetch('/api/agenda/publico/tipo?' + qs);
@@ -217,11 +220,13 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
           : `<textarea name="p${i}" rows="3"></textarea>`}
       </label><span class="ag__erro" data-erro="p${i}"></span>`).join('');
 
-    let dias;
-    try { dias = await horarios(); }
-    catch (e: any) { return indisponivel(e.message); }
+    // Evento e descrição aparecem já; o calendário entra quando os horários chegarem.
+    $('#ag-calendario').innerHTML = '<p class="ag__carregando-horarios">Carregando horários…</p>';
     $('#ag-carregando').hidden = true;
     $('#ag-app').hidden = false;
+    const { dias, erro } = await pedidoHorarios;
+    if (erro) return indisponivel(erro);
+    $('#ag-calendario').innerHTML = '';
     registrarEtapa('abriu');
     cal = montarCalendario($('#ag-calendario'), {
       dias,
@@ -355,6 +360,7 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
     font-size: 0.85rem; font-weight: 700;
   }
   .ag__ultimos[hidden] { display: none; }
+  .ag__principal :global(.ag__carregando-horarios) { margin: 0; color: rgba(30, 30, 30, 0.6); font-size: 0.95rem; }
   .ag__ultimos svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   @media (min-width: 900px) {

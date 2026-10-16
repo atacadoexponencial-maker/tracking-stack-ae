@@ -21,10 +21,11 @@ export async function onRequestGet({ request, env }) {
     tipo = await lerTipo(env, { id: r.tipo_id });
     ignorar = { ini: r.inicio, fim: r.fim };
   } else {
-    tipo = await lerTipo(env, { slug: p.get('slug') });
+    // Tipo e convite saem juntos: o banco fica longe (~200 ms por ida).
+    let c;
+    [tipo, c] = await Promise.all([lerTipo(env, { slug: p.get('slug') }), lerConvite(env, p.get('c'))]);
     if (!tipo || !tipo.ativo) return json({ error: 'Agenda indisponível.' }, 404);
     if (tipo.comercial) {
-      const c = await lerConvite(env, p.get('c'));
       if (!c || c.tipo_id !== tipo.id) return json({ error: 'Link expirado.' }, 403);
     }
   }

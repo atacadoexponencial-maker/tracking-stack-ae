@@ -58,6 +58,9 @@ export async function historico(env, reuniaoId, acao, detalhe, por) {
   ).bind(reuniaoId, acao, detalhe || null, por, agora()).run();
 }
 
+// Leitura OK só é regravada se a anterior tiver mais que isto (erro grava sempre).
+const SAUDE_OK_A_CADA = 600;
+
 async function marcarSaudeAgenda(env, calId, erro) {
   if (erro) {
     await env.DB.prepare('UPDATE agenda_calendarios SET ultimo_erro = ?, ultimo_erro_em = ? WHERE id = ?')
@@ -79,9 +82,6 @@ async function marcarSaudeAgenda(env, calId, erro) {
  * Devolve { dias } ou { erro }.
  */
 export async function calcularHorarios(env, tipo, { de, ate, ignorar = null }, fetchImpl = fetch) {
-  const grade = await lerGrade(env, tipo.grade_id);
-  if (!grade) return { erro: 'Tipo sem grade de disponibilidade.' };
-  const contas = await contasDasAgendas(env);
   const t = agora();
   const hoje = ymdBrt(t);
   const fimJanela = ymdBrt(t + tipo.janela_dias * 86400);
@@ -90,6 +90,29 @@ export async function calcularHorarios(env, tipo, { de, ate, ignorar = null }, f
   if (deDia > ateDia) return { dias: {} };
   const iniUnix = inicioDoDiaBrt(deDia);
   const fimUnix = inicioDoDiaBrt(ateDia) + 86400;
+
+  // O banco fica longe (~200 ms por ida): as leituras independentes vão juntas.
+  const [grade, agendas, reunioes] = await Promise.all([
+    lerGrade(env, tipo.grade_id),
+    env.DB.prepare('SELECT id, conta_email, ultima_leitura_ok, ultimo_erro FROM agenda_calendarios').all(),
+    tipo.limite_dia
+      ? env.DB.prepare(
+        `SELECT inicio FROM agenda_reunioes WHERE tipo_id = ? AND inicio >= ? AND inicio < ?
+           AND situacao IN ('marcada','remarcada','realizada','faltou','sem_info')`,
+      ).bind(tipo.id, iniUnix, fimUnix).all()
+      : null,
+  ]);
+  if (!grade) return { erro: 'Tipo sem grade de disponibilidade.' };
+  const linhasCal = new Map((agendas.results || []).map((c) => [c.id, c]));
+  const contas = new Map([...linhasCal].map(([id, c]) => [id, c.conta_email]));
+  // Saúde da agenda: erro grava sempre; leitura OK só se mudou de estado ou
+  // a última gravada passou de SAUDE_OK_A_CADA (não grava em toda visita).
+  const saude = (cs, erros) => Promise.all(cs.map((c) => {
+    const erro = erros(c);
+    const l = linhasCal.get(c) || {};
+    if (!erro && !l.ultimo_erro && (l.ultima_leitura_ok || 0) > t - SAUDE_OK_A_CADA) return null;
+    return marcarSaudeAgenda(env, c, erro);
+  }));
 
   // Uma consulta de freeBusy por conta dona (o Google só responde pelas
   // agendas que aquela conta enxerga).
@@ -106,21 +129,17 @@ export async function calcularHorarios(env, tipo, { de, ate, ignorar = null }, f
     try {
       r = await horariosOcupados(env, conta, cals, iniUnix, fimUnix, fetchImpl);
     } catch (e) {
-      for (const c of cals) await marcarSaudeAgenda(env, c, e.message);
+      await saude(cals, () => e.message);
       return { erro: 'Não foi possível ler a agenda agora.' };
     }
-    for (const c of cals) await marcarSaudeAgenda(env, c, r.erros[c] || null);
+    await saude(cals, (c) => r.erros[c] || null);
     if (Object.keys(r.erros).length) return { erro: 'Não foi possível ler a agenda agora.' };
     ocupados.push(...r.ocupados);
   }
 
   let reunioesNoDia = {};
-  if (tipo.limite_dia) {
-    const rs = await env.DB.prepare(
-      `SELECT inicio FROM agenda_reunioes WHERE tipo_id = ? AND inicio >= ? AND inicio < ?
-         AND situacao IN ('marcada','remarcada','realizada','faltou','sem_info')`,
-    ).bind(tipo.id, iniUnix, fimUnix).all();
-    for (const x of rs.results || []) {
+  if (reunioes) {
+    for (const x of reunioes.results || []) {
       if (ignorar && x.inicio === ignorar.ini) continue;
       const d = ymdBrt(x.inicio);
       reunioesNoDia[d] = (reunioesNoDia[d] || 0) + 1;
