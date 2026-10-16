@@ -8,12 +8,10 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
 import EquacaoMetodo from '../components/obrigada/EquacaoMetodo.astro';
 
 // Proposta B da página de obrigada: ângulo de preparação. O centro da página
-// é a conta interativa: a pessoa digita quantas revendedoras novas entraram e
-// quantas voltaram para repor, e as 10 figuras mostram a taxa contra a régua
-// do Felipe (6 de cada 10). É só visual: nada é salvo nem enviado.
-// Em aprovação: nenhum formulário redireciona para cá ainda.
-const REGUA = 6;
-const figuras = Array.from({ length: 10 }, (_, i) => i);
+// é a conta: as duas perguntas e a régua do Felipe desenhada (10 revendedoras
+// novas, 6 voltando para repor). Em aprovação: nenhum formulário redireciona
+// para cá ainda.
+const regua = Array.from({ length: 10 }, (_, i) => i < 6);
 
 // Os mesmos depoimentos em vídeo da home
 const depoimentos = [
@@ -51,30 +49,21 @@ const bio = [
         <p class="topo__sub">O seu horário está reservado, e agora o nosso time analisa a sua aplicação. Se a sua marca for selecionada, o horário fica confirmado. Se não for, ele é cancelado e a gente avisa você pelo WhatsApp. Enquanto isso, faça a conta abaixo. É por ela que a conversa começa.</p>
       </div>
 
-      <div class="conta" data-conta data-regua={REGUA}>
+      <div class="conta">
         <p class="conta__rotulo">Responda de cabeça</p>
         <h2 class="conta__titulo">Quantas revendedoras voltaram?</h2>
-
-        <div class="conta__campos">
-          <label class="conta__campo">
-            <span>Quantas revendedoras novas fizeram o primeiro pedido no último mês?</span>
-            <input type="number" inputmode="numeric" min="0" step="1" placeholder="0" data-novas />
-          </label>
-          <label class="conta__campo">
-            <span>Dessas, quantas já voltaram para repor?</span>
-            <input type="number" inputmode="numeric" min="0" step="1" placeholder="0" data-voltaram />
-          </label>
-        </div>
-
-        <ul class="conta__fila" aria-hidden="true">
-          {figuras.map((i) => (
-            <li class={i === REGUA - 1 ? 'conta__rev conta__rev--regua' : 'conta__rev'} data-figura>
-              <svg viewBox="0 0 24 32"><circle cx="12" cy="8" r="6" /><path d="M1 31c0-7 5-12 11-12s11 5 11 12Z" /></svg>
+        <ol class="conta__perguntas">
+          <li>Quantas revendedoras novas fizeram o primeiro pedido no último mês?</li>
+          <li>Dessas, quantas já voltaram para repor?</li>
+        </ol>
+        <ul class="conta__fila" aria-label="A régua do Felipe: de 10 revendedoras novas, 6 voltam para repor">
+          {regua.map((repos) => (
+            <li class={repos ? 'conta__rev conta__rev--repos' : 'conta__rev'}>
+              <svg viewBox="0 0 24 32" aria-hidden="true"><circle cx="12" cy="8" r="6" /><path d="M1 31c0-7 5-12 11-12s11 5 11 12Z" /></svg>
             </li>
           ))}
         </ul>
-
-        <p class="conta__resultado" aria-live="polite" data-resultado>Preencha os dois números para ver onde a sua marca está na régua.</p>
+        <p class="conta__legenda">A régua: de cada 10 novas, 6 voltam para repor</p>
       </div>
     </div>
   </section>
@@ -107,46 +96,6 @@ const bio = [
   <AboutFelipe bio={bio} stats={stats} />
 </BaseLayout>
 
-<script>
-  // Conta da régua: só mostra a taxa na tela, nada sai do navegador.
-  const conta = document.querySelector<HTMLElement>('[data-conta]');
-  if (conta) {
-    const regua = Number(conta.dataset.regua);
-    const novasEl = conta.querySelector<HTMLInputElement>('[data-novas]')!;
-    const voltaramEl = conta.querySelector<HTMLInputElement>('[data-voltaram]')!;
-    const figuras = conta.querySelectorAll<HTMLElement>('[data-figura]');
-    const resultado = conta.querySelector<HTMLElement>('[data-resultado]')!;
-    const fmt = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
-
-    const atualizar = () => {
-      const novas = Math.floor(Number(novasEl.value));
-      const voltaram = Math.floor(Number(voltaramEl.value));
-      conta.classList.remove('conta--acima', 'conta--abaixo');
-      figuras.forEach((f) => f.classList.remove('conta__rev--acesa'));
-
-      if (!novasEl.value || voltaramEl.value === '' || novas <= 0 || voltaram < 0) {
-        resultado.textContent = 'Preencha os dois números para ver onde a sua marca está na régua.';
-        return;
-      }
-      if (voltaram > novas) {
-        resultado.textContent = 'Quem voltou para repor não pode passar do número de revendedoras novas.';
-        return;
-      }
-
-      const deCada10 = (voltaram / novas) * 10;
-      const acesas = Math.round(deCada10);
-      figuras.forEach((f, i) => f.classList.toggle('conta__rev--acesa', i < acesas));
-
-      const acima = deCada10 >= regua;
-      conta.classList.add(acima ? 'conta--acima' : 'conta--abaixo');
-      resultado.textContent = `${fmt.format(deCada10)} de cada 10 voltaram para repor. ${acima ? 'Dentro da régua.' : 'Abaixo da régua.'}`;
-    };
-
-    novasEl.addEventListener('input', atualizar);
-    voltaramEl.addEventListener('input', atualizar);
-  }
-</script>
-
 <style>
   .topo { padding-block: 2.5rem 4rem; }
   .topo__grid { display: grid; gap: 3rem; align-items: center; }
@@ -176,40 +125,16 @@ const bio = [
   }
   .conta__rotulo { font-size: 0.9rem; color: rgba(30, 30, 30, 0.6); }
   .conta__titulo { font-size: clamp(1.4rem, 3vw, 1.75rem); line-height: 1.2; margin-top: 0.35rem; }
-  .conta__campos { margin-top: 1.5rem; display: grid; gap: 1rem; }
-  .conta__campo { display: grid; grid-template-columns: 1fr 6.5rem; gap: 1rem; align-items: center; font-size: 0.98rem; line-height: 1.45; }
-  .conta__campo input {
-    width: 100%;
-    font: inherit; font-weight: 700; font-size: 1.6rem; text-align: center;
-    font-variant-numeric: tabular-nums;
-    color: hsl(var(--light-fg));
-    background: #fff;
-    border: 1.5px solid rgba(30, 30, 30, 0.2);
-    border-radius: 0.75rem;
-    padding: 0.5rem 0.25rem;
-    -moz-appearance: textfield;
-  }
-  .conta__campo input::-webkit-outer-spin-button,
-  .conta__campo input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .conta__campo input:focus-visible { outline: 2px solid hsl(var(--light-fg)); outline-offset: 2px; border-color: transparent; }
-
+  .conta__perguntas { margin-top: 1.25rem; padding-left: 1.25rem; display: grid; gap: 0.75rem; font-size: 1.02rem; line-height: 1.5; }
+  .conta__perguntas li::marker { font-weight: 700; }
   .conta__fila {
     list-style: none; padding: 1.75rem 0 0; margin: 1.75rem 0 0;
     border-top: 1px solid rgba(30, 30, 30, 0.12);
     display: grid; grid-template-columns: repeat(10, 1fr); gap: clamp(0.25rem, 1.2vw, 0.6rem);
   }
-  .conta__rev { position: relative; }
-  .conta__rev svg { width: 100%; height: auto; display: block; fill: none; stroke: rgba(30, 30, 30, 0.35); stroke-width: 1.5; transition: fill 0.25s ease, stroke 0.25s ease; }
-  .conta__rev--acesa svg { fill: hsl(var(--light-fg)); stroke: hsl(var(--light-fg)); }
-  /* A régua de 6: um traço depois da 6ª figura */
-  .conta__rev--regua::after {
-    content: ''; position: absolute; top: -0.5rem; bottom: -0.5rem;
-    right: calc(clamp(0.25rem, 1.2vw, 0.6rem) / -2 - 1px);
-    width: 2px; background: rgba(30, 30, 30, 0.55);
-  }
-  .conta__resultado { margin-top: 1.25rem; font-weight: 700; font-size: 1.05rem; line-height: 1.45; min-height: 3em; }
-  .conta--abaixo .conta__resultado { color: #9c2f2f; }
-  @media (prefers-reduced-motion: reduce) { .conta__rev svg { transition: none; } }
+  .conta__rev svg { width: 100%; height: auto; display: block; fill: none; stroke: rgba(30, 30, 30, 0.35); stroke-width: 1.5; }
+  .conta__rev--repos svg { fill: hsl(var(--light-fg)); stroke: hsl(var(--light-fg)); }
+  .conta__legenda { margin-top: 1rem; font-size: 0.9rem; color: rgba(30, 30, 30, 0.65); }
 
   @media (min-width: 960px) {
     .topo__grid { grid-template-columns: 1fr 1fr; gap: 4rem; }
