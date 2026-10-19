@@ -3,7 +3,7 @@
  * Página de entrega dos materiais ricos do ManyChat (issue 146).
  *
  * Uma rota por entrada de src/data/materiais.js, pré-renderizada no build.
- * O cartão abre numa folha de rosto (capa do PDF + o que tem dentro) e segue
+ * O cartão abre numa folha de rosto (FolhaDeRosto: capa do PDF + o que tem dentro) e segue
  * para o mesmo formulário de 3 etapas da aplicação para mentoria
  * (AplicacaoForm), com funil 'iscas-manychat' e `material` = slug. O backend
  * registra a atribuição, dispara Meta CAPI/GA4, encaminha ao CRM e devolve o
@@ -12,10 +12,10 @@
  * O link do material NUNCA é renderizado aqui: quem resolve o destino é o
  * /tracker, a partir do mesmo catálogo.
  */
-import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AplicacaoForm from '../../components/AplicacaoForm.astro';
+import FolhaDeRosto from '../../components/FolhaDeRosto.astro';
 import { MATERIAIS, FUNIL_MATERIAIS } from '../../data/materiais.js';
 
 // Capas: 1ª página de cada PDF, em src/assets/materiais/<slug>.png. Ficam fora
@@ -47,91 +47,18 @@ const capa = capas[`../../assets/materiais/${slug}.png`]?.default;
     textoEnviar="RECEBER MATERIAL →"
     privacidade="Seus dados ficam seguros. O material abre logo depois do envio."
   >
-    <div slot="rosto" class="rosto">
-      {capa && (
-        <div class="rosto__capa">
-          <Image src={capa} alt={`Capa do material ${titulo}`} widths={[280, 560]} sizes="(min-width: 900px) 272px, 176px" loading="eager" />
-        </div>
-      )}
-      <div class="rosto__texto">
-      <span class="rosto__badge">Material gratuito</span>
-      <h1 class="rosto__titulo">{titulo}</h1>
-      <p class="rosto__sub">{subtitulo}</p>
-      {itens.length > 0 && (
-        <div class="rosto__dentro">
-          <p class="rosto__dentro-titulo">O que você vai encontrar</p>
-          <ul>
-            {itens.map((item) => <li>{item}</li>)}
-          </ul>
-        </div>
-      )}
-      <button type="button" class="btn-cta aplicacao__rosto-cta rosto__cta">Quero receber o material</button>
-      <p class="rosto__nota">Leva menos de 1 minuto.</p>
-      </div>
-    </div>
+    <FolhaDeRosto
+      slot="rosto"
+      imagem={capa}
+      imagemAlt={`Capa do material ${titulo}`}
+      badge="Material gratuito"
+      titulo={titulo}
+      subtitulo={subtitulo}
+      listaTitulo="O que você vai encontrar"
+      itens={itens}
+      ctaLabel="Quero receber o material"
+      nota="Leva menos de 1 minuto."
+    />
   </AplicacaoForm>
 </BaseLayout>
 
-<style>
-  .rosto { display: flex; flex-direction: column; align-items: center; text-align: center; }
-  /* No celular o bloco de texto se dissolve no fluxo (selo acima da capa); no
-     desktop ele vira a coluna da direita. */
-  .rosto__texto { display: contents; }
-  .rosto__badge { order: -1; }
-  .rosto__badge {
-    font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em;
-    /* verde-alta do DESIGN.md, o mesmo dos ✓ da lista */
-    color: #5dc986; background: rgba(93, 201, 134, 0.12);
-    border: 1px solid rgba(93, 201, 134, 0.45); border-radius: 999px;
-    padding: 0.4rem 0.95rem;
-  }
-  .rosto__capa {
-    margin-top: 1.5rem; width: 9.5rem;
-    transform: rotate(-3deg);
-    box-shadow: 0 1.25rem 2.5rem rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
-    border-radius: 0.35rem; overflow: hidden;
-  }
-  .rosto__capa :global(img) { display: block; width: 100%; height: auto; }
-  .rosto__titulo { margin: 1.75rem 0 0; font-size: 1.6rem; line-height: 1.15; font-weight: 700; color: hsl(var(--light-bg)); }
-  .rosto__sub { margin: 0.75rem 0 0; font-size: 0.95rem; line-height: 1.5; color: hsl(var(--muted-foreground)); }
-
-  .rosto__dentro {
-    margin-top: 1.5rem; width: 100%; text-align: left;
-    border-top: 1px solid hsl(var(--border)); padding-top: 1.25rem;
-  }
-  .rosto__dentro-titulo {
-    margin: 0; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
-    color: hsl(var(--light-bg));
-  }
-  .rosto__dentro ul { list-style: none; margin: 0.9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
-  .rosto__dentro li {
-    position: relative; padding-left: 1.6rem;
-    font-size: 0.95rem; line-height: 1.45; color: hsl(var(--card-foreground));
-  }
-  .rosto__dentro li::before {
-    content: '✓'; position: absolute; left: 0; top: 0;
-    font-weight: 700; color: #5dc986;
-  }
-
-  .rosto__cta {
-    margin-top: 1.75rem; width: 100%; justify-content: center;
-    background: hsl(var(--light-bg)); color: #1e1e1e;
-    padding: 1.1rem 1rem; min-height: 3.25rem;
-  }
-  .rosto__nota { margin: 0.75rem 0 0; font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
-
-  @media (min-width: 640px) {
-    .rosto__capa { width: 11rem; }
-    .rosto__titulo { font-size: 2rem; }
-  }
-
-  @media (min-width: 900px) {
-    .rosto { flex-direction: row; align-items: center; gap: 3rem; text-align: left; }
-    .rosto__capa { order: 0; flex: 0 0 17rem; width: 17rem; margin-top: 0; }
-    .rosto__texto { display: flex; flex-direction: column; align-items: flex-start; flex: 1; }
-    .rosto__titulo { margin-top: 1.25rem; font-size: 2.1rem; }
-    .rosto__dentro { margin-top: 1.25rem; }
-    .rosto__cta { margin-top: 1.5rem; }
-    .rosto__nota { align-self: center; }
-  }
-</style>
