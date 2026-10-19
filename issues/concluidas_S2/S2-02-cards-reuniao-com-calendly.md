@@ -131,3 +131,9 @@ Reuso: `custoPorReuniao` e `taxasPorFunil` (`functions/api/_agenda-funil.js`) se
 - [x] Suíte inteira passando
 - [x] MQL → RA por coorte: `emailsComReuniao`, opção `emailsMql` no relatório, `lerCrm`, `calcularTaxas`, nota do dash
 - [x] Testes CA-S2-15 (reescrito) e CA-S2-19
+
+## Testes manuais
+
+| Critério | Conferido por | Dia |
+|---|---|---|
+| CA-S2-17 | Marcelle Mesquita | 19/10/2026 |
