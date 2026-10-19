@@ -42,8 +42,15 @@ interface Props {
    */
   stories?: boolean;
   noindex?: boolean;
+  /**
+   * Copy do hero de uma variante (a /workshop-gratuito-v3, 19/10/2026). Sem
+   * ela, o hero sai com a copy da página A.
+   */
+  heroCopy?: { badge: string; headline: string; highlight: string; subheadline: string };
+  /** Hero compacto (ver Hero.astro): título menor e selo em destaque. */
+  compacto?: boolean;
 }
-const { stories = false, noindex = false } = Astro.props;
+const { stories = false, noindex = false, heroCopy, compacto = false } = Astro.props;
 
 const CTA = 'Quero participar do próximo workshop';
 
@@ -95,10 +102,11 @@ const varejoAtacado = [
   noindex={noindex}
 >
   <Hero
-    badge="Método aplicado em mais de 100 marcas de atacado"
-    headline="A conta que faz um atacado crescer tem dois lados. A cada 15 dias, o Felipe abre um deles ao vivo."
-    highlight="ao vivo"
-    subheadline="Cada aula pega um lado e vai até o fim nele: como fazer entrar revendedor novo todo mês, ou como fazer quem já comprou voltar a comprar."
+    compacto={compacto}
+    badge={heroCopy?.badge ?? 'Método aplicado em mais de 100 marcas de atacado'}
+    headline={heroCopy?.headline ?? 'A conta que faz um atacado crescer tem dois lados. A cada 15 dias, o Felipe abre um deles ao vivo.'}
+    highlight={heroCopy?.highlight ?? 'ao vivo'}
+    subheadline={heroCopy?.subheadline ?? 'Cada aula pega um lado e vai até o fim nele: como fazer entrar revendedor novo todo mês, ou como fazer quem já comprou voltar a comprar.'}
     navCtaLabel="Quero participar"
     ctaLabel={CTA}
     trust={['Gratuito', 'Ao vivo', 'A cada 15 dias', 'Para quem fatura acima de R$ 20 mil/mês']}

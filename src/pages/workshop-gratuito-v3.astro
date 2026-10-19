@@ -1,0 +1,22 @@
+---
+/**
+ * Variante da /workshop-gratuito com hero novo (19/10/2026, a pedido da
+ * usuária): o ângulo "atacado virou varejo disfarçado" da /se-v4, no formato
+ * compacto e com as bolinhas da v2. Abaixo do hero é o mesmo componente da A
+ * e da B.
+ *
+ * noindex: é variante, não pode competir com a A na busca.
+ */
+import WorkshopGratuito from '../components/WorkshopGratuito.astro';
+
+const heroCopy = {
+  badge: 'Atacado que fatura R$ 20 mil+ por mês',
+  headline:
+    'A internet ensinou o atacado a ser um varejo disfarçado. A cada 15 dias, o Felipe mostra ao vivo o caminho de volta.',
+  highlight: 'varejo disfarçado',
+  subheadline:
+    'Cada aula trabalha um lado da conta que faz o atacado crescer: Entrada Previsível de novos revendedores ou Recompra Escalável de revendedores ativos. 1 hora, ao vivo e de graça.',
+};
+---
+
+<WorkshopGratuito stories compacto noindex heroCopy={heroCopy} />
