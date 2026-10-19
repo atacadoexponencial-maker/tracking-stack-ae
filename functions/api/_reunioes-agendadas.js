@@ -66,6 +66,39 @@ async function consultoriasDoCalendly(DB, de, ate) {
   }
 }
 
+/**
+ * Quais destes e-mails têm reunião agendada pelo próprio lead a partir de `desde`
+ * (sem limite no fim): consultoria ativa do Calendly ou reunião não cancelada da
+ * agenda própria. É o numerador do MQL → RA por coorte. Calendly com erro conta
+ * só a agenda própria.
+ */
+export async function emailsComReuniao(DB, emails, desde) {
+  const lista = [...new Set((emails || []).map(normalizar).filter(Boolean))];
+  const com = new Set();
+  if (!lista.length) return com;
+  const { results: agenda } = await DB.prepare(`
+    SELECT email FROM agenda_reunioes
+     WHERE comercial = 1 AND is_teste = 0 AND situacao != 'cancelada' AND criado_em >= ?
+       AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)`,
+  ).bind(desde).all();
+  const procurados = new Set(lista);
+  for (const r of agenda || []) if (procurados.has(normalizar(r.email))) com.add(normalizar(r.email));
+  try {
+    for (let i = 0; i < lista.length; i += LOTE) {
+      const lote = lista.slice(i, i + LOTE);
+      const { results } = await DB.prepare(`
+        SELECT DISTINCT email FROM calendly_consultorias
+         WHERE situacao = 'ativa' AND marcada_pela_equipe = 0 AND agendou_em >= ?
+           AND email IN (${lote.map(() => '?').join(', ')})`,
+      ).bind(desde, ...lote).all();
+      for (const r of results || []) com.add(r.email);
+    }
+  } catch (e) {
+    console.error('reuniões agendadas: Calendly (coorte)', e.message);
+  }
+  return com;
+}
+
 /** [{ funil }] das reuniões agendadas entre `de` e `ate` (unix, inclusivo). */
 export async function reunioesAgendadas(DB, de, ate) {
   const { results: agenda } = await DB.prepare(`

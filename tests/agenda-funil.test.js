@@ -59,10 +59,10 @@ test('custo por reunião: granular por funil e total só dos funis com agenda', 
 
 test('taxas de passagem: Lead → MQL → RA → RR e no-show', async () => {
   const { taxasPorFunil, calcularTaxas } = await import('../functions/api/_agenda-funil.js');
-  const t = calcularTaxas({ leads_novos: 100, mqls: 40, agendadas: 10, ocorridas: 8, realizadas: 6, faltas: 2 });
+  const t = calcularTaxas({ leads_novos: 100, mqls: 40, mqls_com_reuniao: 10, agendadas: 10, ocorridas: 8, realizadas: 6, faltas: 2 });
   assert.deepEqual([t.lead_mql, t.mql_ra, t.ra_rr, t.no_show], [0.4, 0.25, 0.75, 0.25]);
   const r = taxasPorFunil({
-    crm: { 'sessao-estrategica': { leads_novos: 100, mqls: 40 }, workshop: { leads_novos: 100, mqls: 0 } },
+    crm: { 'sessao-estrategica': { leads_novos: 100, mqls: 40, mqls_com_reuniao: 10 }, workshop: { leads_novos: 100, mqls: 0, mqls_com_reuniao: 0 } },
     agenda: { 'sessao-estrategica': { agendadas: 10, ocorridas: 8, realizadas: 6, faltas: 2 } },
     funisComAgenda: ['sessao-estrategica'],
   });

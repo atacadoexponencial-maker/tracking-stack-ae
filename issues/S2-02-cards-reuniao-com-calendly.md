@@ -28,7 +28,8 @@ com a contagem feita à mão no Calendly.
 - **CA-S2-12** (automática) — E-mail com maiúscula ou espaço casa igual. Dado um lead "ana@gmail.com" no funil workshop e uma consultoria agendada como " Ana@Gmail.com", quando o painel por funil mostra as reuniões, então a consultoria conta no funil workshop.
 - **CA-S2-13** (automática) — Mesma pessoa no Calendly e na agenda própria conta uma vez. Dado a mesma pessoa (mesmo e-mail) com uma consultoria no Calendly e uma reunião comercial na agenda própria, ambas agendadas no período, e outra pessoa só na agenda própria, quando a Visão geral pede os números de reunião, então "Reuniões agendadas" mostra 2.
 - **CA-S2-14** (automática) — Custo por reunião agendada usa as consultorias do Calendly. Dado R$ 1.500 investidos na SE e 10 consultorias do Calendly no funil SE no período, quando a Visão geral mostra o custo, então "Custo por reunião agendada" da SE mostra R$ 150,00.
-- **CA-S2-15** (automática) — MQL → RA usa as consultorias do Calendly. Dado 11 MQLs da SE e 5 consultorias do Calendly no funil SE no período, quando as Taxas de passagem são mostradas, então "MQL → RA" da SE mostra 45,5% e a nota diz "5 reuniões de 11 MQLs".
+- **CA-S2-15** (automática) — MQL → RA conta quantos MQLs do período agendaram. Dado 11 MQLs da SE que chegaram no período, 5 deles com consultoria agendada no Calendly (3 dentro do período e 2 depois), e mais 4 consultorias de leads que chegaram antes do período, quando as Taxas de passagem são mostradas, então "MQL → RA" da SE mostra 45,5% e a nota diz "5 de 11 MQLs agendaram".
+- **CA-S2-19** (automática) — MQL com reunião cancelada ou marcada pela equipe não conta como agendou. Dado 3 MQLs da SE no período: um com consultoria ativa, um só com consultoria cancelada e um só com consultoria que a equipe marcou em nome dele, quando as Taxas de passagem são mostradas, então "MQL → RA" da SE mostra 33,3% e a nota diz "1 de 3 MQLs agendaram".
 - **CA-S2-16** (automática) — Comparação com o período anterior usa a mesma conta. Dado 4 consultorias no período e 2 no período anterior, quando a Visão geral mostra "Reuniões agendadas", então o carimbo mostra ▲ 100%, a diferença +2 e o balão mostra 4 agora e 2 no anterior.
 - **CA-S2-17** (manual) — Os números batem com o Calendly no ar. Dado o dash no ar com a coleta rodando, quando ela abre a Visão geral em "Últimos 7 dias", então "Reuniões agendadas" bate com a contagem feita à mão no Calendly (consultorias agendadas pelos leads no período, sem as canceladas e sem as marcadas pela equipe).
 - **CA-S2-18** (automática) — Sem cópia do Calendly, os cards continuam funcionando. Dado a cópia do Calendly vazia ou ilegível, quando a Visão geral pede os números de reunião, então os cards mostram só o que vem da agenda própria, sem erro na tela.
@@ -42,6 +43,8 @@ com a contagem feita à mão no Calendly.
 | SUP-S2-07 | Remarcação conta uma vez, no dia em que a pessoa remarcou (o Calendly cancela o agendamento original e cria outro). | confirmada | Usuária, 19/10/2026 |
 | SUP-S2-08 | O funil é achado pelo e-mail exato em minúsculas (busca pelo índice); lead que digitou o e-mail com maiúscula no formulário (4 de 1.071) não é achado e a reunião vai para a SE. | confirmada | Usuária, 19/10/2026 |
 | SUP-S2-09 | Na agenda própria, o card de reuniões agendadas passa a excluir os tipos de reunião de teste, como a taxa MQL → RA já fazia. | confirmada | Usuária, 19/10/2026 |
+| SUP-S2-10 | MQL cujo card no CRM não tem e-mail conta no denominador do MQL → RA, mas não tem como casar com uma reunião. | confirmada | Usuária, 19/10/2026 (desenho aprovado) |
+| SUP-S2-11 | No MQL → RA, só conta reunião agendada a partir do início do período; reunião agendada antes não conta para o MQL que chegou depois. | confirmada | Usuária, 19/10/2026 (desenho aprovado) |
 
 ## Perguntas em aberto
 
@@ -50,6 +53,7 @@ com a contagem feita à mão no Calendly.
 | PER-S2-01 | A taxa MQL → RA também passa a contar as reuniões do Calendly? | respondida | Sim, usa as mesmas do card Reuniões agendadas (usuária, 19/10/2026) |
 | PER-S2-02 | Reunião do Calendly sem lead com o mesmo e-mail: onde entra? | respondida | Conta como SE (usuária, 19/10/2026) |
 | PER-S2-04 | Quando a agenda própria for ligada, como as fontes convivem? | respondida | Soma as duas, a mesma pessoa no período conta uma vez (usuária, 19/10/2026) |
+| PER-S2-05 | MQL → RA passou de 100% (reuniões de leads antigos ÷ MQLs do período). O que a taxa deve responder? | respondida | Dos MQLs que chegaram no período, quantos têm reunião agendada, mesmo que agendem depois do período; nunca passa de 100% (usuária, 19/10/2026) |
 
 
 ## Cenários
@@ -89,7 +93,8 @@ com a contagem feita à mão no Calendly.
 | CA-S2-12 | automática | `tests/reunioes-calendly.test.js` | lead "ana@gmail.com" no workshop e consultoria " Ana@Gmail.com" (gravada normalizada pela coleta) → conta no workshop |
 | CA-S2-13 | automática | `tests/reunioes-calendly.test.js` | mesma pessoa no Calendly e na agenda própria + outra só na agenda → `agendadas` = 2 |
 | CA-S2-14 | automática | `tests/reunioes-calendly.test.js` | R$ 1.500 na SE e 10 consultorias na SE → `por_funil['sessao-estrategica'].custo_agendada` = 150 |
-| CA-S2-15 | automática | `tests/reunioes-calendly.test.js` | 5 consultorias na SE: a leitura da agenda das taxas devolve `agendadas` 5 na SE, e com 11 MQLs `mql_ra` = 5/11 (45,5%) e os números da nota (5 e 11) |
+| CA-S2-15 | automática | `tests/reunioes-calendly.test.js` | `lerCrm` das taxas com o CRM simulado (11 cards MQL da SE no período) e 5 deles + 4 leads antigos com consultoria: `mqls_com_reuniao` 5, `mqls` 11, `mql_ra` 45,5% |
+| CA-S2-19 | automática | `tests/reunioes-calendly.test.js` | 3 MQLs (ativa, cancelada, marcada pela equipe): `mqls_com_reuniao` 1, `mql_ra` 33,3% |
 | CA-S2-16 | automática | `tests/reunioes-calendly.test.js` | 4 consultorias no período e 2 no anterior: `/api/cpl` devolve 4 e 2, e a conta do carimbo (`(4−2)/2`) dá 100% e a diferença +2 |
 | CA-S2-17 | manual | roteiro abaixo | o card bate com a contagem no Calendly |
 | CA-S2-18 | automática | `tests/reunioes-calendly.test.js` | sem a tabela do Calendly, `/api/cpl` responde 200 e `reunioes.total.agendadas` conta só a agenda própria |
@@ -108,7 +113,11 @@ Sem mudança de esquema. Lê `calendly_consultorias` (S2-01), `agenda_reunioes`,
 
 - **Criar:** `functions/api/_reunioes-agendadas.js` — `reunioesAgendadas(DB, de, ate)`: junta agenda própria e Calendly, tira duplicata entre as fontes, acha o funil pelo e-mail (lotes de 50) e devolve `[{ funil }]`; `funilDaReuniao(...)` puro, para a regra do lead mais recente
 - **Modificar:** `functions/api/cpl.js` — a consulta das agendadas troca por `reunioesAgendadas`
-- **Modificar:** `functions/api/agenda/taxas.js` — `lerAgenda` usa `reunioesAgendadas` para `agendadas` por funil (e passa a ser exportada para o teste); ocorridas/realizadas/faltas como estão
+- **Modificar:** `functions/api/agenda/taxas.js` — `lerAgenda` usa `reunioesAgendadas` para `agendadas` por funil (e passa a ser exportada para o teste); ocorridas/realizadas/faltas como estão; `lerCrm` (exportada) pede os e-mails dos MQLs e conta `mqls_com_reuniao` por funil (PER-S2-05)
+- **Modificar:** `functions/api/feedback-marketing.js` — `montarFeedback` ganha a opção `emailsMql` (só as taxas ligam): cada bloco de lead traz `emails_mql`; a resposta do endpoint do relatório não muda
+- **Modificar:** `functions/api/_agenda-funil.js` — `calcularTaxas`/`taxasPorFunil`: MQL → RA = `mqls_com_reuniao` ÷ `mqls`
+- **Modificar:** `public/dash/index.html` — nota do MQL → RA: "N de M MQLs agendaram"
+- **Modificar:** `tests/agenda-funil.test.js` — o teste das taxas passa `mqls_com_reuniao` (a taxa deixou de usar `agendadas`)
 - **Criar:** `tests/reunioes-calendly.test.js` — os testes da tabela Prova, com SQLite real (migrations 0047, 0059, 0063 e as tabelas mínimas do CPL) chamando `/api/cpl` e `lerAgenda`
 
 Reuso: `custoPorReuniao` e `taxasPorFunil` (`functions/api/_agenda-funil.js`) sem mudança; adaptador `d1` e banco base de `tests/_fluxos-banco.js`; lote de 50 com `IN (?, …)` como em `functions/api/_feedback-marketing-greenn.js`.
@@ -120,3 +129,5 @@ Reuso: `custoPorReuniao` e `taxasPorFunil` (`functions/api/_agenda-funil.js`) se
 - [x] `agenda/taxas.js` usando a função e exportando `lerAgenda`
 - [x] Testes CA-S2-06 a CA-S2-16 e CA-S2-18
 - [x] Suíte inteira passando
+- [x] MQL → RA por coorte: `emailsComReuniao`, opção `emailsMql` no relatório, `lerCrm`, `calcularTaxas`, nota do dash
+- [x] Testes CA-S2-15 (reescrito) e CA-S2-19

@@ -170,16 +170,19 @@ const razao = (a, b) => (b > 0 && a !== null && a !== undefined ? a / b : null);
 /**
  * Taxas de um recorte.
  *   leads_novos / mqls: do relatório de marketing (CRM); null = CRM não lido
+ *   mqls_com_reuniao: desses MQLs, quantos têm reunião agendada a partir do
+ *              início do período (coorte; spec-reunioes-calendly.md). É o
+ *              numerador do MQL → RA, que por isso nunca passa de 100%
  *   agendadas: reuniões agendadas no período (pela data em que agendou)
  *   ocorridas: reuniões que já deveriam ter acontecido no período (passaram da
  *              data e não foram canceladas): realizadas + faltas + sem presença
  *   realizadas / faltas: entre as ocorridas
  */
-export function calcularTaxas({ leads_novos = null, mqls = null, agendadas = 0, ocorridas = 0, realizadas = 0, faltas = 0 }) {
+export function calcularTaxas({ leads_novos = null, mqls = null, mqls_com_reuniao = null, agendadas = 0, ocorridas = 0, realizadas = 0, faltas = 0 }) {
   return {
-    leads_novos, mqls, agendadas, ocorridas, realizadas, faltas,
+    leads_novos, mqls, mqls_com_reuniao, agendadas, ocorridas, realizadas, faltas,
     lead_mql: leads_novos === null || mqls === null ? null : razao(mqls, leads_novos),
-    mql_ra: mqls === null ? null : razao(agendadas, mqls),
+    mql_ra: mqls === null || mqls_com_reuniao === null ? null : razao(mqls_com_reuniao, mqls),
     ra_rr: razao(realizadas, ocorridas),
     no_show: razao(faltas, realizadas + faltas),
   };
@@ -198,16 +201,17 @@ export function taxasPorFunil({ crm, agenda = {}, funisComAgenda = [] }) {
   const zero = { agendadas: 0, ocorridas: 0, realizadas: 0, faltas: 0 };
   const por_funil = {};
   for (const f of comAgenda) {
-    const c = crm ? (crm[f] || { leads_novos: 0, mqls: 0 }) : { leads_novos: null, mqls: null };
+    const c = crm ? (crm[f] || { leads_novos: 0, mqls: 0, mqls_com_reuniao: 0 }) : { leads_novos: null, mqls: null, mqls_com_reuniao: null };
     por_funil[f] = calcularTaxas({ ...c, ...(agenda[f] || zero) });
   }
   const soma = (lista, campo) => lista.reduce((s, x) => s + (x[campo] || 0), 0);
   const ag = Object.values(agenda);
   const crmTodos = crm ? Object.values(crm) : null;
-  const crmAgenda = crm ? [...comAgenda].map((f) => crm[f] || { leads_novos: 0, mqls: 0 }) : null;
+  const crmAgenda = crm ? [...comAgenda].map((f) => crm[f] || { leads_novos: 0, mqls: 0, mqls_com_reuniao: 0 }) : null;
   const total = calcularTaxas({
     leads_novos: crmAgenda ? soma(crmAgenda, 'leads_novos') : null,
     mqls: crmAgenda ? soma(crmAgenda, 'mqls') : null,
+    mqls_com_reuniao: crmAgenda ? soma(crmAgenda, 'mqls_com_reuniao') : null,
     agendadas: soma(ag, 'agendadas'), ocorridas: soma(ag, 'ocorridas'),
     realizadas: soma(ag, 'realizadas'), faltas: soma(ag, 'faltas'),
   });
