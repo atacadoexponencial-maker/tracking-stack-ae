@@ -133,6 +133,8 @@ function resumoDoPeriodo(linhas, dias) {
 // `publicacoes`: [{dia, formato}] dos posts do período (dia em Brasília).
 // `historicoSeguidoresDesde`: menor dia com seguidores_ganhos na tabela.
 // `ultimoDiaColetado`: maior dia com alcance na tabela (para "ainda chegando").
+// `anterior` em cada KPI: o valor do período anterior que gera o `delta`, para
+// o dash mostrar os dois números ao passar o mouse no card.
 export function montarCrescimento({ de, ate, antDe, antAte, linhas = [], linhasAnteriores = [], publicacoes = [],
   historicoSeguidoresDesde = null, ultimoDiaColetado = null }) {
   const dias = diasEntre(de, ate);
@@ -178,13 +180,13 @@ export function montarCrescimento({ de, ate, antDe, antAte, linhas = [], linhasA
     periodo: { de, ate, dias: dias.length, dias_com_dado: atual.cobertura },
     comparacao_disponivel: ant.completo,
     kpis: {
-      alcance_medio: { organico: atual.alcanceOrg, anuncios: atual.alcanceAds, delta: comparar(atual.alcanceOrg, ant.alcanceOrg) },
-      visualizacoes: { organico: atual.viewsOrg, anuncios: atual.viewsAds, delta: comparar(atual.viewsOrg, ant.viewsOrg) },
-      interacoes: { organico: atual.interOrg, anuncios: atual.interAds, delta: comparar(atual.interOrg, ant.interOrg), quebra: atual.quebra },
+      alcance_medio: { organico: atual.alcanceOrg, anuncios: atual.alcanceAds, delta: comparar(atual.alcanceOrg, ant.alcanceOrg), anterior: ant.alcanceOrg },
+      visualizacoes: { organico: atual.viewsOrg, anuncios: atual.viewsAds, delta: comparar(atual.viewsOrg, ant.viewsOrg), anterior: ant.viewsOrg },
+      interacoes: { organico: atual.interOrg, anuncios: atual.interAds, delta: comparar(atual.interOrg, ant.interOrg), anterior: ant.interOrg, quebra: atual.quebra },
       seguidores: { saldo, ganhos: atual.ganhos, perdidos: atual.perdidos, total: ultimoTotal ? ultimoTotal.seguidores_total : null,
-        delta: atual.seguidoresCompleto && ant.seguidoresCompleto ? variacao(saldo, saldoAnt) : null, inclui_anuncios: true },
-      visitas_perfil: { valor: atual.visitas, delta: comparar(atual.visitas, ant.visitas), inclui_anuncios: true },
-      toques_link: { valor: atual.toques, delta: comparar(atual.toques, ant.toques), inclui_anuncios: true },
+        delta: atual.seguidoresCompleto && ant.seguidoresCompleto ? variacao(saldo, saldoAnt) : null, anterior: saldoAnt, inclui_anuncios: true },
+      visitas_perfil: { valor: atual.visitas, delta: comparar(atual.visitas, ant.visitas), anterior: ant.visitas, inclui_anuncios: true },
+      toques_link: { valor: atual.toques, delta: comparar(atual.toques, ant.toques), anterior: ant.toques, inclui_anuncios: true },
     },
     seguidores: {
       ganhos: atual.ganhos, perdidos: atual.perdidos, saldo,

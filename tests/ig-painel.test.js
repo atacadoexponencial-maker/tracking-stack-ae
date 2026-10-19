@@ -71,6 +71,7 @@ test('crescimento: alcance é média por dia, views e interações somam, orgân
   assert.equal(r.kpis.interacoes.organico, 20);
   assert.equal(r.kpis.interacoes.quebra.curtidas, 60);
   assert.equal(r.kpis.alcance_medio.delta, 50);
+  assert.equal(r.kpis.alcance_medio.anterior, 100); // o número que gera o delta vem junto
   assert.equal(r.kpis.seguidores.saldo, 30);
   assert.equal(r.kpis.visitas_perfil.inclui_anuncios, true);
 });
@@ -88,6 +89,7 @@ test('crescimento: variação de seguidores só com os dois períodos completos'
   const base = { de: '2026-09-28', ate: '2026-09-29', antDe: '2026-09-26', antAte: '2026-09-27' };
   const completo = montarCrescimento({ ...base, linhas: [dia('2026-09-28'), dia('2026-09-29')], linhasAnteriores: [dia('2026-09-26'), dia('2026-09-27', { seguidores_ganhos: 10 })] });
   assert.equal(completo.kpis.seguidores.delta, 50); // saldo 30 contra 20
+  assert.equal(completo.kpis.seguidores.anterior, 20);
   // Período anterior fora da janela de 30 dias da Meta: alcance existe, seguidores não.
   const semJanela = montarCrescimento({ ...base, linhas: [dia('2026-09-28'), dia('2026-09-29')],
     linhasAnteriores: [dia('2026-09-26', { seguidores_ganhos: null, seguidores_perdidos: null }), dia('2026-09-27')] });
