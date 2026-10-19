@@ -10,6 +10,7 @@
 import { montarFeedback } from '../feedback-marketing.js';
 import { resolverPeriodo } from '../_feedback-marketing-periodo.js';
 import { taxasPorFunil } from '../_agenda-funil.js';
+import { reunioesAgendadas } from '../_reunioes-agendadas.js';
 import { ymdBrt } from '../_data-brt.js';
 import { respostaEmCache, respostaJson } from '../_cache.js';
 
@@ -44,11 +45,15 @@ async function lerCrm(env, de, ate, agora) {
   }
 }
 
-/** { funil: { agendadas, ocorridas, realizadas, faltas } } da agenda própria. */
-async function lerAgenda(env, de, ate, agora) {
+/**
+ * { funil: { agendadas, ocorridas, realizadas, faltas } }. Agendadas vêm de
+ * reunioesAgendadas (agenda própria + Calendly, spec-reunioes-calendly.md);
+ * ocorridas, realizadas e faltas só da agenda própria (o Calendly não sabe se
+ * a reunião aconteceu).
+ */
+export async function lerAgenda(env, de, ate, agora) {
   const r = await env.DB.prepare(
     `SELECT COALESCE(funil, '') AS funil,
-            SUM(CASE WHEN criado_em >= ?1 AND criado_em <= ?2 THEN 1 ELSE 0 END) AS agendadas,
             SUM(CASE WHEN inicio >= ?1 AND inicio <= ?2 AND fim < ?3 AND situacao != 'cancelada' THEN 1 ELSE 0 END) AS ocorridas,
             SUM(CASE WHEN inicio >= ?1 AND inicio <= ?2 AND situacao = 'realizada' THEN 1 ELSE 0 END) AS realizadas,
             SUM(CASE WHEN inicio >= ?1 AND inicio <= ?2 AND situacao = 'faltou' THEN 1 ELSE 0 END) AS faltas
@@ -56,9 +61,15 @@ async function lerAgenda(env, de, ate, agora) {
       WHERE comercial = 1 AND is_teste = 0 AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)
       GROUP BY funil`,
   ).bind(de, ate, agora).all();
-  return Object.fromEntries((r.results || [])
-    .filter((x) => x.agendadas || x.ocorridas)
-    .map((x) => [x.funil, { agendadas: x.agendadas, ocorridas: x.ocorridas, realizadas: x.realizadas, faltas: x.faltas }]));
+  const porFunil = {};
+  for (const x of r.results || []) {
+    if (x.ocorridas) porFunil[x.funil] = { agendadas: 0, ocorridas: x.ocorridas, realizadas: x.realizadas, faltas: x.faltas };
+  }
+  for (const { funil } of await reunioesAgendadas(env.DB, de, ate)) {
+    porFunil[funil] = porFunil[funil] || { agendadas: 0, ocorridas: 0, realizadas: 0, faltas: 0 };
+    porFunil[funil].agendadas += 1;
+  }
+  return porFunil;
 }
 
 async function recorte(env, de, ate, agora, funisComAgenda) {
