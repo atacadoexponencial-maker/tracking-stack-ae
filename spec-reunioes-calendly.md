@@ -78,7 +78,7 @@ junto com as da agenda própria.
   agendadas no período, pela data em que a pessoa agendou.
 - Card "Custo por reunião agendada" (total e por funil): investimento do funil ÷
   reuniões agendadas.
-- Card "MQL → RA" (Taxas de passagem, total e por funil): reuniões agendadas ÷ MQLs.
+- Card "MQL → RA" (Taxas de passagem, total e por funil): dos MQLs que chegaram no período, quantos têm reunião agendada (PER-S2-05).
 
 **Comportamentos:**
 - Contar a consultoria do Calendly: entra no período pela data em que a pessoa agendou.
@@ -149,11 +149,17 @@ junto com as da agenda própria.
 - **Quando** a Visão geral mostra o custo
 - **Então** "Custo por reunião agendada" da SE mostra R$ 150,00
 
-#### CA-S2-15 — MQL → RA usa as consultorias do Calendly · prova: automática
+#### CA-S2-15 — MQL → RA conta quantos MQLs do período agendaram · prova: automática
 
-- **Dado** 11 MQLs da SE e 5 consultorias do Calendly no funil SE no período
+- **Dado** 11 MQLs da SE que chegaram no período, 5 deles com consultoria agendada no Calendly (3 dentro do período e 2 depois), e mais 4 consultorias de leads que chegaram antes do período
 - **Quando** as Taxas de passagem são mostradas
-- **Então** "MQL → RA" da SE mostra 45,5% e a nota diz "5 reuniões de 11 MQLs"
+- **Então** "MQL → RA" da SE mostra 45,5% e a nota diz "5 de 11 MQLs agendaram"
+
+#### CA-S2-19 — MQL com reunião cancelada ou marcada pela equipe não conta como agendou · prova: automática
+
+- **Dado** 3 MQLs da SE no período: um com consultoria ativa, um só com consultoria cancelada e um só com consultoria que a equipe marcou em nome dele
+- **Quando** as Taxas de passagem são mostradas
+- **Então** "MQL → RA" da SE mostra 33,3% e a nota diz "1 de 3 MQLs agendaram"
 
 #### CA-S2-16 — Comparação com o período anterior usa a mesma conta · prova: automática
 
@@ -198,6 +204,8 @@ junto com as da agenda própria.
 | SUP-S2-07 | Remarcação conta uma vez, no dia em que a pessoa remarcou (o Calendly cancela o agendamento original e cria outro). | confirmada | Usuária, 19/10/2026 |
 | SUP-S2-08 | O funil é achado pelo e-mail exato em minúsculas (busca pelo índice); lead que digitou o e-mail com maiúscula no formulário (4 de 1.071) não é achado e a reunião vai para a SE. | confirmada | Usuária, 19/10/2026 |
 | SUP-S2-09 | Na agenda própria, o card de reuniões agendadas passa a excluir os tipos de reunião de teste, como a taxa MQL → RA já fazia. | confirmada | Usuária, 19/10/2026 |
+| SUP-S2-10 | MQL cujo card no CRM não tem e-mail conta no denominador do MQL → RA, mas não tem como casar com uma reunião. | confirmada | Usuária, 19/10/2026 (desenho aprovado) |
+| SUP-S2-11 | No MQL → RA, só conta reunião agendada a partir do início do período; reunião agendada antes não conta para o MQL que chegou depois. | confirmada | Usuária, 19/10/2026 (desenho aprovado) |
 
 ## Perguntas em aberto
 
@@ -207,3 +215,4 @@ junto com as da agenda própria.
 | PER-S2-02 | Reunião do Calendly sem lead com o mesmo e-mail: onde entra? | respondida | Conta como SE (usuária, 19/10/2026) |
 | PER-S2-03 | Com que frequência buscar as reuniões no Calendly? | respondida | Uma vez por dia (usuária, 19/10/2026) |
 | PER-S2-04 | Quando a agenda própria for ligada, como as fontes convivem? | respondida | Soma as duas, a mesma pessoa no período conta uma vez (usuária, 19/10/2026) |
+| PER-S2-05 | MQL → RA passou de 100% (reuniões de leads antigos ÷ MQLs do período). O que a taxa deve responder? | respondida | Dos MQLs que chegaram no período, quantos têm reunião agendada, mesmo que agendem depois do período; nunca passa de 100% (usuária, 19/10/2026) |

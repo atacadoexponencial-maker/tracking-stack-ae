@@ -8,8 +8,9 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { d1 } from './_fluxos-banco.js';
 import * as cpl from '../functions/api/cpl.js';
-import { lerAgenda } from '../functions/api/agenda/taxas.js';
-import { taxasPorFunil, calcularTaxas } from '../functions/api/_agenda-funil.js';
+import { lerAgenda, lerCrm } from '../functions/api/agenda/taxas.js';
+import { taxasPorFunil } from '../functions/api/_agenda-funil.js';
+import { CU_FIELD } from '../functions/api/_clickup.js';
 
 const em = (iso) => Math.floor(Date.parse(`${iso}-03:00`) / 1000);
 // Período "12/10 a 18/10" e o anterior, como a Visão geral pede.
@@ -28,9 +29,11 @@ function banco({ semCalendly = false } = {}) {
     CREATE TABLE lead_dispatch (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT, resultado TEXT, task_id TEXT);
     CREATE TABLE ad_spend (platform TEXT, date TEXT, campaign_id TEXT, campaign_name TEXT, spend_cents INTEGER);
     CREATE TABLE campaign_funnel_map (campaign_id TEXT PRIMARY KEY, funnel TEXT);
-    CREATE TABLE funis_relatorio (funil_tracking TEXT, situacao TEXT);
+    CREATE TABLE funis_relatorio (id INTEGER PRIMARY KEY, nome TEXT, tipo TEXT, posicao INTEGER, funil_tracking TEXT,
+      trecho_campanha TEXT, opcoes_crm TEXT, origem_lead TEXT, situacao TEXT);
+    CREATE TABLE sync_log (id INTEGER PRIMARY KEY AUTOINCREMENT, platform TEXT, status TEXT, run_at INTEGER);
   `);
-  for (const f of ['0047_agenda.sql', '0059_agenda_tipos_teste.sql', ...(semCalendly ? [] : ['0063_calendly_consultorias.sql'])]) {
+  for (const f of ['0032_greenn_webhook.sql', '0047_agenda.sql', '0059_agenda_tipos_teste.sql', ...(semCalendly ? [] : ['0063_calendly_consultorias.sql'])]) {
     b.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   }
   b.exec(`INSERT INTO agenda_tipos (id, slug, nome, duracao_min, destino_cal, grade_id, comercial, funil, criado_em, atualizado_em)
@@ -146,16 +149,64 @@ test('CA-S2-14: custo por reunião agendada usa as consultorias do Calendly', as
   assert.equal((await reunioes()).por_funil['sessao-estrategica'].custo_agendada, 150);
 });
 
-test('CA-S2-15: MQL → RA usa as consultorias do Calendly', async () => {
-  for (let i = 0; i < 5; i++) consultoria(`p${i}@x.com`, '2026-10-13T10:00:00');
-  const agenda = await lerAgenda(env, P.de, P.ate, em('2026-10-19T08:00:00'));
-  assert.equal(agenda['sessao-estrategica'].agendadas, 5);
-  const t = taxasPorFunil({ crm: { 'sessao-estrategica': { leads_novos: 20, mqls: 11 } }, agenda, funisComAgenda: ['sessao-estrategica'] });
-  const se = t.por_funil['sessao-estrategica'];
-  assert.equal(se.agendadas, 5);
+// CRM simulado para as taxas: o relatório de marketing lê os cards criados no
+// período no ClickUp. Card MQL = faturamento acima de R$ 20 mil e não
+// desqualificado; o e-mail do card é o que casa com a reunião.
+const OPCAO_SE = { id: 'opt-se', name: 'SE', orderindex: 0 };
+function cardCrm(email, { mql = true, criado = '2026-10-13T10:00:00' } = {}) {
+  seq++;
+  return {
+    id: `card${seq}`, name: `Lead ${seq}`, status: { status: 'qualificação' }, date_created: String(em(criado) * 1000),
+    custom_fields: [
+      { id: CU_FIELD.funil, value: 'opt-se', type_config: { options: [OPCAO_SE] } },
+      { id: CU_FIELD.faturamento, value: mql ? 'De 50 a 100 mil' : 'Menos de 20 mil' },
+      { id: CU_FIELD.email, value: email },
+    ],
+  };
+}
+async function taxasDaSe(cards) {
+  db.prepare(`INSERT INTO funis_relatorio VALUES (1, 'SE', 'lead_mql', 1, 'sessao-estrategica', '', ?, 'qualquer', 'ativo')`)
+    .run(JSON.stringify([{ id: 'opt-se', nome: 'SE' }]));
+  env.CLICKUP_API_TOKEN = 't';
+  const fetchOriginal = globalThis.fetch;
+  globalThis.fetch = async (url) => (String(url).includes('/task?')
+    ? Response.json({ tasks: cards, last_page: true })
+    : new Response('fora do teste', { status: 500 }));
+  try {
+    const agora = em('2026-10-19T08:00:00');
+    const crm = await lerCrm(env, P.de, P.ate, agora);
+    const agenda = await lerAgenda(env, P.de, P.ate, agora);
+    return taxasPorFunil({ crm, agenda, funisComAgenda: ['sessao-estrategica'] }).por_funil['sessao-estrategica'];
+  } finally {
+    globalThis.fetch = fetchOriginal;
+  }
+}
+const pct1 = (x) => Number((x * 100).toFixed(1));
+
+test('CA-S2-15: MQL → RA conta quantos MQLs do período agendaram', async () => {
+  const cards = Array.from({ length: 11 }, (_, i) => cardCrm(`mql${i}@x.com`));
+  cards.push(cardCrm('pouco@x.com', { mql: false })); // lead novo que não é MQL
+  // 5 MQLs agendaram: 3 dentro do período, 2 depois dele.
+  for (const i of [0, 1, 2]) consultoria(`mql${i}@x.com`, '2026-10-15T10:00:00');
+  for (const i of [3, 4]) consultoria(`mql${i}@x.com`, '2026-10-21T10:00:00');
+  // 4 consultorias de leads que chegaram antes do período.
+  for (let i = 0; i < 4; i++) consultoria(`antigo${i}@x.com`, '2026-10-14T10:00:00');
+  const se = await taxasDaSe(cards);
   assert.equal(se.mqls, 11);
-  assert.equal(Number((se.mql_ra * 100).toFixed(1)), 45.5);
-  assert.deepEqual(calcularTaxas({ leads_novos: 20, mqls: 11, agendadas: 5 }).mql_ra, se.mql_ra);
+  assert.equal(se.mqls_com_reuniao, 5); // números da nota "5 de 11 MQLs agendaram"
+  assert.equal(pct1(se.mql_ra), 45.5);
+  assert.equal(se.agendadas, 7); // o card Reuniões agendadas segue contando todas do período
+});
+
+test('CA-S2-19: MQL com reunião cancelada ou marcada pela equipe não conta como agendou', async () => {
+  const cards = ['ativa@x.com', 'cancelou@x.com', 'equipe@x.com'].map((e) => cardCrm(e));
+  consultoria('ativa@x.com', '2026-10-14T10:00:00');
+  consultoria('cancelou@x.com', '2026-10-14T10:00:00', { situacao: 'cancelada' });
+  consultoria('equipe@x.com', '2026-10-14T10:00:00', { equipe: 1 });
+  const se = await taxasDaSe(cards);
+  assert.equal(se.mqls, 3);
+  assert.equal(se.mqls_com_reuniao, 1); // "1 de 3 MQLs agendaram"
+  assert.equal(pct1(se.mql_ra), 33.3);
 });
 
 test('CA-S2-16: comparação com o período anterior usa a mesma conta', async () => {

@@ -10,19 +10,23 @@
 import { montarFeedback } from '../feedback-marketing.js';
 import { resolverPeriodo } from '../_feedback-marketing-periodo.js';
 import { taxasPorFunil } from '../_agenda-funil.js';
-import { reunioesAgendadas } from '../_reunioes-agendadas.js';
+import { reunioesAgendadas, emailsComReuniao } from '../_reunioes-agendadas.js';
 import { ymdBrt } from '../_data-brt.js';
 import { respostaEmCache, respostaJson } from '../_cache.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') === env.DASH_KEY;
 
-/** { funil_tracking: { leads_novos, mqls } } a partir dos blocos do relatório. */
-async function lerCrm(env, de, ate, agora) {
+/**
+ * { funil_tracking: { leads_novos, mqls, mqls_com_reuniao } } a partir dos
+ * blocos do relatório. mqls_com_reuniao: cards MQL do período cujo e-mail tem
+ * reunião agendada desde `de` (MQL → RA por coorte, spec-reunioes-calendly.md).
+ */
+export async function lerCrm(env, de, ate, agora) {
   try {
     const r = resolverPeriodo({ inicio: ymdBrt(de), fim: ymdBrt(Math.min(ate, agora)) }, agora);
     if (!r.ok) return null;
-    const relatorio = await montarFeedback(env, r.periodo, []);
+    const relatorio = await montarFeedback(env, r.periodo, [], { emailsMql: true });
     const funis = (await env.DB.prepare('SELECT nome, posicao, funil_tracking FROM funis_relatorio').all()).results || [];
     const porFunil = {};
     for (const b of relatorio.blocos || []) {
@@ -34,9 +38,16 @@ async function lerCrm(env, de, ate, agora) {
       }
       const f = funis.find((x) => x.nome === b.nome && x.posicao === b.posicao);
       const chave = (f && f.funil_tracking) || b.nome;
-      porFunil[chave] = porFunil[chave] || { leads_novos: 0, mqls: 0 };
+      porFunil[chave] = porFunil[chave] || { leads_novos: 0, mqls: 0, mqls_com_reuniao: 0, emails: [] };
       porFunil[chave].leads_novos += m.novos_leads;
       porFunil[chave].mqls += m.mqls;
+      porFunil[chave].emails.push(...(b.emails_mql || []));
+    }
+    // Um card por MQL: o mesmo e-mail em dois cards conta duas vezes, como no denominador.
+    const com = await emailsComReuniao(env.DB, Object.values(porFunil).flatMap((x) => x.emails), de);
+    for (const x of Object.values(porFunil)) {
+      x.mqls_com_reuniao = x.emails.filter((e) => e && com.has(e)).length;
+      delete x.emails;
     }
     return porFunil;
   } catch (e) {

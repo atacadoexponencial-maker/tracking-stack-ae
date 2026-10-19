@@ -2874,7 +2874,7 @@ function tilesTaxas(a, b, crmLido) {
   const semCrm = crmLido === false ? 'CRM não lido agora' : '';
   return [
     { rotulo: 'Lead → MQL', valor: pct(a && a.lead_mql), delta: a && b ? d(a.lead_mql, b.lead_mql) : undefined, ...comparar(cem(a && a.lead_mql), cem(b && b.lead_mql), (x) => fmtPct(x, 1), { pp: 1 }), nota: a && a.lead_mql !== null ? `${fmtInt(a.mqls)} MQLs de ${fmtInt(a.leads_novos)} leads novos` : (semCrm || 'nenhum lead novo') },
-    { rotulo: 'MQL → RA', valor: pct(a && a.mql_ra), delta: a && b ? d(a.mql_ra, b.mql_ra) : undefined, ...comparar(cem(a && a.mql_ra), cem(b && b.mql_ra), (x) => fmtPct(x, 1), { pp: 1 }), nota: a && a.mql_ra !== null ? `${fmtInt(a.agendadas)} reuniões de ${fmtInt(a.mqls)} MQLs` : (semCrm || 'nenhum MQL') },
+    { rotulo: 'MQL → RA', valor: pct(a && a.mql_ra), delta: a && b ? d(a.mql_ra, b.mql_ra) : undefined, ...comparar(cem(a && a.mql_ra), cem(b && b.mql_ra), (x) => fmtPct(x, 1), { pp: 1 }), nota: a && a.mql_ra !== null ? `${fmtInt(a.mqls_com_reuniao)} de ${fmtInt(a.mqls)} MQLs agendaram` : (semCrm || 'nenhum MQL') },
     { rotulo: 'RA → RR', valor: pct(a && a.ra_rr), delta: a && b ? d(a.ra_rr, b.ra_rr) : undefined, ...comparar(cem(a && a.ra_rr), cem(b && b.ra_rr), (x) => fmtPct(x, 1), { pp: 1 }), nota: a && a.ra_rr !== null ? `${fmtInt(a.realizadas)} de ${fmtInt(a.ocorridas)} que já passaram` : 'nenhuma reunião passou da data' },
     { rotulo: 'No-show', valor: pct(a && a.no_show), delta: a && b ? d(a.no_show, b.no_show) : undefined, ...comparar(cem(a && a.no_show), cem(b && b.no_show), (x) => fmtPct(x, 1), { pp: 1 }), invertido: true, nota: a && a.no_show !== null ? `${fmtInt(a.faltas)} faltas` : 'nenhuma presença lida' },
   ];

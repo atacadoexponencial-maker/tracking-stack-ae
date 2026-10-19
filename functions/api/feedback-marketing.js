@@ -41,7 +41,10 @@ import {
   lerTaskIdsDeTesteOuBot,
   atribuirCards,
   avisosOpcoesInexistentes,
+  lerCampo,
 } from './_feedback-marketing-crm.js';
+import { ehMql } from './_feedback-marketing-mql.js';
+import { CU_FIELD } from './_clickup.js';
 import { montarResposta, ERRO_FALHA_INESPERADA } from './_feedback-marketing-resposta.js';
 import {
   montarBlocoLead,
@@ -92,7 +95,11 @@ export async function onRequest(context) {
 
 // Leituras e montagem. Qualquer exceção sobe para o erro geral de onRequest.
 // Exportada para as metas (issue 334): mesma conta, números nunca divergem.
-export async function montarFeedback(env, periodo, avisosDoPeriodo) {
+// `emailsMql` (só as taxas de passagem pedem, spec-reunioes-calendly.md): cada
+// bloco de lead ganha `emails_mql`, o e-mail de cada card MQL (minúsculas; ''
+// quando o card não tem e-mail). Este endpoint nunca liga: e-mail não sai na
+// resposta do relatório.
+export async function montarFeedback(env, periodo, avisosDoPeriodo, { emailsMql = false } = {}) {
   const limites = limitesDoPeriodoUnix(periodo);
   // Só leitura. `ad_spend.date` já é dia de Brasília: o recorte é direto por
   // intervalo de data, pelo índice (platform, date), agregado por campanha.
@@ -160,7 +167,11 @@ export async function montarFeedback(env, periodo, avisosDoPeriodo) {
     const inv = investimento.blocos.get(f.id);
     let bloco;
     if (f.tipo === 'lead_mql') {
-      bloco = montarBlocoLead({ funil: f, investimento: inv, cards: leads ? leads.blocos.get(f.id) : null });
+      const cards = leads ? leads.blocos.get(f.id) : null;
+      bloco = montarBlocoLead({ funil: f, investimento: inv, cards });
+      if (emailsMql && cards) {
+        bloco.emails_mql = cards.filter(ehMql).map((c) => String(lerCampo(c, { id: CU_FIELD.email }) || '').trim().toLowerCase());
+      }
     } else if (f.tipo === 'manual') {
       bloco = montarBlocoManual({ funil: f, investimento: inv });
     } else {
