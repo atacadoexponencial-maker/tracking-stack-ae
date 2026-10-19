@@ -316,9 +316,10 @@ const titulo =
   /* ---- Compacto (/se-v4) ------------------------------------------------ */
   .hero--compacto .hero__body { padding: 1.5rem 1.5rem 3rem; gap: 1rem; }
   .hero--compacto .hero__badge {
-    background: #1e1e1e;
-    border-color: #1e1e1e;
-    color: #fff;
+    /* Preto a 10%: aparece mais que o contorno cinza, sem competir com o botão. */
+    background: rgba(30, 30, 30, 0.1);
+    border-color: transparent;
+    color: #1e1e1e;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
   }
