@@ -339,6 +339,7 @@ export const KNOWN_PAGE_PATHS = new Set([
   '/vsl',
   '/workshop-gratuito',
   '/workshop-gratuito-v2',
+  '/workshop-gratuito-v3',
   '/obrigado-workshop-gratuito',
   '/workshop-gratuito-atacado',
   '/obrigada',

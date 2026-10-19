@@ -25,6 +25,7 @@ export const FUNIL_POR_PAGINA = new Map([
   ['/consultoria-gratuita-atacado', 'sessao-estrategica'],
   ['/workshop-gratuito', 'workshop'],
   ['/workshop-gratuito-v2', 'workshop'],
+  ['/workshop-gratuito-v3', 'workshop'],
   ['/lives-semanais-v1', 'lives-semanais-v1'],
   ['/aplicacao-mentoria', 'aplicacao-mentoria'],
   // A LP do tráfego leva ao formulário em /aplicacao-trafego-atacado.
