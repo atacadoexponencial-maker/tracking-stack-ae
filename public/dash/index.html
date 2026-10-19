@@ -2863,8 +2863,8 @@ document.addEventListener('click', async (ev) => {
 // funil. Tudo vem pronto do backend — leads, leads novos, investimento e os
 // dois CPLs de /api/cpl (`por_funil`), conversão de /api/conversion
 // (`by=funnel`); aqui só se escolhe o que mostrar e se desenha.
-// Fica de fora o `aquisicao` (impulsionamento): não gera lead direto, o CPL
-// dele seria sempre vazio. "sem-funil" vai por último e só se tiver número.
+// `aquisicao` entra como funil: impulsionamento + leads da bio e do ManyChat
+// (spec-funil-pela-utm.md). "sem-funil" vai por último e só se tiver número.
 // Taxas de passagem (pedido de 02/10). `a`/`b`: saída de calcularTaxas ou null.
 // No-show é taxa ruim: sobe = alerta (invertido), como o CPL.
 function tilesTaxas(a, b, crmLido) {
@@ -2924,7 +2924,7 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
   const antes = porChave(cplB && cplB.por_funil);
   const convAgora = porChave(convA && convA.por_funil), convAntes = porChave(convB && convB.por_funil);
   const linhas = (cplA.por_funil || [])
-    .filter((r) => r.funnel !== 'aquisicao' && (r.leads > 0 || r.spend > 0))
+    .filter((r) => r.leads > 0 || r.spend > 0)
     .sort((a, b) => (a.funnel === 'sem-funil') - (b.funnel === 'sem-funil') || b.leads - a.leads || b.spend - a.spend);
   if (!linhas.length) { alvo.innerHTML = ''; return; }
   const d = (a, b) => a !== null && a !== undefined && b ? delta(a, b) : undefined;
@@ -3133,6 +3133,8 @@ R.leads = async () => {
     { titulo: 'Quando', campo: 'timestamp', render: (l) => `<span class="mini">${fmtData(l.timestamp)}</span>` },
     { titulo: 'Email', campo: 'raw_email', render: (l) => esc(l.raw_email || '—')
         + (l.origin === 'meta_form' ? ' <span class="selo" title="Lead do formulário nativo do Meta">form Meta</span>' : '') },
+    { titulo: 'Funil', campo: 'funnel', render: (l) => esc(l.funnel || '—') },
+    { titulo: 'Entrada', campo: 'pagina', render: (l) => `<span class="mini">${esc(l.pagina || '—')}</span>` },
     { titulo: 'Origem', campo: 'utm_source', render: (l) => esc(l.utm_source || '(direto)') },
     { titulo: 'Campanha', campo: 'utm_campaign', render: (l) => `<span class="mini">${esc(l.utm_campaign || '—')}</span>` },
     { titulo: 'Conteúdo', campo: 'utm_content', render: (l) => `<span class="mini">${esc(l.utm_content || '—')}</span>` },
@@ -3289,9 +3291,11 @@ R.metaads = async () => {
   // pago no período; sem ela, fica "—".
   const linhaMeta = ((cpl && cpl.por_canal) || []).find((c) => c.canal === 'meta-ads');
   const cplMeta = linhaMeta && linhaMeta.cpl != null ? linhaMeta.cpl : null;
+  const cplMetaNovos = linhaMeta && linhaMeta.cpl_novos != null ? linhaMeta.cpl_novos : null;
   $('#meta-kpis').innerHTML = [
     { rotulo: 'Investimento', valor: atr.meta_spend > 0 ? money(atr.meta_spend) : null, delta: atr.meta_spend > 0 && atrAnt.meta_spend > 0 ? delta(atr.meta_spend, atrAnt.meta_spend) : undefined, ...comparar(atr.meta_spend, atrAnt.meta_spend, money), neutro: true },
     { rotulo: 'CPL Meta (pago)', valor: cplMeta === null ? null : money(cplMeta), invertido: true, nota: cpl ? '' : 'CPL indisponível' },
+    { rotulo: 'CPL lead novo (pago)', valor: cplMetaNovos === null ? null : money(cplMetaNovos), invertido: true, nota: cpl ? (linhaMeta ? `${fmtInt(linhaMeta.leads_novos || 0)} leads novos de anúncio` : '') : 'CPL indisponível' },
     { rotulo: 'CPA', valor: atr.meta_cpa != null ? money(atr.meta_cpa) : null, invertido: true, nota: atr.meta_cpa != null ? '' : 'aguardando conversões do CRM' },
     { rotulo: 'ROAS', valor: atr.meta_roas > 0 ? fmtNum(atr.meta_roas) + 'x' : null, nota: atr.meta_roas > 0 ? '' : (atr.meta_roas === 0 ? 'nenhuma venda atribuída no período' : 'aguardando conversões do CRM') },
   ].map((k) => tile(k)).join('');
@@ -3309,19 +3313,17 @@ R.metaads = async () => {
     { titulo: 'Funil', campo: 'funnel', render: (r) => esc(r.funnel === 'sem-funil' ? 'Sem funil' : r.funnel) },
     { titulo: 'Investimento', num: true, campo: 'spend', render: (r) => money(r.spend) },
     { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
+    { titulo: 'Leads novos', num: true, campo: 'leads_novos', render: (r) => fmtInt(r.leads_novos || 0) },
     { titulo: 'CPL', num: true, campo: 'cpl', render: cplCel },
+    { titulo: 'CPL lead novo', num: true, campo: 'cpl_novos', render: (r) => r.cpl_novos == null ? '<span class="semdado">—</span>' : money(r.cpl_novos) },
     { titulo: '% do gasto', num: true, campo: 'share', render: (r) => fmtNum(r.share, 1) + '%' },
   ], (cpl && cpl.por_funil) || []);
 
-  // A linha de aquisição entra no fim, visualmente separada: o denominador
-  // dela vem de outros canais (bio + ManyChat), então somá-la às demais
-  // contaria os mesmos leads duas vezes.
-  const linhasCanal = [...((cpl && cpl.por_canal) || [])];
-  if (cpl && cpl.aquisicao_estimativa && (cpl.aquisicao_estimativa.spend > 0 || cpl.aquisicao_estimativa.leads > 0)) {
-    linhasCanal.push(cpl.aquisicao_estimativa);
-  }
+  // Aquisição (impulsionamento ÷ leads de bio e ManyChat) agora é linha da
+  // tabela por funil (spec-funil-pela-utm.md); aqui ficam só os canais.
+  const linhasCanal = (cpl && cpl.por_canal) || [];
   tabela($('#cpl-canal'), [
-    { titulo: 'Canal', campo: 'canal', render: (r) => esc(r.canal) + (r.estimado ? ` <span class="mini">${esc(r.nota)}</span>` : '') },
+    { titulo: 'Canal', campo: 'canal', render: (r) => esc(r.canal) },
     { titulo: 'Investimento', num: true, campo: 'spend', render: (r) => money(r.spend) },
     { titulo: 'Leads', num: true, campo: 'leads', render: (r) => fmtInt(r.leads) },
     { titulo: 'CPL', num: true, campo: 'cpl', render: cplCel },

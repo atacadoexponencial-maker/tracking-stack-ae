@@ -6,3 +6,4 @@ As issues até a 410 foram criadas antes das séries e seguem numeradas soltas n
 |---|---|---|
 | S1 | spec-uso-cloudflare.md | issues/concluidas_S1 |
 | S2 | spec-reunioes-calendly.md | issues/concluidas_S2 |
+| S3 | spec-funil-pela-utm.md | issues/concluidas_S3 |

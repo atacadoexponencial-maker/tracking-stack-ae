@@ -18,6 +18,7 @@
 
 import { clausulasBotIpSql } from '../_bots.js';
 import { listarFunisConhecidos } from './_funil-campanha.js';
+import { funilDoLead, carregarMapaCampanhas, funisDoSeletor } from './_funil-lead.js';
 import { respostaJson, respostaEmCache } from './_cache.js';
 
 export async function onRequestGet(context) {
@@ -49,23 +50,17 @@ export async function onRequestGet(context) {
   // teste, consulte o D1 direto — o dado continua lá, só não é contado.
   const junkClause = 'AND e.is_junk = 0';
 
-  // Filtro opcional de funil (não é UTM). Funil ausente = todos os funis
-  // (comportamento original). A lista de funis disponíveis é devolvida em
-  // `funnels` (só com `&with=funnels`) para o dashboard popular o seletor.
-  // Funil EFETIVO do lead = o declarado no evento (event_log.funnel), com
+  // Filtro opcional de funil. Funil ausente = todos os funis. A lista de
+  // funis disponíveis é devolvida em `funnels` (só com `&with=funnels`) para o
+  // dashboard popular o seletor.
+  // Funil do FORMULÁRIO = o declarado no evento (event_log.funnel), com
   // fallback para o da sessão (sessions.funnel) nas linhas históricas gravadas
-  // antes da coluna existir. Usar o da sessão sozinho categorizava errado:
-  // o funil da sessão é first-touch por cookie (400 dias) e pode vir de um
-  // `&funnel=` errado na URL do anúncio. COALESCE(NULLIF(...)) trata tanto NULL
-  // quanto '' (a coluna nasce com DEFAULT '').
+  // antes da coluna existir. COALESCE(NULLIF(...)) trata tanto NULL quanto ''.
+  // O funil que o dash mostra sai dele + UTM da sessão pela regra única de
+  // _funil-lead.js (spec-funil-pela-utm.md): nas portas da SE quem decide é a
+  // origem. Por isso o filtro e as contagens são feitos em JS, não em SQL.
   const EFFECTIVE_FUNNEL = "COALESCE(NULLIF(e.funnel, ''), s.funnel)";
   const funnel = (url.searchParams.get('funnel') || '').trim();
-  let funnelClause = '';
-  const funnelBinds = [];
-  if (funnel) {
-    funnelClause = `AND ${EFFECTIVE_FUNNEL} = ?`;
-    funnelBinds.push(funnel);
-  }
 
   try {
     // Contagens por funil e por material numa consulta só (antes eram duas
@@ -80,10 +75,16 @@ export async function onRequestGet(context) {
     // Não dá para derivar isto das linhas de `leads`: o dashboard pede
     // `limit=1` só para ler as contagens, e mesmo com `limit=500` uma lista
     // truncada contaria a menos.
+    const funisConhecidos = await listarFunisConhecidos(env.DB);
+    const mapa = await carregarMapaCampanhas(env.DB, funisConhecidos);
+    const funilDe = (l) => funilDoLead(l, mapa, funisConhecidos);
+
     const contagens = await env.DB.prepare(`
       SELECT
         COALESCE(${EFFECTIVE_FUNNEL}, '') AS funnel,
         COALESCE(e.material, '') AS material,
+        s.utm_source,
+        s.utm_campaign,
         COUNT(*) AS count
       FROM event_log e
       LEFT JOIN sessions s ON e.session_id = s.session_id
@@ -92,15 +93,16 @@ export async function onRequestGet(context) {
         AND e.is_bot = 0
         AND e.is_junk = 0
         ${clausulasBotIpSql('s')}
-      GROUP BY 1, 2
+      GROUP BY 1, 2, 3, 4
     `).bind(since, until).all();
 
     const porFunil = new Map();
     const porMaterial = new Map();
     for (const r of contagens.results || []) {
       const n = Number(r.count) || 0;
-      porFunil.set(r.funnel, (porFunil.get(r.funnel) || 0) + n);
-      if (r.material && (!funnel || r.funnel === funnel)) {
+      const f = funilDe(r);
+      porFunil.set(f, (porFunil.get(f) || 0) + n);
+      if (r.material && (!funnel || f === funnel)) {
         porMaterial.set(r.material, (porMaterial.get(r.material) || 0) + n);
       }
     }
@@ -138,6 +140,7 @@ export async function onRequestGet(context) {
         e.fbc_source,
         e.fbclid_source,
         e.origin,
+        e.material,
         s.utm_source,
         s.utm_medium,
         s.utm_campaign,
@@ -160,23 +163,29 @@ export async function onRequestGet(context) {
         AND e.timestamp >= ? AND e.timestamp <= ?
         ${botClause}
         ${junkClause}
-        ${funnelClause}
       ORDER BY e.timestamp DESC
-      LIMIT ?
-    `).bind(since, until, ...funnelBinds, limit).all(),
+      ${funnel ? '' : 'LIMIT ?'}
+    `).bind(since, until, ...(funnel ? [] : [limit])).all(),
 
       // Lista de funis para o seletor do dashboard: independente do período e
-      // do filtro, para o dropdown não perder opção ao trocar a data. Mesma
-      // função que o CPL e o mapeamento de campanhas usam — uma definição só.
-      comFunnels ? listarFunisConhecidos(env.DB) : Promise.resolve(null),
+      // do filtro, para o dropdown não perder opção ao trocar a data. Sai dos
+      // mesmos funis que o CPL usa, passados pela regra (porta não é funil).
+      Promise.resolve(comFunnels ? funisDoSeletor(funisConhecidos) : null),
     ]);
+
+    // Com filtro de funil a consulta vem sem LIMIT (o funil é decidido aqui):
+    // filtra e só então corta. São centenas de leads por período, não milhares.
+    const leads = (rows.results || [])
+      .map((l) => ({ ...l, formulario: l.funnel || null, funnel: funilDe(l), pagina: paginaDe(l.landing_url) }))
+      .filter((l) => !funnel || l.funnel === funnel)
+      .slice(0, limit);
 
     const resposta = {
       days,
       funnel: funnel || null,
       funnelCounts,
       materialCounts,
-      leads: rows.results || [],
+      leads,
     };
     if (funnels) resposta.funnels = funnels;
 
@@ -194,6 +203,17 @@ function json(body, status = 200) {
       'Access-Control-Allow-Origin': '*',
     },
   });
+}
+
+// Path da página de entrada, sem querystring nem barra final ("/" fica "/").
+function paginaDe(landingUrl) {
+  if (!landingUrl) return null;
+  try {
+    const path = new URL(landingUrl, 'https://x').pathname;
+    return path.length > 1 ? path.replace(/\/+$/, '') : path;
+  } catch {
+    return null;
+  }
 }
 
 function clampInt(raw, fallback, min, max) {

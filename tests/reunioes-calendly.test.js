@@ -228,3 +228,17 @@ test('CA-S2-18: sem cópia do Calendly, os cards continuam funcionando', async (
   const r = await reunioes();
   assert.equal(r.total.agendadas, 1);
 });
+
+test('CA-S3-19 reunião de lead da aplicação vindo da bio conta em aquisição', async () => {
+  // Lead da /aplicacao-mentoria com UTM do link da bio (spec-funil-pela-utm.md).
+  lead('bia@gmail.com', 'aplicacao-mentoria', '2026-10-12T09:00:00');
+  db.prepare(`INSERT INTO sessions (session_id, utm_source, utm_campaign) VALUES (?, 'organico', 'bioperfil-felipe')`).run(`s${seq}`);
+  consultoria('bia@gmail.com', '2026-10-13T10:00:00');
+  // E uma reunião da agenda própria gravada com o funil do formulário.
+  lead('caio@gmail.com', 'aplicacao-mentoria', '2026-10-12T10:00:00');
+  db.prepare(`INSERT INTO sessions (session_id, utm_source, utm_campaign) VALUES (?, 'organico', 'bioperfil-felipe')`).run(`s${seq}`);
+  reuniaoAgenda('caio@gmail.com', '2026-10-13T11:00:00', 'aplicacao-mentoria');
+  const r = await reunioes();
+  assert.equal(r.por_funil.aquisicao.agendadas, 2);
+  assert.equal(r.por_funil['aplicacao-mentoria'], undefined);
+});

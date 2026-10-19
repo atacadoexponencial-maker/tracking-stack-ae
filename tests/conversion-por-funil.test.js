@@ -61,14 +61,37 @@ test('by=funnel também vem no only=totals (período anterior da Visão geral)',
 
 test('&funnel= filtra o denominador pelas páginas do funil, não por sessions.funnel', async () => {
   const linhas = [
-    { landing_url: `${URL_BASE}/`, visitors: 100, leads: 1, cliques: 0, form_starts: 0 },
-    { landing_url: `${URL_BASE}/workshop-gratuito/`, visitors: 40, leads: 4, cliques: 0, form_starts: 0 },
+    { landing_url: `${URL_BASE}/`, lead_funil: null, campanha: '', visitors: 99, leads: 0, cliques: 0, form_starts: 0 },
+    { landing_url: `${URL_BASE}/`, lead_funil: 'sessao-estrategica', campanha: '', visitors: 1, leads: 1, cliques: 0, form_starts: 0 },
+    { landing_url: `${URL_BASE}/workshop-gratuito/`, lead_funil: null, campanha: '', visitors: 36, leads: 0, cliques: 0, form_starts: 0 },
+    { landing_url: `${URL_BASE}/workshop-gratuito/`, lead_funil: 'workshop', campanha: '', visitors: 4, leads: 4, cliques: 0, form_starts: 0 },
   ];
   const { ctx, sqls } = contexto('&funnel=workshop&only=totals', linhas);
   const r = await (await onRequestGet(ctx)).json();
   assert.equal(r.visitors, 40);
   assert.equal(r.leads, 4);
   assert.doesNotMatch(sqls[0], /s\.funnel = \?/);
+});
+
+test('CA-S3-18 visita a porta da SE conta no funil pela UTM: bio em aquisição, anúncio de SE em SE', async () => {
+  const linhas = [
+    // Visita à aplicação vinda da bio que não virou lead.
+    { landing_url: `${URL_BASE}/aplicacao-mentoria/`, lead_funil: null, campanha: 'bioperfil', visitors: 1, leads: 0, cliques: 0, form_starts: 0 },
+    // Visita à aplicação vinda de anúncio de SE que virou lead.
+    { landing_url: `${URL_BASE}/aplicacao-mentoria/`, lead_funil: 'aplicacao-mentoria', campanha: 'ae_leads_publico-frio_evento-ra_sessao-estrategica', visitors: 1, leads: 1, cliques: 0, form_starts: 0 },
+  ];
+  const { ctx } = contexto('&by=funnel', linhas);
+  const r = await (await onRequestGet(ctx)).json();
+  const f = Object.fromEntries(r.por_funil.map((x) => [x.funnel, x]));
+  assert.deepEqual(f.aquisicao, { funnel: 'aquisicao', visitors: 1, leads: 0, rate: 0 });
+  assert.deepEqual(f['sessao-estrategica'], { funnel: 'sessao-estrategica', visitors: 1, leads: 1, rate: 1 });
+  assert.equal(f['aplicacao-mentoria'], undefined);
+
+  // Filtrado por aquisição, só a visita da bio entra, sem lead.
+  const { ctx: ctxAq } = contexto('&funnel=aquisicao&only=totals', linhas);
+  const aq = await (await onRequestGet(ctxAq)).json();
+  assert.equal(aq.visitors, 1);
+  assert.equal(aq.leads, 0);
 });
 
 test('sem by=funnel, a consulta não agrupa por funil e a resposta não traz por_funil', async () => {

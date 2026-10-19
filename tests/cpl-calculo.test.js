@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { calcularCpl, montarAvisosCpl } from '../functions/api/_cpl-calculo.js';
 
-const FUNIS = ['lives-semanais-v1', 'sessao-estrategica', 'trafego-atacado', 'aplicacao-mentoria'];
+const FUNIS = ['lives-semanais-v1', 'sessao-estrategica', 'trafego-atacado', 'aplicacao-mentoria', 'workshop'];
 
 function cenario(extra = {}) {
   return {
@@ -79,19 +79,81 @@ test('gasto do meta vai todo para o canal meta-ads, menos o impulsionamento', ()
   assert.equal(linha(r.por_canal, 'canal', 'bio').spend, 0);
 });
 
-test('aquisicao vem fora de por_canal, com leads de bio+manychat e marcado como estimativa', () => {
+test('aquisicao e linha da tabela por funil, com leads de bio+manychat, e nao entra em por_canal', () => {
   const r = calcularCpl(cenario());
-  assert.equal(r.aquisicao_estimativa.spend, 200);
-  assert.equal(r.aquisicao_estimativa.leads, 2);
-  assert.equal(r.aquisicao_estimativa.cpl, 100);
-  assert.equal(r.aquisicao_estimativa.estimado, true);
+  const aq = linha(r.por_funil, 'funnel', 'aquisicao');
+  assert.equal(aq.spend, 200);
+  assert.equal(aq.leads, 2);
+  assert.equal(aq.cpl, 100);
+  assert.equal(r.aquisicao_estimativa, undefined);
   assert.equal(linha(r.por_canal, 'canal', 'aquisicao'), undefined);
 });
 
 test('aquisicao sem lead de bio nem manychat devolve cpl null', () => {
   const r = calcularCpl(cenario({ leads: [{ funnel: 'sessao-estrategica', utm_source: 'facebookads' }] }));
-  assert.equal(r.aquisicao_estimativa.leads, 0);
-  assert.equal(r.aquisicao_estimativa.cpl, null);
+  const aq = linha(r.por_funil, 'funnel', 'aquisicao');
+  assert.equal(aq.leads, 0);
+  assert.equal(aq.cpl, null);
+});
+
+test('CA-S3-10 aquisicao junta impulsionamento e leads de bio e ManyChat na mesma linha', () => {
+  const r = calcularCpl({
+    funisConhecidos: FUNIS,
+    overrides: [],
+    gastos: [{ campaign_id: '9', campaign_name: 'Post do Instagram: no atacado...', spend_cents: 10000 }],
+    leads: [
+      { funnel: 'aplicacao-mentoria', utm_source: 'organico', utm_campaign: 'bioperfil-felipe' },
+      { funnel: 'aplicacao-mentoria', utm_source: 'organico', utm_campaign: 'bioperfil-felipe' },
+      { funnel: 'aplicacao-mentoria', utm_source: 'organico', utm_campaign: 'bioperfil-barbara' },
+      { funnel: 'iscas-manychat', material: 'icp' },
+    ],
+  });
+  const aq = linha(r.por_funil, 'funnel', 'aquisicao');
+  assert.equal(aq.spend, 100);
+  assert.equal(aq.leads, 4);
+  assert.equal(aq.cpl, 25);
+  assert.deepEqual(r.por_funil.map((l) => l.funnel), ['aquisicao']);
+});
+
+test('CA-S3-11 tabela por funil traz leads novos e CPL lead novo', () => {
+  const ads = { funnel: 'sessao-estrategica', utm_source: 'facebookads', utm_campaign: 'ae_leads_publico-frio_evento-lead_sessao-estrategica' };
+  const r = calcularCpl({
+    funisConhecidos: FUNIS,
+    overrides: [],
+    gastos: [{ campaign_id: '1', campaign_name: 'ae_leads_publico-frio_evento-lead_sessao-estrategica', spend_cents: 30000 }],
+    leads: [
+      { ...ads, task_novo: 'T1' }, { ...ads, task_novo: 'T2' }, { ...ads, task_novo: 'T3' },
+      { ...ads }, { ...ads }, { ...ads },
+    ],
+  });
+  const se = linha(r.por_funil, 'funnel', 'sessao-estrategica');
+  assert.equal(se.leads, 6);
+  assert.equal(se.leads_novos, 3);
+  assert.equal(se.cpl, 50);
+  assert.equal(se.cpl_novos, 100);
+});
+
+test('CA-S3-12 linha meta-ads de por_canal traz CPL pago e CPL lead novo pago', () => {
+  const ads = { funnel: 'sessao-estrategica', utm_source: 'facebookads', utm_campaign: 'ae_leads_publico-frio_evento-lead_sessao-estrategica' };
+  const r = calcularCpl({
+    funisConhecidos: FUNIS,
+    overrides: [],
+    gastos: [
+      { campaign_id: '1', campaign_name: 'ae_leads_publico-frio_evento-lead_sessao-estrategica', spend_cents: 40000 },
+      { campaign_id: '9', campaign_name: 'Post do Instagram: no atacado...', spend_cents: 50000 },
+    ],
+    leads: [
+      ...[1, 2, 3, 4].map((n) => ({ ...ads, task_novo: 'T' + n })),
+      ...[1, 2, 3, 4].map(() => ({ ...ads })),
+      { funnel: 'aplicacao-mentoria', utm_source: 'organico', utm_campaign: 'bioperfil-felipe', task_novo: 'B1' },
+    ],
+  });
+  const meta = linha(r.por_canal, 'canal', 'meta-ads');
+  assert.equal(meta.spend, 400);
+  assert.equal(meta.leads, 8);
+  assert.equal(meta.leads_novos, 4);
+  assert.equal(meta.cpl, 50);
+  assert.equal(meta.cpl_novos, 100);
 });
 
 test('cruzado separa o mesmo funil por canal', () => {
@@ -102,15 +164,17 @@ test('cruzado separa o mesmo funil por canal', () => {
       { funnel: 'aplicacao-mentoria', utm_source: 'facebookads', utm_campaign: 'ae_x' },
     ],
   }));
-  const bio = r.cruzado.find((c) => c.funnel === 'aplicacao-mentoria' && c.canal === 'bio');
-  const pago = r.cruzado.find((c) => c.funnel === 'aplicacao-mentoria' && c.canal === 'meta-ads');
+  // Porta da SE: bio vira aquisição; anúncio sem campanha reconhecida, SE.
+  const bio = r.cruzado.find((c) => c.funnel === 'aquisicao' && c.canal === 'bio');
+  const pago = r.cruzado.find((c) => c.funnel === 'sessao-estrategica' && c.canal === 'meta-ads');
   assert.equal(bio.leads, 1);
   assert.equal(pago.leads, 2);
 });
 
-test('lead sem funil cai em sem-funil em vez de sumir', () => {
+test('lead sem funil e sem origem conta como sessao estrategica em vez de sumir', () => {
   const r = calcularCpl(cenario({ leads: [{ funnel: '', utm_source: '' }] }));
-  assert.equal(linha(r.por_funil, 'funnel', 'sem-funil').leads, 1);
+  assert.equal(linha(r.por_funil, 'funnel', 'sessao-estrategica').leads, 1);
+  assert.equal(linha(r.por_funil, 'funnel', 'sem-funil').leads, 0);
   assert.equal(r.total_leads, 1);
 });
 
@@ -120,14 +184,14 @@ test('leads novos por funil contam pessoas com card criado, e o CPL novo divide 
       { funnel: 'sessao-estrategica', task_novo: 'T1' },
       { funnel: 'sessao-estrategica', task_novo: 'T1' }, // mesma pessoa preencheu de novo
       { funnel: 'sessao-estrategica', task_novo: null }, // já tinha card: retorno
-      { funnel: 'aplicacao-mentoria', task_novo: 'T2' },
+      { funnel: 'workshop', task_novo: 'T2' },
     ],
   }));
   const se = linha(r.por_funil, 'funnel', 'sessao-estrategica');
   assert.equal(se.leads, 3);
   assert.equal(se.leads_novos, 1);
   assert.equal(se.cpl_novos, 2000);
-  assert.equal(linha(r.por_funil, 'funnel', 'aplicacao-mentoria').leads_novos, 1);
+  assert.equal(linha(r.por_funil, 'funnel', 'workshop').leads_novos, 1);
   assert.equal(r.total_leads_novos, 2);
 });
 
@@ -144,7 +208,6 @@ test('entradas vazias nao quebram', () => {
   assert.deepEqual(r.por_canal, []);
   assert.equal(r.total_investimento, 0);
   assert.equal(r.total_leads, 0);
-  assert.equal(r.aquisicao_estimativa.cpl, null);
 });
 
 test('linha meta-ads em por_canal so aparece com gasto ou lead de fato', () => {
@@ -173,21 +236,21 @@ test('cruzado nao atribui investimento a canais organicos', () => {
       { funnel: 'aplicacao-mentoria', utm_source: 'organico', utm_campaign: 'bioperfil-felipe' },
     ],
   }));
-  const bio = r.cruzado.find((c) => c.funnel === 'aplicacao-mentoria' && c.canal === 'bio');
+  const bio = r.cruzado.find((c) => c.funnel === 'aquisicao' && c.canal === 'bio');
   assert.equal(bio.spend, null);
   assert.equal(bio.cpl, null);
 });
 
 test('cruzado mostra a celula (funil, meta-ads) mesmo sem lead ainda, quando ha gasto atribuido ao funil', () => {
-  // Caso motivador da spec: aplicacao-mentoria recebe hoje só lead de bio,
-  // mas já tem override de campanha paga — precisa aparecer com o gasto.
+  // Funil com override de campanha paga e só lead orgânico precisa aparecer
+  // com o gasto na célula paga.
   const r = calcularCpl(cenario({
-    overrides: [{ campaign_id: '2', funnel: 'aplicacao-mentoria' }],
+    overrides: [{ campaign_id: '2', funnel: 'trafego-atacado' }],
     leads: [
-      { funnel: 'aplicacao-mentoria', utm_source: 'organico', utm_campaign: 'bioperfil-felipe' },
+      { funnel: 'trafego-atacado', utm_source: 'organico', utm_campaign: 'bioperfil-felipe' },
     ],
   }));
-  const pago = r.cruzado.find((c) => c.funnel === 'aplicacao-mentoria' && c.canal === 'meta-ads');
+  const pago = r.cruzado.find((c) => c.funnel === 'trafego-atacado' && c.canal === 'meta-ads');
   assert.ok(pago);
   assert.equal(pago.leads, 0);
   assert.equal(pago.spend, 1000);

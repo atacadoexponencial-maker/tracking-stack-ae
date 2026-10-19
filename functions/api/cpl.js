@@ -7,7 +7,7 @@
 // filtro de validade do /api/leads: não-bot, não-junk, funil efetivo.
 
 import { custoPorReuniao } from './_agenda-funil.js';
-import { reunioesAgendadas } from './_reunioes-agendadas.js';
+import { reunioesAgendadas, funisDasReunioes } from './_reunioes-agendadas.js';
 import { calcularCpl, montarAvisosCpl } from './_cpl-calculo.js';
 import { listarFunisConhecidos } from './_funil-campanha.js';
 import { funisDesativados } from './_funis-relatorio.js';
@@ -35,7 +35,7 @@ export async function onRequestGet(context) {
   const emCache = await respostaEmCache(request, { until });
   if (emCache) return emCache;
 
-  const [gastos, leads, overrides, funisConhecidos] = await Promise.all([
+  const [gastos, leads, overrides, funisConhecidos, campanhas] = await Promise.all([
     env.DB.prepare(`
       SELECT campaign_id, MAX(campaign_name) AS campaign_name, SUM(spend_cents) AS spend_cents
       FROM ad_spend
@@ -68,6 +68,11 @@ export async function onRequestGet(context) {
     env.DB.prepare('SELECT campaign_id, funnel FROM campaign_funnel_map').all(),
 
     listarFunisConhecidos(env.DB),
+
+    // Todas as campanhas já vistas: o lead pode ter vindo de campanha sem gasto
+    // no período (spec-funil-pela-utm.md). Falhou, valem as do período.
+    env.DB.prepare(`SELECT campaign_id, MAX(campaign_name) AS campaign_name FROM ad_spend WHERE platform = 'meta' GROUP BY campaign_id`)
+      .all().then((r) => r.results || []).catch(() => null),
   ]);
 
   const resultado = calcularCpl({
@@ -75,6 +80,7 @@ export async function onRequestGet(context) {
     gastos: gastos.results || [],
     overrides: overrides.results || [],
     funisConhecidos,
+    campanhas,
   });
 
   // Reuniões e custo por reunião (spec-conversao-agenda.md, módulo 4): mesmo
@@ -85,14 +91,16 @@ export async function onRequestGet(context) {
     const [ag, re, tiposComerciais] = await Promise.all([
       // Agenda própria + Calendly (spec-reunioes-calendly.md).
       reunioesAgendadas(env.DB, since, until),
-      env.DB.prepare(`SELECT COALESCE(funil, '') AS funil FROM agenda_reunioes
-                       WHERE comercial = 1 AND is_teste = 0 AND situacao = 'realizada' AND inicio >= ? AND inicio <= ?`).bind(since, until).all(),
+      env.DB.prepare(`SELECT COALESCE(funil, '') AS funil, email, criado_em FROM agenda_reunioes
+                       WHERE comercial = 1 AND is_teste = 0 AND situacao = 'realizada' AND inicio >= ? AND inicio <= ?`).bind(since, until).all()
+        // Funil pelo lead do mesmo e-mail, como nas agendadas.
+        .then((r) => funisDasReunioes(env.DB, (r.results || []).map((x) => ({ email: x.email, quando: x.criado_em, funil: x.funil })))),
       env.DB.prepare(`SELECT DISTINCT funil FROM agenda_tipos WHERE comercial = 1 AND funil IS NOT NULL`).all(),
     ]);
     reunioes = custoPorReuniao({
       porFunilCpl: resultado.por_funil,
       agendadas: ag,
-      realizadas: re.results || [],
+      realizadas: re,
       funisComAgenda: (tiposComerciais.results || []).map((t) => t.funil),
     });
   } catch (e) {

@@ -12,31 +12,36 @@
 
 import { canalDeLead, CANAIS, CANAL_AQUISICAO } from './_canal.js';
 import { resolverFunilAuto, FUNIL_SEM_CLASSIFICACAO } from './_funil-campanha.js';
+import { funilDoLead, mapaCampanhas, normalizarFunil } from './_funil-lead.js';
 
-export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConhecidos = [] }) {
+// `campanhas` = todas as campanhas do Meta já vistas ({ campaign_id, campaign_name }),
+// para reconhecer a campanha do lead mesmo sem gasto no período; sem ela,
+// valem as campanhas do próprio período.
+export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConhecidos = [], campanhas = null }) {
+  const mapaFunilCampanha = mapaCampanhas({ campanhas: campanhas || gastos, overrides, funisConhecidos });
   const mapaOverride = new Map((overrides || []).map((o) => [String(o.campaign_id), o.funnel]));
 
   // 1. Gasto por funil. Override manual vence; depois o automático; senão balde.
   const gastoPorFunil = new Map();
   let totalCentavos = 0;
-  let centavosAquisicao = 0;
   let centavosMetaAds = 0;
 
   for (const g of gastos) {
     const centavos = Number(g.spend_cents) || 0;
     totalCentavos += centavos;
 
-    const funil =
+    // Porta (aplicacao-mentoria, iscas-manychat) não é funil: o gasto vai para
+    // o funil de verdade, igual ao lead (_funil-lead.js).
+    const funil = normalizarFunil(
       mapaOverride.get(String(g.campaign_id)) ||
       resolverFunilAuto(g.campaign_name, funisConhecidos) ||
-      FUNIL_SEM_CLASSIFICACAO;
+      FUNIL_SEM_CLASSIFICACAO);
 
     gastoPorFunil.set(funil, (gastoPorFunil.get(funil) || 0) + centavos);
 
     // Do lado do canal, o gasto do Meta é 'meta-ads' — exceto o
     // impulsionamento, que é o gasto de topo de funil.
-    if (funil === CANAL_AQUISICAO) centavosAquisicao += centavos;
-    else centavosMetaAds += centavos;
+    if (funil !== CANAL_AQUISICAO) centavosMetaAds += centavos;
   }
 
   // 2. Leads por funil, por canal e no cruzamento.
@@ -48,10 +53,11 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
   // Quem já tinha card e voltou é lead, mas não é novo. Conta por PESSOA (Set
   // de task_id), igual ao "Novos no CRM" do /api/crm-funnel.
   const novosPorFunil = new Map();
+  const novosPorCanal = new Map();
   const novosTotal = new Set();
 
   for (const l of leads) {
-    const funil = (l.funnel == null ? '' : String(l.funnel)).trim() || FUNIL_SEM_CLASSIFICACAO;
+    const funil = funilDoLead(l, mapaFunilCampanha, funisConhecidos);
     const canal = canalDeLead(l);
 
     leadsPorFunil.set(funil, (leadsPorFunil.get(funil) || 0) + 1);
@@ -63,6 +69,8 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
       if (!novosPorFunil.has(funil)) novosPorFunil.set(funil, new Set());
       novosPorFunil.get(funil).add(String(l.task_novo));
       novosTotal.add(String(l.task_novo));
+      if (!novosPorCanal.has(canal)) novosPorCanal.set(canal, new Set());
+      novosPorCanal.get(canal).add(String(l.task_novo));
     }
   }
 
@@ -96,22 +104,10 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
     .map((canal) => {
       const centavos = gastoPorCanal.get(canal) || 0;
       const qtd = leadsPorCanal.get(canal) || 0;
-      return { canal, spend: centavos / 100, leads: qtd, cpl: cpl(centavos, qtd) };
+      const novos = novosPorCanal.has(canal) ? novosPorCanal.get(canal).size : 0;
+      return { canal, spend: centavos / 100, leads: qtd, cpl: cpl(centavos, qtd), leads_novos: novos, cpl_novos: cpl(centavos, novos) };
     })
     .sort((a, b) => CANAIS.indexOf(a.canal) - CANAIS.indexOf(b.canal));
-
-  // Numerador e denominador de origens diferentes: o turbinar não manda
-  // ninguém ao site, o lead aparece depois pela bio ou pelo ManyChat. É
-  // dedução, não rastreio — por isso sai separado e marcado.
-  const leadsAquisicao = (leadsPorCanal.get('bio') || 0) + (leadsPorCanal.get('manychat') || 0);
-  const aquisicao_estimativa = {
-    canal: CANAL_AQUISICAO,
-    spend: centavosAquisicao / 100,
-    leads: leadsAquisicao,
-    cpl: cpl(centavosAquisicao, leadsAquisicao),
-    estimado: true,
-    nota: 'estimativa: leads de bio e ManyChat, ligação por dedução',
-  };
 
   // Investimento atribuível ao cruzamento: todo gasto do Meta que não é
   // impulsionamento mapeia 1:1 pro canal 'meta-ads' (mesma regra usada acima
@@ -145,7 +141,6 @@ export function calcularCpl({ leads = [], gastos = [], overrides = [], funisConh
   return {
     por_funil,
     por_canal,
-    aquisicao_estimativa,
     cruzado,
     total_investimento: totalCentavos / 100,
     total_leads: leads.length,

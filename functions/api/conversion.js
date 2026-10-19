@@ -18,6 +18,8 @@ import { clausulasBotSql, clausulasBotIpSql } from '../_bots.js';
 import { montarFunil } from './_funil-etapas.js';
 import { respostaJson, respostaEmCache } from './_cache.js';
 import { funilDaPagina } from './_funil-paginas.js';
+import { listarFunisConhecidos } from './_funil-campanha.js';
+import { funilDoLead, carregarMapaCampanhas } from './_funil-lead.js';
 
 // Início da coleta dos degraus novos (CTAClick/FormStep): o funil de
 // micro-conversões entrou no ar em 31/08/2026 (spec 2026-08-31). Era lido do
@@ -54,18 +56,40 @@ export async function onRequestGet(context) {
   const EFFECTIVE_FUNNEL = "COALESCE(NULLIF(e.funnel, ''), s.funnel)";
   const funnel = (url.searchParams.get('funnel') || '').trim();
 
-  // Com &funnel= (e no &by=funnel), numerador e denominador têm fontes
-  // diferentes:
-  // - numerador: funil efetivo do LEAD (o que o formulário declarou);
-  // - denominador: funil da PÁGINA de entrada (_funil-paginas.js), aplicado em
-  //   JS depois da normalização do path. Visitante que não converteu não tem
-  //   funil de evento, e `sessions.funnel` é vazio em 99% das sessões — era o
-  //   denominador até 01/10/2026 e a conversão filtrada saía absurda.
-  const numeratorFunnelClause = funnel ? `AND ${EFFECTIVE_FUNNEL} = ?` : '';
-  const doFunil = (lp) => {
-    if (!funnel) return true;
-    return funilDaPagina(lp) === funnel; // '(sem página)' não tem funil: sai
+  // Com &funnel= (e no &by=funnel), numerador e denominador passam pela regra
+  // única do funil (_funil-lead.js, spec-funil-pela-utm.md), com a UTM da
+  // sessão — a mesma para a visita e para o lead que ela gerou:
+  // - denominador: funil da PÁGINA de entrada (_funil-paginas.js) + UTM. Nas
+  //   portas da SE a origem decide (bio → aquisição, anúncio → funil da
+  //   campanha); página de produto fica no próprio funil;
+  // - numerador: o mesmo, partindo do funil do formulário do lead da sessão.
+  // Visitante que não converteu não tem funil de evento, e `sessions.funnel` é
+  // vazio em 99% das sessões — por isso a página entra no denominador.
+  const porOrigem = Boolean(funnel) || porFunil;
+  // Preenchido depois da consulta principal (ver carregarRegra).
+  let funilDe = () => null;
+  const carregarRegra = async () => {
+    if (!porOrigem) return;
+    // Sem a lista de funis, a regra ainda separa bio, produto e SE.
+    const funisConhecidos = await listarFunisConhecidos(env.DB).catch(() => []);
+    const mapa = await carregarMapaCampanhas(env.DB, funisConhecidos);
+    funilDe = (formulario, campanha) => funilDoLead({ funnel: formulario, utm_campaign: campanha }, mapa, funisConhecidos);
   };
+  // Funil da visita, ou null para página que não é de captação.
+  const funilDaVisita = (lp, campanha) => {
+    const daPagina = funilDaPagina(lp);
+    return daPagina ? funilDe(daPagina, campanha) : null;
+  };
+  const doFunil = (lp, campanha) => {
+    if (!funnel) return true;
+    return funilDaVisita(lp, campanha) === funnel; // '(sem página)' não tem funil: sai
+  };
+  // Bio e ManyChat viram um rótulo só, para o GROUP BY não abrir uma linha por
+  // variação de bioperfil-*; o resto vai com o nome da campanha. O custo
+  // medido em 19/10 é o mesmo de antes (12,9 mil linhas lidas em 30 dias).
+  const CAMPANHA_SQL = `CASE WHEN LOWER(COALESCE(s.utm_campaign, '')) LIKE 'bioperfil%'
+      OR LOWER(COALESCE(s.utm_source, '')) = 'manychat' THEN 'bioperfil'
+      ELSE LOWER(COALESCE(s.utm_campaign, '')) END`;
 
   // Exclusão de bot: lista única em functions/_bots.js, a mesma que o
   // tracker.js usa na escrita.
@@ -80,9 +104,7 @@ export async function onRequestGet(context) {
   // este aqui é o que limpa o histórico já gravado, sem apagar linha nenhuma.
   const botClauses = clausulasBotSql('s') + '\n' + clausulasBotIpSql('s');
 
-  // Ordem dos binds é posicional na ordem do texto SQL: o funil efetivo do
-  // CASE (SELECT) vem ANTES de since/until.
-  const binds = funnel ? [funnel, since, until] : [since, until];
+  const binds = [since, until];
 
   try {
     // Query única: denominador (visitors), numerador (leads) e os degraus
@@ -115,18 +137,18 @@ export async function onRequestGet(context) {
     const grouped = await env.DB.prepare(`
       SELECT
         s.landing_url,
-        ${porFunil ? `(SELECT ${EFFECTIVE_FUNNEL} FROM event_log e
+        ${porOrigem ? `(SELECT ${EFFECTIVE_FUNNEL} FROM event_log e
           WHERE e.session_id = s.session_id
             AND e.event_name = 'Lead'
             AND e.is_bot = 0 AND e.is_junk = 0
-          ORDER BY e.id LIMIT 1) AS lead_funil,` : ''}
+          ORDER BY e.id LIMIT 1) AS lead_funil,
+        ${CAMPANHA_SQL} AS campanha,` : ''}
         COUNT(*) AS visitors,
         SUM(CASE WHEN EXISTS (
           SELECT 1 FROM event_log e
            WHERE e.session_id = s.session_id
              AND e.event_name = 'Lead'
              AND e.is_bot = 0 AND e.is_junk = 0
-             ${numeratorFunnelClause}
         ) THEN 1 ELSE 0 END) AS leads,
         SUM(CASE WHEN EXISTS (
           SELECT 1 FROM event_log e
@@ -144,8 +166,9 @@ export async function onRequestGet(context) {
       WHERE s.created_at >= ? AND s.created_at <= ?
         AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
         ${botClauses}
-      GROUP BY s.landing_url${porFunil ? ', lead_funil' : ''}
+      GROUP BY s.landing_url${porOrigem ? ', lead_funil, campanha' : ''}
     `).bind(...binds).all();
+    await carregarRegra();
 
     // Re-agregação em JS: grupos crus distintos (querystring, barra final)
     // que normalizam para o mesmo path somam visitors/leads. Correto por
@@ -156,22 +179,25 @@ export async function onRequestGet(context) {
     const funis = new Map();
     for (const row of grouped.results || []) {
       const lp = normalizePath(row.landing_url);
-      if (!isKnownPage(lp) || !doFunil(lp)) continue;
+      if (!isKnownPage(lp) || !doFunil(lp, row.campanha)) continue;
+      // Funil do lead da sessão pela regra (null = a sessão não converteu).
+      const funilLead = porOrigem && row.lead_funil != null ? funilDe(row.lead_funil, row.campanha) : null;
       if (porFunil) {
         // Denominador: todas as visitas das páginas do funil. Numerador: as
         // que viraram lead DAQUELE funil. Página fora de _funil-paginas.js não
         // entra em funil nenhum.
-        const f = funilDaPagina(lp);
+        const f = funilDaVisita(lp, row.campanha);
         if (f) {
           const accF = funis.get(f) || { visitors: 0, leads: 0 };
           accF.visitors += row.visitors;
-          if (row.lead_funil === f) accF.leads += row.visitors;
+          if (funilLead === f) accF.leads += row.visitors;
           funis.set(f, accF);
         }
       }
       const acc = byPath.get(lp) || { visitors: 0, leads: 0 };
       acc.visitors += row.visitors;
-      acc.leads += row.leads;
+      // Com &funnel=, só conta o lead daquele funil.
+      acc.leads += funnel ? (funilLead === funnel ? row.visitors : 0) : row.leads;
       byPath.set(lp, acc);
 
       const d = degrausPorPath.get(lp) || { cliques: 0, formStarts: 0, etapas: new Map() };
@@ -215,6 +241,7 @@ export async function onRequestGet(context) {
       SELECT
         s.landing_url,
         e.step AS step,
+        ${funnel ? `${CAMPANHA_SQL} AS campanha,` : ''}
         COUNT(DISTINCT s.session_id) AS sessoes
       FROM sessions s
       JOIN event_log e
@@ -226,7 +253,7 @@ export async function onRequestGet(context) {
       WHERE s.created_at >= ? AND s.created_at <= ?
         AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
         ${botClauses}
-      GROUP BY s.landing_url, e.step
+      GROUP BY s.landing_url, e.step${funnel ? ', campanha' : ''}
     `).bind(...bindsSessao).all();
 
     // Merge pelo path normalizado, igual ao byPath acima e pelo mesmo motivo:
@@ -235,7 +262,7 @@ export async function onRequestGet(context) {
     // porque vêm da mesma consulta.)
     for (const row of etapasQuery.results || []) {
       const lp = normalizePath(row.landing_url);
-      if (!isKnownPage(lp) || !doFunil(lp)) continue;
+      if (!isKnownPage(lp) || !doFunil(lp, row.campanha)) continue;
       const acc = degrausPorPath.get(lp) || { cliques: 0, formStarts: 0, etapas: new Map() };
       acc.etapas.set(row.step, (acc.etapas.get(row.step) || 0) + row.sessoes);
       degrausPorPath.set(lp, acc);
