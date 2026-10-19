@@ -24,6 +24,12 @@ interface Props {
    * é o formato de todas as outras páginas.
    */
   comFoto?: boolean;
+  /**
+   * Título menor, menos respiro em cima e selo amarelo em destaque, para o
+   * botão e o que vem abaixo dele caberem na primeira tela do celular. Criada
+   * para a /se-v4 (19/10/2026), cujo título é longo.
+   */
+  compacto?: boolean;
   // Slot opcional `abaixo-cta`: quando a página passa, ele entra NO LUGAR dos
   // selos de `trust` (usado pelos stories da /workshop-gratuito-v2).
 }
@@ -37,6 +43,7 @@ const {
   ctaHref,
   trust = ['100% gratuito', 'Sem cartão', '35 min'],
   comFoto = false,
+  compacto = false,
   stats = [
     { value: '+100', label: 'marcas atacado atendidas' },
     { value: '35 min', label: 'sessão individual' },
@@ -65,7 +72,7 @@ const titulo =
     : null;
 ---
 
-<header class:list={['hero', comFoto && 'hero--foto']}>
+<header class:list={['hero', comFoto && 'hero--foto', compacto && 'hero--compacto']}>
   <nav class="hero__nav container">
     <Image src={logo} alt="Atacado Exponencial" height={72} class="hero__logo" />
     {ctaHref ? (
@@ -304,6 +311,22 @@ const titulo =
   @media (min-width: 768px) {
     .hero__nav-cta { display: inline-flex; }
     .hero__stats { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  /* ---- Compacto (/se-v4) ------------------------------------------------ */
+  .hero--compacto .hero__body { padding: 1.5rem 1.5rem 3rem; gap: 1rem; }
+  .hero--compacto .hero__badge {
+    background: #ffe94d;
+    border-color: #ffe94d;
+    color: #1e1e1e;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+  }
+  .hero--compacto .hero__title { font-size: clamp(1.75rem, 4vw, 2.875rem); line-height: 1.12; }
+  .hero--compacto .hero__sub { font-size: 1rem; }
+  @media (min-width: 768px) {
+    .hero--compacto .hero__body { padding-block: 2.5rem 4rem; gap: 1.25rem; }
+    .hero--compacto .hero__badge { font-size: 0.8rem; letter-spacing: 0.12em; }
   }
 
   /* ---- Celular: foto ocupando o hero, texto por cima ----------------------
