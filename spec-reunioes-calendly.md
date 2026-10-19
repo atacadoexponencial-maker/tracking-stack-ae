@@ -195,6 +195,9 @@ junto com as da agenda própria.
 | SUP-S2-04 | Quando o e-mail é de um lead em mais de um funil, vale o funil do lead mais recente antes do agendamento (se não houver anterior, o mais recente). | confirmada | Usuária, 19/10/2026 |
 | SUP-S2-05 | Só o tipo de evento "Consultoria Individual" é reunião comercial; se o nome mudar no Calendly, a coleta precisa ser ajustada. | confirmada | Usuária, 19/10/2026 |
 | SUP-S2-06 | A coleta diária olha consultorias com início entre 45 dias atrás e 120 dias à frente: agendamento feito ontem para mais de 120 dias à frente, ou cancelamento de reunião de mais de 45 dias atrás, não seria visto. | confirmada | Usuária, 19/10/2026 |
+| SUP-S2-07 | Remarcação conta uma vez, no dia em que a pessoa remarcou (o Calendly cancela o agendamento original e cria outro). | confirmada | Usuária, 19/10/2026 |
+| SUP-S2-08 | O funil é achado pelo e-mail exato em minúsculas (busca pelo índice); lead que digitou o e-mail com maiúscula no formulário (4 de 1.071) não é achado e a reunião vai para a SE. | confirmada | Usuária, 19/10/2026 |
+| SUP-S2-09 | Na agenda própria, o card de reuniões agendadas passa a excluir os tipos de reunião de teste, como a taxa MQL → RA já fazia. | confirmada | Usuária, 19/10/2026 |
 
 ## Perguntas em aberto
 
