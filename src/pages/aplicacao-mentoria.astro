@@ -7,9 +7,15 @@
  * investimento — comportamento observável idêntico ao anterior.
  * O BaseLayout já cuida do tracking padrão (GA4 + Meta Pixel + espelho
  * POST /tracker com captura de UTMs) — nenhum mecanismo novo aqui.
+ *
+ * Folha de rosto (19/10/2026, para entrar no tráfego pago): o cartão abre na
+ * FolhaDeRosto com a foto do Felipe e a copy aprovada pela usuária; o botão
+ * leva às 3 etapas. Depois do envio, o fluxo é o mesmo de antes.
  */
 import BaseLayout from '../layouts/BaseLayout.astro';
 import AplicacaoForm from '../components/AplicacaoForm.astro';
+import FolhaDeRosto from '../components/FolhaDeRosto.astro';
+import felipe from '../assets/brand/felipe.webp';
 ---
 
 <BaseLayout
@@ -18,5 +24,23 @@ import AplicacaoForm from '../components/AplicacaoForm.astro';
   showHeader={false}
   showFooter={false}
 >
-  <AplicacaoForm funnel="aplicacao-mentoria" />
+  <AplicacaoForm funnel="aplicacao-mentoria">
+    <FolhaDeRosto
+      slot="rosto"
+      foto
+      imagem={felipe}
+      imagemAlt="Felipe Santos"
+      badge="Aplicação para a mentoria"
+      titulo="Mentoria Atacado Exponencial, para a marca que cansou de vender atacado como se fosse varejo."
+      subtitulo="A entrada é por aplicação: o time olha o seu caso antes de qualquer conversa. O trabalho é em cima da Equação Exponencial, a conta dos dois lados que fazem o atacado crescer: entrada previsível de novos revendedores e alta recompra dos revendedores ativos."
+      listaTitulo="Para aplicar, sua marca precisa"
+      itens={[
+        'Vender para lojista, sacoleira ou revendedor, com pedido mínimo e grade',
+        'Faturar acima de R$ 20 mil por mês',
+        'Ter alguém para executar o plano. Mentoria não mexe na operação sozinha.',
+      ]}
+      ctaLabel="Quero aplicar para a mentoria"
+      nota="3 etapas curtas. Método aplicado em mais de 100 marcas de atacado."
+    />
+  </AplicacaoForm>
 </BaseLayout>
