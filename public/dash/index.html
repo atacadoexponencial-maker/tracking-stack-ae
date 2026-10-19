@@ -116,6 +116,13 @@ a.btn { display: inline-block; text-decoration: none; }
 .etiqueta.com-cmp:hover, .etiqueta.com-cmp:focus { z-index: 6; }
 .etiqueta.com-cmp:hover .dica-cmp, .etiqueta.com-cmp:focus .dica-cmp { display: block; }
 .etiqueta.com-cmp:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
+/* Carimbo + diferença em quantidade: quebram juntos em card estreito, sem
+   empurrar a nota para fora. */
+.etiqueta .cmp-grupo { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.45rem; }
+.etiqueta .dif { font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.etiqueta .dif.alta { color: var(--alta-texto); }
+.etiqueta .dif.queda { color: var(--queda-texto); }
+.etiqueta .dif.neutro { color: var(--apagado); }
 /* Carimbo: moldura fina na cor do estado, levemente inclinado; o neutro fica
    reto e tracejado, porque não julga. Sinal ▲ ▼ sempre junto da cor. */
 .carimbo, .delta { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; padding: 0.15rem 0.45rem; border: 1.5px solid currentColor; border-radius: 2px; font-variant-numeric: tabular-nums; transform: rotate(-2deg); white-space: nowrap; }
@@ -2270,19 +2277,25 @@ let funilQ = '';
 // ---------- componentes (portados do painel) ----------
 // `neutro`: a seta mostra a direção sem julgar. Investimento subir ou cair não é
 // bom nem ruim por si — em verde ou coral, escalar de propósito parecia bronca.
+const classeDelta = (pct, invertido = false, neutro = false) => {
+  const up = pct >= 0, bom = invertido ? !up : up;
+  return pct === 0 || neutro ? 'neutro' : (bom ? 'alta' : 'queda');
+};
 function deltaChip(pct, invertido = false, neutro = false) {
   if (pct === null || pct === undefined || !isFinite(pct)) return '';
-  const up = pct >= 0, bom = invertido ? !up : up;
-  const cls = pct === 0 || neutro ? 'neutro' : (bom ? 'alta' : 'queda');
+  const up = pct >= 0;
+  const cls = classeDelta(pct, invertido, neutro);
   return `<span class="carimbo ${cls}">${pct === 0 ? '=' : (up ? '▲' : '▼')} ${fmtNum(Math.abs(pct), 1)}%</span>`;
 }
 // Etiqueta pendurada: rótulo "REF.", valor grande, rodapé tracejado com o
 // carimbo de delta à esquerda e a nota à direita. Sem delta nem nota, o rodapé
 // não aparece (uma linha tracejada vazia parecia etiqueta em branco).
 // Com `anterior` (o valor do período anterior, já formatado) e o carimbo, o
-// card ganha o balão com os dois números e as datas de cada período.
+// card ganha o balão com os dois números e as datas de cada período; com `dif`
+// (agora − anterior, formatado com sinal), a diferença vai ao lado do carimbo.
 const tile = (k, heroi = false) => {
-  const carimbo = k.delta !== undefined ? deltaChip(k.delta, k.invertido, k.neutro) : '';
+  let carimbo = k.delta !== undefined ? deltaChip(k.delta, k.invertido, k.neutro) : '';
+  if (carimbo && k.dif) carimbo = `<span class="cmp-grupo">${carimbo}<span class="dif ${classeDelta(k.delta, k.invertido, k.neutro)}">${k.dif}</span></span>`;
   const rodape = carimbo || k.nota ? `<div class="rodape">${carimbo}<span class="nota">${k.nota || ''}</span></div>` : '';
   const cmp = carimbo && k.anterior !== undefined ? dicaComparacao(k) : '';
   return `
@@ -2292,14 +2305,25 @@ const tile = (k, heroi = false) => {
     ${rodape}${cmp}
   </div>`;
 };
-// `null`/`undefined` viram "—" no balão; o resto passa pelo formatador do card.
-const fmtAnt = (v, fmt) => (v === null || v === undefined ? null : fmt(v));
+// Campos `anterior` e `dif` do card. `null`/`undefined` viram "—" no balão; o
+// resto passa pelo formatador do card. `pp` (casas decimais): o card é taxa em
+// %, e a diferença sai em pontos percentuais. `fmtDif`: quando o formatador do
+// card já põe sinal (seguidores), a diferença usa outro.
+const comparar = (agora, antes, fmt, { pp, fmtDif = fmt } = {}) => {
+  const vazio = (v) => v === null || v === undefined;
+  const out = { anterior: vazio(antes) ? null : fmt(antes) };
+  if (!vazio(agora) && !vazio(antes)) {
+    const d = agora - antes;
+    out.dif = (d > 0 ? '+' : d < 0 ? '−' : '') + (pp !== undefined ? `${fmtNum(Math.abs(d), pp)} p.p.` : fmtDif(Math.abs(d)));
+  }
+  return out;
+};
 function dicaComparacao(k) {
   const p = intervalo();
   const dia = (ts) => new Date(ts * 1000).toLocaleDateString('pt-BR', { timeZone: FUSO_BRT, day: '2-digit', month: '2-digit' });
   const faixa = (de, ate) => (dia(de) === dia(ate) ? dia(de) : `${dia(de)} – ${dia(ate)}`);
   const v = (x) => (x === null || x === undefined ? '—' : x);
-  return `<div class="dica-cmp" role="tooltip"><span>Agora · ${faixa(p.de, p.ate)}</span><b>${v(k.valor)}</b><span>Anterior · ${faixa(p.antDe, p.antAte)}</span><b>${v(k.anterior)}</b></div>`;
+  return `<div class="dica-cmp" role="tooltip"><span>Agora · ${faixa(p.de, p.ate)}</span><b>${v(k.valor)}</b><span>Anterior · ${faixa(p.antDe, p.antAte)}</span><b>${v(k.anterior)}</b>${k.dif ? `<span>Diferença</span><b>${k.dif}</b>` : ''}</div>`;
 }
 
 // Esqueleto ao carregar: o contêiner com data-esqueleto recebe blocos em fio
@@ -2845,13 +2869,14 @@ document.addEventListener('click', async (ev) => {
 // No-show é taxa ruim: sobe = alerta (invertido), como o CPL.
 function tilesTaxas(a, b, crmLido) {
   const pct = (v) => (v === null || v === undefined ? null : fmtPct(v * 100, 1));
+  const cem = (v) => (v === null || v === undefined ? null : v * 100);
   const d = (x, y) => (x !== null && x !== undefined && y ? delta(x, y) : undefined);
   const semCrm = crmLido === false ? 'CRM não lido agora' : '';
   return [
-    { rotulo: 'Lead → MQL', valor: pct(a && a.lead_mql), delta: a && b ? d(a.lead_mql, b.lead_mql) : undefined, anterior: pct(b && b.lead_mql), nota: a && a.lead_mql !== null ? `${fmtInt(a.mqls)} MQLs de ${fmtInt(a.leads_novos)} leads novos` : (semCrm || 'nenhum lead novo') },
-    { rotulo: 'MQL → RA', valor: pct(a && a.mql_ra), delta: a && b ? d(a.mql_ra, b.mql_ra) : undefined, anterior: pct(b && b.mql_ra), nota: a && a.mql_ra !== null ? `${fmtInt(a.agendadas)} reuniões de ${fmtInt(a.mqls)} MQLs` : (semCrm || 'nenhum MQL') },
-    { rotulo: 'RA → RR', valor: pct(a && a.ra_rr), delta: a && b ? d(a.ra_rr, b.ra_rr) : undefined, anterior: pct(b && b.ra_rr), nota: a && a.ra_rr !== null ? `${fmtInt(a.realizadas)} de ${fmtInt(a.ocorridas)} que já passaram` : 'nenhuma reunião passou da data' },
-    { rotulo: 'No-show', valor: pct(a && a.no_show), delta: a && b ? d(a.no_show, b.no_show) : undefined, anterior: pct(b && b.no_show), invertido: true, nota: a && a.no_show !== null ? `${fmtInt(a.faltas)} faltas` : 'nenhuma presença lida' },
+    { rotulo: 'Lead → MQL', valor: pct(a && a.lead_mql), delta: a && b ? d(a.lead_mql, b.lead_mql) : undefined, ...comparar(cem(a && a.lead_mql), cem(b && b.lead_mql), (x) => fmtPct(x, 1), { pp: 1 }), nota: a && a.lead_mql !== null ? `${fmtInt(a.mqls)} MQLs de ${fmtInt(a.leads_novos)} leads novos` : (semCrm || 'nenhum lead novo') },
+    { rotulo: 'MQL → RA', valor: pct(a && a.mql_ra), delta: a && b ? d(a.mql_ra, b.mql_ra) : undefined, ...comparar(cem(a && a.mql_ra), cem(b && b.mql_ra), (x) => fmtPct(x, 1), { pp: 1 }), nota: a && a.mql_ra !== null ? `${fmtInt(a.agendadas)} reuniões de ${fmtInt(a.mqls)} MQLs` : (semCrm || 'nenhum MQL') },
+    { rotulo: 'RA → RR', valor: pct(a && a.ra_rr), delta: a && b ? d(a.ra_rr, b.ra_rr) : undefined, ...comparar(cem(a && a.ra_rr), cem(b && b.ra_rr), (x) => fmtPct(x, 1), { pp: 1 }), nota: a && a.ra_rr !== null ? `${fmtInt(a.realizadas)} de ${fmtInt(a.ocorridas)} que já passaram` : 'nenhuma reunião passou da data' },
+    { rotulo: 'No-show', valor: pct(a && a.no_show), delta: a && b ? d(a.no_show, b.no_show) : undefined, ...comparar(cem(a && a.no_show), cem(b && b.no_show), (x) => fmtPct(x, 1), { pp: 1 }), invertido: true, nota: a && a.no_show !== null ? `${fmtInt(a.faltas)} faltas` : 'nenhuma presença lida' },
   ];
 }
 
@@ -2884,10 +2909,10 @@ function tilesReunioes(a, b, notaCusto) {
   const d = (x, y) => (x !== null && x !== undefined && y ? delta(x, y) : undefined);
   const semCusto = (r, qtd) => (!r ? 'agenda não respondeu' : r.spend > 0 ? (qtd ? '' : 'nenhuma reunião') : 'sem investimento');
   return [
-    { rotulo: 'Reuniões agendadas', valor: a ? fmtInt(a.agendadas) : null, delta: a && b ? d(a.agendadas, b.agendadas) : undefined, anterior: fmtAnt(b && b.agendadas, fmtInt), nota: a ? 'pela data em que agendou' : 'agenda não respondeu' },
-    { rotulo: 'Reuniões realizadas', valor: a ? fmtInt(a.realizadas) : null, delta: a && b ? d(a.realizadas, b.realizadas) : undefined, anterior: fmtAnt(b && b.realizadas, fmtInt), nota: a ? 'pela data da reunião' : 'agenda não respondeu' },
-    { rotulo: 'Custo por reunião agendada', valor: a && a.custo_agendada !== null ? money(a.custo_agendada) : null, delta: a && b ? d(a.custo_agendada, b.custo_agendada) : undefined, anterior: fmtAnt(b && b.custo_agendada, money), invertido: true, nota: a && a.custo_agendada !== null ? notaCusto : semCusto(a, a && a.agendadas) },
-    { rotulo: 'Custo por reunião realizada', valor: a && a.custo_realizada !== null ? money(a.custo_realizada) : null, delta: a && b ? d(a.custo_realizada, b.custo_realizada) : undefined, anterior: fmtAnt(b && b.custo_realizada, money), invertido: true, nota: a && a.custo_realizada !== null ? notaCusto : semCusto(a, a && a.realizadas) },
+    { rotulo: 'Reuniões agendadas', valor: a ? fmtInt(a.agendadas) : null, delta: a && b ? d(a.agendadas, b.agendadas) : undefined, ...comparar(a && a.agendadas, b && b.agendadas, fmtInt), nota: a ? 'pela data em que agendou' : 'agenda não respondeu' },
+    { rotulo: 'Reuniões realizadas', valor: a ? fmtInt(a.realizadas) : null, delta: a && b ? d(a.realizadas, b.realizadas) : undefined, ...comparar(a && a.realizadas, b && b.realizadas, fmtInt), nota: a ? 'pela data da reunião' : 'agenda não respondeu' },
+    { rotulo: 'Custo por reunião agendada', valor: a && a.custo_agendada !== null ? money(a.custo_agendada) : null, delta: a && b ? d(a.custo_agendada, b.custo_agendada) : undefined, ...comparar(a && a.custo_agendada, b && b.custo_agendada, money), invertido: true, nota: a && a.custo_agendada !== null ? notaCusto : semCusto(a, a && a.agendadas) },
+    { rotulo: 'Custo por reunião realizada', valor: a && a.custo_realizada !== null ? money(a.custo_realizada) : null, delta: a && b ? d(a.custo_realizada, b.custo_realizada) : undefined, ...comparar(a && a.custo_realizada, b && b.custo_realizada, money), invertido: true, nota: a && a.custo_realizada !== null ? notaCusto : semCusto(a, a && a.realizadas) },
   ];
 }
 
@@ -2913,11 +2938,11 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
     const desativado = r.desativado ? ' <span class="carimbo neutro">desativado</span>' : '';
     return `<div class="bloco${r.desativado ? ' bloco--desativado' : ''}"><h2><span>${esc(nome)}${desativado}</span> <small>${r.spend > 0 ? money(r.spend) + ' investidos' : 'sem investimento no período'}</small></h2>
       <div class="grid-etiquetas">${[
-        { rotulo: 'Leads', valor: fmtInt(r.leads), delta: d(r.leads, antes_.leads), anterior: fmtAnt(antes_.leads, fmtInt) },
-        { rotulo: 'Leads novos', valor: fmtInt(r.leads_novos), delta: d(r.leads_novos, antes_.leads_novos), anterior: fmtAnt(antes_.leads_novos, fmtInt) },
-        { rotulo: 'Conversão', valor: txA === null ? null : fmtPct(txA, 2), delta: d(txA, txB), anterior: fmtAnt(txB, (x) => fmtPct(x, 2)), nota: txA === null ? (cA ? 'sem visitas no período' : 'sem página de captação') : '' },
-        { rotulo: 'CPL', valor: r.cpl === null ? null : money(r.cpl), delta: d(r.cpl, antes_.cpl), anterior: fmtAnt(antes_.cpl, money), invertido: true, nota: r.cpl === null ? (r.spend > 0 ? 'nenhum lead' : 'sem investimento') : '' },
-        { rotulo: 'CPL lead novo', valor: r.cpl_novos === null ? null : money(r.cpl_novos), delta: d(r.cpl_novos, antes_.cpl_novos), anterior: fmtAnt(antes_.cpl_novos, money), invertido: true, nota: r.cpl_novos === null ? semGasto : '' },
+        { rotulo: 'Leads', valor: fmtInt(r.leads), delta: d(r.leads, antes_.leads), ...comparar(r.leads, antes_.leads, fmtInt) },
+        { rotulo: 'Leads novos', valor: fmtInt(r.leads_novos), delta: d(r.leads_novos, antes_.leads_novos), ...comparar(r.leads_novos, antes_.leads_novos, fmtInt) },
+        { rotulo: 'Conversão', valor: txA === null ? null : fmtPct(txA, 2), delta: d(txA, txB), ...comparar(txA, txB, (x) => fmtPct(x, 2), { pp: 2 }), nota: txA === null ? (cA ? 'sem visitas no período' : 'sem página de captação') : '' },
+        { rotulo: 'CPL', valor: r.cpl === null ? null : money(r.cpl), delta: d(r.cpl, antes_.cpl), ...comparar(r.cpl, antes_.cpl, money), invertido: true, nota: r.cpl === null ? (r.spend > 0 ? 'nenhum lead' : 'sem investimento') : '' },
+        { rotulo: 'CPL lead novo', valor: r.cpl_novos === null ? null : money(r.cpl_novos), delta: d(r.cpl_novos, antes_.cpl_novos), ...comparar(r.cpl_novos, antes_.cpl_novos, money), invertido: true, nota: r.cpl_novos === null ? semGasto : '' },
         // Só nos funis que agendam reunião (têm tipo comercial ou reunião no período).
         ...(cplA.reunioes && cplA.reunioes.por_funil[r.funnel]
           ? tilesReunioes(cplA.reunioes.por_funil[r.funnel], cplB && cplB.reunioes ? cplB.reunioes.por_funil[r.funnel] : null, 'investimento do funil')
@@ -2999,14 +3024,14 @@ R.visao = async () => {
   const semGasto = fSel ? 'sem investimento no funil' : 'precisa do sync de investimento';
   const reA = reunioesDe(cplA_), reB = reunioesDe(cplB_);
   $('#visao-herois').innerHTML = [
-    { rotulo: 'Leads', valor: fmtInt(totalLeads), conta: { v: totalLeads, fmt: 'int' }, delta: delta(totalLeads, totalLeadsAnt), anterior: fmtInt(totalLeadsAnt) },
+    { rotulo: 'Leads', valor: fmtInt(totalLeads), conta: { v: totalLeads, fmt: 'int' }, delta: delta(totalLeads, totalLeadsAnt), ...comparar(totalLeads, totalLeadsAnt, fmtInt) },
     // Lead novo = a ponte criou o card no CRM (quem já tinha card e voltou não conta).
-    { rotulo: 'Leads novos', valor: novosA === null ? null : fmtInt(novosA), conta: { v: novosA, fmt: 'int' }, delta: novosA !== null && novosB ? delta(novosA, novosB) : undefined, anterior: fmtAnt(novosB, fmtInt), nota: 'card novo no CRM' },
-    { rotulo: 'Conversão geral', valor: txA === null ? null : fmtPct(txA, 2), conta: { v: txA, fmt: 'pct2' }, delta: txA !== null && txB !== null ? delta(txA, txB) : undefined, anterior: fmtAnt(txB, (x) => fmtPct(x, 2)) },
+    { rotulo: 'Leads novos', valor: novosA === null ? null : fmtInt(novosA), conta: { v: novosA, fmt: 'int' }, delta: novosA !== null && novosB ? delta(novosA, novosB) : undefined, ...comparar(novosA, novosB, fmtInt), nota: 'card novo no CRM' },
+    { rotulo: 'Conversão geral', valor: txA === null ? null : fmtPct(txA, 2), conta: { v: txA, fmt: 'pct2' }, delta: txA !== null && txB !== null ? delta(txA, txB) : undefined, ...comparar(txA, txB, (x) => fmtPct(x, 2), { pp: 2 }) },
     // Este CPL divide o gasto do Meta por TODOS os leads (orgânico incluso);
     // o da aba Meta Ads é só do canal pago — por isso o subtítulo.
-    { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), conta: { v: cplA, fmt: 'money' }, delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, anterior: fmtAnt(cplB, money), invertido: true, nota: cplA === null ? semGasto : 'todos os canais' },
-    { rotulo: 'CPL lead novo', valor: cplNovoA === null ? null : money(cplNovoA), conta: { v: cplNovoA, fmt: 'money' }, delta: cplNovoA !== null && cplNovoB !== null ? delta(cplNovoA, cplNovoB) : undefined, anterior: fmtAnt(cplNovoB, money), invertido: true, nota: cplNovoA === null ? (gastoA ? 'nenhum lead novo' : semGasto) : '' },
+    { rotulo: 'CPL', valor: cplA === null ? null : money(cplA), conta: { v: cplA, fmt: 'money' }, delta: cplA !== null && cplB !== null ? delta(cplA, cplB) : undefined, ...comparar(cplA, cplB, money), invertido: true, nota: cplA === null ? semGasto : 'todos os canais' },
+    { rotulo: 'CPL lead novo', valor: cplNovoA === null ? null : money(cplNovoA), conta: { v: cplNovoA, fmt: 'money' }, delta: cplNovoA !== null && cplNovoB !== null ? delta(cplNovoA, cplNovoB) : undefined, ...comparar(cplNovoA, cplNovoB, money), invertido: true, nota: cplNovoA === null ? (gastoA ? 'nenhum lead novo' : semGasto) : '' },
     // Reuniões e custo por reunião (spec-conversao-agenda.md, módulo 4), na
     // mesma linha do total de leads e do CPL: é a soma de todos os funis.
     ...tilesReunioes(reA, reB, fSel ? 'investimento do funil' : 'só funis que agendam reunião'),
@@ -3022,9 +3047,9 @@ R.visao = async () => {
   $('#visao-kpis').innerHTML = [
     // `visitors` de /api/conversion conta sessões pela PRIMEIRA visita (first-touch
     // no upsert de sessions): quem chegou antes do período não entra aqui.
-    { rotulo: 'Novos visitantes', valor: fmtInt(cA.v), delta: delta(cA.v, cB.v), anterior: fmtInt(cB.v), nota: 'coorte pela 1ª visita' },
-    { rotulo: 'Investimento (Meta)', valor: atrA.meta_spend > 0 ? money(atrA.meta_spend) : null, delta: atrA.meta_spend > 0 && atrB.meta_spend > 0 ? delta(atrA.meta_spend, atrB.meta_spend) : undefined, anterior: money(atrB.meta_spend), neutro: true },
-    { rotulo: 'Receita', valor: revA.gross > 0 ? money(revA.gross, revA.currency) : null, delta: revA.gross > 0 && revB.gross > 0 ? delta(revA.gross, revB.gross) : undefined, anterior: money(revB.gross, revB.currency), nota: revA.gross > 0 ? '' : 'aguardando conversões do CRM' },
+    { rotulo: 'Novos visitantes', valor: fmtInt(cA.v), delta: delta(cA.v, cB.v), ...comparar(cA.v, cB.v, fmtInt), nota: 'coorte pela 1ª visita' },
+    { rotulo: 'Investimento (Meta)', valor: atrA.meta_spend > 0 ? money(atrA.meta_spend) : null, delta: atrA.meta_spend > 0 && atrB.meta_spend > 0 ? delta(atrA.meta_spend, atrB.meta_spend) : undefined, ...comparar(atrA.meta_spend, atrB.meta_spend, money), neutro: true },
+    { rotulo: 'Receita', valor: revA.gross > 0 ? money(revA.gross, revA.currency) : null, delta: revA.gross > 0 && revB.gross > 0 ? delta(revA.gross, revB.gross) : undefined, ...comparar(revA.gross, revB.gross, (x) => money(x, revB.currency)), nota: revA.gross > 0 ? '' : 'aguardando conversões do CRM' },
     { rotulo: 'ROAS', valor: atrA.meta_roas > 0 ? fmtNum(atrA.meta_roas) + 'x' : null, nota: atrA.meta_roas > 0 ? '' : (atrA.meta_roas === 0 ? 'nenhuma venda atribuída no período' : 'aguardando conversões do CRM') },
   ].map((k) => tile(k)).join('');
 
@@ -3129,8 +3154,8 @@ R.vendas = async () => {
     fetchJson('/api/purchases?limit=50'),
   ]);
   $('#vendas-kpis').innerHTML = [
-    { rotulo: 'Receita', valor: rev.gross > 0 ? money(rev.gross, rev.currency) : null, delta: rev.gross > 0 && revAnt.gross > 0 ? delta(rev.gross, revAnt.gross) : undefined, anterior: money(revAnt.gross, revAnt.currency), nota: rev.gross > 0 ? '' : 'aguardando conversões do CRM' },
-    { rotulo: 'Vendas', valor: fmtInt(rev.sales), delta: delta(rev.sales, revAnt.sales), anterior: fmtInt(revAnt.sales) },
+    { rotulo: 'Receita', valor: rev.gross > 0 ? money(rev.gross, rev.currency) : null, delta: rev.gross > 0 && revAnt.gross > 0 ? delta(rev.gross, revAnt.gross) : undefined, ...comparar(rev.gross, revAnt.gross, (x) => money(x, revAnt.currency)), nota: rev.gross > 0 ? '' : 'aguardando conversões do CRM' },
+    { rotulo: 'Vendas', valor: fmtInt(rev.sales), delta: delta(rev.sales, revAnt.sales), ...comparar(rev.sales, revAnt.sales, fmtInt) },
     { rotulo: 'Ticket médio', valor: rev.sales > 0 ? money(rev.aov, rev.currency) : null },
   ].map((k) => tile(k)).join('');
   grafico($('#vendas-grafico'), (rev.time_series || []).map((r) => ({ d: r.date, v: Number(r.revenue || 0) })), (v) => money(v));
@@ -3265,7 +3290,7 @@ R.metaads = async () => {
   const linhaMeta = ((cpl && cpl.por_canal) || []).find((c) => c.canal === 'meta-ads');
   const cplMeta = linhaMeta && linhaMeta.cpl != null ? linhaMeta.cpl : null;
   $('#meta-kpis').innerHTML = [
-    { rotulo: 'Investimento', valor: atr.meta_spend > 0 ? money(atr.meta_spend) : null, delta: atr.meta_spend > 0 && atrAnt.meta_spend > 0 ? delta(atr.meta_spend, atrAnt.meta_spend) : undefined, anterior: money(atrAnt.meta_spend), neutro: true },
+    { rotulo: 'Investimento', valor: atr.meta_spend > 0 ? money(atr.meta_spend) : null, delta: atr.meta_spend > 0 && atrAnt.meta_spend > 0 ? delta(atr.meta_spend, atrAnt.meta_spend) : undefined, ...comparar(atr.meta_spend, atrAnt.meta_spend, money), neutro: true },
     { rotulo: 'CPL Meta (pago)', valor: cplMeta === null ? null : money(cplMeta), invertido: true, nota: cpl ? '' : 'CPL indisponível' },
     { rotulo: 'CPA', valor: atr.meta_cpa != null ? money(atr.meta_cpa) : null, invertido: true, nota: atr.meta_cpa != null ? '' : 'aguardando conversões do CRM' },
     { rotulo: 'ROAS', valor: atr.meta_roas > 0 ? fmtNum(atr.meta_roas) + 'x' : null, nota: atr.meta_roas > 0 ? '' : (atr.meta_roas === 0 ? 'nenhuma venda atribuída no período' : 'aguardando conversões do CRM') },
@@ -6292,16 +6317,16 @@ function desenharCrescimentoIg(d) {
   const quebra = `Curtidas ${fmtInt(q.curtidas || 0)}, comentários ${fmtInt(q.comentarios || 0)}, compartilhamentos ${fmtInt(q.compartilhamentos || 0)}, salvamentos ${fmtInt(q.salvamentos || 0)}, respostas ${fmtInt(q.respostas || 0)}, reposts ${fmtInt(q.reposts || 0)} (inclui anúncios)`;
   const saldo = k.seguidores.saldo;
   $('#ig-kpis').innerHTML = [
-    tile({ rotulo: 'Alcance orgânico por dia', valor: k.alcance_medio.organico === null ? null : fmtInt(Math.round(k.alcance_medio.organico)), delta: k.alcance_medio.delta, anterior: fmtAnt(k.alcance_medio.anterior, (x) => fmtInt(Math.round(x))),
+    tile({ rotulo: 'Alcance orgânico por dia', valor: k.alcance_medio.organico === null ? null : fmtInt(Math.round(k.alcance_medio.organico)), delta: k.alcance_medio.delta, ...comparar(k.alcance_medio.organico, k.alcance_medio.anterior, (x) => fmtInt(Math.round(x))),
       nota: `Anúncios: ${igN(k.alcance_medio.anuncios)} por dia${semComparacao}` }),
-    tile({ rotulo: 'Visualizações orgânicas', valor: k.visualizacoes.organico === null ? null : fmtInt(k.visualizacoes.organico), delta: k.visualizacoes.delta, anterior: fmtAnt(k.visualizacoes.anterior, fmtInt),
+    tile({ rotulo: 'Visualizações orgânicas', valor: k.visualizacoes.organico === null ? null : fmtInt(k.visualizacoes.organico), delta: k.visualizacoes.delta, ...comparar(k.visualizacoes.organico, k.visualizacoes.anterior, fmtInt),
       nota: `Anúncios: ${igN(k.visualizacoes.anuncios)}${semComparacao}` }),
-    tile({ rotulo: 'Interações orgânicas', valor: k.interacoes.organico === null ? null : fmtInt(k.interacoes.organico), delta: k.interacoes.delta, anterior: fmtAnt(k.interacoes.anterior, fmtInt),
+    tile({ rotulo: 'Interações orgânicas', valor: k.interacoes.organico === null ? null : fmtInt(k.interacoes.organico), delta: k.interacoes.delta, ...comparar(k.interacoes.organico, k.interacoes.anterior, fmtInt),
       nota: `<span title="${esc(quebra)}">Anúncios: ${igN(k.interacoes.anuncios)} · ver detalhe</span>` }),
-    tile({ rotulo: 'Seguidores', valor: saldo === null ? null : `${saldo > 0 ? '+' : ''}${fmtInt(saldo)}`, delta: k.seguidores.delta, anterior: fmtAnt(k.seguidores.anterior, (x) => `${x > 0 ? '+' : ''}${fmtInt(x)}`),
+    tile({ rotulo: 'Seguidores', valor: saldo === null ? null : `${saldo > 0 ? '+' : ''}${fmtInt(saldo)}`, delta: k.seguidores.delta, ...comparar(saldo, k.seguidores.anterior, (x) => `${x > 0 ? '+' : ''}${fmtInt(x)}`, { fmtDif: fmtInt }),
       nota: `${igN(k.seguidores.ganhos)} ganhos, ${igN(k.seguidores.perdidos)} perdidos · total ${igN(k.seguidores.total)} ${IG_SELO_ADS}` }),
-    tile({ rotulo: 'Visitas ao perfil', valor: k.visitas_perfil.valor === null ? null : fmtInt(k.visitas_perfil.valor), delta: k.visitas_perfil.delta, anterior: fmtAnt(k.visitas_perfil.anterior, fmtInt), nota: IG_SELO_ADS }),
-    tile({ rotulo: 'Toques no link', valor: k.toques_link.valor === null ? null : fmtInt(k.toques_link.valor), delta: k.toques_link.delta, anterior: fmtAnt(k.toques_link.anterior, fmtInt), nota: IG_SELO_ADS }),
+    tile({ rotulo: 'Visitas ao perfil', valor: k.visitas_perfil.valor === null ? null : fmtInt(k.visitas_perfil.valor), delta: k.visitas_perfil.delta, ...comparar(k.visitas_perfil.valor, k.visitas_perfil.anterior, fmtInt), nota: IG_SELO_ADS }),
+    tile({ rotulo: 'Toques no link', valor: k.toques_link.valor === null ? null : fmtInt(k.toques_link.valor), delta: k.toques_link.delta, ...comparar(k.toques_link.valor, k.toques_link.anterior, fmtInt), nota: IG_SELO_ADS }),
   ].join('');
 
   const s = d.seguidores;
