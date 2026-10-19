@@ -21,6 +21,7 @@ export const FUNIL_POR_PAGINA = new Map([
   ['/se-v1', 'sessao-estrategica'],
   ['/se-v2', 'sessao-estrategica'],
   ['/se-v3', 'sessao-estrategica'],
+  ['/se-v4', 'sessao-estrategica'],
   ['/consultoria-gratuita-atacado', 'sessao-estrategica'],
   ['/workshop-gratuito', 'workshop'],
   ['/workshop-gratuito-v2', 'workshop'],
