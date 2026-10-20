@@ -40,3 +40,13 @@
 /lives-semanais-v1/ /workshop-gratuito 302
 /lives-semanais-v2 /workshop-gratuito 302
 /lives-semanais-v2/ /workshop-gratuito 302
+
+# O funil de tráfego pago saiu do ar em 20/10/2026 por decisão da usuária
+# (a agenda própria substituiu o Calendly e esse funil não ganhou tipo de
+# reunião). Os arquivos .astro continuam no repositório — 302 (temporário)
+# para poderem voltar sem o navegador ter guardado o desvio. Sem página,
+# o roteamento do /tracker para esse funil fica sem uso, mas intacto.
+/trafego-atacado / 302
+/trafego-atacado/ / 302
+/aplicacao-trafego-atacado / 302
+/aplicacao-trafego-atacado/ / 302
