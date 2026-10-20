@@ -2,11 +2,15 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo-horizontal-preto.png';
+import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
 
 // Confirmação e gerenciamento da reunião (spec-agenda-propria.md, módulos 5 e 6).
 // Servida em /reuniao/<token> por functions/reuniao/[token].js. O token de
 // gestão é o único acesso: vem no fim da confirmação e na descrição do
-// convite do Google. Com ?novo=1, abre como "reunião confirmada".
+// convite do Google. Com ?novo=1, abre como "horário reservado": com a agenda
+// própria ligada o lead não passa mais pela /obrigada, então esta tela carrega
+// a mesma promessa dela (análise em 24 h, resultado e confirmação pelo
+// WhatsApp) e esconde o link do Meet, que segue no e-mail e no convite.
 //
 // Só exibe e coleta: quem decide se ainda dá para mudar (antecedência mínima),
 // se o horário está livre e o que muda na agenda e no CRM é o servidor.
@@ -37,9 +41,18 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
           <span class="re__quando-nota" id="re-hora"></span>
         </div>
 
+        <div id="re-novo" class="re__novo" hidden>
+          <p class="re__analise">O seu horário já está guardado. As vagas são poucas por semana, então agora o nosso time confere se a sua marca vende para revendedora e se a operação já tem tração para colocar o plano em prática. Em até 24 horas, você recebe o resultado pelo WhatsApp <strong>+55 19 98170-2315</strong>. Se a sua marca for selecionada, o horário fica confirmado por lá. Se não for, o horário é cancelado e a gente avisa.</p>
+          <div class="re__whats">
+            <ContatoWhatsapp titulo="Confirme a sua aplicação no WhatsApp.">
+              <p>Toque no botão e envie a mensagem que já vem escrita. É por essa conversa que você recebe o resultado da análise. Se a nossa mensagem ficar sem resposta, o horário passa para a próxima marca da fila.</p>
+            </ContatoWhatsapp>
+          </div>
+        </div>
+
         <div id="re-acoes-ativa" class="re__acoes" hidden>
           <a class="btn-cta re__cta" id="re-meet" target="_blank" rel="noopener">Entrar no Google Meet</a>
-          <p class="re__nota">O convite com o link também foi para o seu e-mail.</p>
+          <p class="re__nota" id="re-meet-nota">O convite com o link também foi para o seu e-mail.</p>
           <div class="re__linha">
             <a class="re__sec" id="re-google" target="_blank" rel="noopener">Adicionar ao Google Agenda</a>
             <a class="re__sec" id="re-ics">Baixar para outra agenda</a>
@@ -125,13 +138,20 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
       $('#re-selo').textContent = 'Reunião encerrada';
       $('#re-titulo').textContent = 'Esta reunião já aconteceu.';
     } else {
-      $('#re-selo').textContent = novo ? 'Reunião confirmada' : 'Sua reunião';
-      $('#re-titulo').textContent = novo ? `Tudo certo, ${String(d.nome).split(' ')[0]}!` : 'Sua reunião está marcada.';
+      $('#re-selo').textContent = novo ? 'Horário reservado' : 'Sua reunião';
+      $('#re-titulo').textContent = novo
+        ? `Sua aplicação entrou na fila de análise, ${String(d.nome).split(' ')[0]}.`
+        : 'Sua reunião está marcada.';
     }
+    // Acabou de agendar: a promessa da /obrigada (análise, WhatsApp) e sem o
+    // link do Meet, que só vale depois da confirmação do time.
+    const recemReservada = novo && ativa;
+    $('#re-novo').hidden = !recemReservada;
     if (ativa) {
       const meet = $('#re-meet') as HTMLAnchorElement;
       meet.href = d.meet || '#';
-      meet.hidden = !d.meet;
+      meet.hidden = recemReservada || !d.meet;
+      $('#re-meet-nota').hidden = recemReservada;
       ($('#re-google') as HTMLAnchorElement).href = gcal(d);
       const a = $('#re-ics') as HTMLAnchorElement;
       a.href = ics(d);
@@ -259,6 +279,16 @@ import logo from '../assets/brand/logo-horizontal-preto.png';
   .re__quando-nota { font-size: 0.9rem; color: hsl(var(--muted-foreground)); }
   .re__acoes { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; text-align: center; }
   .re__acoes[hidden], .re__linha[hidden] { display: none; }
+  /* Estado "acabou de agendar": texto da análise + cartão do WhatsApp da /obrigada,
+     que foi desenhado para fundo escuro — aqui o texto ao lado ganha a cor da página. */
+  .re__novo { display: flex; flex-direction: column; gap: 1.25rem; }
+  .re__novo[hidden] { display: none; }
+  .re__analise { margin: 0; font-size: 1rem; line-height: 1.6; color: rgba(30, 30, 30, 0.8); }
+  .re__analise strong { color: #1e1e1e; white-space: nowrap; }
+  .re__whats :global(.contato) { grid-template-columns: 1fr; gap: 1.25rem; }
+  .re__whats :global(.contato__titulo) { color: #1e1e1e; }
+  .re__whats :global(.contato__texto p) { color: rgba(30, 30, 30, 0.75); max-width: none; font-size: 1rem; }
+  #re-meet[hidden], #re-meet-nota[hidden] { display: none; }
   .re__cta { width: 100%; justify-content: center; }
   .re__cta--perigo { background: #9b1c1c; color: #fff; margin-top: 0.5rem; }
   .re__linha { display: flex; gap: 0.6rem; }
