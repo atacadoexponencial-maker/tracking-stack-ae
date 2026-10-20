@@ -6,8 +6,9 @@
 //
 //   estado 'ok'          → mostra a agenda
 //   estado 'pausado'     → "agenda indisponível" + contato alternativo
-//   estado 'sem_convite' → tipo comercial aberto sem passar pelo formulário:
-//                          a página manda para a LP do funil (decisão 10)
+//   Tipo comercial sem convite (link direto que a equipe manda) abre com os
+//   campos vazios: a pessoa preenche nome, e-mail e WhatsApp na própria
+//   página (pedido de 20/10/2026, antes só com convite do formulário).
 //   404                  → tipo não existe
 import { lerTipo } from '../../_agenda.js';
 import { lerConvite } from '../../_agenda-convite.js';
@@ -34,7 +35,7 @@ export async function onRequestGet({ request, env }) {
   if (tipo.comercial) {
     const convite = await lerConvite(env, url.searchParams.get('c'));
     if (!convite || convite.tipo_id !== tipo.id) {
-      return json({ ...base, estado: 'sem_convite', destino: lpDoFunil(tipo.funil) });
+      return json({ ...base, estado: 'ok', janela_dias: tipo.janela_dias, lead: null, perguntas: tipo.perguntas });
     }
     return json({
       ...base, estado: 'ok', janela_dias: tipo.janela_dias,

@@ -148,10 +148,13 @@ test('dash: recusa conta fora do Workspace e lista agendas da conta', async () =
 test('fluxo comercial: convite → horários → confirmar → remarcar → cancelar', async () => {
   const tipo = await configurar();
 
-  // Sem convite: manda para a LP do funil.
+  // Sem convite (link direto que a equipe manda, 20/10/2026): abre com os
+  // campos vazios para a pessoa preencher.
   const sem = await publico(pubTipo, { qs: '?slug=consultoria-individual' });
-  assert.equal(sem.corpo.estado, 'sem_convite');
-  assert.equal(sem.corpo.destino, '/');
+  assert.equal(sem.corpo.estado, 'ok');
+  assert.equal(sem.corpo.lead, null);
+  const hSem = await publico(pubHorarios, { qs: '?slug=consultoria-individual' });
+  assert.equal(hSem.status, 200);
 
   // O /tracker cria o convite com os dados do formulário.
   const t = await tipoDoFunil(env, 'sessao-estrategica');

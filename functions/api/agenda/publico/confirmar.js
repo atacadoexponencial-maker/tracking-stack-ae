@@ -32,12 +32,12 @@ export async function onRequestPost(context) {
   const tipo = await lerTipo(env, { slug: corpo.slug });
   if (!tipo || !tipo.ativo) return json({ error: 'Esta agenda está indisponível.' }, 404);
 
+  // Convite do formulário é opcional (20/10/2026): sem ele, a reunião nasce
+  // dos dados digitados na página e segue comercial (CRM, Schedule, funil).
   let convite = null;
   if (tipo.comercial) {
     convite = await lerConvite(env, corpo.c);
-    if (!convite || convite.tipo_id !== tipo.id) {
-      return json({ error: 'Este link expirou. Preencha o formulário de novo para agendar.', codigo: 'sem_convite' }, 403);
-    }
+    if (convite && convite.tipo_id !== tipo.id) convite = null;
   }
 
   const v = validarDadosAgendamento(corpo, tipo.perguntas, padronizarTelefone);

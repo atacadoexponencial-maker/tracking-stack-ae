@@ -2,10 +2,9 @@
 //
 // Horários livres para a página pública (spec, módulo 4) e para remarcar
 // (módulo 6, com o token de gestão). Calculados no servidor a partir da grade
-// e das agendas de conflito; a página só desenha. Tipo comercial exige o
-// convite do formulário (ou o token de quem já marcou).
+// e das agendas de conflito; a página só desenha. O convite do formulário é
+// opcional: o link direto do tipo também abre (20/10/2026).
 import { lerTipo, lerReuniao, calcularHorarios } from '../../_agenda.js';
-import { lerConvite } from '../../_agenda-convite.js';
 import { poucosHorarios } from '../../_agenda-regras.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -22,12 +21,8 @@ export async function onRequestGet({ request, env }) {
     ignorar = { ini: r.inicio, fim: r.fim };
   } else {
     // Tipo e convite saem juntos: o banco fica longe (~200 ms por ida).
-    let c;
-    [tipo, c] = await Promise.all([lerTipo(env, { slug: p.get('slug') }), lerConvite(env, p.get('c'))]);
+    tipo = await lerTipo(env, { slug: p.get('slug') });
     if (!tipo || !tipo.ativo) return json({ error: 'Agenda indisponível.' }, 404);
-    if (tipo.comercial) {
-      if (!c || c.tipo_id !== tipo.id) return json({ error: 'Link expirado.' }, 403);
-    }
   }
   const r = await calcularHorarios(env, tipo, { de: ymd(p.get('de')), ate: ymd(p.get('ate')), ignorar });
   if (r.erro) return json({ error: 'Não foi possível carregar os horários agora. Tente de novo em instantes.' }, 503);
