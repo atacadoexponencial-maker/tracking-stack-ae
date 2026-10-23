@@ -27,6 +27,7 @@ import {
   searchClickUpTaskPorTelefone,
   clickupWrite,
   addClickUpTag,
+  tagsDoCardNovo,
 } from './api/_clickup.js';
 
 export async function onRequestPost(context) {
@@ -1078,9 +1079,11 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
       ].filter(Boolean).join('\n');
 
       const name = nome || email || 'Lead sem nome';
-      // Tag opcional (ex.: 'formulario-meta' nos leads do Meta). O ClickUp cria a
-      // tag no Space se não existir. Sem `tag`, o body sai idêntico ao de antes.
-      const tagsField = tag ? { tags: [tag] } : {};
+      // Tag opcional (ex.: 'formulario-meta' nos leads do Meta) + 'link-da-bio'
+      // quando o lead nasce pela bio. O ClickUp cria a tag no Space se não
+      // existir. Sem nenhuma, o body sai idêntico ao de antes.
+      const tags = tagsDoCardNovo({ tag, material: materialSlug, utm_source: utmSource, utm_campaign: utmCampaign });
+      const tagsField = tags.length ? { tags } : {};
       const createTask = (body) => clickupWrite(() => clickupFetch(`/list/${listId}/task`, {
         method: 'POST', body: JSON.stringify(body),
       }, env));

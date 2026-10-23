@@ -15,6 +15,7 @@
 // assunto do fluxo de leads, não da API.
 
 import { padronizarTelefone, variantesTelefone } from '../_telefone.js';
+import { canalDeLead } from './_canal.js';
 
 export const CLICKUP_API = 'https://api.clickup.com/api/v2';
 
@@ -113,6 +114,17 @@ export async function clickupWrite(fn) {
     // Anexa o status HTTP no erro pra quem chama poder reagir (ex.: fallback no 400).
     throw netErr || Object.assign(new Error(`ClickUp write ${status}`), { status });
   }
+}
+
+// Tag do card que NASCE pelo link da bio (23/10/2026). Só no card novo: quem já
+// estava no CRM e volta pela bio não leva — decisão dela. "É da bio" é a mesma
+// regra do canal no dash (canalDeLead), então lead de isca segue só com isca-*.
+export const TAG_LINK_DA_BIO = 'link-da-bio';
+
+export function tagsDoCardNovo({ tag = null, material = '', utm_source = '', utm_campaign = '' } = {}) {
+  const tags = tag ? [tag] : [];
+  if (canalDeLead({ material, utm_source, utm_campaign }) === 'bio') tags.push(TAG_LINK_DA_BIO);
+  return tags;
 }
 
 // Aplica uma tag a uma task JÁ existente (POST /task/{id}/tag/{name}). O ClickUp
