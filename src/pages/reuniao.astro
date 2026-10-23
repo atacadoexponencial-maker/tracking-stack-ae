@@ -2,15 +2,13 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo-horizontal-preto.png';
-import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
 
 // Confirmação e gerenciamento da reunião (spec-agenda-propria.md, módulos 5 e 6).
 // Servida em /reuniao/<token> por functions/reuniao/[token].js. O token de
 // gestão é o único acesso: vem no fim da confirmação e na descrição do
-// convite do Google. Com ?novo=1, abre como "horário reservado": com a agenda
-// própria ligada o lead não passa mais pela /obrigada, então esta tela carrega
-// a mesma promessa dela (análise em 24 h, resultado e confirmação pelo
-// WhatsApp) e esconde o link do Meet, que segue no e-mail e no convite.
+// convite do Google. Com ?novo=1, abre como "horário reservado": só confirma
+// o horário (sem Meet, que segue no e-mail e no convite, e sem ações) e em 3 s
+// leva à /obrigada, que tem a promessa da análise e o botão do WhatsApp.
 //
 // Só exibe e coleta: quem decide se ainda dá para mudar (antecedência mínima),
 // se o horário está livre e o que muda na agenda e no CRM é o servidor.
@@ -41,18 +39,7 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
           <span class="re__quando-nota" id="re-hora"></span>
         </div>
 
-        <div id="re-novo" class="re__novo" hidden>
-          <ol class="re__passos">
-            <li><strong>Horário guardado</strong><span>Ele fica reservado para você enquanto a gente analisa.</span></li>
-            <li><strong>Análise em até 24 horas</strong><span>O time confere se a sua marca vende para revendedora e se a operação já tem tração.</span></li>
-            <li><strong>Resposta pelo WhatsApp</strong><span>Se a sua marca for selecionada, o horário fica confirmado. Se não for, a gente cancela e avisa.</span></li>
-          </ol>
-          <div class="re__whats">
-            <ContatoWhatsapp titulo="Confirme a sua aplicação no WhatsApp.">
-              <p>Envie a mensagem que já vem escrita. Se a nossa mensagem ficar sem resposta, o horário passa para a próxima marca.</p>
-            </ContatoWhatsapp>
-          </div>
-        </div>
+        <p id="re-novo" class="re__novo" hidden>Só um instante, já te levo para os próximos passos…</p>
 
         <div id="re-acoes-ativa" class="re__acoes" hidden>
           <a class="btn-cta re__cta" id="re-meet" target="_blank" rel="noopener">Entrar no Google Meet</a>
@@ -144,14 +131,18 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
     } else {
       $('#re-selo').textContent = novo ? 'Horário reservado' : 'Sua reunião';
       $('#re-titulo').textContent = novo
-        ? `Sua aplicação entrou na fila de análise, ${String(d.nome).split(' ')[0]}.`
+        ? `Seu horário está guardado, ${String(d.nome).split(' ')[0]}.`
         : 'Sua reunião está marcada.';
     }
-    // Acabou de agendar: a promessa da /obrigada (análise, WhatsApp) e sem o
-    // link do Meet, que só vale depois da confirmação do time.
+    // Acabou de agendar: só a confirmação, e em 3 s a /obrigada. replace para
+    // o "voltar" do navegador não trazer de novo a contagem.
     const recemReservada = novo && ativa;
     $('#re-novo').hidden = !recemReservada;
-    $('.re').classList.toggle('re--novo', recemReservada);
+    if (recemReservada) {
+      $('#re-acoes-ativa').hidden = true;
+      setTimeout(() => location.replace('/obrigada'), 3000);
+      return;
+    }
     if (ativa) {
       const meet = $('#re-meet') as HTMLAnchorElement;
       meet.href = d.meet || '#';
@@ -284,22 +275,9 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
   .re__quando-nota { font-size: 0.9rem; color: hsl(var(--muted-foreground)); }
   .re__acoes { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; text-align: center; }
   .re__acoes[hidden], .re__linha[hidden] { display: none; }
-  /* Estado "acabou de agendar": texto da análise + cartão do WhatsApp da /obrigada,
-     que foi desenhado para fundo escuro — aqui o texto ao lado ganha a cor da página. */
-  .re__novo { display: flex; flex-direction: column; gap: 1.25rem; }
+  /* Estado "acabou de agendar": só o aviso de que já vai para a /obrigada. */
+  .re__novo { margin: 0; text-align: center; font-size: 1rem; color: rgba(30, 30, 30, 0.7); }
   .re__novo[hidden] { display: none; }
-  .re__passos { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; counter-reset: passo; }
-  .re__passos li { counter-increment: passo; display: grid; grid-template-columns: 2rem 1fr; column-gap: 0.85rem; row-gap: 0.15rem; }
-  .re__passos li::before {
-    content: counter(passo); grid-row: span 2; width: 2rem; height: 2rem; border-radius: 50%;
-    background: #1e1e1e; color: #fff; display: grid; place-items: center; font-size: 0.85rem; font-weight: 700;
-  }
-  .re__passos strong { color: #1e1e1e; font-size: 1rem; line-height: 2rem; }
-  .re__passos span { color: rgba(30, 30, 30, 0.75); font-size: 0.95rem; line-height: 1.5; }
-  .re__whats :global(.contato) { grid-template-columns: 1fr; gap: 1.25rem; }
-  .re__whats :global(.contato__titulo) { color: #1e1e1e; }
-  .re__whats :global(.contato__nome) { color: hsl(var(--foreground)); }
-  .re__whats :global(.contato__texto p) { color: rgba(30, 30, 30, 0.75); max-width: none; font-size: 1rem; }
   #re-meet[hidden], #re-meet-nota[hidden] { display: none; }
   .re__cta { width: 100%; justify-content: center; }
   .re__cta--perigo { background: #9b1c1c; color: #fff; margin-top: 0.5rem; }
@@ -322,18 +300,4 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
   .re__confirma p::first-letter { text-transform: uppercase; }
   .re__falha { background: rgba(220, 38, 38, 0.08); color: #9b1c1c; border-radius: 0.6rem; padding: 0.75rem 1rem; font-size: 0.9rem; }
   @media (max-width: 380px) { .re__linha { flex-direction: column; } }
-  /* Desktop, horário recém-reservado: o cartão do celular vai para a coluna da
-     direita e o resto fica à esquerda. display: contents solta os filhos do
-     bloco novo e do componente para virarem itens da grade. */
-  @media (min-width: 900px) {
-    .re--novo .re__inner { max-width: 60rem; }
-    /* Logo centralizada em cima de duas colunas parece torta: desce, discreta. */
-    .re--novo .re__logo { order: 1; width: 7rem; opacity: 0.45; margin-top: 1.5rem; }
-    .re--novo #re-app { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; column-gap: 3rem; row-gap: 1.25rem; align-items: start; }
-    .re--novo #re-app > *, .re--novo .re__novo > *, .re--novo .re__whats :global(.contato > *) { grid-column: 1; }
-    .re--novo .re__cab { grid-column: 1 / -1; }
-    .re--novo .re__novo, .re--novo .re__whats, .re--novo .re__whats :global(.contato) { display: contents; }
-    .re--novo .re__whats :global(.contato__titulo) { margin-bottom: 0.4rem; font-size: 1.25rem; }
-    .re--novo .re__whats :global(.contato__fone) { grid-column: 2; grid-row: 2 / span 4; width: 100%; }
-  }
 </style>
