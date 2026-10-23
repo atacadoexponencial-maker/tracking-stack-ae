@@ -327,6 +327,8 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
      bloco novo e do componente para virarem itens da grade. */
   @media (min-width: 900px) {
     .re--novo .re__inner { max-width: 60rem; }
+    /* Logo centralizada em cima de duas colunas parece torta: desce, discreta. */
+    .re--novo .re__logo { order: 1; width: 7rem; opacity: 0.45; margin-top: 1.5rem; }
     .re--novo #re-app { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; column-gap: 3rem; row-gap: 1.25rem; align-items: start; }
     .re--novo #re-app > *, .re--novo .re__novo > *, .re--novo .re__whats :global(.contato > *) { grid-column: 1; }
     .re--novo .re__cab { grid-column: 1 / -1; }
