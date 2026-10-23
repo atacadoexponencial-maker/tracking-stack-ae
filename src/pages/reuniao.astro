@@ -42,10 +42,14 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
         </div>
 
         <div id="re-novo" class="re__novo" hidden>
-          <p class="re__analise">O seu horário já está guardado. As vagas são poucas por semana, então agora o nosso time confere se a sua marca vende para revendedora e se a operação já tem tração para colocar o plano em prática. Em até 24 horas, você recebe o resultado pelo WhatsApp <strong>+55 19 98170-2315</strong>. Se a sua marca for selecionada, o horário fica confirmado por lá. Se não for, o horário é cancelado e a gente avisa.</p>
+          <ol class="re__passos">
+            <li><strong>Horário guardado</strong><span>Ele fica reservado para você enquanto a gente analisa.</span></li>
+            <li><strong>Análise em até 24 horas</strong><span>O time confere se a sua marca vende para revendedora e se a operação já tem tração.</span></li>
+            <li><strong>Resposta pelo WhatsApp</strong><span>Se a sua marca for selecionada, o horário fica confirmado. Se não for, a gente cancela e avisa.</span></li>
+          </ol>
           <div class="re__whats">
             <ContatoWhatsapp titulo="Confirme a sua aplicação no WhatsApp.">
-              <p>Toque no botão e envie a mensagem que já vem escrita. É por essa conversa que você recebe o resultado da análise. Se a nossa mensagem ficar sem resposta, o horário passa para a próxima marca da fila.</p>
+              <p>Envie a mensagem que já vem escrita. Se a nossa mensagem ficar sem resposta, o horário passa para a próxima marca.</p>
             </ContatoWhatsapp>
           </div>
         </div>
@@ -147,6 +151,7 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
     // link do Meet, que só vale depois da confirmação do time.
     const recemReservada = novo && ativa;
     $('#re-novo').hidden = !recemReservada;
+    $('.re').classList.toggle('re--novo', recemReservada);
     if (ativa) {
       const meet = $('#re-meet') as HTMLAnchorElement;
       meet.href = d.meet || '#';
@@ -283,8 +288,14 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
      que foi desenhado para fundo escuro — aqui o texto ao lado ganha a cor da página. */
   .re__novo { display: flex; flex-direction: column; gap: 1.25rem; }
   .re__novo[hidden] { display: none; }
-  .re__analise { margin: 0; font-size: 1rem; line-height: 1.6; color: rgba(30, 30, 30, 0.8); }
-  .re__analise strong { color: #1e1e1e; white-space: nowrap; }
+  .re__passos { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; counter-reset: passo; }
+  .re__passos li { counter-increment: passo; display: grid; grid-template-columns: 2rem 1fr; column-gap: 0.85rem; row-gap: 0.15rem; }
+  .re__passos li::before {
+    content: counter(passo); grid-row: span 2; width: 2rem; height: 2rem; border-radius: 50%;
+    background: #1e1e1e; color: #fff; display: grid; place-items: center; font-size: 0.85rem; font-weight: 700;
+  }
+  .re__passos strong { color: #1e1e1e; font-size: 1rem; line-height: 2rem; }
+  .re__passos span { color: rgba(30, 30, 30, 0.75); font-size: 0.95rem; line-height: 1.5; }
   .re__whats :global(.contato) { grid-template-columns: 1fr; gap: 1.25rem; }
   .re__whats :global(.contato__titulo) { color: #1e1e1e; }
   .re__whats :global(.contato__nome) { color: hsl(var(--foreground)); }
@@ -311,4 +322,16 @@ import ContatoWhatsapp from '../components/obrigada/ContatoWhatsapp.astro';
   .re__confirma p::first-letter { text-transform: uppercase; }
   .re__falha { background: rgba(220, 38, 38, 0.08); color: #9b1c1c; border-radius: 0.6rem; padding: 0.75rem 1rem; font-size: 0.9rem; }
   @media (max-width: 380px) { .re__linha { flex-direction: column; } }
+  /* Desktop, horário recém-reservado: o cartão do celular vai para a coluna da
+     direita e o resto fica à esquerda. display: contents solta os filhos do
+     bloco novo e do componente para virarem itens da grade. */
+  @media (min-width: 900px) {
+    .re--novo .re__inner { max-width: 60rem; }
+    .re--novo #re-app { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; column-gap: 3rem; row-gap: 1.25rem; align-items: start; }
+    .re--novo #re-app > *, .re--novo .re__novo > *, .re--novo .re__whats :global(.contato > *) { grid-column: 1; }
+    .re--novo .re__cab { grid-column: 1 / -1; }
+    .re--novo .re__novo, .re--novo .re__whats, .re--novo .re__whats :global(.contato) { display: contents; }
+    .re--novo .re__whats :global(.contato__titulo) { margin-bottom: 0.4rem; font-size: 1.25rem; }
+    .re--novo .re__whats :global(.contato__fone) { grid-column: 2; grid-row: 2 / span 4; width: 100%; }
+  }
 </style>
