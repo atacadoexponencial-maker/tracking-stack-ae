@@ -101,7 +101,7 @@ beforeEach(() => {
   db.exec(readFileSync(new URL('../migrations/0048_agenda_descricao.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0049_agenda_etapas.sql', import.meta.url), 'utf8'));
   // E-mails da agenda (issue 379): os ganchos de e-mail rodam de verdade.
-  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0052_email_agenda.sql', '0059_agenda_tipos_teste.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0052_email_agenda.sql', '0059_agenda_tipos_teste.sql', '0064_agenda_janela_contagem.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   // As colunas de UTM da sessão entraram fora das migrations (conferido no D1 remoto).
   for (const c of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'funnel']) db.exec(`ALTER TABLE sessions ADD COLUMN ${c} TEXT`);
   env = { DB: d1(db), DASH_KEY: 'k', SYNC_SECRET: 's', GOOGLE_AGENDA_SA_JSON: SA };

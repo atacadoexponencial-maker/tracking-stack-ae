@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   validarGrade, resumoGrade, validarTipo, horariosLivres, validarDadosAgendamento,
-  situacaoPelaPresenca, emCimaDaHora, numerosDoPeriodo, tituloDoEvento,
+  situacaoPelaPresenca, emCimaDaHora, numerosDoPeriodo, tituloDoEvento, fimDaJanela,
 } from '../functions/api/_agenda-regras.js';
 import { padronizarTelefone } from '../functions/_telefone.js';
 
@@ -51,6 +51,26 @@ test('horários: antecedência mínima e janela', () => {
   assert.deepEqual(Object.keys(j), ['2026-10-05']);
 });
 
+test('janela: dias corridos e dias úteis (seg a sex)', () => {
+  // 2026-10-24 sábado, 2026-10-25 domingo, 2026-10-30 sexta.
+  assert.equal(fimDaJanela('2026-10-24', 8), '2026-11-01');
+  assert.equal(fimDaJanela('2026-10-24', 8, 'corridos'), '2026-11-01');
+  assert.equal(fimDaJanela('2026-10-24', 8, 'uteis'), '2026-11-04');
+  assert.equal(fimDaJanela('2026-10-25', 1, 'uteis'), '2026-10-26');
+  assert.equal(fimDaJanela('2026-10-30', 1, 'uteis'), '2026-11-02');
+  assert.equal(fimDaJanela('2026-10-05', 5, 'uteis'), '2026-10-12');
+});
+
+test('horários: janela em dias úteis pula o fim de semana', () => {
+  // Sexta 09/10 08h, 1 dia útil: a janela vai até segunda 12/10.
+  const sex = T('2026-10-09T08:00:00-03:00');
+  const grade = { faixas: { 1: [['09:00', '10:00']], 5: [['09:00', '10:00']] }, datas: {} };
+  const u = horariosLivres({ tipo: { ...tipoBase, janela_dias: 1, janela_contagem: 'uteis' }, grade, agora: sex });
+  assert.deepEqual(Object.keys(u), ['2026-10-09', '2026-10-12']);
+  const c = horariosLivres({ tipo: { ...tipoBase, janela_dias: 1 }, grade, agora: sex });
+  assert.deepEqual(Object.keys(c), ['2026-10-09']);
+});
+
 test('horários: data bloqueada, exceção de data e limite por dia', () => {
   const grade = { faixas: { 1: [['09:00', '11:00']], 2: [['09:00', '10:00']] }, datas: { '2026-10-05': [], '2026-10-06': [['15:00', '16:00']] } };
   const h = horariosLivres({ tipo: tipoBase, grade, agora: SEG_8H, de: '2026-10-05', ate: '2026-10-06' });
@@ -73,6 +93,9 @@ test('tipo: validação', () => {
   assert.ok(ok.tipo);
   assert.equal(ok.tipo.comercial, 1);
   assert.match(validarTipo({ ...base, slug: 'Com Espaço' }, ctx).erro, /Endereço/);
+  assert.equal(ok.tipo.janela_contagem, 'corridos');
+  assert.equal(validarTipo({ ...base, janela_contagem: 'uteis' }, ctx).tipo.janela_contagem, 'uteis');
+  assert.match(validarTipo({ ...base, janela_contagem: 'semanas' }, ctx).erro, /corridos ou úteis/);
   assert.match(validarTipo({ ...base, funil: '' }, ctx).erro, /funil/);
   assert.equal(validarTipo({ ...base, comercial: false, funil: '' }, ctx).tipo.funil, null);
   assert.match(validarTipo({ ...base, destino_cal: 'x' }, ctx).erro, /destino/);

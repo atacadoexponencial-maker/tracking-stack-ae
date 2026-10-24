@@ -6,7 +6,7 @@
 // Prefixo "_": o Cloudflare Pages não transforma o arquivo em rota.
 
 import {
-  tipoDaLinha, horariosLivres, tituloDoEvento, SITUACOES_ATIVAS,
+  tipoDaLinha, horariosLivres, tituloDoEvento, SITUACOES_ATIVAS, fimDaJanela,
 } from './_agenda-regras.js';
 import {
   horariosOcupados, criarEvento, moverEvento, cancelarEvento, descreverEvento,
@@ -84,7 +84,7 @@ async function marcarSaudeAgenda(env, calId, erro) {
 export async function calcularHorarios(env, tipo, { de, ate, ignorar = null }, fetchImpl = fetch) {
   const t = agora();
   const hoje = ymdBrt(t);
-  const fimJanela = ymdBrt(t + tipo.janela_dias * 86400);
+  const fimJanela = fimDaJanela(hoje, tipo.janela_dias, tipo.janela_contagem);
   const deDia = de && de > hoje ? de : hoje;
   const ateDia = ate && ate < fimJanela ? ate : fimJanela;
   if (deDia > ateDia) return { dias: {} };

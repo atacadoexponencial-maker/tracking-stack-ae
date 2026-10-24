@@ -662,7 +662,7 @@
     const v = t || {
       nome: '', slug: '', duracao_min: 45, destino_cal: (opcoes.agendas.find((a) => a.conflito) || opcoes.agendas[0] || {}).id,
       conflito_cals: opcoes.agendas.filter((a) => a.conflito).map((a) => a.id), grade_id: (opcoes.grades[0] || {}).id,
-      folga_antes_min: 0, folga_depois_min: 0, antecedencia_min: 240, janela_dias: 30, limite_dia: '', intervalo_min: 30,
+      folga_antes_min: 0, folga_depois_min: 0, antecedencia_min: 240, janela_dias: 30, janela_contagem: 'corridos', limite_dia: '', intervalo_min: 30,
       perguntas: [], titulo_modelo: '{nome} e Atacado Exponencial', comercial: true, funil: 'sessao-estrategica',
       pagina_pos: '', contato_alternativo: '', descricao: '',
     };
@@ -709,6 +709,7 @@
           <div class="linha">
             <label>Antecedência mínima (horas) <input type="number" name="antecedencia_h" value="${antecedenciaH}" min="0" step="0.5"></label>
             <label>Até quantos dias à frente <input type="number" name="janela_dias" value="${v.janela_dias}" min="1"></label>
+            <label>Contando dias <select name="janela_contagem">${opt([['corridos', 'corridos'], ['uteis', 'úteis (seg a sex)']], v.janela_contagem || 'corridos')}</select></label>
           </div>
           <label>Agenda onde a reunião é criada <select name="destino_cal">${opt(opcoes.agendas.map((a) => [a.id, `${a.nome} (${a.conta})`]), v.destino_cal)}</select></label>
           <div class="ag-campo">
@@ -880,7 +881,7 @@
       const corpo = {
         acao: 'salvar', id: t ? t.id : undefined,
         nome: f.get('nome'), slug: f.get('slug'), duracao_min: f.get('duracao_min'), intervalo_min: f.get('intervalo_min'),
-        antecedencia_min: Math.round(Number(f.get('antecedencia_h') || 0) * 60), janela_dias: f.get('janela_dias'),
+        antecedencia_min: Math.round(Number(f.get('antecedencia_h') || 0) * 60), janela_dias: f.get('janela_dias'), janela_contagem: f.get('janela_contagem'),
         folga_antes_min: f.get('folga_antes_min'), folga_depois_min: f.get('folga_depois_min'), limite_dia: f.get('limite_dia'),
         destino_cal: f.get('destino_cal'), grade_id: f.get('grade_id'), conflito_cals: conflitos, comercial: comercialCb.checked,
         funil: comercialCb.checked ? f.get('funil') : '', titulo_modelo: f.get('titulo_modelo'),

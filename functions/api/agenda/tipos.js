@@ -17,7 +17,7 @@ export const FUNIS = [...new Set(FUNIL_POR_PAGINA.values())];
 
 const CAMPOS = [
   'slug', 'nome', 'duracao_min', 'destino_cal', 'conflito_cals_json', 'grade_id', 'folga_antes_min',
-  'folga_depois_min', 'antecedencia_min', 'janela_dias', 'limite_dia', 'intervalo_min', 'perguntas_json',
+  'folga_depois_min', 'antecedencia_min', 'janela_dias', 'janela_contagem', 'limite_dia', 'intervalo_min', 'perguntas_json',
   'titulo_modelo', 'comercial', 'funil', 'pagina_pos', 'contato_alternativo', 'descricao', 'teste',
 ];
 

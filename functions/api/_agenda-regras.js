@@ -130,6 +130,8 @@ export function validarTipo(entrada, contexto) {
   if (antecedencia === null) return { erro: 'Antecedência mínima inválida.' };
   const janela = inteiro(e.janela_dias, 1, 365);
   if (janela === null) return { erro: 'Até quantos dias no futuro: entre 1 e 365.' };
+  const contagem = e.janela_contagem ?? 'corridos';
+  if (!['corridos', 'uteis'].includes(contagem)) return { erro: 'Dias à frente: escolha corridos ou úteis.' };
   const limite = e.limite_dia === '' || e.limite_dia == null ? null : inteiro(e.limite_dia, 1, 100);
   if (e.limite_dia !== '' && e.limite_dia != null && limite === null) return { erro: 'Limite por dia: entre 1 e 100 (ou vazio).' };
   const intervalo = inteiro(e.intervalo_min, 5, 240);
@@ -158,7 +160,7 @@ export function validarTipo(entrada, contexto) {
       nome, slug, duracao_min: duracao, destino_cal: e.destino_cal,
       conflito_cals_json: JSON.stringify(conflitos),
       grade_id: gradeId, folga_antes_min: folgaAntes, folga_depois_min: folgaDepois,
-      antecedencia_min: antecedencia, janela_dias: janela, limite_dia: limite, intervalo_min: intervalo,
+      antecedencia_min: antecedencia, janela_dias: janela, janela_contagem: contagem, limite_dia: limite, intervalo_min: intervalo,
       perguntas_json: JSON.stringify(perguntas), titulo_modelo: titulo.slice(0, 200),
       comercial, funil, pagina_pos: paginaPos || null,
       teste: e.teste === true || e.teste === 1 || e.teste === '1' ? 1 : 0,
@@ -197,9 +199,25 @@ function somarDias(ymd, n) {
 }
 
 /**
+ * Último dia (inclusivo) da janela "até quantos dias à frente".
+ *   corridos: hoje + N dias.
+ *   uteis: o N-ésimo dia de segunda a sexta depois de hoje (feriado conta).
+ */
+export function fimDaJanela(hoje, dias, contagem = 'corridos') {
+  if (contagem !== 'uteis') return somarDias(hoje, dias);
+  let ymd = hoje;
+  for (let n = 0; n < dias;) {
+    ymd = somarDias(ymd, 1);
+    const s = diaDaSemana(ymd);
+    if (s !== 0 && s !== 6) n++;
+  }
+  return ymd;
+}
+
+/**
  * Horários livres de um tipo. Tudo em unix (segundos).
  *   tipo: { duracao_min, intervalo_min, folga_antes_min, folga_depois_min,
- *           antecedencia_min, janela_dias, limite_dia }
+ *           antecedencia_min, janela_dias, janela_contagem, limite_dia }
  *   grade: { faixas, datas }
  *   ocupados: [{ ini, fim }] — das agendas de conflito
  *   reunioesNoDia: { 'YYYY-MM-DD': n } — reuniões ativas DESTE tipo por dia
@@ -209,7 +227,7 @@ function somarDias(ymd, n) {
  */
 export function horariosLivres({ tipo, grade, ocupados = [], reunioesNoDia = {}, agora, de, ate, ignorar = null }) {
   const hoje = ymdBrt(agora);
-  const ultimoDia = somarDias(hoje, tipo.janela_dias);
+  const ultimoDia = fimDaJanela(hoje, tipo.janela_dias, tipo.janela_contagem);
   const primeiro = de && de > hoje ? de : hoje;
   const ultimo = ate && ate < ultimoDia ? ate : ultimoDia;
   const minimo = agora + tipo.antecedencia_min * 60;
