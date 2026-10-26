@@ -43,6 +43,7 @@
   let filtroTipos = 'ativos';
   let vistaReunioes = 'hoje';
   let filtroReuniao = { tipo: '', situacao: '' };
+  let diaSel = ''; // "Todas do período": dia clicado no card Por dia (filtra a lista)
   // Tipos marcados como teste e convites de teste da equipe ficam fora das
   // listas; "Mostrar testes" traz de volta (a escolha vale para a sessão).
   let mostrarTestes = false;
@@ -394,20 +395,18 @@
           ${Object.entries(SITUACAO).map(([k, [r]]) => `<option value="${k}">${r}</option>`).join('')}</select>` : ''}
         ${botaoTestes()}
       </div>
-      ${d.numeros ? '<div class="grid-etiquetas" id="ag-num"></div>' : ''}
+      ${d.resumo ? `<div id="ag-resumo">${cardsDoPeriodo(d.resumo)}</div>` : ''}
       <div class="tabela-wrap" id="ag-lista"></div>`;
-    if (d.numeros) {
-      const n = d.numeros;
-      ctx.$('#ag-num').innerHTML = [
-        { rotulo: 'Agendados', valor: ctx.fmtInt(n.agendados), nota: 'reuniões no período' },
-        { rotulo: 'Cancelados', valor: ctx.fmtInt(n.cancelados) },
-        { rotulo: 'Faltas', valor: ctx.fmtInt(n.faltas) },
-        { rotulo: 'Comparecimento', valor: n.taxa_comparecimento === null ? null : ctx.fmtPct(n.taxa_comparecimento * 100, 0), nota: n.taxa_comparecimento === null ? 'nenhuma reunião com presença lida' : `${n.realizadas} de ${n.realizadas + n.faltas} com presença lida` },
-      ].map((k) => ctx.tile(k)).join('');
+    if (d.resumo && diaSel && !d.resumo.por_dia.some((x) => x.dia === diaSel)) diaSel = '';
+    if (d.resumo) {
+      el().querySelectorAll('[data-dia]').forEach((b) => {
+        b.setAttribute('aria-pressed', String(b.dataset.dia === diaSel));
+        b.onclick = () => { diaSel = diaSel === b.dataset.dia ? '' : b.dataset.dia; agendamentos(); };
+      });
     }
     ligarTestes(el(), agendamentos);
     el().querySelectorAll('[data-subvista]').forEach((b) => {
-      b.onclick = () => { vistaReunioes = b.dataset.subvista; agendamentos(); };
+      b.onclick = () => { vistaReunioes = b.dataset.subvista; diaSel = ''; agendamentos(); };
     });
     ctx.$('#ag-f-tipo').value = filtroReuniao.tipo;
     ctx.$('#ag-f-tipo').onchange = (e) => { filtroReuniao.tipo = e.target.value; agendamentos(); };
@@ -433,7 +432,7 @@
           ${r.aguardando_presenca ? `<button class="btn sec" type="button" data-presenca="realizada" data-id="${r.id}">Realizada</button>
             <button class="btn sec" type="button" data-presenca="faltou" data-id="${r.id}">Faltou</button>` : ''}
           <button class="btn sec" type="button" data-abrir="${r.id}">Abrir</button></div>` },
-    ], d.rows, undefined, VAZIO[vistaReunioes]);
+    ], diaSel ? d.rows.filter((r) => diaDe(r.inicio) === diaSel) : d.rows, undefined, diaSel ? 'Nenhuma reunião neste dia.' : VAZIO[vistaReunioes]);
     ctx.$('#ag-lista').onclick = async (ev) => {
       const b = ev.target.closest('button');
       if (!b) return;
@@ -447,6 +446,56 @@
         } catch (e) { b.disabled = false; avisarErro(e); }
       }
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cards de "Todas do período" (pedido de 26/10): por situação, por dia e por
+  // funil, pela data da reunião. Os números chegam prontos em `resumo`.
+  // ---------------------------------------------------------------------------
+  const CATEGORIAS = [
+    ['realizada', 'Realizadas'], ['faltou', 'Faltas'], ['cancelada', 'Canceladas'],
+    ['aguardando', 'Aguardando presença'], ['a_acontecer', 'A acontecer'], ['sem_info', 'Sem informação'],
+  ];
+  const diaDe = (t) => new Date(t * 1000).toLocaleDateString('sv-SE', { timeZone: FUSO });
+  const pct = (n, total) => (total ? ctx.fmtPct((n / total) * 100, 0) : '—');
+
+  function barra(x, vertical = false) {
+    const partes = CATEGORIAS.filter(([k]) => x[k]).map(([k, r]) => `<i class="ag-seg ag-seg--${k}" style="flex-grow:${x[k]}" title="${r}: ${x[k]}"></i>`).join('');
+    return `<span class="ag-barra${vertical ? ' ag-barra--vertical' : ''}" aria-hidden="true">${partes}</span>`;
+  }
+
+  function cardsDoPeriodo(r) {
+    const s = r.por_situacao;
+    const quadros = [
+      { rotulo: 'Agendadas', valor: ctx.fmtInt(s.agendadas), delta: r.agendadas_anterior ? ctx.delta(s.agendadas, r.agendadas_anterior) : undefined, nota: `anterior: ${ctx.fmtInt(r.agendadas_anterior || 0)}` },
+      { rotulo: 'Realizadas', valor: ctx.fmtInt(s.realizada), nota: `${pct(s.realizada, s.agendadas)} · comparecimento ${s.comparecimento === null ? '—' : ctx.fmtPct(s.comparecimento * 100, 0)}` },
+      { rotulo: 'Faltas', valor: ctx.fmtInt(s.faltou), nota: `${pct(s.faltou, s.agendadas)} · no-show ${s.comparecimento === null ? '—' : ctx.fmtPct((1 - s.comparecimento) * 100, 0)}` },
+      { rotulo: 'Canceladas', valor: ctx.fmtInt(s.cancelada), nota: pct(s.cancelada, s.agendadas) },
+      { rotulo: 'Aguardando presença', valor: ctx.fmtInt(s.aguardando), nota: s.aguardando ? 'já passaram, falta marcar' : 'tudo marcado' },
+      ...(s.a_acontecer ? [{ rotulo: 'A acontecer', valor: ctx.fmtInt(s.a_acontecer), nota: pct(s.a_acontecer, s.agendadas) }] : []),
+      ...(s.sem_info ? [{ rotulo: 'Sem informação', valor: ctx.fmtInt(s.sem_info), nota: pct(s.sem_info, s.agendadas) }] : []),
+    ];
+    const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+    const rotuloDia = (ymd) => { const [a, m, d] = ymd.split('-').map(Number); return `${SEMANA[new Date(Date.UTC(a, m - 1, d)).getUTCDay()]} ${String(d).padStart(2, '0')}`; };
+    const maior = Math.max(1, ...r.por_dia.map((x) => x.agendadas));
+    const legenda = CATEGORIAS.filter(([k]) => s[k]).map(([k, rot]) => `<span><i class="ag-seg ag-seg--${k}"></i>${rot}</span>`).join('');
+    return `
+      <h3 class="ag-resumo__titulo">Por situação</h3>
+      <div class="grid-etiquetas ag-situacoes">${quadros.map((k) => ctx.tile(k)).join('')}</div>
+      <h3 class="ag-resumo__titulo">Por dia <small>clique num dia para filtrar a lista</small></h3>
+      <div class="ag-dias">${r.por_dia.map((x) => `<button type="button" class="ag-dia" data-dia="${x.dia}" aria-pressed="false">
+          <span class="ag-dia__num">${x.agendadas || ''}</span>
+          <span class="ag-dia__col" style="--ag-altura:${Math.round((x.agendadas / maior) * 100)}%">${x.agendadas ? barra(x, true) : ''}</span>
+          <span class="ag-dia__rotulo">${rotuloDia(x.dia)}</span></button>`).join('')}</div>
+      <p class="ag-legenda">${legenda}</p>
+      <h3 class="ag-resumo__titulo">Por funil</h3>
+      <div class="ag-funis">${r.por_funil.map((f) => `<div class="ag-funil">
+          <h4>${ctx.esc(f.funil === 'sem-funil' ? 'Sem funil' : f.funil)}</h4>
+          <p class="ag-funil__total"><b>${ctx.fmtInt(f.agendadas)}</b> agendadas</p>
+          ${barra(f)}
+          <p class="mini">${CATEGORIAS.filter(([k]) => f[k]).map(([k, rot]) => `${ctx.fmtInt(f[k])} ${rot.toLowerCase()}`).join(' · ')}</p>
+          <p class="mini">comparecimento ${f.comparecimento === null ? '—' : ctx.fmtPct(f.comparecimento * 100, 0)}</p>
+        </div>`).join('') || '<p class="mini">Nenhuma reunião no período.</p>'}</div>`;
   }
 
   function carimbo(s) {

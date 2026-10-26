@@ -394,9 +394,50 @@ export function recorteDoCalendly(vista, { agora, hoje0, de, ate, situacao = '' 
 export function linhaDoCalendly(c, agora) {
   const fim = c.fim || c.inicio + DURACAO_CALENDLY;
   return {
-    id: c.invitee_uri, origem: 'calendly', inicio: c.inicio, fim, nome: c.nome || c.email, email: c.email,
+    id: c.invitee_uri, origem: 'calendly', inicio: c.inicio, fim, nome: c.nome || c.email, email: c.email, agendou_em: c.agendou_em,
     telefone: c.telefone, meet_link: c.meet_link, tipo_nome: 'Calendly',
     situacao: c.presenca || 'marcada',
     aguardando_presenca: !c.presenca && fim < agora,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Cards da aba Agendamentos, vista "Todas do período" (pedido de 26/10): por
+// situação, por dia e por funil, pela DATA DA REUNIÃO (como a lista). A coorte
+// por data de agendamento fica na Visão geral.
+// ---------------------------------------------------------------------------
+export const CATEGORIAS_AGENDA = ['realizada', 'faltou', 'cancelada', 'aguardando', 'a_acontecer', 'sem_info'];
+
+/** Categoria do card: marcada que já passou = aguardando presença; marcada futura = a acontecer. */
+export function categoriaDaReuniao({ situacao, fim }, agora) {
+  if (['realizada', 'faltou', 'cancelada', 'sem_info'].includes(situacao)) return situacao;
+  return fim < agora ? 'aguardando' : 'a_acontecer';
+}
+
+const zeroCategorias = () => Object.fromEntries([['agendadas', 0], ...CATEGORIAS_AGENDA.map((c) => [c, 0])]);
+const comComparecimento = (x) => ({ ...x, comparecimento: x.realizada + x.faltou ? x.realizada / (x.realizada + x.faltou) : null });
+
+/**
+ * linhas: [{ inicio, fim, situacao, funil }] (agenda própria e Calendly).
+ * → { por_situacao, por_dia: [{ dia, ... }] (todo dia do período, com zero),
+ *     por_funil: [{ funil, ... }] (mais agendadas primeiro) }
+ */
+export function resumoDaAgenda(linhas, { de, ate, agora }) {
+  const total = zeroCategorias();
+  const dias = new Map();
+  for (let d = inicioDoDiaBrt(ymdBrt(de)); d <= ate; d += 86400) dias.set(ymdBrt(d), zeroCategorias());
+  const funis = new Map();
+  for (const r of linhas || []) {
+    const cat = categoriaDaReuniao(r, agora);
+    const dia = ymdBrt(r.inicio);
+    if (!dias.has(dia)) dias.set(dia, zeroCategorias());
+    const f = r.funil || 'sem-funil';
+    if (!funis.has(f)) funis.set(f, zeroCategorias());
+    for (const alvo of [total, dias.get(dia), funis.get(f)]) { alvo.agendadas += 1; alvo[cat] += 1; }
+  }
+  return {
+    por_situacao: comComparecimento(total),
+    por_dia: [...dias].sort(([a], [b]) => a.localeCompare(b)).map(([dia, x]) => ({ dia, ...x })),
+    por_funil: [...funis].map(([funil, x]) => ({ funil, ...comComparecimento(x) })).sort((a, b) => b.agendadas - a.agendadas),
   };
 }

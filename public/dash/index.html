@@ -635,6 +635,29 @@ pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; backgr
 }
 
 /* Agenda (public/dash/agenda.js) */
+/* Cards de "Todas do período" (26/10): por situação, por dia e por funil. */
+.ag-resumo__titulo { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tinta-2); margin: 1.2rem 0 0.6rem; }
+.ag-resumo__titulo small { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--apagado); margin-left: 0.4rem; }
+.ag-situacoes { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 0.4rem; }
+.ag-dias { display: flex; gap: 0.35rem; overflow-x: auto; padding-bottom: 0.3rem; }
+.ag-dia { flex: 1 0 44px; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.4rem 0.2rem; cursor: pointer; font: inherit; color: inherit; }
+.ag-dia[aria-pressed="true"] { border-color: var(--tinta); box-shadow: inset 0 0 0 1px var(--tinta); }
+.ag-dia__num { font-weight: 700; font-variant-numeric: tabular-nums; min-height: 1.2em; }
+.ag-dia__col { display: flex; align-items: flex-end; height: 70px; width: 60%; }
+.ag-dia__col .ag-barra { height: var(--ag-altura); width: 100%; }
+.ag-dia__rotulo { font-size: 0.7rem; color: var(--apagado); white-space: nowrap; }
+.ag-barra { display: flex; height: 10px; border-radius: 2px; overflow: hidden; background: var(--papel-escuro); }
+.ag-barra--vertical { flex-direction: column-reverse; }
+.ag-seg { display: inline-block; min-width: 3px; min-height: 3px; }
+.ag-seg--realizada { background: var(--alta); } .ag-seg--faltou { background: var(--queda); } .ag-seg--cancelada { background: var(--taupe); }
+.ag-seg--aguardando { background: var(--alerta); } .ag-seg--a_acontecer { background: var(--info); } .ag-seg--sem_info { background: var(--apagado); }
+.ag-legenda { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.72rem; color: var(--apagado); margin: 0.4rem 0 0; }
+.ag-legenda span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.ag-legenda .ag-seg { width: 10px; height: 10px; border-radius: 2px; }
+.ag-funis { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.8rem; margin-bottom: 1.4rem; }
+.ag-funil { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.9rem 1rem; display: grid; gap: 0.45rem; }
+.ag-funil h4 { font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.ag-funil__total b { font-size: 1.5rem; font-variant-numeric: tabular-nums; margin-right: 0.3rem; }
 input[type="time"] { font: inherit; padding: 0.35rem 0.45rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); color: var(--tinta); }
 .ag-form { display: grid; gap: 0.75rem; max-width: 760px; }
 .ag-form .linha { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; }
@@ -2236,7 +2259,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
   </div>
 </div>
 
-<script src="/dash/agenda.js?v=2026-10-26c"></script>
+<script src="/dash/agenda.js?v=2026-10-26d"></script>
 <script src="/dash/email-mkt.js"></script>
 <script src="/dash/email-fluxos.js"></script>
 <script src="/dash/email-blocos.js"></script>

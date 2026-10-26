@@ -15,7 +15,7 @@
 // Spec spec-agenda-propria.md, módulos 5 e 8 (issues 361 e 362).
 import {
   numerosDoPeriodo, SITUACOES, VISTAS_REUNIOES, recorteDaVista, recorteDoCalendly, CORTE_CALENDLY,
-  DURACAO_CALENDLY, linhaDoCalendly,
+  DURACAO_CALENDLY, linhaDoCalendly, resumoDaAgenda,
 } from '../_agenda-regras.js';
 import { funisDasReunioes } from '../_reunioes-agendadas.js';
 import { isInternalTestEmail } from '../../tracker.js';
@@ -115,8 +115,30 @@ export async function onRequestGet({ request, env }) {
       pendentes: (c?.pendentes || 0) + cal.pendentes,
     },
     numeros: vista === 'todas' ? numerosComCalendly(rows, cal.rows) : null,
+    resumo: vista === 'todas' ? await resumoDoPeriodo(env, lista, { de, ate: Number(p.get('to')) || t, agora: t, comTestes }) : null,
     tipos,
   });
+}
+
+// Cards de "Todas do período" (pedido de 26/10): por situação, por dia e por
+// funil, pela data da reunião. Funil do Calendly pelo e-mail do lead; agenda
+// própria, o gravado. `agendadas_anterior`: total do período anterior de mesmo
+// tamanho, para o carimbo de variação.
+async function resumoDoPeriodo(env, lista, { de, ate, agora, comTestes }) {
+  const cal = lista.filter((r) => r.origem === 'calendly');
+  const funisCal = cal.length ? await funisDasReunioes(env.DB, cal.map((r) => ({ email: r.email, quando: r.agendou_em, funil: '' }))) : [];
+  const funilDe = new Map(cal.map((r, i) => [r.id, funisCal[i].funil]));
+  const linhas = lista.map((r) => ({ ...r, funil: r.origem === 'calendly' ? funilDe.get(r.id) : r.funil }));
+  const resumo = resumoDaAgenda(linhas, { de, ate, agora });
+  const antAte = de - 1, antDe = antAte - (ate - de);
+  const semTeste = comTestes ? '' : 'AND is_teste = 0 AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)';
+  const proprias = await env.DB.prepare(`SELECT COUNT(*) AS n FROM agenda_reunioes WHERE inicio >= ? AND inicio <= ? ${semTeste}`).bind(antDe, antAte).first();
+  let doCal = { n: 0 };
+  try {
+    doCal = await env.DB.prepare(`SELECT COUNT(*) AS n FROM calendly_consultorias WHERE situacao = 'ativa' AND inicio >= ? AND inicio >= ? AND inicio <= ?`)
+      .bind(CORTE_CALENDLY, antDe, antAte).first();
+  } catch { /* sem Calendly, conta só a agenda própria */ }
+  return { ...resumo, agendadas_anterior: (proprias?.n || 0) + (doCal?.n || 0) };
 }
 
 // Agendados e cancelados seguem só da agenda própria; faltas e realizadas
@@ -137,7 +159,7 @@ async function doCalendly(env, vista, janela) {
   try {
     const rc = recorteDoCalendly(vista, janela);
     const rows = rc ? (await env.DB.prepare(
-      `SELECT c.invitee_uri, c.inicio, c.fim, c.email, c.nome, c.telefone, c.meet_link, c.presenca
+      `SELECT c.invitee_uri, c.inicio, c.fim, c.email, c.nome, c.telefone, c.meet_link, c.presenca, c.agendou_em
          FROM calendly_consultorias c WHERE ${rc.where.join(' AND ')} LIMIT 200`,
     ).bind(...rc.binds).all()).results || [] : [];
     const n = await env.DB.prepare(

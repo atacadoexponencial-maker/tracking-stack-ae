@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   validarGrade, resumoGrade, validarTipo, horariosLivres, validarDadosAgendamento,
   situacaoPelaPresenca, emCimaDaHora, numerosDoPeriodo, tituloDoEvento, fimDaJanela,
-  recorteDoCalendly, CORTE_CALENDLY, linhaDoCalendly,
+  recorteDoCalendly, CORTE_CALENDLY, linhaDoCalendly, resumoDaAgenda, categoriaDaReuniao,
 } from '../functions/api/_agenda-regras.js';
 import { padronizarTelefone } from '../functions/_telefone.js';
 
@@ -152,4 +152,23 @@ test('Calendly na lista: corte em 19/10 00h BRT, só ativas, aguardando = termin
   assert.deepEqual(prox.binds, [CORTE_CALENDLY, 500]);
   assert.deepEqual(recorteDoCalendly('todas', janela).binds, [CORTE_CALENDLY, 10, 900]);
   assert.deepEqual(recorteDoCalendly('hoje', janela).binds, [CORTE_CALENDLY, 100, 100 + 86400]);
+});
+
+test('cards da Agenda: situação, dia e funil pela data da reunião', () => {
+  const de = T('2026-10-19T00:00:00-03:00'), ate = T('2026-10-25T23:59:59-03:00'), agora = T('2026-10-26T10:00:00-03:00');
+  const r = (dia, h, situacao, funil) => ({ inicio: T(`2026-10-${dia}T${h}:00:00-03:00`), fim: T(`2026-10-${dia}T${h}:45:00-03:00`), situacao, funil });
+  const linhas = [
+    r(20, '14', 'realizada', 'sessao-estrategica'), r(20, '15', 'faltou', 'sessao-estrategica'),
+    r(22, '14', 'cancelada', 'aquisicao'), r(23, '14', 'marcada', 'sessao-estrategica'),
+    r(25, '23', 'marcada', 'sessao-estrategica'), // 23h–23h45 de 25/10: já passou
+  ];
+  const res = resumoDaAgenda(linhas, { de, ate, agora });
+  assert.deepEqual(
+    [res.por_situacao.agendadas, res.por_situacao.realizada, res.por_situacao.faltou, res.por_situacao.cancelada, res.por_situacao.aguardando, res.por_situacao.comparecimento],
+    [5, 1, 1, 1, 2, 0.5],
+  );
+  assert.equal(res.por_dia.length, 7, 'todo dia do período, mesmo sem reunião');
+  assert.deepEqual(res.por_dia.map((d) => d.agendadas), [0, 2, 0, 1, 1, 0, 1]);
+  assert.deepEqual(res.por_funil.map((f) => [f.funil, f.agendadas]), [['sessao-estrategica', 4], ['aquisicao', 1]]);
+  assert.equal(categoriaDaReuniao({ situacao: 'marcada', fim: agora + 60 }, agora), 'a_acontecer');
 });
