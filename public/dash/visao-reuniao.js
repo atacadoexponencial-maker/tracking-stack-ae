@@ -163,6 +163,9 @@
       manchete,
       crm_lido: lido,
       taxas: r.taxas ? { a: taxasDe(r.taxas.atual), b: taxasDe(r.taxas.anterior) } : null,
+      // Níveis de qualificação (S4-05): só sem filtro ou no funil da qualificação.
+      qualificacao: r.taxas === undefined || (f && f !== (r.taxas && r.taxas.atual && r.taxas.atual.qualificacao_funil || 'sessao-estrategica'))
+        ? null : (lido ? r.taxas.atual.qualificacao : {}),
       notas: { cpl: f ? 'sem investimento no funil' : 'precisa do sync de investimento' },
       numeros: {
         leads: { a: leadsA, b: leadsB },

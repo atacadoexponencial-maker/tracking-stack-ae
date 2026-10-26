@@ -43,7 +43,7 @@ import {
   avisosOpcoesInexistentes,
   lerCampo,
 } from './_feedback-marketing-crm.js';
-import { ehMql, ehSql } from './_feedback-marketing-mql.js';
+import { ehMql, ehSql, faixaDeFaturamento } from './_feedback-marketing-mql.js';
 import { CU_FIELD } from './_clickup.js';
 import { montarResposta, ERRO_FALHA_INESPERADA } from './_feedback-marketing-resposta.js';
 import {
@@ -101,7 +101,8 @@ export async function onRequest(context) {
 // resposta do relatório.
 // `contarSql` (só a Visão geral da reunião pede, série S4): cada bloco de lead
 // ganha `sqls`, quantos cards do bloco têm o campo "🏆 SQL" preenchido.
-export async function montarFeedback(env, periodo, avisosDoPeriodo, { emailsMql = false, contarSql = false } = {}) {
+// `contarFaixas` (idem): `faixas` { abaixo, acima, nao_informado } pelo faturamento.
+export async function montarFeedback(env, periodo, avisosDoPeriodo, { emailsMql = false, contarSql = false, contarFaixas = false } = {}) {
   const limites = limitesDoPeriodoUnix(periodo);
   // Só leitura. `ad_spend.date` já é dia de Brasília: o recorte é direto por
   // intervalo de data, pelo índice (platform, date), agregado por campanha.
@@ -175,6 +176,10 @@ export async function montarFeedback(env, periodo, avisosDoPeriodo, { emailsMql 
         bloco.emails_mql = cards.filter(ehMql).map((c) => String(lerCampo(c, { id: CU_FIELD.email }) || '').trim().toLowerCase());
       }
       if (contarSql && cards) bloco.sqls = cards.filter(ehSql).length;
+      if (contarFaixas && cards) {
+        bloco.faixas = { abaixo: 0, acima: 0, nao_informado: 0 };
+        for (const c of cards) bloco.faixas[faixaDeFaturamento(c)] += 1;
+      }
     } else if (f.tipo === 'manual') {
       bloco = montarBlocoManual({ funil: f, investimento: inv });
     } else {

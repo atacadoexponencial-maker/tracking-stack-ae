@@ -31,7 +31,7 @@ export async function lerCrm(env, de, ate, agora) {
   try {
     const r = resolverPeriodo({ inicio: ymdBrt(de), fim: ymdBrt(Math.min(ate, agora)) }, agora);
     if (!r.ok) return null;
-    const relatorio = await montarFeedback(env, r.periodo, [], { emailsMql: true, contarSql: true });
+    const relatorio = await montarFeedback(env, r.periodo, [], { emailsMql: true, contarSql: true, contarFaixas: true });
     const funis = (await env.DB.prepare('SELECT nome, posicao, funil_tracking FROM funis_relatorio').all()).results || [];
     const porFunil = {};
     for (const b of relatorio.blocos || []) {
@@ -43,7 +43,8 @@ export async function lerCrm(env, de, ate, agora) {
       }
       const f = funis.find((x) => x.nome === b.nome && x.posicao === b.posicao);
       const chave = (f && f.funil_tracking) || b.nome;
-      porFunil[chave] = porFunil[chave] || { leads_novos: 0, mqls: 0, sqls: 0, mqls_com_reuniao: 0, emails: [] };
+      porFunil[chave] = porFunil[chave] || { leads_novos: 0, mqls: 0, sqls: 0, mqls_com_reuniao: 0, emails: [], faixas: { abaixo: 0, acima: 0, nao_informado: 0 } };
+      for (const k of Object.keys(porFunil[chave].faixas)) porFunil[chave].faixas[k] += (b.faixas && b.faixas[k]) || 0;
       porFunil[chave].leads_novos += m.novos_leads;
       porFunil[chave].mqls += m.mqls;
       porFunil[chave].sqls += b.sqls || 0;
@@ -99,15 +100,20 @@ export async function lerAgenda(env, de, ate, agora) {
  * Números do CRM para os quadros da Visão geral da reunião (série S4): por
  * funil { leads_novos, mqls, sqls } e a soma de todos os funis. null = CRM não lido.
  */
+// Níveis de qualificação só da Sessão Estratégica: o workshop não pede faturamento.
+export const QUALIFICACAO_FUNIL = 'sessao-estrategica';
+
 export function numerosDoCrm(crm) {
-  if (!crm) return { crm: null, crm_total: null };
+  if (!crm) return { crm: null, crm_total: null, qualificacao: null, qualificacao_funil: QUALIFICACAO_FUNIL };
   const porFunil = {};
   const total = { leads_novos: 0, mqls: 0, sqls: 0 };
   for (const [f, x] of Object.entries(crm)) {
     porFunil[f] = { leads_novos: x.leads_novos, mqls: x.mqls, sqls: x.sqls || 0 };
     for (const k of Object.keys(total)) total[k] += porFunil[f][k];
   }
-  return { crm: porFunil, crm_total: total };
+  const fx = (crm[QUALIFICACAO_FUNIL] && crm[QUALIFICACAO_FUNIL].faixas) || { abaixo: 0, acima: 0, nao_informado: 0 };
+  const qualificacao = { ...fx, total: fx.abaixo + fx.acima + fx.nao_informado };
+  return { crm: porFunil, crm_total: total, qualificacao, qualificacao_funil: QUALIFICACAO_FUNIL };
 }
 
 // Consultorias do Calendly que já passaram da hora no período, com o funil do

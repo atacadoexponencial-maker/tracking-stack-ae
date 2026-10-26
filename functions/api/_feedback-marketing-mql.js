@@ -96,3 +96,14 @@ export const CAMPO_SQL = { id: 'b68130e0-204c-417f-b554-3b9f3782b941' };
 export function ehSql(card) {
   return Number(lerCampo(card, CAMPO_SQL)) > 0;
 }
+
+// Nível de qualificação pelo faturamento (série S4), só o faturamento, sem o
+// status do card: 'acima' é a mesma régua do MQL; 'abaixo' é faturamento com
+// número ou faixa de "até R$ 20 mil"; o resto (vazio, "não sei") é 'nao_informado'.
+export function faixaDeFaturamento(card) {
+  const texto = lerCampo(card, CAMPO_FATURAMENTO);
+  if (faturamentoAcimaDe20Mil(texto)) return 'acima';
+  const norm = normalizarTexto(texto);
+  if (norm && (PADROES_ATE_20_MIL.some((re) => re.test(norm)) || valoresDeDinheiro(norm).length)) return 'abaixo';
+  return 'nao_informado';
+}

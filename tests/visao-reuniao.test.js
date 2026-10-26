@@ -245,3 +245,45 @@ test('CA-S4-10: taxa sem base mostra traço', () => {
   assert.equal(q[0].rotulo, 'Lead → MQL');
   assert.equal(q[0].valor, '—');
 });
+
+// ---------------------------------------------------------------------------
+// Níveis de qualificação da Sessão Estratégica (S4-05)
+// ---------------------------------------------------------------------------
+test('CA-S4-11: leads novos de SE separados por faixa de faturamento', async () => {
+  const OPCAO_WO = { id: 'opt-wo', name: 'WORKSHOP', orderindex: 3 };
+  db.prepare(`INSERT INTO funis_relatorio VALUES (2, 'Workshop', 'lead_mql', 2, 'workshop', '', ?, 'qualquer', 'ativo')`)
+    .run(JSON.stringify([{ id: 'opt-wo', nome: 'WORKSHOP' }]));
+  const workshop = () => {
+    const c = card({ faturamento: 'R$ 80.000' });
+    c.custom_fields[0] = { id: CU_FIELD.funil, value: 'opt-wo', type_config: { options: [OPCAO_WO] } };
+    return c;
+  };
+  const cards = [
+    card({ faturamento: 'Até R$ 20 mil' }), card({ faturamento: 'Até R$ 20 mil' }),
+    card({ faturamento: 'R$ 50 mil' }), card({ faturamento: 'R$ 50 mil' }), card({ faturamento: '' }),
+    workshop(), workshop(), workshop(),
+  ];
+  const r = await crmDaSe(cards);
+  assert.deepEqual(r.qualificacao, { abaixo: 2, acima: 2, nao_informado: 1, total: 5 });
+  assert.equal(r.crm.workshop.leads_novos, 3, 'workshop lido, mas fora da qualificação');
+  const html = telaCom({ ...RESPOSTAS, taxas: taxasCom({ ...RESPOSTAS.taxas.atual, qualificacao: r.qualificacao, qualificacao_funil: 'sessao-estrategica' }, {}) });
+  const faixas = [...html.matchAll(/vr-faixa__rotulo">([^<]+)<[\s\S]*?vr-faixa__num">(\d+) <small>([^<]+)</g)].map((m) => [m[1], m[2], m[3]]);
+  assert.deepEqual(faixas, [['Abaixo de R$ 20 mil', '2', '40%'], ['Acima de R$ 20 mil', '2', '40%'], ['Não informado', '1', '20%']]);
+});
+
+test('CA-S4-12: faixa usa a mesma leitura de faturamento do MQL', async () => {
+  const { faixaDeFaturamento, ehMql } = await import('../functions/api/_feedback-marketing-mql.js');
+  const com = (texto) => ({ status: { status: 'qualificação' }, custom_fields: [{ id: CU_FIELD.faturamento, value: texto }] });
+  const casos = { 'menos de 20 mil': 'abaixo', '20k': 'abaixo', 'R$ 35.000': 'acima', 'entre 50 e 100 mil': 'acima' };
+  for (const [texto, faixa] of Object.entries(casos)) {
+    assert.equal(faixaDeFaturamento(com(texto)), faixa, texto);
+    assert.equal(ehMql(com(texto)), faixa === 'acima', `${texto}: mesma régua do MQL`);
+  }
+});
+
+test('CA-S4-13: bloco some com filtro de funil que não é SE', () => {
+  const taxas = taxasCom({ ...RESPOSTAS.taxas.atual, qualificacao: { abaixo: 1, acima: 1, nao_informado: 0, total: 2 }, qualificacao_funil: 'sessao-estrategica' }, {});
+  assert.ok(!telaCom({ ...RESPOSTAS, fSel: 'workshop', taxas }).includes('Níveis de qualificação'));
+  assert.ok(telaCom({ ...RESPOSTAS, fSel: 'sessao-estrategica', taxas }).includes('Níveis de qualificação'));
+  assert.ok(telaCom({ ...RESPOSTAS, taxas }).includes('Níveis de qualificação'));
+});
