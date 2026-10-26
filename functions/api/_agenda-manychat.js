@@ -30,7 +30,7 @@ export const CONSULTORIA_MANYCHAT = {
     meet: 15103236, // consultoria_meet
     gestao: 15103237, // consultoria_gestao: link de remarcar/cancelar
   },
-  fluxo: '', // flow_ns do fluxo da usuária; vazio = desligado
+  fluxo: 'content20261026235153_105229', // "Reunião Agendada" (modelo aprovado em 26/10); vazio = desligado
   consentimento: 'agendamento da consultoria individual',
 };
 

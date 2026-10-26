@@ -23,6 +23,8 @@ import { criarConvite, tipoDoFunil } from '../functions/api/_agenda-convite.js';
 import { CORTE_CALENDLY } from '../functions/api/_agenda-regras.js';
 import { CONSULTORIA_MANYCHAT, dataEHora, motivoParaPular, whatsappDaReuniao } from '../functions/api/_agenda-manychat.js';
 
+const FLUXO_REAL = CONSULTORIA_MANYCHAT.fluxo;
+
 function d1(db) {
   const conv = (b) => b.map((v) => (v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v));
   const stmt = (sql, binds = []) => ({
@@ -109,6 +111,8 @@ beforeEach(() => {
   env = { DB: d1(db), DASH_KEY: 'k', SYNC_SECRET: 's', GOOGLE_AGENDA_SA_JSON: SA };
   google = googleFalso();
   globalThis.fetch = google.fetchFalso;
+  // WhatsApp da consultoria começa desligado; os testes do WhatsApp ligam.
+  CONSULTORIA_MANYCHAT.fluxo = '';
 });
 
 const dash = (mod, corpo, qs = '') => (corpo
@@ -678,7 +682,7 @@ test('WhatsApp: agendamento e as três remarcações mandam a mensagem com os ca
     await Promise.all(pendentes);
     assert.deepEqual(mc.chamadas, []);
   } finally {
-    CONSULTORIA_MANYCHAT.fluxo = '';
+    CONSULTORIA_MANYCHAT.fluxo = FLUXO_REAL;
   }
 });
 
@@ -696,6 +700,6 @@ test('WhatsApp: falha no ManyChat fica no histórico e não atrapalha o agendame
     assert.equal(await whatsappDaReuniao(env, r.id, 'remarcou'), 'sem_telefone');
     assert.match(historicoWhats().at(-1), /sem telefone/);
   } finally {
-    CONSULTORIA_MANYCHAT.fluxo = '';
+    CONSULTORIA_MANYCHAT.fluxo = FLUXO_REAL;
   }
 });
