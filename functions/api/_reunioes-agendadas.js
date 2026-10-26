@@ -18,7 +18,7 @@
 
 import { listarFunisConhecidos } from './_funil-campanha.js';
 import { funilDoLead, carregarMapaCampanhas, normalizarFunil } from './_funil-lead.js';
-import { CORTE_CALENDLY } from './_agenda-regras.js';
+import { CORTE_CALENDLY, DURACAO_CALENDLY } from './_agenda-regras.js';
 
 export const FUNIL_SEM_LEAD = 'sessao-estrategica';
 // D1 limita parâmetros por consulta; `IN (?, …)` explícito é o que usa o
@@ -172,4 +172,65 @@ export async function reunioesRealizadas(DB, de, ate) {
     console.error('reuniões realizadas: Calendly', e.message);
   }
   return funisDasReunioes(DB, itens);
+}
+
+// ---------------------------------------------------------------------------
+// Coorte de agendamento (Visão geral, ajuste de 26/10): as reuniões agendadas
+// no período (a mesma seleção de reunioesAgendadas) e o que aconteceu com
+// cada uma ATÉ AGORA, em qualquer data. Assim RA → RR fala dos mesmos leads
+// que agendaram, em vez de misturar reuniões de outras semanas.
+//   status: realizada | faltou | cancelada | a_acontecer | sem_presenca
+//   (sem_presenca = já passou e ninguém marcou; sem_info conta aqui)
+// ---------------------------------------------------------------------------
+export const STATUS_COORTE = ['realizada', 'faltou', 'cancelada', 'a_acontecer', 'sem_presenca'];
+
+export function statusNaCoorte({ situacao, presenca, fim, origem }, agora) {
+  if (origem === 'calendly') {
+    if (presenca === 'realizada' || presenca === 'faltou') return presenca;
+    if (presenca === 'sem_info') return 'sem_presenca';
+    return fim > agora ? 'a_acontecer' : 'sem_presenca';
+  }
+  if (situacao === 'cancelada') return 'cancelada';
+  if (situacao === 'realizada' || situacao === 'faltou') return situacao;
+  if (situacao === 'sem_info') return 'sem_presenca';
+  return fim > agora ? 'a_acontecer' : 'sem_presenca';
+}
+
+/** [{ funil, status }] das reuniões agendadas entre `de` e `ate` (unix, inclusivo). */
+export async function coorteDasAgendadas(DB, de, ate, agora) {
+  const { results: agenda } = await DB.prepare(`
+    SELECT COALESCE(funil, '') AS funil, email, criado_em, situacao, fim FROM agenda_reunioes
+     WHERE comercial = 1 AND is_teste = 0 AND criado_em >= ? AND criado_em <= ?
+       AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)`,
+  ).bind(de, ate).all();
+  const naAgenda = new Set((agenda || []).map((r) => normalizar(r.email)));
+  let calendly = [];
+  try {
+    const { results } = await DB.prepare(`
+      SELECT email, agendou_em, presenca, COALESCE(fim, inicio + ?) AS fim FROM calendly_consultorias
+       WHERE situacao = 'ativa' AND marcada_pela_equipe = 0 AND agendou_em >= ? AND agendou_em <= ?`,
+    ).bind(DURACAO_CALENDLY, de, ate).all();
+    calendly = (results || []).filter((c) => !naAgenda.has(normalizar(c.email)));
+  } catch (e) {
+    console.error('coorte: Calendly', e.message);
+  }
+  const itens = [
+    ...(agenda || []).map((r) => ({ email: r.email, quando: r.criado_em, funil: r.funil, status: statusNaCoorte(r, agora) })),
+    ...calendly.map((c) => ({ email: c.email, quando: c.agendou_em, funil: FUNIL_SEM_LEAD, status: statusNaCoorte({ ...c, origem: 'calendly' }, agora) })),
+  ];
+  const funis = await funisDasReunioes(DB, itens);
+  return itens.map((x, i) => ({ funil: funis[i].funil, status: x.status }));
+}
+
+/** { total, por_funil } com { agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca }. */
+export function resumirCoorte(lista) {
+  const zero = () => Object.fromEntries([['agendadas', 0], ...STATUS_COORTE.map((s) => [s, 0])]);
+  const total = zero();
+  const por_funil = {};
+  for (const { funil, status } of lista || []) {
+    const f = funil || 'sem-funil';
+    por_funil[f] = por_funil[f] || zero();
+    for (const alvo of [total, por_funil[f]]) { alvo.agendadas += 1; alvo[status] += 1; }
+  }
+  return { total, por_funil };
 }

@@ -2244,7 +2244,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-contexto.js"></script>
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
-<script src="/dash/visao-reuniao.js?v=2026-10-26m"></script>
+<script src="/dash/visao-reuniao.js?v=2026-10-26n"></script>
 <script>
 (() => {
 'use strict';
@@ -3028,7 +3028,7 @@ R.visao = async () => {
   const minha = renderAtual;
   const ctx = { esc, fmtInt, fmtNum, fmtPct, money, tile, tabela, comparar, delta, deltaChip };
   const mapaQ = versaoMapaFunil ? '&mapa=' + versaoMapaFunil : '';
-  const [leadsA, leadsB, cplA, cplB, atrA, atrB] = await Promise.all([
+  const [leadsA, leadsB, cplA, cplB, atrA, atrB, coorte] = await Promise.all([
     fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&only=funnelCounts`),
     fetchJson(`/api/leads?${q(p.antDe, p.antAte)}${funilQ}&only=funnelCounts`),
     // `v=s4`: resposta antiga guardada no cache de período fechado não traz entradas_grupos.
@@ -3036,8 +3036,10 @@ R.visao = async () => {
     fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}&v=s4`).catch(() => null),
     fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
+    // Coorte de agendamento: sem cache, muda a cada presença marcada.
+    fetchJson(`/api/agenda/coorte?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&_=${Date.now()}`).catch(() => null),
   ]);
-  const respostas = { leadsA, leadsB, cplA, cplB, atrA, atrB, fSel, quando: textoQuando() };
+  const respostas = { leadsA, leadsB, cplA, cplB, atrA, atrB, coorte, fSel, quando: textoQuando() };
   const desenhar = (taxas) => {
     window.VisaoReuniao.desenhar($('#visao-reuniao'), window.VisaoReuniao.montarNumeros({ ...respostas, taxas }, ctx), ctx);
   };

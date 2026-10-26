@@ -180,6 +180,8 @@ const taxasCom = (atual, anterior) => ({
   atual: { crm_lido: true, mql_funis: ['sessao-estrategica', 'aquisicao'], ...atual },
   anterior: anterior === null ? null : { crm_lido: true, mql_funis: ['sessao-estrategica', 'aquisicao'], ...anterior },
 });
+// { agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca }
+const co = (agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca) => ({ agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca });
 const CRM_A = { 'sessao-estrategica': { leads_novos: 5, mqls: 3, sqls: 2, mqls_com_reuniao: 2 }, workshop: { leads_novos: 2, mqls: 1, sqls: 0, mqls_com_reuniao: 0 } };
 const CRM_B = { 'sessao-estrategica': { leads_novos: 4, mqls: 2, sqls: 1, mqls_com_reuniao: 1 }, workshop: { leads_novos: 2, mqls: 0, sqls: 0, mqls_com_reuniao: 0 } };
 const RESPOSTAS = {
@@ -189,8 +191,8 @@ const RESPOSTAS = {
     total_leads_novos: 7,
     por_funil: [{ funnel: 'sessao-estrategica', spend: 300, leads_novos: 4 }, { funnel: 'workshop', spend: 100, leads_novos: 3 }],
     reunioes: {
-      total: { agendadas: 5, realizadas: 3, custo_agendada: 60, custo_realizada: 100 },
-      por_funil: { 'sessao-estrategica': { agendadas: 4, realizadas: 2, custo_agendada: 75, custo_realizada: 150 }, workshop: { agendadas: 1, realizadas: 1, custo_agendada: 100, custo_realizada: 100 } },
+      total: { spend: 300, agendadas: 5, realizadas: 3, custo_agendada: 60, custo_realizada: 100 },
+      por_funil: { 'sessao-estrategica': { spend: 300, agendadas: 4, realizadas: 2, custo_agendada: 75, custo_realizada: 150 }, workshop: { spend: 100, agendadas: 1, realizadas: 1, custo_agendada: 100, custo_realizada: 100 } },
     },
     entradas_grupos: { workshop: 7 },
   },
@@ -198,12 +200,17 @@ const RESPOSTAS = {
     total_leads_novos: 6,
     por_funil: [{ funnel: 'sessao-estrategica', spend: 250, leads_novos: 4 }, { funnel: 'workshop', spend: 90, leads_novos: 2 }],
     reunioes: {
-      total: { agendadas: 4, realizadas: 2, custo_agendada: 62.5, custo_realizada: 125 },
-      por_funil: { 'sessao-estrategica': { agendadas: 3, realizadas: 1, custo_agendada: 83.33, custo_realizada: 250 }, workshop: { agendadas: 1, realizadas: 1, custo_agendada: 90, custo_realizada: 90 } },
+      total: { spend: 250, agendadas: 4, realizadas: 2, custo_agendada: 62.5, custo_realizada: 125 },
+      por_funil: { 'sessao-estrategica': { spend: 250, agendadas: 3, realizadas: 1, custo_agendada: 83.33, custo_realizada: 250 }, workshop: { spend: 90, agendadas: 1, realizadas: 1, custo_agendada: 90, custo_realizada: 90 } },
     },
     entradas_grupos: { workshop: 5 },
   },
   atrA: { meta_spend: 400 }, atrB: { meta_spend: 340 },
+  // Coorte de agendamento: das agendadas no período, o que já aconteceu.
+  coorte: {
+    atual: { total: co(5, 3, 1, 0, 1, 0), por_funil: { 'sessao-estrategica': co(4, 2, 1, 0, 1, 0), workshop: co(1, 1, 0, 0, 0, 0) } },
+    anterior: { total: co(4, 2, 1, 0, 0, 1), por_funil: { 'sessao-estrategica': co(3, 1, 1, 0, 0, 1), workshop: co(1, 1, 0, 0, 0, 0) } },
+  },
   taxas: taxasCom(
     { crm_total: { leads_novos: 7, mqls: 4, sqls: 2 }, crm: CRM_A, mql: { leads_novos: 5, mqls: 3, mqls_com_reuniao: 2 }, total: { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 },
       por_funil: { 'sessao-estrategica': { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 } },
@@ -269,10 +276,10 @@ test('CA-S4-08: três taxas de passagem dos leads novos', () => {
     crm_total: { leads_novos: 50, mqls: 13, sqls: 0 },
     crm: { 'sessao-estrategica': { leads_novos: 40, mqls: 12, sqls: 0 }, workshop: { leads_novos: 10, mqls: 1, sqls: 0 } },
     mql: { leads_novos: 40, mqls: 12, mqls_com_reuniao: 6 },
-    total: { mqls: 13, mqls_com_reuniao: 7, ocorridas: 5, realizadas: 3 },
-    por_funil: { 'sessao-estrategica': { mqls: 12, mqls_com_reuniao: 6, ocorridas: 4, realizadas: 2 } },
+    total: { mqls: 13, mqls_com_reuniao: 7 }, por_funil: {},
   };
-  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, atual) }).html);
+  const coorte = { atual: { total: co(6, 3, 2, 1, 0, 0), por_funil: {} }, anterior: { total: co(6, 3, 2, 1, 0, 0), por_funil: {} } };
+  const p = passagens(telaCom({ ...RESPOSTAS, coorte, taxas: taxasCom(atual, atual) }).html);
   assert.deepEqual(p.map((x) => [x.rotulo, x.valor, x.detalhe.split(' · ')[0]]), [
     ['Lead → MQL', '30%', '12 de 40'],
     ['MQL → RA', '50%', '6 de 12'],
@@ -281,18 +288,20 @@ test('CA-S4-08: três taxas de passagem dos leads novos', () => {
 });
 
 test('CA-S4-09: RA → RR conta as reuniões do Calendly', async () => {
-  const { lerAgenda } = await import('../functions/api/agenda/taxas.js');
-  const { taxasPorFunil } = await import('../functions/api/_agenda-funil.js');
-  reuniaoAgenda('realizada', '2026-10-21T14:00:00');
-  consultoria('realizada', '2026-10-22T16:00:00');
-  consultoria('faltou', '2026-10-23T16:00:00');
-  consultoria('realizada', '2026-10-30T16:00:00'); // ainda no futuro: não entra
-  const agenda = await lerAgenda(env, P.de, P.ate, AGORA);
-  const t = taxasPorFunil({ crm: null, agenda, funisComAgenda: ['sessao-estrategica'] }).total;
-  assert.equal(t.realizadas, 2);
-  assert.equal(t.ocorridas, 3);
-  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom({ ...RESPOSTAS.taxas.atual, total: t }, null) }).html);
-  assert.deepEqual([p[2].valor, p[2].detalhe.split(' · ')[0]], ['67%', '2 de 3']);
+  // Coorte (ajuste de 26/10): das reuniões agendadas no período, as que já passaram.
+  const { coorteDasAgendadas, resumirCoorte } = await import('../functions/api/_reunioes-agendadas.js');
+  reuniaoAgenda('realizada', '2026-10-21T14:00:00'); // agendou em 20/10
+  const calendly = db.prepare(`INSERT INTO calendly_consultorias (invitee_uri, event_uri, email, agendou_em, inicio, situacao, presenca, atualizado_em)
+                               VALUES (?, ?, ?, ?, ?, 'ativa', ?, 0)`);
+  calendly.run('inv-r', 'ev-r', 'r@x.com', em('2026-10-20T10:00:00'), em('2026-10-22T16:00:00'), 'realizada');
+  calendly.run('inv-f', 'ev-f', 'f@x.com', em('2026-10-20T11:00:00'), em('2026-10-23T16:00:00'), 'faltou');
+  calendly.run('inv-p', 'ev-p', 'p@x.com', em('2026-10-24T11:00:00'), em('2026-10-30T16:00:00'), null); // ainda vai acontecer
+  calendly.run('inv-a', 'ev-a', 'a@x.com', em('2026-10-10T11:00:00'), em('2026-10-21T16:00:00'), 'realizada'); // agendou antes: fora
+  const resumo = resumirCoorte(await coorteDasAgendadas(env.DB, P.de, P.ate, AGORA));
+  assert.deepEqual(resumo.total, co(4, 2, 1, 0, 1, 0));
+  const p = passagens(telaCom({ ...RESPOSTAS, coorte: { atual: resumo, anterior: null } }).html);
+  assert.equal(p[2].valor, '67%');
+  assert.equal(p[2].detalhe, '2 de 3 · que já passaram · 1 a acontecer');
 });
 
 test('CA-S4-10: taxa sem base mostra traço', () => {
@@ -417,15 +426,12 @@ test('ajuste 26/10: MQL e Lead → MQL olham só Sessão Estratégica + Aquisiç
   assert.equal(primeiro(etapas(aq)[1].num), '1', 'aquisição tem MQL');
 });
 
-test('ajuste 26/10: MQL → RA usa a base de MQL, RA → RR todas as reuniões', () => {
-  const atual = {
-    ...RESPOSTAS.taxas.atual,
-    mql: { leads_novos: 26, mqls: 16, mqls_com_reuniao: 10 },
-    total: { mqls: 17, mqls_com_reuniao: 11, ocorridas: 13, realizadas: 1 },
-  };
-  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, null) }).html);
+test('ajuste 26/10: MQL → RA usa a base de MQL, RA → RR a coorte de agendamento', () => {
+  const atual = { ...RESPOSTAS.taxas.atual, mql: { leads_novos: 26, mqls: 16, mqls_com_reuniao: 10 } };
+  const coorte = { atual: { total: co(11, 1, 2, 1, 7, 0), por_funil: {} }, anterior: null };
+  const p = passagens(telaCom({ ...RESPOSTAS, coorte, taxas: taxasCom(atual, null) }).html);
   assert.equal(p[1].detalhe.split(' · ')[0], '10 de 16');
-  assert.equal(p[2].detalhe.split(' · ')[0], '1 de 13');
+  assert.equal(p[2].detalhe.split(' · ')[0], '1 de 3', 'coorte: das agendadas no período, as que já passaram');
 });
 
 test('ajuste 26/10: custo de cada etapa do funil', () => {
