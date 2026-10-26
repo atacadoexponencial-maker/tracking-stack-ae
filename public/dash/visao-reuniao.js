@@ -129,7 +129,7 @@
     ];
     // Passagem depois de cada etapa (índice da etapa de cima).
     const PASSAGENS = { 0: ['lead_mql', 'Lead → MQL', 'Sessão Estratégica'], 2: ['mql_ra', 'MQL → RA', 'dos MQLs, quantos agendaram'], 3: ['ra_rr', 'RA → RR', 'das que já passaram'] };
-    const LARGURAS = [100, 84, 68, 52, 36];
+    const LARGURAS = [100, 88, 76, 64, 52];
     const etapa = (e, i) => {
       let nota = e.nota || '';
       let num = vazio(a[e.k]) ? '<span class="semdado">—</span>' : fmtInt(a[e.k]);

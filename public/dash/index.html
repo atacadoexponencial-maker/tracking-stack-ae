@@ -900,12 +900,13 @@ td.pago, th.pago { color: var(--alerta); }
 .vr-funil { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 1.1rem 1.2rem; }
 .vr-etapa { display: grid; grid-template-columns: 130px minmax(0, 1fr) 190px; gap: 0.2rem 1rem; align-items: center; }
 .vr-etapa__num b { font-size: 1.9rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; margin-right: 0.4rem; }
-.vr-etapa__faixa span { display: block; width: var(--vr-largura); margin: 0 auto; background: var(--tinta); color: var(--bege); text-align: center; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.85rem 0.4rem; border-radius: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vr-etapa__faixa span { display: block; width: var(--vr-largura); margin: 0 auto; background: var(--tinta); color: var(--bege); text-align: center; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.85rem 0.4rem; border-radius: 2px; }
 .vr-etapa__faixa small { display: block; font-size: 0.62rem; font-weight: 500; letter-spacing: 0.06em; text-transform: none; color: var(--taupe); }
 .vr-etapa__custo { text-align: right; }
 .vr-etapa__custo small { display: block; font-size: 0.7rem; color: var(--apagado); }
 .vr-etapa__custo b { font-size: 1.05rem; font-variant-numeric: tabular-nums; margin-right: 0.35rem; }
 .vr-etapa__nota { grid-column: 1 / -1; font-size: 0.7rem; color: var(--apagado); margin-top: -0.1rem; }
+.vr-etapa + .vr-etapa { margin-top: 0.9rem; } /* MQL → SQL: sem taxa entre as faixas */
 .vr-passagem { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0.15rem 0.45rem; padding: 0.35rem 0 0.45rem; font-size: 0.85rem; }
 .vr-passagem__seta { color: var(--apagado); }
 .vr-passagem__rotulo { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tinta-2); }
@@ -923,6 +924,11 @@ td.pago, th.pago { color: var(--alerta); }
   .vr-etapa { grid-template-columns: minmax(0, 1fr) auto; }
   .vr-etapa__faixa { grid-column: 1 / -1; order: -1; }
   .vr-etapa__faixa span { width: 100%; }
+}
+@media (max-width: 640px) {
+  .vr-etapa { grid-template-columns: 1fr; }
+  .vr-etapa__custo { text-align: left; }
+  .vr-etapa__custo small { display: inline; margin-right: 0.35rem; }
 }
 .vr-faixa { display: grid; grid-template-columns: minmax(150px, 24%) minmax(0, 1fr) 96px; gap: 0.4rem 0.9rem; align-items: center; margin: 0.35rem 0; }
 .vr-faixa .regua { margin: 0; }
@@ -2230,7 +2236,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-contexto.js"></script>
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
-<script src="/dash/visao-reuniao.js?v=2026-10-26d"></script>
+<script src="/dash/visao-reuniao.js?v=2026-10-26e"></script>
 <script>
 (() => {
 'use strict';
