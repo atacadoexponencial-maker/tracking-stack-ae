@@ -78,3 +78,9 @@ Nenhuma.
 - [x] `R.detalhado` com a função antiga; `R.visao` novo
 - [x] Menu, `TITULOS` e `FILTROS`
 - [x] Conferir no navegador que Detalhado mostra a tela antiga
+
+## Testes manuais
+
+| Critério | Conferido por | Dia |
+|---|---|---|
+| CA-S4-16 | Marcelle | 26/10/2026 |
