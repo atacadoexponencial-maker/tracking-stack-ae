@@ -1,7 +1,8 @@
 // GET  /api/agenda/reunioes?key=...&from=&to=[&tipo=&situacao=]
 //        → reuniões cujo HORÁRIO cai no período + números do período
 //          (+ consultorias do Calendly desde 19/10, origem 'calendly'; presença à mão)
-// GET  /api/agenda/reunioes?key=...&id=<id>      → detalhe com histórico e e-mails da reunião
+// GET  /api/agenda/reunioes?key=...&id=<id>      → detalhe com histórico, e-mails e comentários da reunião
+//                                                  (id do Calendly = invitee_uri: só dados do Calendly + comentários)
 // GET  /api/agenda/reunioes?key=...&por=funil&from=&to=
 //        → Reuniões agendadas por funil (painel da Visão geral): reuniões
 //          comerciais MARCADAS no período (data em que o lead agendou), sem
@@ -11,6 +12,7 @@
 //                                      { acao: 'remarcar', id, inicio }
 //                                      { acao: 'presenca', id, situacao: 'realizada'|'faltou'|'sem_info' }
 //                                        (id do Calendly = invitee_uri)
+//                                      { acao: 'comentar', id, texto }  (qualquer situação; vai ao ClickUp)
 //
 // Spec spec-agenda-propria.md, módulos 5 e 8 (issues 361 e 362).
 import {
@@ -22,6 +24,7 @@ import { isInternalTestEmail } from '../../tracker.js';
 import { ymdBrt, inicioDoDiaBrt } from '../_data-brt.js';
 import {
   lerReuniao, lerTipo, cancelar, remarcar, registrarNoCrm, textoCrm, historico, agora, enviarRealizada,
+  comentar, lerComentarios,
 } from '../_agenda.js';
 import { emailsDaMudanca, emailsDaReuniao } from '../_email-agenda.js';
 
@@ -40,6 +43,7 @@ export async function onRequestGet({ request, env }) {
   if (!autorizado(url, env)) return json({ error: 'Unauthorized' }, 401);
   const p = url.searchParams;
 
+  if (p.get('id') && p.get('id').startsWith(ID_CALENDLY)) return detalheCalendly(env, p.get('id'));
   if (p.get('id')) {
     const r = await lerReuniao(env, { id: p.get('id') });
     if (!r) return json({ error: 'Reunião não encontrada.' }, 404);
@@ -49,7 +53,7 @@ export async function onRequestGet({ request, env }) {
       ? await env.DB.prepare('SELECT utm_source, utm_medium, utm_campaign FROM sessions WHERE session_id = ?').bind(r.session_id).first()
       : null;
     const { token_gestao, ip, session_id, ...publico } = r;
-    return json({ reuniao: { ...publico, tipo_nome: tipo?.nome, crm_link: linkCrm(r.crm_situacao), origem: sessao || null }, historico: hist, emails: await emailsDaReuniao(env, r.id) });
+    return json({ reuniao: { ...publico, tipo_nome: tipo?.nome, crm_link: linkCrm(r.crm_situacao), origem: sessao || null }, historico: hist, emails: await emailsDaReuniao(env, r.id), comentarios: await lerComentarios(env, r.id) });
   }
 
   const de = Number(p.get('from')) || agora() - 30 * 86400;
@@ -183,23 +187,50 @@ async function doCalendly(env, vista, janela) {
 const ID_CALENDLY = 'https://api.calendly.com/';
 const TIPO_CALENDLY = { nome: 'Consultoria Individual (Calendly)' };
 
+const lerCalendly = (env, id) => env.DB.prepare('SELECT * FROM calendly_consultorias WHERE invitee_uri = ?').bind(String(id)).first();
+
+/** Consultoria do Calendly no formato de reunião que registrarNoCrm e enviarRealizada esperam. */
+async function reuniaoDoCalendly(env, c) {
+  const [{ funil }] = await funisDasReunioes(env.DB, [{ email: c.email, quando: c.agendou_em, funil: '' }]);
+  return {
+    id: c.invitee_uri, comercial: 1, is_teste: isInternalTestEmail(c.email) ? 1 : 0, inicio: c.inicio,
+    fim: c.fim || c.inicio + DURACAO_CALENDLY, nome: c.nome || '', email: c.email, telefone: c.telefone, funil,
+  };
+}
+
+// Detalhe de uma consultoria do Calendly para a gaveta do dash: o que o
+// Calendly tem (sem respostas, histórico nem e-mails) e os comentários.
+async function detalheCalendly(env, id) {
+  const c = await lerCalendly(env, id);
+  if (!c) return json({ error: 'Reunião não encontrada.' }, 404);
+  const r = await reuniaoDoCalendly(env, c);
+  const linha = linhaDoCalendly(c, agora());
+  const comentarios = await lerComentarios(env, c.invitee_uri);
+  // O card só é procurado na presença ou num comentário: vale o último resultado.
+  const crm = [c.crm_situacao, ...comentarios.map((x) => x.crm_situacao)].filter(Boolean).pop() || null;
+  return json({
+    reuniao: {
+      ...linha, situacao: c.situacao === 'cancelada' ? 'cancelada' : linha.situacao, comercial: 1, funil: r.funil,
+      tipo_nome: TIPO_CALENDLY.nome, crm_link: linkCrm(crm), crm_situacao: crm || 'calendly_sem_registro', conversao_realizada: c.conversao_realizada,
+      presenca_origem: c.presenca ? 'manual' : null, respostas: [],
+    },
+    historico: [], emails: [], comentarios,
+  });
+}
+
 // Presença de uma consultoria do Calendly, marcada à mão: grava na própria
 // linha, comenta no card do ClickUp e manda "reunião realizada" ao Meta/GA4
 // (mesmas regras da agenda própria, inclusive o prazo de 7 dias).
 async function presencaCalendly(env, corpo, waitUntil) {
   if (!['realizada', 'faltou', 'sem_info'].includes(corpo.situacao)) return json({ error: 'Situação inválida.' }, 400);
-  const c = await env.DB.prepare('SELECT * FROM calendly_consultorias WHERE invitee_uri = ?').bind(String(corpo.id)).first();
+  const c = await lerCalendly(env, corpo.id);
   if (!c) return json({ error: 'Reunião não encontrada.' }, 404);
   if (c.situacao !== 'ativa') return json({ error: 'Reunião cancelada não tem presença.' }, 409);
   if (c.inicio > agora()) return json({ error: 'A reunião ainda não aconteceu.' }, 409);
   await env.DB.prepare('UPDATE calendly_consultorias SET presenca = ?, presenca_em = ? WHERE invitee_uri = ?')
     .bind(corpo.situacao, agora(), c.invitee_uri).run();
   if (corpo.situacao === 'sem_info') return json({ ok: true });
-  const [{ funil }] = await funisDasReunioes(env.DB, [{ email: c.email, quando: c.agendou_em, funil: '' }]);
-  const reuniao = {
-    id: c.invitee_uri, comercial: 1, is_teste: isInternalTestEmail(c.email) ? 1 : 0, inicio: c.inicio,
-    fim: c.fim || c.inicio + DURACAO_CALENDLY, nome: c.nome || '', email: c.email, telefone: c.telefone, funil,
-  };
+  const reuniao = await reuniaoDoCalendly(env, c);
   await registrarNoCrm(env, reuniao, textoCrm(corpo.situacao, TIPO_CALENDLY, reuniao, '(marcado pela equipe no dash)'),
     (situacao) => env.DB.prepare('UPDATE calendly_consultorias SET crm_situacao = ? WHERE invitee_uri = ?').bind(situacao, c.invitee_uri).run().then(() => situacao));
   if (corpo.situacao === 'realizada') {
@@ -214,6 +245,12 @@ export async function onRequestPost({ request, env, waitUntil }) {
   if (!autorizado(new URL(request.url), env)) return json({ error: 'Unauthorized' }, 401);
   const corpo = await request.json().catch(() => ({}));
   if (corpo.acao === 'presenca' && String(corpo.id || '').startsWith(ID_CALENDLY)) return presencaCalendly(env, corpo, waitUntil);
+  if (corpo.acao === 'comentar' && String(corpo.id || '').startsWith(ID_CALENDLY)) {
+    const c = await lerCalendly(env, corpo.id);
+    if (!c) return json({ error: 'Reunião não encontrada.' }, 404);
+    const r = await comentar(env, await reuniaoDoCalendly(env, c), TIPO_CALENDLY, corpo.texto);
+    return r.erro ? json({ error: r.erro }, 400) : json({ ok: true, comentarios: await lerComentarios(env, c.invitee_uri) });
+  }
   const reuniao = await lerReuniao(env, { id: String(corpo.id || '') });
   if (!reuniao) return json({ error: 'Reunião não encontrada.' }, 404);
   const tipo = await lerTipo(env, { id: reuniao.tipo_id });
@@ -244,6 +281,11 @@ export async function onRequestPost({ request, env, waitUntil }) {
     if (corpo.situacao !== 'sem_info') await registrarNoCrm(env, reuniao, textoCrm(corpo.situacao, tipo, reuniao, '(corrigido pela equipe)'));
     if (corpo.situacao === 'realizada') await enviarRealizada(env, reuniao, waitUntil || (() => {}));
     return json({ ok: true });
+  }
+
+  if (corpo.acao === 'comentar') {
+    const r = await comentar(env, reuniao, tipo, corpo.texto);
+    return r.erro ? json({ error: r.erro }, 400) : json({ ok: true, comentarios: await lerComentarios(env, reuniao.id) });
   }
 
   return json({ error: 'Ação desconhecida.' }, 400);

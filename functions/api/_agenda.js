@@ -347,11 +347,37 @@ export function textoCrm(acao, tipo, reuniao, extra = '') {
     cancelou: `❌ Reunião cancelada: ${tipo.nome} · ${quando}`,
     realizada: `✅ Compareceu à reunião: ${tipo.nome} · ${quando}`,
     faltou: `⚠️ Faltou à reunião: ${tipo.nome} · ${quando}`,
+    comentou: `💬 Comentário sobre a reunião: ${tipo.nome} · ${quando}`,
   }[acao] || acao;
   const respostas = acao === 'agendou'
     ? (reuniao.respostas || []).filter((r) => r.resposta).map((r) => `${r.pergunta}: ${r.resposta}`).join('\n')
     : '';
   return [base, respostas, extra].filter(Boolean).join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// Comentários da equipe (pedido do comercial em 26/10): vários por reunião,
+// só acrescenta, em qualquer situação. Cada um vira um comentário novo no card
+// do ClickUp. Serve à agenda própria e ao Calendly (reuniao.id = invitee_uri).
+// ---------------------------------------------------------------------------
+
+export const LIMITE_COMENTARIO = 2000;
+
+export async function comentar(env, reuniao, tipo, texto) {
+  const t = String(texto || '').trim();
+  if (!t) return { erro: 'Escreva o comentário antes de salvar.' };
+  if (t.length > LIMITE_COMENTARIO) return { erro: `O comentário passou de ${LIMITE_COMENTARIO} caracteres.` };
+  const r = await env.DB.prepare('INSERT INTO agenda_comentarios (reuniao_id, texto, criado_em) VALUES (?, ?, ?)')
+    .bind(reuniao.id, t, agora()).run();
+  const id = r.meta.last_row_id;
+  await registrarNoCrm(env, reuniao, textoCrm('comentou', tipo, reuniao, t),
+    (situacao) => env.DB.prepare('UPDATE agenda_comentarios SET crm_situacao = ? WHERE id = ?').bind(situacao, id).run().then(() => situacao));
+  return { ok: true };
+}
+
+export async function lerComentarios(env, reuniaoId) {
+  return (await env.DB.prepare('SELECT id, texto, crm_situacao, criado_em FROM agenda_comentarios WHERE reuniao_id = ? ORDER BY criado_em, id')
+    .bind(reuniaoId).all()).results || [];
 }
 
 // ---------------------------------------------------------------------------

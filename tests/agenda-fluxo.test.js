@@ -102,7 +102,7 @@ beforeEach(() => {
   db.exec(readFileSync(new URL('../migrations/0048_agenda_descricao.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0049_agenda_etapas.sql', import.meta.url), 'utf8'));
   // E-mails da agenda (issue 379): os ganchos de e-mail rodam de verdade.
-  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0052_email_agenda.sql', '0059_agenda_tipos_teste.sql', '0064_agenda_janela_contagem.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+  for (const f of ['0050_email.sql', '0051_email_modelos.sql', '0052_email_agenda.sql', '0059_agenda_tipos_teste.sql', '0064_agenda_janela_contagem.sql', '0067_agenda_comentarios.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   // As colunas de UTM da sessão entraram fora das migrations (conferido no D1 remoto).
   for (const c of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'funnel']) db.exec(`ALTER TABLE sessions ADD COLUMN ${c} TEXT`);
   env = { DB: d1(db), DASH_KEY: 'k', SYNC_SECRET: 's', GOOGLE_AGENDA_SA_JSON: SA };
@@ -383,6 +383,88 @@ test('Calendly: presença à mão sai de aguardando, entra no comparecimento, ma
     { uri: 'ev', status: 'active', start_time: new Date((t - 86400) * 1000).toISOString(), convidados: [{ uri: uri('ontem'), email: 'ontem@empresa.com', created_at: '2026-10-20T10:00:00Z', status: 'active' }] },
   ] }) }), env });
   assert.equal(linha('ontem').presenca, 'realizada');
+});
+
+// ClickUp simulado por cima do Google: só a Rita tem card; guarda os comentários.
+function clickupFalso() {
+  const comentarios = [];
+  const anterior = globalThis.fetch;
+  globalThis.fetch = async (url, op = {}) => {
+    const u = String(url);
+    if (!u.startsWith('https://api.clickup.com/')) return anterior(url, op);
+    if (u.includes('/comment')) { comentarios.push({ card: /\/task\/([^/]+)\/comment/.exec(u)[1], texto: JSON.parse(op.body).comment_text }); return Response.json({ id: 'c' }); }
+    const filtro = JSON.parse(new URL(u).searchParams.get('custom_fields'))[0];
+    return Response.json({ tasks: filtro.value === 'rita@empresa.com' ? [{ id: 'card-rita' }] : [] });
+  };
+  env.CLICKUP_API_TOKEN = 'cu';
+  return comentarios;
+}
+
+test('comentários: vários por reunião, em qualquer situação, cada um vira comentário no card do ClickUp', async () => {
+  await configurar();
+  const t = await tipoDoFunil(env, 'sessao-estrategica');
+  const c = await criarConvite(env, t, { eventId: 'lead-7', nome: 'Rita Lead', email: 'rita@empresa.com', telefone: '5511987654321', funil: 'sessao-estrategica' });
+  const h = await publico(pubHorarios, { qs: `?slug=consultoria-individual&c=${c}` });
+  const dia = Object.keys(h.corpo.dias)[1];
+  pendentes = [];
+  const ok = await publico(pubConfirmar, { corpo: { slug: 'consultoria-individual', c, inicio: h.corpo.dias[dia][0], nome: 'Rita Lead', email: 'rita@empresa.com', telefone: '11987654321', respostas: ['A'] } });
+  assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+  await Promise.all(pendentes);
+  const { id } = db.prepare('SELECT id FROM agenda_reunioes').get();
+  const cu = clickupFalso();
+  const comentar = (texto, rid = id) => dash(reunioes, { acao: 'comentar', id: rid, texto });
+
+  assert.equal((await comentar('   ')).status, 400);
+  assert.equal((await comentar('x'.repeat(2001))).status, 400);
+  assert.equal((await comentar('oi', 'nao-existe')).status, 404);
+
+  // Marcada (antes da reunião)
+  const a = await comentar('  Não respondeu a ativação  ');
+  assert.equal(a.status, 200, JSON.stringify(a.corpo));
+  assert.deepEqual(a.corpo.comentarios.map((x) => [x.texto, x.crm_situacao]), [['Não respondeu a ativação', 'ok:card-rita']]);
+  assert.equal(cu.length, 1);
+  assert.equal(cu[0].card, 'card-rita');
+  assert.match(cu[0].texto, /^💬 Comentário sobre a reunião: Consultoria Individual · /);
+  assert.match(cu[0].texto, /\nNão respondeu a ativação$/);
+
+  // Cancelada também aceita, e o anterior continua lá (só acrescenta).
+  assert.equal((await dash(reunioes, { acao: 'cancelar', id })).status, 200);
+  assert.equal((await comentar('Desistiu: precisa falar com o sócio')).status, 200);
+  const det = await dash(reunioes, null, `&id=${id}`);
+  assert.deepEqual(det.corpo.comentarios.map((x) => x.texto), ['Não respondeu a ativação', 'Desistiu: precisa falar com o sócio']);
+  assert.equal(cu.filter((x) => x.texto.startsWith('💬')).length, 2);
+  // Comentar não mexe na situação nem no histórico.
+  assert.equal(det.corpo.reuniao.situacao, 'cancelada');
+  assert.ok(det.corpo.historico.every((x) => x.acao !== 'comentou'));
+});
+
+test('comentários no Calendly: gaveta abre com os dados do Calendly, comentário fica salvo mesmo sem card', async () => {
+  for (const f of ['0063_calendly_consultorias.sql', '0065_calendly_detalhes.sql', '0066_calendly_presenca.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+  const t = Math.floor(Date.now() / 1000);
+  const uri = (x) => `https://api.calendly.com/scheduled_events/e/invitees/${x}`;
+  db.prepare(`INSERT INTO calendly_consultorias (invitee_uri, event_uri, email, agendou_em, inicio, fim, situacao, atualizado_em, nome, meet_link)
+    VALUES (?, 'ev', ?, 0, ?, ?, 'ativa', 0, ?, 'https://meet.google.com/xyz')`).run(uri('rita'), 'rita@empresa.com', t - 86400, t - 86400 + 2700, 'Rita');
+  db.prepare(`INSERT INTO calendly_consultorias (invitee_uri, event_uri, email, agendou_em, inicio, situacao, atualizado_em)
+    VALUES (?, 'ev', 'semcard@empresa.com', 0, ?, 'ativa', 0)`).run(uri('semcard'), t + 86400);
+  const cu = clickupFalso();
+
+  let det = await dash(reunioes, null, `&id=${encodeURIComponent(uri('rita'))}`);
+  assert.equal(det.status, 200, JSON.stringify(det.corpo));
+  assert.equal(det.corpo.reuniao.origem, 'calendly');
+  assert.equal(det.corpo.reuniao.meet_link, 'https://meet.google.com/xyz');
+  assert.equal(det.corpo.reuniao.crm_situacao, 'calendly_sem_registro');
+  assert.deepEqual(det.corpo.comentarios, []);
+
+  assert.equal((await dash(reunioes, { acao: 'comentar', id: uri('rita'), texto: 'Participou, divide a decisão com o pai' })).status, 200);
+  assert.match(cu[0].texto, /^💬 Comentário sobre a reunião: Consultoria Individual \(Calendly\)/);
+  det = await dash(reunioes, null, `&id=${encodeURIComponent(uri('rita'))}`);
+  assert.equal(det.corpo.reuniao.crm_link, 'https://app.clickup.com/t/card-rita');
+  assert.equal(det.corpo.comentarios.length, 1);
+
+  const s = await dash(reunioes, { acao: 'comentar', id: uri('semcard'), texto: 'Remarcou sem avisar' });
+  assert.equal(s.status, 200);
+  assert.equal(s.corpo.comentarios[0].crm_situacao, 'sem_card');
+  assert.equal((await dash(reunioes, { acao: 'comentar', id: uri('nao-existe'), texto: 'x' })).status, 404);
 });
 
 test('reunião realizada vira conversão uma vez só, e fora do prazo não envia', async () => {

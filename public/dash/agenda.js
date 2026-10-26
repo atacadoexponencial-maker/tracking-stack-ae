@@ -421,23 +421,23 @@
     };
     ctx.tabela(ctx.$('#ag-lista'), [
       { titulo: 'Quando', campo: 'inicio', render: (r) => vistaReunioes === 'hoje' ? `<b>${hora(r.inicio)}</b>` : `<b>${diaCurto(r.inicio)}</b> ${hora(r.inicio)}` },
-      { titulo: 'Pessoa', campo: 'nome', render: (r) => r.origem === 'calendly' ? `${ctx.esc(r.nome)}<br><span class="mini">${ctx.esc(r.email)}</span>` : `<button type="button" class="ag-link-linha" data-abrir="${r.id}">${ctx.esc(r.nome)}</button>${r.is_teste ? ' <span class="carimbo neutro">teste</span>' : ''}<br><span class="mini">${ctx.esc(r.email)}</span>` },
+      { titulo: 'Pessoa', campo: 'nome', render: (r) => `<button type="button" class="ag-link-linha" data-abrir="${ctx.esc(r.id)}">${ctx.esc(r.nome)}</button>${r.is_teste ? ' <span class="carimbo neutro">teste</span>' : ''}<br><span class="mini">${ctx.esc(r.email)}</span>` },
       { titulo: 'WhatsApp', campo: 'telefone', render: (r) => r.telefone ? `<span class="mini">+${ctx.esc(r.telefone)}</span>` : '' },
       { titulo: 'Tipo', campo: 'tipo_nome', render: (r) => r.origem === 'calendly' ? '<span class="carimbo neutro">Calendly</span>' : ctx.esc(r.tipo_nome) },
       { titulo: 'Situação', campo: 'situacao', render: (r) => r.aguardando_presenca ? '<span class="carimbo alerta">Aguardando presença</span>' : carimbo(r.situacao) },
-      { titulo: '', campo: 'id', render: (r) => r.origem === 'calendly' ? `<div class="ag-acoes ag-acoes--linha">
-          ${r.aguardando_presenca ? `<button class="btn sec" type="button" data-presenca="realizada" data-id="${ctx.esc(r.id)}">Realizada</button>
-            <button class="btn sec" type="button" data-presenca="faltou" data-id="${ctx.esc(r.id)}">Faltou</button>` : ''}
-          ${r.meet_link ? `<a class="btn sec" href="${ctx.esc(r.meet_link)}" target="_blank" rel="noopener">Entrar no Meet</a>` : ''}</div>` : `<div class="ag-acoes ag-acoes--linha">
-          ${r.aguardando_presenca ? `<button class="btn sec" type="button" data-presenca="realizada" data-id="${r.id}">Realizada</button>
-            <button class="btn sec" type="button" data-presenca="faltou" data-id="${r.id}">Faltou</button>` : ''}
-          <button class="btn sec" type="button" data-abrir="${r.id}">Abrir</button></div>` },
+      // Linha enxuta (pedido de 26/10): Abrir sempre; presença num menu só
+      // quando está aguardando. Meet, comentários e o resto ficam na gaveta.
+      { titulo: '', campo: 'id', render: (r) => `<div class="ag-acoes ag-acoes--linha">
+          ${r.aguardando_presenca ? menuPresenca(r.id) : ''}
+          <button class="btn sec" type="button" data-abrir="${ctx.esc(r.id)}">Abrir</button></div>` },
     ], diaSel ? d.rows.filter((r) => diaDe(r.inicio) === diaSel) : d.rows, undefined, diaSel ? 'Nenhuma reunião neste dia.' : VAZIO[vistaReunioes]);
     ctx.$('#ag-lista').onclick = async (ev) => {
       const b = ev.target.closest('button');
       if (!b) return;
+      if (b.hasAttribute('data-menu')) return alternarMenu(b);
       if (b.dataset.abrir) return detalhe(b.dataset.abrir);
       if (b.dataset.presenca) {
+        fecharMenus();
         b.disabled = true;
         try {
           await ctx.postJson('/api/agenda/reunioes', { acao: 'presenca', id: b.dataset.id, situacao: b.dataset.presenca });
@@ -511,19 +511,45 @@
     descadastrou: ['Descadastrou', 'alerta'],
   };
 
+  /** Menu "Presença ▾" da linha (mesmo menu da engrenagem, com o rótulo à vista). */
+  function menuPresenca(id) {
+    return `<div class="ag-menu">
+      <button class="btn sec" type="button" data-menu aria-haspopup="menu" aria-expanded="false">Presença ▾</button>
+      <div class="ag-menu__lista" role="menu" hidden>
+        <button type="button" role="menuitem" data-presenca="realizada" data-id="${ctx.esc(id)}">Realizada</button>
+        <button type="button" role="menuitem" data-presenca="faltou" data-id="${ctx.esc(id)}">Faltou</button>
+      </div></div>`;
+  }
+
+  // Comentários da reunião (pedido do comercial em 26/10): vários, só
+  // acrescenta; o servidor grava e manda cada um ao card do ClickUp.
+  const CRM_COMENTARIO = { sem_card: 'card não encontrado no ClickUp', sem_credencial: 'ClickUp não configurado', '': 'só no dash' };
+  function listaComentarios(cs) {
+    if (!cs.length) return '<p class="mini">Nenhum comentário ainda.</p>';
+    return `<ol class="ag-hist ag-coment">${cs.map((c) => {
+      const crm = /^ok:/.test(c.crm_situacao || '') ? 'no ClickUp'
+        : /^erro/.test(c.crm_situacao || '') ? 'falhou no ClickUp' : CRM_COMENTARIO[c.crm_situacao || ''] || c.crm_situacao;
+      return `<li><span class="mini">${quando(c.criado_em)} · ${ctx.esc(crm)}</span><br>${ctx.esc(c.texto)}</li>`;
+    }).join('')}</ol>`;
+  }
+
   async function detalhe(id) {
     const g = gavetaSimples({ titulo: 'Carregando…', corpo: '<div class="aviso">Carregando…</div>' });
     let d;
     try { d = await ctx.fetchJson('/api/agenda/reunioes?id=' + encodeURIComponent(id)); }
     catch (e) { g.querySelector('#ag-g-corpo').innerHTML = erroHtml(e); return; }
     const r = d.reuniao;
+    const calendly = r.origem === 'calendly';
     const agora = Math.floor(Date.now() / 1000);
     const ativa = ['marcada', 'remarcada'].includes(r.situacao);
     const passou = r.fim < agora;
     const ACOES = { agendou: 'Agendou', remarcou: 'Remarcou', cancelou: 'Cancelou', presenca: 'Presença' };
     const POR = { lead: 'pelo lead', equipe: 'pela equipe', sistema: 'pelo sistema', google: 'na agenda do Google' };
-    const CRM = { sem_card: 'Card do lead não encontrado no ClickUp.', sem_credencial: 'ClickUp não configurado neste ambiente (prévia).' };
-    const origem = r.origem && r.origem.utm_source
+    const CRM = {
+      sem_card: 'Card do lead não encontrado no ClickUp.', sem_credencial: 'ClickUp não configurado neste ambiente (prévia).',
+      calendly_sem_registro: 'O card é procurado quando a presença é marcada ou um comentário é salvo.',
+    };
+    const origem = calendly ? 'Calendly' : r.origem && r.origem.utm_source
       ? `${ctx.esc(r.origem.utm_source)}${r.origem.utm_medium ? ' / ' + ctx.esc(r.origem.utm_medium) : ''}${r.origem.utm_campaign ? ' · ' + ctx.esc(r.origem.utm_campaign) : ''}`
       : 'Direto (sem UTM)';
     const corpoHtml = `
@@ -538,35 +564,56 @@
         ${r.comercial && r.conversao_realizada ? `<dt>Conversão</dt><dd>${ctx.esc({ enviada: 'Reunião realizada enviada ao Meta e ao GA4.', fora_do_prazo: 'Não enviada: presença marcada mais de 7 dias depois (o Meta recusa).' }[r.conversao_realizada] || 'Falha no envio: ' + r.conversao_realizada)}</dd>` : ''}
         ${r.motivo_cancel ? `<dt>Motivo</dt><dd>${ctx.esc(r.motivo_cancel)}</dd>` : ''}
       </dl>
-      ${r.respostas.length ? `<h3 class="ag-h3">Respostas</h3><dl class="ag-dl">${r.respostas.map((x) => `<dt>${ctx.esc(x.pergunta)}</dt><dd>${x.resposta ? ctx.esc(x.resposta) : '<span class="mini">sem resposta</span>'}</dd>`).join('')}</dl>` : ''}
+      ${calendly ? '' : `${r.respostas.length ? `<h3 class="ag-h3">Respostas</h3><dl class="ag-dl">${r.respostas.map((x) => `<dt>${ctx.esc(x.pergunta)}</dt><dd>${x.resposta ? ctx.esc(x.resposta) : '<span class="mini">sem resposta</span>'}</dd>`).join('')}</dl>` : ''}
       <h3 class="ag-h3">Histórico</h3>
-      <ol class="ag-hist">${d.historico.map((h) => `<li><span class="mini">${quando(h.criado_em)}</span> <b>${ACOES[h.acao] || ctx.esc(h.acao)}</b> ${POR[h.por] || ''}${h.detalhe ? `<br><span class="mini">${ctx.esc(h.detalhe)}</span>` : ''}</li>`).join('')}</ol>
-      <h3 class="ag-h3">E-mails desta reunião</h3>
+      <ol class="ag-hist">${d.historico.map((h) => `<li><span class="mini">${quando(h.criado_em)}</span> <b>${ACOES[h.acao] || ctx.esc(h.acao)}</b> ${POR[h.por] || ''}${h.detalhe ? `<br><span class="mini">${ctx.esc(h.detalhe)}</span>` : ''}</li>`).join('')}</ol>`}
+      <h3 class="ag-h3">Comentários</h3>
+      <div id="ag-coment-lista">${listaComentarios(d.comentarios || [])}</div>
+      <label class="ag-campo"><span class="ag-campo__rotulo">Novo comentário</span>
+        <textarea id="ag-coment-texto" rows="3" maxlength="2000" placeholder="Ex.: não respondeu a ativação, o sócio decide junto"></textarea></label>
+      <div class="ag-acoes ag-coment__acoes"><span class="mini">${r.comercial ? 'Vai também como comentário no card do ClickUp.' : 'Fica só no dash (tipo não comercial).'}</span>
+        <button class="btn" type="button" id="ag-coment-salvar">Salvar comentário</button></div>
+      ${calendly ? '' : `<h3 class="ag-h3">E-mails desta reunião</h3>
       ${(d.emails || []).length ? `<ol class="ag-hist em-hist">${d.emails.map((e) => {
         const [rot, cor] = SITUACAO_EMAIL[e.situacao] || [e.situacao, 'neutro'];
         return `<li class="em-hist__item"><div><b>${ctx.esc(e.nome)}</b> <span class="mini">${quando(e.quando)}</span>${e.motivo ? `<br><span class="mini">${ctx.esc(e.motivo)}</span>` : ''}</div><span class="carimbo ${cor}">${ctx.esc(rot)}</span></li>`;
       }).join('')}</ol>
-      <p class="mini">Agendado: ainda vai sair no horário. Entregue e aberto chegam do serviço de envio conforme acontecem.</p>` : '<p class="mini">Nenhum e-mail programado para esta reunião. Acontece quando ela foi marcada antes dos e-mails da agenda existirem (03/10) ou quando o tipo está com os e-mails desligados em Agenda › E-mails.</p>'}`;
-    const rodape = `<div class="ag-acoes">
-        ${passou && r.situacao !== 'cancelada' ? `<span class="mini">Presença:</span>
-          <button class="btn sec" type="button" data-presenca="realizada">Realizada</button>
-          <button class="btn sec" type="button" data-presenca="faltou">Faltou</button>
-          <button class="btn sec" type="button" data-presenca="sem_info">Sem informação</button>` : ''}
-        ${ativa && !passou ? `<button class="btn" type="button" id="ag-remarcar">Remarcar</button>
-          <button class="btn perigo" type="button" id="ag-cancelar">Cancelar reunião</button>` : ''}
-      </div>`;
+      <p class="mini">Agendado: ainda vai sair no horário. Entregue e aberto chegam do serviço de envio conforme acontecem.</p>` : '<p class="mini">Nenhum e-mail programado para esta reunião. Acontece quando ela foi marcada antes dos e-mails da agenda existirem (03/10) ou quando o tipo está com os e-mails desligados em Agenda › E-mails.</p>'}`}`;
+    // Rodapé (26/10): presença num seletor único, com a atual destacada;
+    // Remarcar e Cancelar numa linha à parte, só na agenda própria.
+    const PRESENCAS = [['realizada', 'Realizada'], ['faltou', 'Faltou'], ['sem_info', 'Sem info']];
+    const rodape = [
+      passou && r.situacao !== 'cancelada' ? `<div class="ag-presenca"><span class="mini" id="ag-pres-rot">Presença</span>
+        <div class="ag-segmentado" role="group" aria-labelledby="ag-pres-rot">
+          ${PRESENCAS.map(([k, rot]) => `<button type="button" data-presenca="${k}" aria-pressed="${r.situacao === k}">${rot}</button>`).join('')}</div></div>` : '',
+      !calendly && ativa && !passou ? `<div class="ag-acoes"><button class="btn sec" type="button" id="ag-remarcar">Remarcar</button>
+          <button class="btn perigo" type="button" id="ag-cancelar">Cancelar reunião</button></div>` : '',
+    ].filter(Boolean).join('');
     g.querySelector('h2').textContent = r.nome;
     g.querySelector('.ag-gaveta__topo div').insertAdjacentHTML('beforeend', `<p class="mini">${ctx.esc(r.tipo_nome || '')}</p>`);
     g.querySelector('#ag-g-corpo').innerHTML = corpoHtml;
-    g.querySelector('.ag-gaveta__form').insertAdjacentHTML('beforeend', `<footer class="ag-gaveta__rodape">${rodape}</footer>`);
+    if (rodape) g.querySelector('.ag-gaveta__form').insertAdjacentHTML('beforeend', `<footer class="ag-gaveta__rodape">${rodape}</footer>`);
 
     const depois = async (msg) => { avisar(msg); await agendamentos(); await detalhe(id); };
     g.querySelectorAll('[data-presenca]').forEach((b) => {
       b.onclick = async () => {
+        if (b.getAttribute('aria-pressed') === 'true') return;
         try { await ctx.postJson('/api/agenda/reunioes', { acao: 'presenca', id, situacao: b.dataset.presenca }); await depois('Presença atualizada.'); }
         catch (e) { avisarErro(e); }
       };
     });
+    const bs = g.querySelector('#ag-coment-salvar');
+    bs.onclick = async () => {
+      const campo = g.querySelector('#ag-coment-texto');
+      bs.disabled = true;
+      try {
+        const res = await ctx.postJson('/api/agenda/reunioes', { acao: 'comentar', id, texto: campo.value });
+        g.querySelector('#ag-coment-lista').innerHTML = listaComentarios(res.comentarios || []);
+        campo.value = '';
+        avisar(r.comercial ? 'Comentário salvo e enviado ao ClickUp.' : 'Comentário salvo.');
+      } catch (e) { avisarErro(e); }
+      bs.disabled = false;
+    };
     const bc = g.querySelector('#ag-cancelar');
     if (bc) bc.onclick = () => ctx.pedirConfirmacao(bc, 'Cancelar e avisar o lead pelo Google?', async () => {
       try { await ctx.postJson('/api/agenda/reunioes', { acao: 'cancelar', id }); await depois('Reunião cancelada. O lead foi avisado pelo Google.'); }
