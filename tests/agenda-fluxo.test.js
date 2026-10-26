@@ -20,6 +20,7 @@ import * as syncAgenda from '../functions/api/sync/agenda.js';
 import * as pubEtapa from '../functions/api/agenda/publico/etapa.js';
 import * as funilApi from '../functions/api/agenda/funil.js';
 import { criarConvite, tipoDoFunil } from '../functions/api/_agenda-convite.js';
+import { CORTE_CALENDLY } from '../functions/api/_agenda-regras.js';
 
 function d1(db) {
   const conv = (b) => b.map((v) => (v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v));
@@ -285,6 +286,57 @@ test('sync: evento apagado no Google vira cancelada; presença pelo Meet', async
   assert.equal(pend.corpo.contagens.pendentes, 0);
   assert.equal(lista.corpo.numeros.agendados, 2);
   assert.equal(lista.corpo.numeros.taxa_comparecimento, 1);
+});
+
+test('sync: sem registro do Meet a reunião continua aguardando presença, mesmo depois de 24 h', async () => {
+  await configurar({ comercial: false });
+  const h = await publico(pubHorarios, { qs: '?slug=consultoria-individual' });
+  const dia = Object.keys(h.corpo.dias)[1];
+  for (const [i, nome] of [[0, 'Ana'], [1, 'Bia']]) {
+    await publico(pubConfirmar, { corpo: { slug: 'consultoria-individual', inicio: h.corpo.dias[dia][i], nome, email: `${nome}@x.com`, telefone: `1198765432${i}`, respostas: ['A'] } });
+  }
+  const [r1, r2] = db.prepare('SELECT * FROM agenda_reunioes ORDER BY inicio').all();
+  const t = Math.floor(Date.now() / 1000);
+  // r1 terminou há 2 h, r2 há 30 h; nenhuma das salas tem registro no Meet.
+  db.prepare('UPDATE agenda_reunioes SET inicio = ?, fim = ? WHERE id = ?').run(t - 2 * 3600 - 2700, t - 2 * 3600, r1.id);
+  db.prepare('UPDATE agenda_reunioes SET inicio = ?, fim = ? WHERE id = ?').run(t - 30 * 3600 - 2700, t - 30 * 3600, r2.id);
+
+  const s = await syncAgenda.onRequestPost({ request: new Request('https://x', { method: 'POST', headers: { 'x-sync-secret': 's' } }), env });
+  const corpo = await s.json();
+  assert.deepEqual(corpo.erros, []);
+  assert.deepEqual(corpo.presenca, {});
+  assert.deepEqual(db.prepare('SELECT situacao FROM agenda_reunioes').all().map((x) => x.situacao), ['marcada', 'marcada']);
+  const pend = await dash(reunioes, null, '&vista=pendentes');
+  assert.equal(pend.corpo.contagens.pendentes, 2);
+  assert.ok(pend.corpo.rows.every((r) => r.aguardando_presenca));
+});
+
+test('lista: consultorias do Calendly desde 19/10, só leitura, fora de aguardando presença e dos números', async () => {
+  await configurar({ comercial: false });
+  db.exec(readFileSync(new URL('../migrations/0063_calendly_consultorias.sql', import.meta.url), 'utf8'));
+  const t = Math.floor(Date.now() / 1000);
+  const ins = db.prepare(`INSERT INTO calendly_consultorias (invitee_uri, event_uri, email, agendou_em, inicio, situacao, atualizado_em)
+    VALUES (?, 'ev', ?, 0, ?, ?, 0)`);
+  ins.run('cal-antes', 'antes@x.com', CORTE_CALENDLY - 3600, 'ativa');
+  ins.run('cal-semana', 'semana@x.com', CORTE_CALENDLY + 3600, 'ativa');
+  ins.run('cal-cancelada', 'cancelou@x.com', CORTE_CALENDLY + 7200, 'cancelada');
+  ins.run('cal-futura', 'futura@x.com', t + 3 * 86400, 'ativa');
+
+  const todas = await dash(reunioes, null, `&vista=todas&from=0&to=${t + 30 * 86400}`);
+  const cal = todas.corpo.rows.filter((r) => r.origem === 'calendly');
+  assert.deepEqual(cal.map((r) => r.email), ['futura@x.com', 'semana@x.com']);
+  assert.ok(cal.every((r) => r.tipo_nome === 'Calendly' && !r.aguardando_presenca));
+  assert.equal(todas.corpo.numeros.agendados, 0);
+
+  const prox = await dash(reunioes, null, '&vista=proximas');
+  assert.deepEqual(prox.corpo.rows.map((r) => r.email), ['futura@x.com']);
+  assert.equal(prox.corpo.contagens.proximas, 1);
+
+  const pend = await dash(reunioes, null, '&vista=pendentes');
+  assert.equal(pend.corpo.rows.length, 0);
+
+  const comTipo = await dash(reunioes, null, `&vista=todas&from=0&to=${t + 30 * 86400}&tipo=1`);
+  assert.equal(comTipo.corpo.rows.filter((r) => r.origem === 'calendly').length, 0);
 });
 
 test('reunião realizada vira conversão uma vez só, e fora do prazo não envia', async () => {

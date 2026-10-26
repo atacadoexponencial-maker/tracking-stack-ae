@@ -1,5 +1,6 @@
 // GET  /api/agenda/reunioes?key=...&from=&to=[&tipo=&situacao=]
 //        → reuniões cujo HORÁRIO cai no período + números do período
+//          (+ consultorias do Calendly desde 19/10, só leitura, origem 'calendly')
 // GET  /api/agenda/reunioes?key=...&id=<id>      → detalhe com histórico e e-mails da reunião
 // GET  /api/agenda/reunioes?key=...&por=funil&from=&to=
 //        → Reuniões agendadas por funil (painel da Visão geral): reuniões
@@ -11,7 +12,9 @@
 //                                      { acao: 'presenca', id, situacao: 'realizada'|'faltou'|'sem_info' }
 //
 // Spec spec-agenda-propria.md, módulos 5 e 8 (issues 361 e 362).
-import { numerosDoPeriodo, SITUACOES, VISTAS_REUNIOES, recorteDaVista } from '../_agenda-regras.js';
+import {
+  numerosDoPeriodo, SITUACOES, VISTAS_REUNIOES, recorteDaVista, recorteDoCalendly, CORTE_CALENDLY,
+} from '../_agenda-regras.js';
 import { ymdBrt, inicioDoDiaBrt } from '../_data-brt.js';
 import {
   lerReuniao, lerTipo, cancelar, remarcar, registrarNoCrm, textoCrm, historico, agora, enviarRealizada,
@@ -89,13 +92,49 @@ export async function onRequestGet({ request, env }) {
      FROM agenda_reunioes${comTestes ? '' : ` WHERE ${SEM_TESTE}`}`,
   ).bind(hoje0, hoje0 + 86400, t).first();
   const tipos = (await env.DB.prepare(`SELECT id, nome, ativo FROM agenda_tipos${comTestes ? '' : ' WHERE teste = 0'} ORDER BY nome`).all()).results || [];
+  // Consultorias do Calendly (só leitura, só e-mail): fora quando há filtro de
+  // tipo ou situação; não entram nos números do período.
+  const cal = p.get('tipo') || (vista === 'todas' && p.get('situacao'))
+    ? { rows: [], hoje: 0, proximas: 0 }
+    : await doCalendly(env, vista, { agora: t, hoje0, de, ate: Number(p.get('to')) || t });
+  const lista = [
+    ...rows.map((r) => ({ ...r, aguardando_presenca: ['marcada', 'remarcada'].includes(r.situacao) && r.fim < t })),
+    ...cal.rows,
+  ];
+  if (cal.rows.length) lista.sort((a, b) => (recorte.ordem.endsWith('DESC') ? b.inicio - a.inicio : a.inicio - b.inicio));
   return json({
     vista,
-    rows: rows.map((r) => ({ ...r, aguardando_presenca: ['marcada', 'remarcada'].includes(r.situacao) && r.fim < t })),
-    contagens: { hoje: c?.hoje || 0, proximas: c?.proximas || 0, pendentes: c?.pendentes || 0 },
+    rows: lista,
+    contagens: { hoje: (c?.hoje || 0) + cal.hoje, proximas: (c?.proximas || 0) + cal.proximas, pendentes: c?.pendentes || 0 },
     numeros: vista === 'todas' ? numerosDoPeriodo(rows) : null,
     tipos,
   });
+}
+
+// Calendly com erro (tabela ausente, etc.) não derruba a lista.
+async function doCalendly(env, vista, janela) {
+  try {
+    const rc = recorteDoCalendly(vista, janela);
+    const rows = rc ? (await env.DB.prepare(
+      `SELECT c.invitee_uri, c.inicio, c.email FROM calendly_consultorias c WHERE ${rc.where.join(' AND ')} LIMIT 200`,
+    ).bind(...rc.binds).all()).results || [] : [];
+    const n = await env.DB.prepare(
+      `SELECT SUM(CASE WHEN inicio >= ?2 AND inicio < ?3 THEN 1 ELSE 0 END) AS hoje,
+              SUM(CASE WHEN inicio > ?4 THEN 1 ELSE 0 END) AS proximas
+         FROM calendly_consultorias WHERE situacao = 'ativa' AND inicio >= ?1`,
+    ).bind(CORTE_CALENDLY, janela.hoje0, janela.hoje0 + 86400, janela.agora).first();
+    return {
+      rows: rows.map((r) => ({
+        id: r.invitee_uri, origem: 'calendly', inicio: r.inicio, nome: r.email, email: r.email,
+        telefone: null, situacao: 'marcada', tipo_nome: 'Calendly', aguardando_presenca: false,
+      })),
+      hoje: n?.hoje || 0,
+      proximas: n?.proximas || 0,
+    };
+  } catch (e) {
+    console.error('agenda: Calendly', e.message);
+    return { rows: [], hoje: 0, proximas: 0 };
+  }
 }
 
 export async function onRequestPost({ request, env, waitUntil }) {

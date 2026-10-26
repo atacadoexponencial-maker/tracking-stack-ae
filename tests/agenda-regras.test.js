@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   validarGrade, resumoGrade, validarTipo, horariosLivres, validarDadosAgendamento,
   situacaoPelaPresenca, emCimaDaHora, numerosDoPeriodo, tituloDoEvento, fimDaJanela,
+  recorteDoCalendly, CORTE_CALENDLY,
 } from '../functions/api/_agenda-regras.js';
 import { padronizarTelefone } from '../functions/_telefone.js';
 
@@ -132,4 +133,15 @@ test('aviso de últimos horários só com poucos horários reais', async () => {
   assert.equal(poucosHorarios({}), false);
   assert.equal(poucosHorarios({ a: [1, 2], b: [3] }), true);
   assert.equal(poucosHorarios({ a: [1, 2, 3], b: [4, 5, 6] }), false);
+});
+
+test('Calendly na lista: corte em 19/10 00h BRT, só ativas, nada em aguardando presença', () => {
+  assert.equal(CORTE_CALENDLY, T('2026-10-19T00:00:00-03:00'));
+  const janela = { agora: 500, hoje0: 100, de: 10, ate: 900 };
+  assert.equal(recorteDoCalendly('pendentes', janela), null);
+  const prox = recorteDoCalendly('proximas', janela);
+  assert.ok(prox.where.includes("c.situacao = 'ativa'"));
+  assert.deepEqual(prox.binds, [CORTE_CALENDLY, 500]);
+  assert.deepEqual(recorteDoCalendly('todas', janela).binds, [CORTE_CALENDLY, 10, 900]);
+  assert.deepEqual(recorteDoCalendly('hoje', janela).binds, [CORTE_CALENDLY, 100, 100 + 86400]);
 });

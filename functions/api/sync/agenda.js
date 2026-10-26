@@ -8,9 +8,10 @@
 //   2. Google → dash: evento apagado ou movido à mão na agenda aparece com a
 //      situação atualizada (módulo 8).
 //   3. Presença: depois que a reunião termina, lê a sala do Meet e marca
-//      realizada / faltou / sem informação (módulo 8). O Google às vezes
-//      demora para fechar o registro da sala, então "sem registro" só vira
-//      sem_info depois de 24 h; antes disso, tenta de novo na próxima rodada.
+//      realizada / faltou (módulo 8). O Google às vezes demora para fechar o
+//      registro da sala, então "sem registro" tenta de novo na próxima rodada
+//      por até 24 h. Depois disso o cron desiste e a reunião continua em
+//      "Aguardando presença" até a equipe marcar à mão (pedido dela, 26/10).
 import { listarAgendas, lerEvento, participantesDoMeet, codigoDoMeet } from '../_google-agenda.js';
 import { situacaoPelaPresenca } from '../_agenda-regras.js';
 import {
@@ -21,8 +22,8 @@ import { emailsDaMudanca } from '../_email-agenda.js';
 const json = (dados, status = 200) => Response.json(dados, { status });
 const TETO_GOOGLE = 40;
 const TETO_PRESENCA = 15;
-// Presença: espera 30 min depois do fim; desiste do registro depois de 24 h;
-// a retenção do Meet é de ~30 dias.
+// Presença: espera 30 min depois do fim; desiste do registro depois de 24 h
+// (sem gravar nada: fica para a equipe).
 const ESPERA_PRESENCA = 30 * 60;
 const DESISTE_PRESENCA = 24 * 3600;
 
@@ -103,20 +104,20 @@ export async function onRequestPost({ request, env, waitUntil }) {
   const terminadas = (await env.DB.prepare(
     `SELECT * FROM agenda_reunioes WHERE situacao IN ('marcada','remarcada') AND fim < ? AND fim > ?
       ORDER BY fim LIMIT ?`,
-  ).bind(t - ESPERA_PRESENCA, t - 25 * 86400, TETO_PRESENCA).all()).results || [];
+  ).bind(t - ESPERA_PRESENCA, t - DESISTE_PRESENCA, TETO_PRESENCA).all()).results || [];
   for (const r of terminadas) {
     const conta = donos.get(r.google_cal_id);
     const codigo = codigoDoMeet(r.meet_link);
     if (!conta || !codigo) continue;
     try {
       const pessoas = await participantesDoMeet(env, conta, codigo);
-      let situacao = situacaoPelaPresenca(pessoas);
-      if (situacao === 'sem_info' && t - r.fim < DESISTE_PRESENCA) continue;
+      const situacao = situacaoPelaPresenca(pessoas);
+      if (situacao === 'sem_info') continue;
       await env.DB.prepare("UPDATE agenda_reunioes SET situacao = ?, presenca_origem = 'meet', atualizado_em = ? WHERE id = ?")
         .bind(situacao, t, r.id).run();
       await historico(env, r.id, 'presenca', `pelo Meet: ${situacao}`, 'sistema');
       const tipo = await tipoDe(r.tipo_id);
-      if (tipo && situacao !== 'sem_info') await registrarNoCrm(env, r, textoCrm(situacao, tipo, r));
+      if (tipo) await registrarNoCrm(env, r, textoCrm(situacao, tipo, r));
       if (situacao === 'realizada') await enviarRealizada(env, r, waitUntil || (() => {}));
       resumo.presenca[situacao] = (resumo.presenca[situacao] || 0) + 1;
     } catch (e) {

@@ -356,3 +356,23 @@ export function recorteDaVista(vista, { agora, hoje0, de, ate }) {
     default: return { where: ['r.inicio >= ?', 'r.inicio < ?'], binds: [hoje0, hoje0 + 86400], ordem: 'r.inicio ASC' };
   }
 }
+
+// Consultorias do Calendly entram na lista só a partir de 19/10/2026 00h BRT
+// (pedido dela: a semana de 19 a 25/10 e as próximas). O Calendly foi
+// desligado em 26/10; nada novo chega depois disso.
+export const CORTE_CALENDLY = 1792378800;
+
+/**
+ * Recorte do Calendly para a mesma vista (alias `c` = calendly_consultorias).
+ * Só consultoria ativa, a partir do corte. Sem presença no Calendly, então
+ * "Aguardando presença" não recebe nada (null).
+ */
+export function recorteDoCalendly(vista, { agora, hoje0, de, ate }) {
+  const base = ["c.situacao = 'ativa'", 'c.inicio >= ?'];
+  switch (vista) {
+    case 'pendentes': return null;
+    case 'proximas': return { where: [...base, 'c.inicio > ?'], binds: [CORTE_CALENDLY, agora] };
+    case 'todas': return { where: [...base, 'c.inicio >= ?', 'c.inicio < ?'], binds: [CORTE_CALENDLY, de, ate] };
+    default: return { where: [...base, 'c.inicio >= ?', 'c.inicio < ?'], binds: [CORTE_CALENDLY, hoje0, hoje0 + 86400] };
+  }
+}
