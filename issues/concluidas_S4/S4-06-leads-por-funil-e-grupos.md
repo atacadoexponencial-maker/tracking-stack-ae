@@ -86,3 +86,9 @@ Nenhuma.
 - [x] `por_funil` em `montarNumeros`
 - [x] Testes CA-S4-14 e 15
 - [x] Deploy e conferência no ar
+
+## Testes manuais
+
+| Critério | Conferido por | Dia |
+|---|---|---|
+| CA-S4-17 | Marcelle | 26/10/2026 |
