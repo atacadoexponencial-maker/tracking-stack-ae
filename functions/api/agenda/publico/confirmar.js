@@ -12,6 +12,7 @@ import {
 } from '../../_agenda.js';
 import { lerConvite } from '../../_agenda-convite.js';
 import { emailsDaMudanca } from '../../_email-agenda.js';
+import { whatsappDaReuniao } from '../../_agenda-manychat.js';
 import { padronizarTelefone } from '../../../_telefone.js';
 import { detectBot, detectBotPorIp } from '../../../_bots.js';
 import { motivoBloqueio } from '../../../_lead-bloqueio.js';
@@ -69,6 +70,8 @@ export async function onRequestPost(context) {
   // E-mails da agenda (issue 379): confirmação na hora e lembretes na fila.
   // Vale também para tipos não comerciais.
   context.waitUntil(emailsDaMudanca(env, reuniao.id, 'agendou'));
+  // Confirmação pelo WhatsApp (ManyChat), só na Consultoria Individual.
+  context.waitUntil(whatsappDaReuniao(env, reuniao.id, 'agendou'));
 
   return json({
     ok: true,

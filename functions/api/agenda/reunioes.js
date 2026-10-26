@@ -27,6 +27,7 @@ import {
   comentar, lerComentarios,
 } from '../_agenda.js';
 import { emailsDaMudanca, emailsDaReuniao } from '../_email-agenda.js';
+import { whatsappDaReuniao } from '../_agenda-manychat.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 // E-mails da agenda (issue 379) sem segurar a resposta quando há waitUntil.
@@ -268,6 +269,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     if (r.erro) return json({ error: r.erro }, 409);
     await registrarNoCrm(env, reuniao, textoCrm('remarcou', tipo, { ...reuniao, inicio: r.inicio }));
     await depois(waitUntil, emailsDaMudanca(env, reuniao.id, 'remarcou'));
+    await depois(waitUntil, whatsappDaReuniao(env, reuniao.id, 'remarcou'));
     return json({ ok: true });
   }
 

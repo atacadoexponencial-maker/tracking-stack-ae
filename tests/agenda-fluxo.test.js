@@ -21,6 +21,7 @@ import * as pubEtapa from '../functions/api/agenda/publico/etapa.js';
 import * as funilApi from '../functions/api/agenda/funil.js';
 import { criarConvite, tipoDoFunil } from '../functions/api/_agenda-convite.js';
 import { CORTE_CALENDLY } from '../functions/api/_agenda-regras.js';
+import { CONSULTORIA_MANYCHAT, dataEHora, motivoParaPular, whatsappDaReuniao } from '../functions/api/_agenda-manychat.js';
 
 function d1(db) {
   const conv = (b) => b.map((v) => (v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v));
@@ -548,4 +549,153 @@ test('saúde da agenda: leitura OK não regrava a cada visita; erro grava sempre
   // Voltou a funcionar: limpa o erro na hora.
   await publico(pubHorarios, { qs: '?slug=consultoria-individual' });
   assert.equal(marca().ultimo_erro, null);
+});
+
+// ---------------------------------------------------------------------------
+// Confirmação da consultoria pelo WhatsApp (ManyChat), pedido de 26/10.
+// ---------------------------------------------------------------------------
+
+// ManyChat simulado por cima do Google: guarda as chamadas na ordem.
+// `conhecidos`: telefones que o findBySystemField acha. `falhaFluxo`: sendFlow
+// responde 200 com status "error", como a API faz.
+function manychatFalso({ falhaFluxo = false } = {}) {
+  const chamadas = [];
+  const conhecidos = new Map();
+  const anterior = globalThis.fetch;
+  globalThis.fetch = async (url, op = {}) => {
+    const u = String(url);
+    if (!u.startsWith('https://api.manychat.com/')) return anterior(url, op);
+    const caminho = new URL(u).pathname;
+    const corpo = op.body ? JSON.parse(op.body) : null;
+    chamadas.push({ caminho, corpo });
+    if (caminho.endsWith('/findBySystemField')) {
+      const id = conhecidos.get(new URL(u).searchParams.get('phone'));
+      return Response.json({ status: 'success', data: id ? [{ id }] : [] });
+    }
+    if (caminho.endsWith('/createSubscriber')) {
+      conhecidos.set(corpo.whatsapp_phone, 'sub-1');
+      return Response.json({ status: 'success', data: { id: 'sub-1' } });
+    }
+    if (caminho.endsWith('/sendFlow') && falhaFluxo) return Response.json({ status: 'error', message: 'template recusado' });
+    return Response.json({ status: 'success' });
+  };
+  env.MANYCHAT_API = 'mc';
+  return { chamadas, caminhos: () => chamadas.map((c) => c.caminho.split('/').pop()) };
+}
+
+async function agendarRita() {
+  const t = await tipoDoFunil(env, 'sessao-estrategica');
+  const c = await criarConvite(env, t, { eventId: 'lead-w', nome: 'Rita Lead', email: 'rita@empresa.com', telefone: '5511987654321', funil: 'sessao-estrategica' });
+  const h = await publico(pubHorarios, { qs: `?slug=consultoria-individual&c=${c}` });
+  const dias = Object.keys(h.corpo.dias);
+  pendentes = [];
+  const ok = await publico(pubConfirmar, { corpo: { slug: 'consultoria-individual', c, inicio: h.corpo.dias[dias[1]][0], nome: 'Rita Lead', email: 'rita@empresa.com', telefone: '11987654321', respostas: ['A'] } });
+  assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+  await Promise.all(pendentes);
+  return { ok, h, dias, reuniao: () => db.prepare('SELECT * FROM agenda_reunioes').get() };
+}
+const historicoWhats = () => db.prepare("SELECT detalhe FROM agenda_historico WHERE acao = 'whatsapp' ORDER BY id").all().map((x) => x.detalhe);
+
+test('WhatsApp: dia e hora em Brasília, no formato da mensagem', () => {
+  // 27/10/2026 17h UTC = terça, 14h em Brasília
+  assert.deepEqual(dataEHora(Date.UTC(2026, 9, 27, 17, 0) / 1000), { data: 'terça, 27/10', horario: '14h00' });
+  assert.deepEqual(dataEHora(Date.UTC(2026, 9, 31, 12, 30) / 1000), { data: 'sábado, 31/10', horario: '09h30' });
+});
+
+test('WhatsApp: só agendou/remarcou da Consultoria Individual ativa, e só com fluxo configurado', () => {
+  const cfg = { ...CONSULTORIA_MANYCHAT, fluxo: 'f' };
+  const tipo = { slug: 'consultoria-individual' };
+  const r = { situacao: 'marcada' };
+  assert.equal(motivoParaPular(r, tipo, 'agendou', cfg), '');
+  assert.equal(motivoParaPular({ situacao: 'remarcada' }, tipo, 'remarcou', cfg), '');
+  assert.equal(motivoParaPular(r, tipo, 'cancelou', cfg), 'acao_sem_mensagem');
+  assert.equal(motivoParaPular(r, { slug: 'entrevista-rh' }, 'agendou', cfg), 'outro_tipo');
+  assert.equal(motivoParaPular({ situacao: 'cancelada' }, tipo, 'remarcou', cfg), 'reuniao_nao_ativa');
+  assert.equal(motivoParaPular(r, tipo, 'agendou', { ...cfg, fluxo: '' }), 'sem_fluxo');
+});
+
+test('WhatsApp: desligado sem fluxo configurado, o agendamento não chama o ManyChat', async () => {
+  await configurar();
+  const mc = manychatFalso();
+  await agendarRita();
+  assert.deepEqual(mc.chamadas, []);
+  assert.deepEqual(historicoWhats(), []);
+});
+
+test('WhatsApp: agendamento e as três remarcações mandam a mensagem com os campos antes do fluxo; cancelar não manda', async () => {
+  await configurar();
+  CONSULTORIA_MANYCHAT.fluxo = 'flow-consultoria';
+  try {
+    const mc = manychatFalso();
+    const { ok, h, dias, reuniao } = await agendarRita();
+
+    // Agendou: contato novo, tag, campos e só então o fluxo.
+    const ordem = mc.caminhos();
+    assert.ok(ordem.includes('createSubscriber'));
+    assert.ok(ordem.indexOf('addTag') < ordem.indexOf('setCustomFields'));
+    assert.ok(ordem.indexOf('setCustomFields') < ordem.indexOf('sendFlow'));
+    const tag = mc.chamadas.find((c) => c.caminho.endsWith('/addTag')).corpo;
+    assert.equal(tag.tag_id, CONSULTORIA_MANYCHAT.tag);
+    const campos = Object.fromEntries(mc.chamadas.find((c) => c.caminho.endsWith('/setCustomFields')).corpo.fields.map((f) => [f.field_id, f.field_value]));
+    const esperado = dataEHora(reuniao().inicio);
+    assert.equal(campos[CONSULTORIA_MANYCHAT.campos.data], esperado.data);
+    assert.equal(campos[CONSULTORIA_MANYCHAT.campos.horario], esperado.horario);
+    assert.equal(campos[CONSULTORIA_MANYCHAT.campos.meet], reuniao().meet_link);
+    assert.match(campos[CONSULTORIA_MANYCHAT.campos.gestao], new RegExp(`/reuniao/${ok.corpo.gestao}$`));
+    assert.deepEqual(mc.chamadas.find((c) => c.caminho.endsWith('/sendFlow')).corpo, { subscriber_id: 'sub-1', flow_ns: 'flow-consultoria' });
+    assert.match(historicoWhats()[0], /^WhatsApp enviado \(agendamento\)/);
+
+    // Remarcou pelo lead: contato já existe, não cria outro; horário novo nos campos.
+    mc.chamadas.length = 0;
+    pendentes = [];
+    const novo = h.corpo.dias[dias[2]][3];
+    assert.equal((await publico(pubReuniao, { corpo: { g: ok.corpo.gestao, acao: 'remarcar', inicio: novo } })).status, 200);
+    await Promise.all(pendentes);
+    assert.ok(!mc.caminhos().includes('createSubscriber'));
+    const campos2 = Object.fromEntries(mc.chamadas.find((c) => c.caminho.endsWith('/setCustomFields')).corpo.fields.map((f) => [f.field_id, f.field_value]));
+    assert.equal(campos2[CONSULTORIA_MANYCHAT.campos.horario], dataEHora(novo).horario);
+    assert.equal(mc.caminhos().filter((x) => x === 'sendFlow').length, 1);
+
+    // Remarcou pela equipe no dash.
+    mc.chamadas.length = 0;
+    assert.equal((await dash(reunioes, { acao: 'remarcar', id: reuniao().id, inicio: h.corpo.dias[dias[3]][2] })).status, 200);
+    assert.equal(mc.caminhos().filter((x) => x === 'sendFlow').length, 1);
+
+    // Movida direto na agenda do Google.
+    mc.chamadas.length = 0;
+    const ev = google.eventos.get(reuniao().google_event_id);
+    const mais1h = (iso) => new Date(Date.parse(iso) + 3600e3).toISOString();
+    ev.start = mais1h(ev.start); ev.end = mais1h(ev.end);
+    const s = await syncAgenda.onRequestPost({ request: new Request('https://x', { method: 'POST', headers: { 'x-sync-secret': 's' } }), env });
+    assert.equal((await s.json()).google.movidas, 1);
+    assert.equal(mc.caminhos().filter((x) => x === 'sendFlow').length, 1);
+    assert.equal(historicoWhats().length, 4);
+
+    // Cancelou: nada no ManyChat.
+    mc.chamadas.length = 0;
+    pendentes = [];
+    await publico(pubReuniao, { corpo: { g: ok.corpo.gestao, acao: 'cancelar' } });
+    await Promise.all(pendentes);
+    assert.deepEqual(mc.chamadas, []);
+  } finally {
+    CONSULTORIA_MANYCHAT.fluxo = '';
+  }
+});
+
+test('WhatsApp: falha no ManyChat fica no histórico e não atrapalha o agendamento; sem telefone não chama', async () => {
+  await configurar();
+  CONSULTORIA_MANYCHAT.fluxo = 'flow-consultoria';
+  try {
+    manychatFalso({ falhaFluxo: true });
+    const { ok } = await agendarRita();
+    assert.equal(ok.corpo.ok, true);
+    assert.match(historicoWhats()[0], /^WhatsApp falhou: fluxo falhou: .*template recusado/);
+
+    const r = db.prepare('SELECT id FROM agenda_reunioes').get();
+    db.prepare("UPDATE agenda_reunioes SET telefone = NULL WHERE id = ?").run(r.id);
+    assert.equal(await whatsappDaReuniao(env, r.id, 'remarcou'), 'sem_telefone');
+    assert.match(historicoWhats().at(-1), /sem telefone/);
+  } finally {
+    CONSULTORIA_MANYCHAT.fluxo = '';
+  }
 });

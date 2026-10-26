@@ -18,6 +18,7 @@ import {
   contasDasAgendas, lerTipo, historico, registrarNoCrm, textoCrm, agora, enviarRealizada,
 } from '../_agenda.js';
 import { emailsDaMudanca } from '../_email-agenda.js';
+import { whatsappDaReuniao } from '../_agenda-manychat.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 const TETO_GOOGLE = 40;
@@ -91,6 +92,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
           .bind(ev.ini, ev.fim, t, r.id).run();
         await historico(env, r.id, 'remarcou', 'movida direto na agenda do Google', 'google');
         await emailsDaMudanca(env, r.id, 'remarcou');
+        await whatsappDaReuniao(env, r.id, 'remarcou');
         resumo.google.movidas++;
       } else {
         await env.DB.prepare('UPDATE agenda_reunioes SET atualizado_em = ? WHERE id = ?').bind(t, r.id).run();

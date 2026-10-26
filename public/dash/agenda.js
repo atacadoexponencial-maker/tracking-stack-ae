@@ -543,7 +543,7 @@
     const agora = Math.floor(Date.now() / 1000);
     const ativa = ['marcada', 'remarcada'].includes(r.situacao);
     const passou = r.fim < agora;
-    const ACOES = { agendou: 'Agendou', remarcou: 'Remarcou', cancelou: 'Cancelou', presenca: 'Presença' };
+    const ACOES = { agendou: 'Agendou', remarcou: 'Remarcou', cancelou: 'Cancelou', presenca: 'Presença', whatsapp: 'WhatsApp' };
     const POR = { lead: 'pelo lead', equipe: 'pela equipe', sistema: 'pelo sistema', google: 'na agenda do Google' };
     const CRM = {
       sem_card: 'Card do lead não encontrado no ClickUp.', sem_credencial: 'ClickUp não configurado neste ambiente (prévia).',

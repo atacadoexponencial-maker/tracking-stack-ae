@@ -110,6 +110,22 @@ export async function dispararFluxo(subscriberId, flowNs, env) {
   return `fluxo falhou: ${t.slice(0, 200)}`;
 }
 
+// Preenche campos personalizados do inscrito numa chamada só. `campos` é
+// { field_id: valor }. Existe para a confirmação da consultoria
+// (./_agenda-manychat.js): o modelo da mensagem lê dia, hora e links destes
+// campos, então eles precisam estar gravados ANTES do fluxo.
+export async function preencherCampos(subscriberId, campos, env) {
+  const res = await manychatFetch('/fb/subscriber/setCustomFields', {
+    subscriber_id: subscriberId,
+    fields: Object.entries(campos).map(([id, valor]) => ({ field_id: Number(id), field_value: String(valor ?? '') })),
+  }, env);
+  const t = await res.text().catch(() => '');
+  let status = '';
+  try { status = JSON.parse(t)?.status || ''; } catch (e) { /* corpo ilegível */ }
+  if (res.ok && status !== 'error') return '';
+  return `campos falharam: ${t.slice(0, 200)}`;
+}
+
 // Tag e, se houver `flowNs`, o fluxo. Com `tagEnviadoId`, a tag de controle
 // só entra DEPOIS de o fluxo ter sido aceito — é o registro, visível no
 // ManyChat, de quem recebeu a confirmação. Devolve '' ou a descrição da falha.
