@@ -3032,8 +3032,8 @@ R.visao = async () => {
     fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&only=funnelCounts`),
     fetchJson(`/api/leads?${q(p.antDe, p.antAte)}${funilQ}&only=funnelCounts`),
     // `v=s4`: resposta antiga guardada no cache de período fechado não traz entradas_grupos.
-    fetchJson(`/api/cpl?${q(p.de, p.ate)}${mapaQ}&v=s4`).catch(() => null),
-    fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}&v=s4`).catch(() => null),
+    fetchJson(`/api/cpl?${q(p.de, p.ate)}${mapaQ}&v=s4e`).catch(() => null),
+    fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}&v=s4e`).catch(() => null),
     fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
     // Coorte de agendamento: sem cache, muda a cada presença marcada.
@@ -3046,7 +3046,7 @@ R.visao = async () => {
   desenhar(undefined);
   contarNumeros($('#visao-reuniao'));
   // `s4`: respostas antigas (sem `crm`) guardadas no cache de período fechado não servem.
-  fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s4d`)
+  fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s4e`)
     .catch(() => null)
     .then((t) => { if (minha === renderAtual && secao === 'visao') desenhar(t); });
 };
