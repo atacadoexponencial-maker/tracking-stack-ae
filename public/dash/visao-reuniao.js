@@ -238,15 +238,16 @@
     };
     const COLS = [
       { titulo: 'Funil', campo: 'funil', render: (r) => `<b>${esc(r.funil || '(sem funil)')}</b>` },
+      // Grupos (separados por um fio no CSS): volume, custos, taxas e grupos.
       { titulo: 'Investimento', campo: 'gasto', render: (r) => cel(r, 'gasto', money, { neutro: true }) },
       { titulo: 'Leads', campo: 'leads', render: (r) => cel(r, 'leads', fmtInt) },
       { titulo: 'Leads novos', campo: 'novos', render: (r) => cel(r, 'novos', fmtInt) },
-      { titulo: 'CPL', campo: 'cpl', render: (r) => cel(r, 'cpl', money, { invertido: true }) },
-      { titulo: 'CPL lead novo', campo: 'cpl_novos', render: (r) => cel(r, 'cpl_novos', money, { invertido: true }) },
       { titulo: 'MQL', campo: 'mqls', render: (r) => cel(r, 'mqls', fmtInt, { crm: true }) },
       { titulo: 'SQL', campo: 'sqls', render: (r) => cel(r, 'sqls', fmtInt, { crm: true }) },
       { titulo: 'Reunião agendada', campo: 'agendadas', render: (r) => cel(r, 'agendadas', fmtInt) },
       { titulo: 'Reunião realizada', campo: 'realizadas', render: (r) => cel(r, 'realizadas', fmtInt) },
+      { titulo: 'CPL', campo: 'cpl', render: (r) => cel(r, 'cpl', money, { invertido: true }) },
+      { titulo: 'CPL lead novo', campo: 'cpl_novos', render: (r) => cel(r, 'cpl_novos', money, { invertido: true }) },
       { titulo: 'Custo por MQL', campo: 'custo_mql', render: (r) => cel(r, 'custo_mql', money, { invertido: true, crm: true }) },
       { titulo: 'Custo por SQL', campo: 'custo_sql', render: (r) => cel(r, 'custo_sql', money, { invertido: true, crm: true }) },
       { titulo: 'Custo por reunião agendada', campo: 'custo_agendada', render: (r) => cel(r, 'custo_agendada', money, { invertido: true }) },
@@ -256,7 +257,8 @@
       { titulo: 'RA → RR', campo: 'ra_rr', render: (r) => taxa(r, 'ra_rr') },
       { titulo: 'Entraram nos grupos', campo: 'grupos', render: (r) => cel(r, 'grupos', fmtInt, { vazio: '' }) },
     ].map((c, i) => (i ? { ...c, num: true } : c));
-    tabela(el, COLS, linhas, undefined, 'Nenhum lead no período. Aqui aparece um funil por linha, com a comparação ao período anterior.');
+    // Valores do período no nível de cima da linha, para a ordenação por coluna.
+    tabela(el, COLS, linhas.map((r) => ({ ...r.a, ...r, lead_mql: pctDe(r.a.lead_mql), mql_ra: pctDe(r.a.mql_ra), ra_rr: pctDe(r.a.ra_rr) })), undefined, 'Nenhum lead no período. Aqui aparece um funil por linha, com a comparação ao período anterior.');
   }
 
   function desenhar(raiz, d, ctx) {

@@ -448,8 +448,8 @@ test('ajuste 26/10: faixas de faturamento com o comparativo da semana anterior',
 
 test('ajuste 26/10: tabela por funil com o funil completo e o investimento', () => {
   const { tabela } = telaCom(RESPOSTAS);
-  assert.deepEqual(colunas(tabela), ['Funil', 'Investimento', 'Leads', 'Leads novos', 'CPL', 'CPL lead novo', 'MQL', 'SQL',
-    'Reunião agendada', 'Reunião realizada', 'Custo por MQL', 'Custo por SQL', 'Custo por reunião agendada', 'Custo por reunião realizada',
+  assert.deepEqual(colunas(tabela), ['Funil', 'Investimento', 'Leads', 'Leads novos', 'MQL', 'SQL',
+    'Reunião agendada', 'Reunião realizada', 'CPL', 'CPL lead novo', 'Custo por MQL', 'Custo por SQL', 'Custo por reunião agendada', 'Custo por reunião realizada',
     'Lead → MQL', 'MQL → RA', 'RA → RR', 'Entraram nos grupos']);
   const [se, wo] = linhasComColunas(tabela);
   assert.equal(se.Funil, 'sessao-estrategica');
