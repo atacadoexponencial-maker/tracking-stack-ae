@@ -135,7 +135,7 @@
       { rotulo: 'Reunião realizada', k: 'realizadas', custo: 'custo_realizada', rotCusto: 'por reunião realizada', nota: 'pela data da reunião' },
     ];
     // Passagem depois de cada etapa (índice da etapa de cima).
-    const PASSAGENS = { 0: ['lead_mql', 'Lead → MQL', BASE_MQL], 2: ['mql_ra', 'MQL → RA', 'dos MQLs, quantos agendaram'], 3: ['ra_rr', 'RA → RR', 'das que já passaram'] };
+    const PASSAGENS = { 0: ['lead_mql', 'Lead → MQL', BASE_MQL], 2: ['mql_ra', 'MQL → RA', 'MQLs que agendaram'], 3: ['ra_rr', 'RA → RR', 'reuniões que já passaram'] };
     const LARGURAS = [100, 88, 76, 64, 52];
     const etapa = (e, i) => {
       let nota = e.nota || '';
@@ -154,21 +154,26 @@
         <div class="vr-etapa__custo"><small>${e.rotCusto}</small><b>${custo}</b>${comNumero ? variacao(a[e.custo], b[e.custo], { ...vr, invertido: true }) : ''}</div>
       </div>`;
     };
-    const passagem = (i) => {
-      const p = PASSAGENS[i];
-      if (!p) return '';
-      const [k, rotulo, explica] = p;
+    // Taxas de passagem: uma linha de quadros logo abaixo do funil (as faixas
+    // ficam coladas, sem nada entre elas — pedido de 26/10).
+    const { tile, comparar } = ctx;
+    const taxa = ([k, rotulo, explica]) => {
       const semCrm = k !== 'ra_rr' && d.crm_lido !== true;
-      const soSe = k === 'lead_mql' && !a.mql_aplica;
-      const t = a[k], v = pctDe(t);
-      const valor = soSe || semCrm || v === null ? '—' : fmtPct(v, 0);
-      const detalhe = soSe ? SO_SE : semCrm ? (d.crm_lido === null ? LENDO : SEM_CRM) : t ? `${fmtInt(t.num)} de ${fmtInt(t.den)} · ${explica}` : explica;
-      return `<div class="vr-passagem"><span class="vr-passagem__seta" aria-hidden="true">↓</span>
-        <b>${valor}</b> <span class="vr-passagem__rotulo">${rotulo}</span>
-        ${valor !== '—' ? variacao(v, pctDe(b[k]), { ...vr, pp: true }) : ''}
-        <small>${detalhe}</small></div>`;
+      const soSe = k !== 'ra_rr' && !a.mql_aplica;
+      const t = a[k], v = pctDe(t), vb = pctDe(b[k]);
+      const vazioTaxa = soSe || semCrm || v === null;
+      return {
+        rotulo,
+        valor: vazioTaxa ? null : fmtPct(v, 0),
+        delta: !vazioTaxa && vb ? delta(v, vb) : undefined,
+        ...(vazioTaxa ? {} : comparar(v, vb, (x) => fmtPct(x, 0), { pp: 0 })),
+        nota: soSe ? SO_SE : semCrm ? (d.crm_lido === null ? LENDO : SEM_CRM) : t ? `${fmtInt(t.num)} de ${fmtInt(t.den)} · ${explica}` : explica,
+      };
     };
-    return `<div class="vr-funil" aria-label="Funil do período">${ETAPAS.map((e, i) => etapa(e, i) + passagem(i)).join('')}</div>`;
+    return `<div class="vr-coluna">
+      <div class="vr-funil" aria-label="Funil do período">${ETAPAS.map(etapa).join('')}</div>
+      <div class="grid-etiquetas vr-taxas" aria-label="Taxas de passagem">${Object.values(PASSAGENS).map(taxa).map((k) => tile(k)).join('')}</div>
+    </div>`;
   }
 
   function lateral(d, ctx) {

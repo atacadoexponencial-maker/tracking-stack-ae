@@ -899,10 +899,13 @@ td.pago, th.pago { color: var(--alerta); }
 .vr-topo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); gap: 1.6rem; align-items: start; margin-bottom: 1.6rem; }
 .vr-funil { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 1.1rem 1.2rem; }
 .vr-etapa { display: grid; grid-template-columns: 150px minmax(0, 1fr) 190px; gap: 0.2rem 1rem; align-items: center; }
-.vr-etapa + .vr-etapa { margin-top: 0.9rem; } /* MQL → SQL: sem taxa entre as faixas */
+.vr-etapa + .vr-etapa { margin-top: 3px; } /* faixas coladas: as taxas ficam nos quadros embaixo */
+.vr-taxas { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0.9rem 0 0; }
+@media (max-width: 640px) { .vr-taxas { grid-template-columns: 1fr; } }
 .vr-etapa__nome b { display: block; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .vr-etapa__nome small { display: block; font-size: 0.7rem; color: var(--apagado); line-height: 1.3; }
-.vr-etapa__faixa > span { display: flex; justify-content: center; align-items: baseline; gap: 0.5rem; width: var(--vr-largura); margin: 0 auto; background: var(--tinta); color: var(--bege); padding: 0.55rem 0.4rem; border-radius: 2px; }
+.vr-etapa__faixa { align-self: stretch; display: flex; }
+.vr-etapa__faixa > span { display: flex; justify-content: center; align-items: center; gap: 0.5rem; width: var(--vr-largura); margin: 0 auto; background: var(--tinta); color: var(--bege); padding: 0.55rem 0.4rem; border-radius: 2px; }
 .vr-etapa__faixa b { font-size: 1.7rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .vr-etapa__faixa .semdado { color: var(--taupe); }
 .vr-etapa__faixa .vr-var--alta { color: #8fd8aa; } .vr-etapa__faixa .vr-var--queda { color: #f3a49b; } .vr-etapa__faixa .vr-var--neutro { color: var(--taupe); }
@@ -2230,7 +2233,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-contexto.js"></script>
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
-<script src="/dash/visao-reuniao.js?v=2026-10-26i"></script>
+<script src="/dash/visao-reuniao.js?v=2026-10-26j"></script>
 <script>
 (() => {
 'use strict';

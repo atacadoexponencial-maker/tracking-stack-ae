@@ -164,15 +164,14 @@ function etapas(html) {
     };
   });
 }
+// Taxas de passagem: os quadros logo abaixo do funil.
 function passagens(html) {
-  return html.split('class="vr-passagem"').slice(1).map((b) => ({
-    valor: texto(b.match(/<b>([^<]+)<\/b>/)[1]),
-    rotulo: texto(b.match(/vr-passagem__rotulo">([^<]+)</)[1]),
-    detalhe: texto(b.match(/<small>([^<]*)<\/small>/)[1]),
-  }));
+  return quadros(html.slice(html.indexOf('vr-taxas'), html.indexOf('vr-lateral')))
+    .map((q) => ({ rotulo: q.rotulo, valor: q.valor, detalhe: q.nota }));
 }
 const quadros = (html) => [...html.matchAll(/<tile rotulo="([^"]+)" valor="([^"]*)" delta="([^"]*)" anterior="([^"]*)" nota="([^"]*)"/g)]
   .map(([, rotulo, valor, delta, anterior, nota]) => ({ rotulo, valor, delta, anterior, nota }));
+const lateral = (html) => quadros(html.slice(html.indexOf('vr-lateral')));
 const linhasFunil = (tab) => [...tab.matchAll(/<tr>(.*?)<\/tr>/gs)].map((m) => [...m[1].matchAll(/<td>(.*?)<\/td>/gs)].map((c) => texto(c[1])));
 const colunas = (tab) => [...tab.matchAll(/<th>([^<]+)<\/th>/g)].map((m) => m[1]);
 const primeiro = (s) => s.split(' ')[0];
@@ -221,7 +220,9 @@ test('CA-S4-01: a Visão geral mostra a manchete, o funil da reunião e a latera
   const { html } = telaCom(RESPOSTAS);
   assert.ok(html.indexOf('class="manchete"') < html.indexOf('vr-funil'), 'manchete antes do funil');
   assert.deepEqual(etapas(html).map((e) => e.rotulo), ETAPAS);
-  assert.deepEqual(quadros(html).map((q) => q.rotulo), ['Investimento em ads', 'Leads', 'CPL']);
+  assert.deepEqual(lateral(html).map((q) => q.rotulo), ['Investimento em ads', 'Leads', 'CPL']);
+  assert.deepEqual(passagens(html).map((p) => p.rotulo), ['Lead → MQL', 'MQL → RA', 'RA → RR'], 'taxas logo abaixo do funil');
+  assert.ok(html.indexOf('vr-funil') < html.indexOf('vr-taxas'));
   for (const fora of ['Conversão geral', 'Visitantes', 'Receita', 'ROAS', 'Leads por dia', 'Conversão por LP', 'Metas', 'Agenda: do lead']) {
     assert.ok(!html.includes(fora), `não mostra ${fora}`);
   }
@@ -259,7 +260,7 @@ test('CA-S4-07: CRM fora do ar não derruba a tela', () => {
     assert.equal(e.MQL.nota, 'sem dados do CRM');
     assert.equal(e.SQL.nota, 'sem dados do CRM');
     for (const r of ['Leads novos', 'Reunião agendada', 'Reunião realizada']) assert.notEqual(e[r].num, '—', `${r} tem número`);
-    assert.ok(quadros(html).every((q) => q.valor !== '—'), 'investimento, leads e CPL aparecem');
+    assert.ok(lateral(html).every((q) => q.valor !== '—'), 'investimento, leads e CPL aparecem');
   }
 });
 
