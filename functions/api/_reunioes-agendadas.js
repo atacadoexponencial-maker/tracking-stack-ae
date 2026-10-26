@@ -179,16 +179,20 @@ export async function reunioesRealizadas(DB, de, ate) {
 // no período (a mesma seleção de reunioesAgendadas) e o que aconteceu com
 // cada uma ATÉ AGORA, em qualquer data. Assim RA → RR fala dos mesmos leads
 // que agendaram, em vez de misturar reuniões de outras semanas.
-//   status: realizada | faltou | cancelada | a_acontecer | sem_presenca
-//   (sem_presenca = já passou e ninguém marcou; sem_info conta aqui)
+//   status: realizada | faltou | cancelada | a_acontecer | sem_presenca | fora_do_registro
+//   (sem_presenca = já passou e ninguém marcou; sem_info conta aqui.
+//   fora_do_registro = consultoria do Calendly de antes de 19/10/2026, quando a
+//   presença do Calendly ainda não era marcada no dash; decisão dela em 26/10:
+//   não marcar as antigas, e elas ficam fora do RA → RR)
 // ---------------------------------------------------------------------------
-export const STATUS_COORTE = ['realizada', 'faltou', 'cancelada', 'a_acontecer', 'sem_presenca'];
+export const STATUS_COORTE = ['realizada', 'faltou', 'cancelada', 'a_acontecer', 'sem_presenca', 'fora_do_registro'];
 
-export function statusNaCoorte({ situacao, presenca, fim, origem }, agora) {
+export function statusNaCoorte({ situacao, presenca, inicio, fim, origem }, agora) {
   if (origem === 'calendly') {
     if (presenca === 'realizada' || presenca === 'faltou') return presenca;
     if (presenca === 'sem_info') return 'sem_presenca';
-    return fim > agora ? 'a_acontecer' : 'sem_presenca';
+    if (fim > agora) return 'a_acontecer';
+    return inicio < CORTE_CALENDLY ? 'fora_do_registro' : 'sem_presenca';
   }
   if (situacao === 'cancelada') return 'cancelada';
   if (situacao === 'realizada' || situacao === 'faltou') return situacao;
@@ -207,7 +211,7 @@ export async function coorteDasAgendadas(DB, de, ate, agora) {
   let calendly = [];
   try {
     const { results } = await DB.prepare(`
-      SELECT email, agendou_em, presenca, COALESCE(fim, inicio + ?) AS fim FROM calendly_consultorias
+      SELECT email, agendou_em, presenca, inicio, COALESCE(fim, inicio + ?) AS fim FROM calendly_consultorias
        WHERE situacao = 'ativa' AND marcada_pela_equipe = 0 AND agendou_em >= ? AND agendou_em <= ?`,
     ).bind(DURACAO_CALENDLY, de, ate).all();
     calendly = (results || []).filter((c) => !naAgenda.has(normalizar(c.email)));
@@ -222,7 +226,7 @@ export async function coorteDasAgendadas(DB, de, ate, agora) {
   return itens.map((x, i) => ({ funil: funis[i].funil, status: x.status }));
 }
 
-/** { total, por_funil } com { agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca }. */
+/** { total, por_funil } com { agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca, fora_do_registro }. */
 export function resumirCoorte(lista) {
   const zero = () => Object.fromEntries([['agendadas', 0], ...STATUS_COORTE.map((s) => [s, 0])]);
   const total = zero();

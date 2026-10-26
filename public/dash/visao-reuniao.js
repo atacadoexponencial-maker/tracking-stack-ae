@@ -80,6 +80,7 @@
       // Realizadas, custo por RR e RA → RR pela coorte: só reuniões de quem agendou no período.
       realizadas: co ? co.realizada : null, custo_realizada: co ? div(gastoReunioes, co.realizada) : null,
       a_acontecer: co ? co.a_acontecer : null,
+      fora_do_registro: co ? co.fora_do_registro || 0 : null,
       // MQL → RA olha os MQLs da base de MQL, como o quadro; RA → RR, todas as reuniões.
       lead_mql: crmMql ? par(crmMql.mqls, crmMql.leads_novos) : null,
       mql_ra: crmMql ? par(crmMql.mqls_com_reuniao || 0, crmMql.mqls) : null,
@@ -179,7 +180,8 @@
         delta: !vazioTaxa && vb ? delta(v, vb) : undefined,
         ...(vazioTaxa ? {} : comparar(v, vb, (x) => fmtPct(x, 0), { pp: 0 })),
         nota: (soSe ? SO_SE : semCrm ? (d.crm_lido === null ? LENDO : SEM_CRM) : t ? `${fmtInt(t.num)} de ${fmtInt(t.den)} · ${explica}` : explica)
-          + (k === 'ra_rr' && a.a_acontecer ? ` · ${fmtInt(a.a_acontecer)} a acontecer` : ''),
+          + (k === 'ra_rr' && a.a_acontecer ? ` · ${fmtInt(a.a_acontecer)} a acontecer` : '')
+          + (k === 'ra_rr' && a.fora_do_registro ? ` · ${fmtInt(a.fora_do_registro)} do Calendly antes de 19/10 fora da conta` : ''),
       };
     };
     return `<div class="vr-coluna">

@@ -181,7 +181,7 @@ const taxasCom = (atual, anterior) => ({
   anterior: anterior === null ? null : { crm_lido: true, mql_funis: ['sessao-estrategica', 'aquisicao'], ...anterior },
 });
 // { agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca }
-const co = (agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca) => ({ agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca });
+const co = (agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca, fora_do_registro = 0) => ({ agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca, fora_do_registro });
 const CRM_A = { 'sessao-estrategica': { leads_novos: 5, mqls: 3, sqls: 2, mqls_com_reuniao: 2 }, workshop: { leads_novos: 2, mqls: 1, sqls: 0, mqls_com_reuniao: 0 } };
 const CRM_B = { 'sessao-estrategica': { leads_novos: 4, mqls: 2, sqls: 1, mqls_com_reuniao: 1 }, workshop: { leads_novos: 2, mqls: 0, sqls: 0, mqls_com_reuniao: 0 } };
 const RESPOSTAS = {
@@ -463,4 +463,18 @@ test('ajuste 26/10: tabela por funil com o funil completo e o investimento', () 
   assert.equal(primeiro(se.MQL), '3');
   assert.equal(wo.MQL, '—', 'workshop não tem MQL');
   assert.equal(wo['MQL → RA'], '—', 'workshop não agenda reunião');
+});
+
+test('ajuste 26/10: consultoria do Calendly de antes de 19/10 sem presença fica fora do RA → RR', async () => {
+  const { coorteDasAgendadas, resumirCoorte } = await import('../functions/api/_reunioes-agendadas.js');
+  const ANT = { de: em('2026-10-12T00:00:00'), ate: em('2026-10-18T23:59:59') };
+  const calendly = db.prepare(`INSERT INTO calendly_consultorias (invitee_uri, event_uri, email, agendou_em, inicio, situacao, presenca, atualizado_em)
+                               VALUES (?, ?, ?, ?, ?, 'ativa', ?, 0)`);
+  calendly.run('inv-1', 'ev-1', 'a@x.com', em('2026-10-13T10:00:00'), em('2026-10-15T14:00:00'), null); // antes do corte: sem como marcar
+  calendly.run('inv-2', 'ev-2', 'b@x.com', em('2026-10-14T10:00:00'), em('2026-10-20T14:00:00'), 'realizada'); // depois do corte
+  calendly.run('inv-3', 'ev-3', 'c@x.com', em('2026-10-15T10:00:00'), em('2026-10-21T14:00:00'), null); // depois do corte, sem marcar
+  const resumo = resumirCoorte(await coorteDasAgendadas(env.DB, ANT.de, ANT.ate, AGORA));
+  assert.deepEqual(resumo.total, co(3, 1, 0, 0, 0, 1, 1));
+  const p = passagens(telaCom({ ...RESPOSTAS, coorte: { atual: resumo, anterior: null } }).html);
+  assert.equal(p[2].detalhe, '1 de 2 · que já passaram · 1 do Calendly antes de 19/10 fora da conta');
 });
