@@ -3003,7 +3003,7 @@ R.visao = async () => {
   desenhar(undefined);
   contarNumeros($('#visao-reuniao'));
   // `s4`: respostas antigas (sem `crm`) guardadas no cache de período fechado não servem.
-  fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s4`)
+  fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s4b`)
     .catch(() => null)
     .then((t) => { if (minha === renderAtual && secao === 'visao') desenhar(t); });
 };
