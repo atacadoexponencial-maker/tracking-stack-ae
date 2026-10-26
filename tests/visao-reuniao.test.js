@@ -306,9 +306,12 @@ test('CA-S4-10: taxa sem base mostra traço', () => {
 // ---------------------------------------------------------------------------
 // Níveis de qualificação da Sessão Estratégica (S4-05)
 // ---------------------------------------------------------------------------
+// Linhas da qualificação: [faixa, agora, semana anterior, variação].
 const faixasNaTela = (html) => html.split('class="vr-faixa"').slice(1).map((b) => [
   texto(b.match(/vr-faixa__rotulo">([^<]+)</)[1]),
-  texto(b.match(/vr-faixa__num">([\s\S]*?)<\/span>\s*<\/div>/)[1]),
+  texto(b.match(/vr-faixa__agora">([\s\S]*?)<\/span>\s*<span class="vr-faixa__ant/)[1]),
+  texto(b.match(/vr-faixa__ant">([\s\S]*?)<\/span>\s*<span class="vr-faixa__var/)[1]),
+  texto(b.match(/vr-faixa__var">([\s\S]*?)<\/span>\s*<\/div>/)[1]),
 ]);
 
 test('CA-S4-11: leads novos de SE separados por faixa de faturamento', async () => {
@@ -329,7 +332,9 @@ test('CA-S4-11: leads novos de SE separados por faixa de faturamento', async () 
   assert.deepEqual(r.qualificacao, { abaixo: 2, acima: 2, nao_informado: 1, total: 5 });
   assert.equal(r.crm.workshop.leads_novos, 3, 'workshop lido, mas fora da qualificação');
   const { html } = telaCom({ ...RESPOSTAS, taxas: taxasCom({ ...RESPOSTAS.taxas.atual, qualificacao: r.qualificacao }, null) });
-  assert.deepEqual(faixasNaTela(html), [['Abaixo de R$ 20 mil', '2 40%'], ['Acima de R$ 20 mil', '2 40%'], ['Não informado', '1 20%']]);
+  assert.deepEqual(faixasNaTela(html).map((l) => l.slice(0, 2)), [
+    ['Abaixo de R$ 20 mil', '2 (40%)'], ['Acima de R$ 20 mil', '2 (40%)'], ['Não informado', '1 (20%)'], ['Total', '5 (100%)'],
+  ]);
 });
 
 test('CA-S4-12: faixa usa a mesma leitura de faturamento do MQL', async () => {
@@ -436,7 +441,9 @@ test('ajuste 26/10: custo de cada etapa do funil', () => {
 
 test('ajuste 26/10: faixas de faturamento com o comparativo da semana anterior', () => {
   const f = faixasNaTela(telaCom(RESPOSTAS).html);
-  assert.deepEqual(f[1], ['Acima de R$ 20 mil', '3 60% ▲ 50% ant. 2']);
+  assert.deepEqual(f[1], ['Acima de R$ 20 mil', '3 (60%)', '2 (50%)', '▲ 50%']);
+  assert.deepEqual(f[0], ['Abaixo de R$ 20 mil', '2 (40%)', '2 (50%)', 'igual']);
+  assert.ok(telaCom(RESPOSTAS).html.includes('<span>Semana anterior</span>'), 'colunas com título');
 });
 
 test('ajuste 26/10: tabela por funil com o funil completo e o investimento', () => {

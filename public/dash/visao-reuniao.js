@@ -112,10 +112,11 @@
   // ---------------------------------------------------------------------------
   // Variação pequena (▲ 25%) contra o período anterior; nos custos, subir é ruim.
   // Taxas variam em pontos percentuais.
-  function variacao(x, y, { invertido = false, pp = false, delta, fmtNum }) {
+  function variacao(x, y, { invertido = false, pp = false, igual = false, delta, fmtNum }) {
     if (vazio(x) || vazio(y)) return '';
     const v = pp ? x - y : y ? delta(x, y) : null;
     if (v === null || !isFinite(v)) return '';
+    if (igual && v === 0) return '<span class="vr-var vr-var--neutro">igual</span>';
     const cls = v === 0 ? 'neutro' : (v > 0) !== invertido ? 'alta' : 'queda';
     return `<span class="vr-var vr-var--${cls}">${v === 0 ? '=' : v > 0 ? '▲' : '▼'} ${fmtNum(Math.abs(v), pp ? 0 : 1)}${pp ? ' p.p.' : '%'}</span>`;
   }
@@ -201,15 +202,21 @@
     const qa = q.a, qb = q.b;
     const pct = (x, k) => (x && x.total ? (x[k] / x.total) * 100 : 0);
     const FAIXAS = [['abaixo', 'Abaixo de R$ 20 mil'], ['acima', 'Acima de R$ 20 mil'], ['nao_informado', 'Não informado']];
-    const ant = (k) => (qb ? `<small class="vr-ant">ant. ${fmtInt(qb[k])}</small>` : '');
-    if (!qa.total) return `<div class="bloco vr-qualif">${cab}<p class="mini">Nenhum lead novo de ${BASE_MQL} no período.${qb ? ` Anterior: ${fmtInt(qb.total)}.` : ''}</p></div>`;
+    if (!qa.total) return `<div class="bloco vr-qualif">${cab}<p class="mini">Nenhum lead novo de ${BASE_MQL} no período.${qb ? ` Semana anterior: ${fmtInt(qb.total)}.` : ''}</p></div>`;
+    // Colunas com título (pedido de 26/10: "10 38% = 0% ant. 10" confundia).
+    const qtd = (x, k) => (x ? `<b>${fmtInt(x[k])}</b> <small>(${fmtPct(pct(x, k), 0)})</small>` : '<span class="semdado">—</span>');
+    const varia = (k) => (qb ? variacao(qa[k], qb[k], { delta, fmtNum, igual: true }) || '<span class="semdado">—</span>' : '<span class="semdado">—</span>');
+    const linha = (rotulo, k, barra) => `<div class="vr-faixa">
+        <span class="vr-faixa__rotulo">${rotulo}</span>
+        ${barra ? `<div class="regua" role="img" aria-label="${rotulo}: ${fmtPct(pct(qa, k), 0)}"><i style="width:${pct(qa, k).toFixed(1)}%"></i></div>` : '<span></span>'}
+        <span class="vr-faixa__agora">${qtd(qa, k)}</span>
+        <span class="vr-faixa__ant">${qtd(qb, k)}</span>
+        <span class="vr-faixa__var">${varia(k)}</span>
+      </div>`;
     return `<div class="bloco vr-qualif">${cab}
-      ${FAIXAS.map(([k, r]) => `<div class="vr-faixa">
-        <span class="vr-faixa__rotulo">${r}</span>
-        <div class="regua" role="img" aria-label="${r}: ${fmtPct(pct(qa, k), 0)}"><i style="width:${pct(qa, k).toFixed(1)}%"></i></div>
-        <span class="vr-faixa__num">${fmtInt(qa[k])} <small>${fmtPct(pct(qa, k), 0)}</small> ${qb ? variacao(qa[k], qb[k], { delta, fmtNum }) : ''} ${ant(k)}</span>
-      </div>`).join('')}
-      <p class="mini">${fmtInt(qa.total)} leads novos de ${BASE_MQL} no período ${qb ? variacao(qa.total, qb.total, { delta, fmtNum }) : ''} ${qb ? `· anterior: ${fmtInt(qb.total)}` : ''}</p>
+      <div class="vr-faixa vr-faixa--cab" aria-hidden="true"><span></span><span></span><span>Agora</span><span>Semana anterior</span><span>Variação</span></div>
+      ${FAIXAS.map(([k, r]) => linha(r, k, true)).join('')}
+      ${linha('Total', 'total', false)}
     </div>`;
   }
 
