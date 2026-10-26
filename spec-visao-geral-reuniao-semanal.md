@@ -299,12 +299,13 @@ Decididos no chat depois de ela ver a tela no ar; delimitados, sem issue nova.
   funil, MQL e as duas taxas mostram "—" com "só Sessão Estratégica e Aquisição". O backend diz
   quais são os funis de MQL (`mql_funis`) e devolve a soma deles (`mql`, `qualificacao`).
 - **Formato em funil:** os oito quadros viraram um funil vertical (Leads novos → MQL → SQL →
-  Reunião agendada → Reunião realizada) com o número e a variação à esquerda, o custo da
-  etapa à direita e as taxas de passagem entre as faixas (Lead → MQL entre Leads novos e MQL,
-  MQL → RA entre SQL e Reunião agendada, RA → RR entre agendada e realizada). Faixas com
-  afunilamento fixo, não proporcional.
-- **Lateral:** Investimento em ads (novo), Leads e CPL de todos os canais, com comparativo, e
-  os níveis de qualificação.
+  Reunião agendada → Reunião realizada): o nome da etapa à esquerda, o número e a variação
+  DENTRO da faixa (pedido dela: valores no funil, nomes ao lado), o custo da etapa à direita e
+  as taxas de passagem entre as faixas (Lead → MQL entre Leads novos e MQL, MQL → RA entre SQL
+  e Reunião agendada, RA → RR entre agendada e realizada). Faixas com afunilamento fixo, não
+  proporcional.
+- **Lateral:** Investimento em ads (novo), Leads e CPL de todos os canais, com comparativo.
+- **Níveis de qualificação:** embaixo do funil, na largura toda.
 - **Custos por etapa:** CPL lead novo, custo por MQL (investimento da SE + Aquisição ÷ MQLs), por SQL
   (investimento ÷ SQLs), por reunião agendada e por reunião realizada (os mesmos da aba
   Detalhado), cada um com a variação (subir é ruim).
