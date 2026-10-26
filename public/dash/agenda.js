@@ -422,11 +422,11 @@
     };
     ctx.tabela(ctx.$('#ag-lista'), [
       { titulo: 'Quando', campo: 'inicio', render: (r) => vistaReunioes === 'hoje' ? `<b>${hora(r.inicio)}</b>` : `<b>${diaCurto(r.inicio)}</b> ${hora(r.inicio)}` },
-      { titulo: 'Pessoa', campo: 'nome', render: (r) => r.origem === 'calendly' ? ctx.esc(r.email) : `<button type="button" class="ag-link-linha" data-abrir="${r.id}">${ctx.esc(r.nome)}</button>${r.is_teste ? ' <span class="carimbo neutro">teste</span>' : ''}<br><span class="mini">${ctx.esc(r.email)}</span>` },
+      { titulo: 'Pessoa', campo: 'nome', render: (r) => r.origem === 'calendly' ? `${ctx.esc(r.nome)}<br><span class="mini">${ctx.esc(r.email)}</span>` : `<button type="button" class="ag-link-linha" data-abrir="${r.id}">${ctx.esc(r.nome)}</button>${r.is_teste ? ' <span class="carimbo neutro">teste</span>' : ''}<br><span class="mini">${ctx.esc(r.email)}</span>` },
       { titulo: 'WhatsApp', campo: 'telefone', render: (r) => r.telefone ? `<span class="mini">+${ctx.esc(r.telefone)}</span>` : '' },
       { titulo: 'Tipo', campo: 'tipo_nome', render: (r) => r.origem === 'calendly' ? '<span class="carimbo neutro">Calendly</span>' : ctx.esc(r.tipo_nome) },
       { titulo: 'Situação', campo: 'situacao', render: (r) => r.aguardando_presenca ? '<span class="carimbo alerta">Aguardando presença</span>' : carimbo(r.situacao) },
-      { titulo: '', campo: 'id', render: (r) => r.origem === 'calendly' ? '' : `<div class="ag-acoes ag-acoes--linha">
+      { titulo: '', campo: 'id', render: (r) => r.origem === 'calendly' ? (r.meet_link ? `<div class="ag-acoes ag-acoes--linha"><a class="btn sec" href="${ctx.esc(r.meet_link)}" target="_blank" rel="noopener">Entrar no Meet</a></div>` : '') : `<div class="ag-acoes ag-acoes--linha">
           ${r.aguardando_presenca ? `<button class="btn sec" type="button" data-presenca="realizada" data-id="${r.id}">Realizada</button>
             <button class="btn sec" type="button" data-presenca="faltou" data-id="${r.id}">Faltou</button>` : ''}
           <button class="btn sec" type="button" data-abrir="${r.id}">Abrir</button></div>` },

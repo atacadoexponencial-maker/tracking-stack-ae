@@ -48,9 +48,15 @@ export async function coletarConsultorias({ token, desde, ate, fetch = globalThi
       uri: ev.uri,
       status: ev.status,
       start_time: ev.start_time,
+      end_time: ev.end_time || null,
+      // Link da sala (Google Meet) para a lista de agendamentos do dash.
+      join_url: (ev.location && ev.location.join_url) || null,
       convidados: convidados.map((c) => ({
         uri: c.uri,
         email: c.email,
+        name: c.name || null,
+        // Único telefone do Calendly: o do lembrete por SMS, quando preenchido.
+        text_reminder_number: c.text_reminder_number || null,
         created_at: c.created_at,
         status: c.status,
         invitee_scheduled_by: c.invitee_scheduled_by || null,

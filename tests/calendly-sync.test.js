@@ -55,6 +55,7 @@ const linhas = () => db.prepare('SELECT * FROM calendly_consultorias ORDER BY in
 beforeEach(() => {
   db = new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../migrations/0063_calendly_consultorias.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0065_calendly_detalhes.sql', import.meta.url), 'utf8'));
   env = { SYNC_SECRET: 's', DB: d1(db) };
   calendly = { eventos: [], falha: false };
   chamadasEndpoint = 0;
@@ -123,4 +124,22 @@ test('CA-S2-04: Calendly fora do ar não apaga o que já existe e a falha vai pa
   assert.equal(chamadasEndpoint, 0, 'não chama o endpoint');
   assert.deepEqual(linhas(), antes);
   assert.match(log.join('\n'), /ERRO coleta: Calendly 500/);
+});
+
+test('detalhes para a lista: nome, WhatsApp, fim e Meet; coleta sem eles não apaga o que já tinha', async () => {
+  calendly.eventos = [consultoria('c1', [convidado('ana', { name: ' Ana Lima ', text_reminder_number: '+55 11 98765-4321' })], {
+    end_time: '2026-10-14T13:45:00.000000Z', location: { type: 'google_conference', join_url: 'https://meet.google.com/abc-defg-hij' },
+  })];
+  await rodar();
+  let [ana] = linhas();
+  assert.equal(ana.nome, 'Ana Lima');
+  assert.equal(ana.telefone, '5511987654321');
+  assert.equal(ana.fim, Date.parse('2026-10-14T13:45:00Z') / 1000);
+  assert.equal(ana.meet_link, 'https://meet.google.com/abc-defg-hij');
+
+  calendly.eventos = [consultoria('c1', [convidado('ana')])];
+  await rodar();
+  [ana] = linhas();
+  assert.equal(ana.nome, 'Ana Lima');
+  assert.equal(ana.meet_link, 'https://meet.google.com/abc-defg-hij');
 });

@@ -314,6 +314,7 @@ test('sync: sem registro do Meet a reunião continua aguardando presença, mesmo
 test('lista: consultorias do Calendly desde 19/10, só leitura, fora de aguardando presença e dos números', async () => {
   await configurar({ comercial: false });
   db.exec(readFileSync(new URL('../migrations/0063_calendly_consultorias.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0065_calendly_detalhes.sql', import.meta.url), 'utf8'));
   const t = Math.floor(Date.now() / 1000);
   const ins = db.prepare(`INSERT INTO calendly_consultorias (invitee_uri, event_uri, email, agendou_em, inicio, situacao, atualizado_em)
     VALUES (?, 'ev', ?, 0, ?, ?, 0)`);
@@ -321,11 +322,14 @@ test('lista: consultorias do Calendly desde 19/10, só leitura, fora de aguardan
   ins.run('cal-semana', 'semana@x.com', CORTE_CALENDLY + 3600, 'ativa');
   ins.run('cal-cancelada', 'cancelou@x.com', CORTE_CALENDLY + 7200, 'cancelada');
   ins.run('cal-futura', 'futura@x.com', t + 3 * 86400, 'ativa');
+  db.prepare("UPDATE calendly_consultorias SET nome = 'Fábio', telefone = '5511999990000', meet_link = 'https://meet.google.com/xyz' WHERE invitee_uri = 'cal-futura'").run();
 
   const todas = await dash(reunioes, null, `&vista=todas&from=0&to=${t + 30 * 86400}`);
   const cal = todas.corpo.rows.filter((r) => r.origem === 'calendly');
   assert.deepEqual(cal.map((r) => r.email), ['futura@x.com', 'semana@x.com']);
   assert.ok(cal.every((r) => r.tipo_nome === 'Calendly' && !r.aguardando_presenca));
+  assert.deepEqual([cal[0].nome, cal[0].telefone, cal[0].meet_link], ['Fábio', '5511999990000', 'https://meet.google.com/xyz']);
+  assert.equal(cal[1].nome, 'semana@x.com', 'sem nome coletado, mostra o e-mail');
   assert.equal(todas.corpo.numeros.agendados, 0);
 
   const prox = await dash(reunioes, null, '&vista=proximas');

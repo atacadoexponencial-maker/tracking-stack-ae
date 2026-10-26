@@ -92,7 +92,7 @@ export async function onRequestGet({ request, env }) {
      FROM agenda_reunioes${comTestes ? '' : ` WHERE ${SEM_TESTE}`}`,
   ).bind(hoje0, hoje0 + 86400, t).first();
   const tipos = (await env.DB.prepare(`SELECT id, nome, ativo FROM agenda_tipos${comTestes ? '' : ' WHERE teste = 0'} ORDER BY nome`).all()).results || [];
-  // Consultorias do Calendly (só leitura, só e-mail): fora quando há filtro de
+  // Consultorias do Calendly (só leitura: nome, WhatsApp e Meet): fora quando há filtro de
   // tipo ou situação; não entram nos números do período.
   const cal = p.get('tipo') || (vista === 'todas' && p.get('situacao'))
     ? { rows: [], hoje: 0, proximas: 0 }
@@ -116,7 +116,7 @@ async function doCalendly(env, vista, janela) {
   try {
     const rc = recorteDoCalendly(vista, janela);
     const rows = rc ? (await env.DB.prepare(
-      `SELECT c.invitee_uri, c.inicio, c.email FROM calendly_consultorias c WHERE ${rc.where.join(' AND ')} LIMIT 200`,
+      `SELECT c.invitee_uri, c.inicio, c.fim, c.email, c.nome, c.telefone, c.meet_link FROM calendly_consultorias c WHERE ${rc.where.join(' AND ')} LIMIT 200`,
     ).bind(...rc.binds).all()).results || [] : [];
     const n = await env.DB.prepare(
       `SELECT SUM(CASE WHEN inicio >= ?2 AND inicio < ?3 THEN 1 ELSE 0 END) AS hoje,
@@ -125,8 +125,8 @@ async function doCalendly(env, vista, janela) {
     ).bind(CORTE_CALENDLY, janela.hoje0, janela.hoje0 + 86400, janela.agora).first();
     return {
       rows: rows.map((r) => ({
-        id: r.invitee_uri, origem: 'calendly', inicio: r.inicio, nome: r.email, email: r.email,
-        telefone: null, situacao: 'marcada', tipo_nome: 'Calendly', aguardando_presenca: false,
+        id: r.invitee_uri, origem: 'calendly', inicio: r.inicio, fim: r.fim, nome: r.nome || r.email, email: r.email,
+        telefone: r.telefone, meet_link: r.meet_link, situacao: 'marcada', tipo_nome: 'Calendly', aguardando_presenca: false,
       })),
       hoje: n?.hoje || 0,
       proximas: n?.proximas || 0,
