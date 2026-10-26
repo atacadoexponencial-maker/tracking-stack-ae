@@ -362,17 +362,41 @@ export function recorteDaVista(vista, { agora, hoje0, de, ate }) {
 // desligado em 26/10; nada novo chega depois disso.
 export const CORTE_CALENDLY = 1792378800;
 
+// Consultoria do Calendly sem término gravado: 45 min (duração do tipo).
+export const DURACAO_CALENDLY = 45 * 60;
+const FIM_CALENDLY = `COALESCE(c.fim, c.inicio + ${DURACAO_CALENDLY})`;
+
 /**
  * Recorte do Calendly para a mesma vista (alias `c` = calendly_consultorias).
- * Só consultoria ativa, a partir do corte. Sem presença no Calendly, então
- * "Aguardando presença" não recebe nada (null).
+ * Só consultoria ativa, a partir do corte. Presença é marcada à mão no dash
+ * (coluna `presenca`; NULL = aguardando). `situacao` = filtro da vista Todas:
+ * 'marcada' → sem presença; realizada/faltou/sem_info → a presença; as outras
+ * situações não existem no Calendly (null = nada).
  */
-export function recorteDoCalendly(vista, { agora, hoje0, de, ate }) {
+export function recorteDoCalendly(vista, { agora, hoje0, de, ate, situacao = '' }) {
   const base = ["c.situacao = 'ativa'", 'c.inicio >= ?'];
   switch (vista) {
-    case 'pendentes': return null;
+    case 'pendentes': return { where: [...base, 'c.presenca IS NULL', `${FIM_CALENDLY} < ?`], binds: [CORTE_CALENDLY, agora] };
     case 'proximas': return { where: [...base, 'c.inicio > ?'], binds: [CORTE_CALENDLY, agora] };
-    case 'todas': return { where: [...base, 'c.inicio >= ?', 'c.inicio < ?'], binds: [CORTE_CALENDLY, de, ate] };
+    case 'todas': {
+      const r = { where: [...base, 'c.inicio >= ?', 'c.inicio < ?'], binds: [CORTE_CALENDLY, de, ate] };
+      if (!situacao) return r;
+      if (situacao === 'marcada') r.where.push('c.presenca IS NULL');
+      else if (['realizada', 'faltou', 'sem_info'].includes(situacao)) { r.where.push('c.presenca = ?'); r.binds.push(situacao); }
+      else return null;
+      return r;
+    }
     default: return { where: [...base, 'c.inicio >= ?', 'c.inicio < ?'], binds: [CORTE_CALENDLY, hoje0, hoje0 + 86400] };
   }
+}
+
+/** Linha do Calendly no formato da lista de agendamentos (só leitura, presença à mão). */
+export function linhaDoCalendly(c, agora) {
+  const fim = c.fim || c.inicio + DURACAO_CALENDLY;
+  return {
+    id: c.invitee_uri, origem: 'calendly', inicio: c.inicio, fim, nome: c.nome || c.email, email: c.email,
+    telefone: c.telefone, meet_link: c.meet_link, tipo_nome: 'Calendly',
+    situacao: c.presenca || 'marcada',
+    aguardando_presenca: !c.presenca && fim < agora,
+  };
 }

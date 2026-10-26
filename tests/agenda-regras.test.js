@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   validarGrade, resumoGrade, validarTipo, horariosLivres, validarDadosAgendamento,
   situacaoPelaPresenca, emCimaDaHora, numerosDoPeriodo, tituloDoEvento, fimDaJanela,
-  recorteDoCalendly, CORTE_CALENDLY,
+  recorteDoCalendly, CORTE_CALENDLY, linhaDoCalendly,
 } from '../functions/api/_agenda-regras.js';
 import { padronizarTelefone } from '../functions/_telefone.js';
 
@@ -135,10 +135,18 @@ test('aviso de últimos horários só com poucos horários reais', async () => {
   assert.equal(poucosHorarios({ a: [1, 2, 3], b: [4, 5, 6] }), false);
 });
 
-test('Calendly na lista: corte em 19/10 00h BRT, só ativas, nada em aguardando presença', () => {
+test('Calendly na lista: corte em 19/10 00h BRT, só ativas, aguardando = terminou sem presença', () => {
   assert.equal(CORTE_CALENDLY, T('2026-10-19T00:00:00-03:00'));
   const janela = { agora: 500, hoje0: 100, de: 10, ate: 900 };
-  assert.equal(recorteDoCalendly('pendentes', janela), null);
+  const pend = recorteDoCalendly('pendentes', janela);
+  assert.ok(pend.where.includes('c.presenca IS NULL'));
+  assert.deepEqual(pend.binds, [CORTE_CALENDLY, 500]);
+  assert.equal(recorteDoCalendly('todas', { ...janela, situacao: 'cancelada' }), null);
+  assert.deepEqual(recorteDoCalendly('todas', { ...janela, situacao: 'realizada' }).binds, [CORTE_CALENDLY, 10, 900, 'realizada']);
+  assert.ok(recorteDoCalendly('todas', { ...janela, situacao: 'marcada' }).where.includes('c.presenca IS NULL'));
+  const linha = linhaDoCalendly({ invitee_uri: 'u', inicio: 100, fim: null, email: 'a@x.com', nome: null, presenca: null }, 100 + 46 * 60);
+  assert.deepEqual([linha.fim, linha.nome, linha.situacao, linha.aguardando_presenca], [100 + 45 * 60, 'a@x.com', 'marcada', true]);
+  assert.equal(linhaDoCalendly({ inicio: 100, fim: 200, presenca: 'faltou' }, 999).aguardando_presenca, false);
   const prox = recorteDoCalendly('proximas', janela);
   assert.ok(prox.where.includes("c.situacao = 'ativa'"));
   assert.deepEqual(prox.binds, [CORTE_CALENDLY, 500]);

@@ -1,6 +1,6 @@
 // GET  /api/agenda/reunioes?key=...&from=&to=[&tipo=&situacao=]
 //        → reuniões cujo HORÁRIO cai no período + números do período
-//          (+ consultorias do Calendly desde 19/10, só leitura, origem 'calendly')
+//          (+ consultorias do Calendly desde 19/10, origem 'calendly'; presença à mão)
 // GET  /api/agenda/reunioes?key=...&id=<id>      → detalhe com histórico e e-mails da reunião
 // GET  /api/agenda/reunioes?key=...&por=funil&from=&to=
 //        → Reuniões agendadas por funil (painel da Visão geral): reuniões
@@ -10,11 +10,15 @@
 // POST /api/agenda/reunioes?key=...  → { acao: 'cancelar', id, motivo? }
 //                                      { acao: 'remarcar', id, inicio }
 //                                      { acao: 'presenca', id, situacao: 'realizada'|'faltou'|'sem_info' }
+//                                        (id do Calendly = invitee_uri)
 //
 // Spec spec-agenda-propria.md, módulos 5 e 8 (issues 361 e 362).
 import {
   numerosDoPeriodo, SITUACOES, VISTAS_REUNIOES, recorteDaVista, recorteDoCalendly, CORTE_CALENDLY,
+  DURACAO_CALENDLY, linhaDoCalendly,
 } from '../_agenda-regras.js';
+import { funisDasReunioes } from '../_reunioes-agendadas.js';
+import { isInternalTestEmail } from '../../tracker.js';
 import { ymdBrt, inicioDoDiaBrt } from '../_data-brt.js';
 import {
   lerReuniao, lerTipo, cancelar, remarcar, registrarNoCrm, textoCrm, historico, agora, enviarRealizada,
@@ -92,11 +96,11 @@ export async function onRequestGet({ request, env }) {
      FROM agenda_reunioes${comTestes ? '' : ` WHERE ${SEM_TESTE}`}`,
   ).bind(hoje0, hoje0 + 86400, t).first();
   const tipos = (await env.DB.prepare(`SELECT id, nome, ativo FROM agenda_tipos${comTestes ? '' : ' WHERE teste = 0'} ORDER BY nome`).all()).results || [];
-  // Consultorias do Calendly (só leitura: nome, WhatsApp e Meet): fora quando há filtro de
-  // tipo ou situação; não entram nos números do período.
-  const cal = p.get('tipo') || (vista === 'todas' && p.get('situacao'))
-    ? { rows: [], hoje: 0, proximas: 0 }
-    : await doCalendly(env, vista, { agora: t, hoje0, de, ate: Number(p.get('to')) || t });
+  // Consultorias do Calendly (nome, WhatsApp, Meet e presença à mão): fora com
+  // filtro de tipo; nos números do período só entram faltas e realizadas.
+  const cal = p.get('tipo')
+    ? { rows: [], hoje: 0, proximas: 0, pendentes: 0 }
+    : await doCalendly(env, vista, { agora: t, hoje0, de, ate: Number(p.get('to')) || t, situacao: vista === 'todas' ? p.get('situacao') || '' : '' });
   const lista = [
     ...rows.map((r) => ({ ...r, aguardando_presenca: ['marcada', 'remarcada'].includes(r.situacao) && r.fim < t })),
     ...cal.rows,
@@ -105,10 +109,27 @@ export async function onRequestGet({ request, env }) {
   return json({
     vista,
     rows: lista,
-    contagens: { hoje: (c?.hoje || 0) + cal.hoje, proximas: (c?.proximas || 0) + cal.proximas, pendentes: c?.pendentes || 0 },
-    numeros: vista === 'todas' ? numerosDoPeriodo(rows) : null,
+    contagens: {
+      hoje: (c?.hoje || 0) + cal.hoje,
+      proximas: (c?.proximas || 0) + cal.proximas,
+      pendentes: (c?.pendentes || 0) + cal.pendentes,
+    },
+    numeros: vista === 'todas' ? numerosComCalendly(rows, cal.rows) : null,
     tipos,
   });
+}
+
+// Agendados e cancelados seguem só da agenda própria; faltas e realizadas
+// marcadas no Calendly entram no comparecimento.
+function numerosComCalendly(rows, calendly) {
+  const n = numerosDoPeriodo(rows);
+  for (const r of calendly) {
+    if (r.situacao === 'faltou') n.faltas++;
+    else if (r.situacao === 'realizada') n.realizadas++;
+  }
+  const conhecidas = n.realizadas + n.faltas;
+  n.taxa_comparecimento = conhecidas ? n.realizadas / conhecidas : null;
+  return n;
 }
 
 // Calendly com erro (tabela ausente, etc.) não derruba a lista.
@@ -116,30 +137,61 @@ async function doCalendly(env, vista, janela) {
   try {
     const rc = recorteDoCalendly(vista, janela);
     const rows = rc ? (await env.DB.prepare(
-      `SELECT c.invitee_uri, c.inicio, c.fim, c.email, c.nome, c.telefone, c.meet_link FROM calendly_consultorias c WHERE ${rc.where.join(' AND ')} LIMIT 200`,
+      `SELECT c.invitee_uri, c.inicio, c.fim, c.email, c.nome, c.telefone, c.meet_link, c.presenca
+         FROM calendly_consultorias c WHERE ${rc.where.join(' AND ')} LIMIT 200`,
     ).bind(...rc.binds).all()).results || [] : [];
     const n = await env.DB.prepare(
       `SELECT SUM(CASE WHEN inicio >= ?2 AND inicio < ?3 THEN 1 ELSE 0 END) AS hoje,
-              SUM(CASE WHEN inicio > ?4 THEN 1 ELSE 0 END) AS proximas
+              SUM(CASE WHEN inicio > ?4 THEN 1 ELSE 0 END) AS proximas,
+              SUM(CASE WHEN presenca IS NULL AND COALESCE(fim, inicio + ?5) < ?4 THEN 1 ELSE 0 END) AS pendentes
          FROM calendly_consultorias WHERE situacao = 'ativa' AND inicio >= ?1`,
-    ).bind(CORTE_CALENDLY, janela.hoje0, janela.hoje0 + 86400, janela.agora).first();
+    ).bind(CORTE_CALENDLY, janela.hoje0, janela.hoje0 + 86400, janela.agora, DURACAO_CALENDLY).first();
     return {
-      rows: rows.map((r) => ({
-        id: r.invitee_uri, origem: 'calendly', inicio: r.inicio, fim: r.fim, nome: r.nome || r.email, email: r.email,
-        telefone: r.telefone, meet_link: r.meet_link, situacao: 'marcada', tipo_nome: 'Calendly', aguardando_presenca: false,
-      })),
+      rows: rows.map((r) => linhaDoCalendly(r, janela.agora)),
       hoje: n?.hoje || 0,
       proximas: n?.proximas || 0,
+      pendentes: n?.pendentes || 0,
     };
   } catch (e) {
     console.error('agenda: Calendly', e.message);
-    return { rows: [], hoje: 0, proximas: 0 };
+    return { rows: [], hoje: 0, proximas: 0, pendentes: 0 };
   }
+}
+
+const ID_CALENDLY = 'https://api.calendly.com/';
+const TIPO_CALENDLY = { nome: 'Consultoria Individual (Calendly)' };
+
+// Presença de uma consultoria do Calendly, marcada à mão: grava na própria
+// linha, comenta no card do ClickUp e manda "reunião realizada" ao Meta/GA4
+// (mesmas regras da agenda própria, inclusive o prazo de 7 dias).
+async function presencaCalendly(env, corpo, waitUntil) {
+  if (!['realizada', 'faltou', 'sem_info'].includes(corpo.situacao)) return json({ error: 'Situação inválida.' }, 400);
+  const c = await env.DB.prepare('SELECT * FROM calendly_consultorias WHERE invitee_uri = ?').bind(String(corpo.id)).first();
+  if (!c) return json({ error: 'Reunião não encontrada.' }, 404);
+  if (c.situacao !== 'ativa') return json({ error: 'Reunião cancelada não tem presença.' }, 409);
+  if (c.inicio > agora()) return json({ error: 'A reunião ainda não aconteceu.' }, 409);
+  await env.DB.prepare('UPDATE calendly_consultorias SET presenca = ?, presenca_em = ? WHERE invitee_uri = ?')
+    .bind(corpo.situacao, agora(), c.invitee_uri).run();
+  if (corpo.situacao === 'sem_info') return json({ ok: true });
+  const [{ funil }] = await funisDasReunioes(env.DB, [{ email: c.email, quando: c.agendou_em, funil: '' }]);
+  const reuniao = {
+    id: c.invitee_uri, comercial: 1, is_teste: isInternalTestEmail(c.email) ? 1 : 0, inicio: c.inicio,
+    fim: c.fim || c.inicio + DURACAO_CALENDLY, nome: c.nome || '', email: c.email, telefone: c.telefone, funil,
+  };
+  await registrarNoCrm(env, reuniao, textoCrm(corpo.situacao, TIPO_CALENDLY, reuniao, '(marcado pela equipe no dash)'),
+    (situacao) => env.DB.prepare('UPDATE calendly_consultorias SET crm_situacao = ? WHERE invitee_uri = ?').bind(situacao, c.invitee_uri).run().then(() => situacao));
+  if (corpo.situacao === 'realizada') {
+    await enviarRealizada(env, reuniao, waitUntil || (() => {}), {
+      tabela: 'calendly_consultorias', chave: 'invitee_uri', eventId: `realizada-calendly-${c.invitee_uri.split('/').pop()}`,
+    });
+  }
+  return json({ ok: true });
 }
 
 export async function onRequestPost({ request, env, waitUntil }) {
   if (!autorizado(new URL(request.url), env)) return json({ error: 'Unauthorized' }, 401);
   const corpo = await request.json().catch(() => ({}));
+  if (corpo.acao === 'presenca' && String(corpo.id || '').startsWith(ID_CALENDLY)) return presencaCalendly(env, corpo, waitUntil);
   const reuniao = await lerReuniao(env, { id: String(corpo.id || '') });
   if (!reuniao) return json({ error: 'Reunião não encontrada.' }, 404);
   const tipo = await lerTipo(env, { id: reuniao.tipo_id });

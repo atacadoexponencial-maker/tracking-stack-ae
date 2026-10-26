@@ -310,26 +310,28 @@ export async function atualizarDescricao(env, tipo, reuniao, fetchImpl = fetch) 
  * Procura por e-mail e depois por telefone. Nunca cria card: agendar não é
  * lead (decisão de 02/10). Devolve a situação gravada na reunião.
  */
-export async function registrarNoCrm(env, reuniao, texto) {
+// `gravar`: onde guardar o resultado (padrão: a reunião da agenda própria;
+// a consultoria do Calendly passa o dela).
+export async function registrarNoCrm(env, reuniao, texto, gravar = (situacao) => gravarCrm(env, reuniao.id, situacao)) {
   if (!reuniao.comercial) return null;
-  if (!env.CLICKUP_API_TOKEN) return gravarCrm(env, reuniao.id, 'sem_credencial');
+  if (!env.CLICKUP_API_TOKEN) return gravar('sem_credencial');
   let card = null;
   try {
     card = await searchClickUpTask(CU_FIELD.email, reuniao.email, env)
       || (reuniao.telefone ? await searchClickUpTaskPorTelefone(CU_FIELD.whatsapp, reuniao.telefone, env) : null);
   } catch (e) {
-    return gravarCrm(env, reuniao.id, 'erro: ' + e.message);
+    return gravar('erro: ' + e.message);
   }
-  if (!card) return gravarCrm(env, reuniao.id, 'sem_card');
+  if (!card) return gravar('sem_card');
   try {
     await clickupWrite(() => clickupFetch(`/task/${card.id}/comment`, {
       method: 'POST',
       body: JSON.stringify({ comment_text: texto, notify_all: false }),
     }, env));
   } catch (e) {
-    return gravarCrm(env, reuniao.id, 'erro: ' + e.message);
+    return gravar('erro: ' + e.message);
   }
-  return gravarCrm(env, reuniao.id, 'ok:' + card.id);
+  return gravar('ok:' + card.id);
 }
 
 async function gravarCrm(env, id, situacao) {
@@ -408,11 +410,15 @@ export const PRAZO_CONVERSAO_REALIZADA = 7 * 86400;
  * agendou. Correção posterior (realizada → faltou) não desfaz: o Meta não
  * aceita, e o histórico registra a correção.
  */
-export async function enviarRealizada(env, reuniao, waitUntil = () => {}) {
+// `onde`: tabela e chave da linha (padrão: agenda própria; o Calendly usa
+// calendly_consultorias / invitee_uri) e o event_id da conversão.
+const ONDE_AGENDA = { tabela: 'agenda_reunioes', chave: 'id' };
+export async function enviarRealizada(env, reuniao, waitUntil = () => {}, onde = ONDE_AGENDA) {
   if (!reuniao.comercial || reuniao.is_teste) return null;
-  const atual = await env.DB.prepare('SELECT conversao_realizada FROM agenda_reunioes WHERE id = ?').bind(reuniao.id).first();
+  const { tabela, chave } = onde;
+  const atual = await env.DB.prepare(`SELECT conversao_realizada FROM ${tabela} WHERE ${chave} = ?`).bind(reuniao.id).first();
   if (atual && atual.conversao_realizada) return atual.conversao_realizada;
-  const gravar = (situacao) => env.DB.prepare('UPDATE agenda_reunioes SET conversao_realizada = ? WHERE id = ?')
+  const gravar = (situacao) => env.DB.prepare(`UPDATE ${tabela} SET conversao_realizada = ? WHERE ${chave} = ?`)
     .bind(situacao, reuniao.id).run().then(() => situacao);
   if (agora() - reuniao.fim > PRAZO_CONVERSAO_REALIZADA) return gravar('fora_do_prazo');
 
@@ -425,7 +431,7 @@ export async function enviarRealizada(env, reuniao, waitUntil = () => {}) {
   if (reuniao.ip) headers.set('cf-connecting-ip', reuniao.ip);
   const corpo = {
     event_name: 'ReuniaoRealizada',
-    event_id: `realizada-${reuniao.id}`,
+    event_id: onde.eventId || `realizada-${reuniao.id}`,
     event_time: agora(),
     event_source_url: `${SITE}/reuniao`,
     user_data: { em: reuniao.email, ph: reuniao.telefone, fn: reuniao.nome },

@@ -311,10 +311,11 @@ test('sync: sem registro do Meet a reunião continua aguardando presença, mesmo
   assert.ok(pend.corpo.rows.every((r) => r.aguardando_presenca));
 });
 
-test('lista: consultorias do Calendly desde 19/10, só leitura, fora de aguardando presença e dos números', async () => {
+test('lista: consultorias do Calendly desde 19/10, com nome e Meet, fora dos agendados do período', async () => {
   await configurar({ comercial: false });
   db.exec(readFileSync(new URL('../migrations/0063_calendly_consultorias.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0065_calendly_detalhes.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0066_calendly_presenca.sql', import.meta.url), 'utf8'));
   const t = Math.floor(Date.now() / 1000);
   const ins = db.prepare(`INSERT INTO calendly_consultorias (invitee_uri, event_uri, email, agendou_em, inicio, situacao, atualizado_em)
     VALUES (?, 'ev', ?, 0, ?, ?, 0)`);
@@ -327,7 +328,8 @@ test('lista: consultorias do Calendly desde 19/10, só leitura, fora de aguardan
   const todas = await dash(reunioes, null, `&vista=todas&from=0&to=${t + 30 * 86400}`);
   const cal = todas.corpo.rows.filter((r) => r.origem === 'calendly');
   assert.deepEqual(cal.map((r) => r.email), ['futura@x.com', 'semana@x.com']);
-  assert.ok(cal.every((r) => r.tipo_nome === 'Calendly' && !r.aguardando_presenca));
+  assert.ok(cal.every((r) => r.tipo_nome === 'Calendly'));
+  assert.deepEqual(cal.map((r) => r.aguardando_presenca), [false, true]);
   assert.deepEqual([cal[0].nome, cal[0].telefone, cal[0].meet_link], ['Fábio', '5511999990000', 'https://meet.google.com/xyz']);
   assert.equal(cal[1].nome, 'semana@x.com', 'sem nome coletado, mostra o e-mail');
   assert.equal(todas.corpo.numeros.agendados, 0);
@@ -337,10 +339,50 @@ test('lista: consultorias do Calendly desde 19/10, só leitura, fora de aguardan
   assert.equal(prox.corpo.contagens.proximas, 1);
 
   const pend = await dash(reunioes, null, '&vista=pendentes');
-  assert.equal(pend.corpo.rows.length, 0);
+  assert.deepEqual(pend.corpo.rows.map((r) => r.email), ['semana@x.com']);
 
   const comTipo = await dash(reunioes, null, `&vista=todas&from=0&to=${t + 30 * 86400}&tipo=1`);
   assert.equal(comTipo.corpo.rows.filter((r) => r.origem === 'calendly').length, 0);
+});
+
+test('Calendly: presença à mão sai de aguardando, entra no comparecimento, manda a conversão e a coleta não apaga', async () => {
+  await configurar({ comercial: false });
+  for (const f of ['0063_calendly_consultorias.sql', '0065_calendly_detalhes.sql', '0066_calendly_presenca.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+  const t = Math.floor(Date.now() / 1000);
+  const uri = (id) => `https://api.calendly.com/scheduled_events/e/invitees/${id}`;
+  const ins = db.prepare(`INSERT INTO calendly_consultorias (invitee_uri, event_uri, email, agendou_em, inicio, fim, situacao, atualizado_em)
+    VALUES (?, 'ev', ?, 0, ?, ?, 'ativa', 0)`);
+  ins.run(uri('ontem'), 'ontem@empresa.com', t - 86400, t - 86400 + 2700);
+  ins.run(uri('velha'), 'velha@empresa.com', Math.max(CORTE_CALENDLY, t - 10 * 86400), Math.max(CORTE_CALENDLY, t - 10 * 86400) + 2700);
+  ins.run(uri('amanha'), 'amanha@empresa.com', t + 86400, t + 86400 + 2700);
+
+  let pend = await dash(reunioes, null, '&vista=pendentes');
+  assert.deepEqual(pend.corpo.rows.map((r) => r.email).sort(), ['ontem@empresa.com', 'velha@empresa.com']);
+  assert.equal(pend.corpo.contagens.pendentes, 2);
+  assert.equal((await dash(reunioes, { acao: 'presenca', id: uri('amanha'), situacao: 'realizada' })).status, 409);
+
+  assert.equal((await dash(reunioes, { acao: 'presenca', id: uri('ontem'), situacao: 'realizada' })).status, 200);
+  assert.equal((await dash(reunioes, { acao: 'presenca', id: uri('velha'), situacao: 'realizada' })).status, 200);
+  const linha = (id) => db.prepare('SELECT * FROM calendly_consultorias WHERE invitee_uri = ?').get(uri(id));
+  assert.equal(linha('ontem').presenca, 'realizada');
+  assert.equal(linha('ontem').conversao_realizada, 'enviada');
+  assert.equal(linha('velha').conversao_realizada, 'fora_do_prazo');
+
+  pend = await dash(reunioes, null, '&vista=pendentes');
+  assert.equal(pend.corpo.rows.length, 0);
+  const todas = await dash(reunioes, null, `&vista=todas&from=0&to=${t + 30 * 86400}`);
+  assert.equal(todas.corpo.rows.find((r) => r.email === 'ontem@empresa.com').situacao, 'realizada');
+  assert.deepEqual([todas.corpo.numeros.agendados, todas.corpo.numeros.realizadas], [0, 2]);
+  const soRealizadas = await dash(reunioes, null, `&vista=todas&from=0&to=${t + 30 * 86400}&situacao=realizada`);
+  assert.equal(soRealizadas.corpo.rows.length, 2);
+
+  // A coleta diária regrava a linha e não mexe na presença.
+  const { linhasDasConsultorias, onRequestPost: coleta } = await import('../functions/api/sync/calendly.js');
+  assert.ok(linhasDasConsultorias);
+  await coleta({ request: new Request('https://x', { method: 'POST', headers: { 'x-sync-secret': 's' }, body: JSON.stringify({ eventos: [
+    { uri: 'ev', status: 'active', start_time: new Date((t - 86400) * 1000).toISOString(), convidados: [{ uri: uri('ontem'), email: 'ontem@empresa.com', created_at: '2026-10-20T10:00:00Z', status: 'active' }] },
+  ] }) }), env });
+  assert.equal(linha('ontem').presenca, 'realizada');
 });
 
 test('reunião realizada vira conversão uma vez só, e fora do prazo não envia', async () => {
