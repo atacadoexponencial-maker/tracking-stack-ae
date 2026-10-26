@@ -82,7 +82,7 @@ Nenhuma.
 
 ## Checklist
 
-- [ ] `entradas_grupos` no `/api/cpl`
-- [ ] `por_funil` em `montarNumeros`
-- [ ] Testes CA-S4-14 e 15
-- [ ] Deploy e conferência no ar
+- [x] `entradas_grupos` no `/api/cpl`
+- [x] `por_funil` em `montarNumeros`
+- [x] Testes CA-S4-14 e 15
+- [x] Deploy e conferência no ar
