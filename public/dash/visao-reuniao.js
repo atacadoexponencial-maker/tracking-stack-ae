@@ -141,6 +141,19 @@
     const lido = r.taxas === undefined ? null : !!(r.taxas && r.taxas.atual && r.taxas.atual.crm_lido);
     const cA = lido ? doCrm(r.taxas.atual) : null, cB = lido ? doCrm(r.taxas.anterior) : null;
     const cplA = div(gA, leadsA), cplB = div(gB, leadsB);
+    // Taxas (S4-04): Lead → MQL de todos os funis (ou do filtrado); MQL → RA e
+    // RA → RR dos funis que agendam reunião, como em /api/agenda/taxas.
+    const taxasDe = (rec) => {
+      if (!rec) return null;
+      const crm = !rec.crm ? null : f ? rec.crm[f] : rec.crm_total;
+      const ag = f ? (rec.por_funil || {})[f] : rec.total;
+      const par = (num, den) => (num === null || num === undefined || den === null || den === undefined ? null : { num, den });
+      return {
+        lead_mql: crm ? par(crm.mqls, crm.leads_novos) : null,
+        mql_ra: ag ? par(ag.mqls_com_reuniao, ag.mqls) : null,
+        ra_rr: ag ? par(ag.realizadas, ag.ocorridas) : null,
+      };
+    };
     const d = delta(leadsA, leadsB);
     const manchete = `<strong>${fmtInt(leadsA)} leads</strong> ${esc(r.quando)}`
       + (f ? ` no funil ${esc(f)}` : '')
@@ -149,6 +162,7 @@
     return {
       manchete,
       crm_lido: lido,
+      taxas: r.taxas ? { a: taxasDe(r.taxas.atual), b: taxasDe(r.taxas.anterior) } : null,
       notas: { cpl: f ? 'sem investimento no funil' : 'precisa do sync de investimento' },
       numeros: {
         leads: { a: leadsA, b: leadsB },

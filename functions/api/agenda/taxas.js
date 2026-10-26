@@ -14,7 +14,8 @@
 import { montarFeedback } from '../feedback-marketing.js';
 import { resolverPeriodo } from '../_feedback-marketing-periodo.js';
 import { taxasPorFunil } from '../_agenda-funil.js';
-import { reunioesAgendadas, emailsComReuniao } from '../_reunioes-agendadas.js';
+import { reunioesAgendadas, emailsComReuniao, funisDasReunioes } from '../_reunioes-agendadas.js';
+import { CORTE_CALENDLY, DURACAO_CALENDLY } from '../_agenda-regras.js';
 import { ymdBrt } from '../_data-brt.js';
 import { respostaEmCache, respostaJson } from '../_cache.js';
 
@@ -64,8 +65,8 @@ export async function lerCrm(env, de, ate, agora) {
 /**
  * { funil: { agendadas, ocorridas, realizadas, faltas } }. Agendadas vêm de
  * reunioesAgendadas (agenda própria + Calendly, spec-reunioes-calendly.md);
- * ocorridas, realizadas e faltas só da agenda própria (o Calendly não sabe se
- * a reunião aconteceu).
+ * ocorridas, realizadas e faltas da agenda própria e, desde 19/10/2026, das
+ * consultorias do Calendly com a presença marcada à mão no dash (série S4).
  */
 export async function lerAgenda(env, de, ate, agora) {
   const r = await env.DB.prepare(
@@ -80,6 +81,12 @@ export async function lerAgenda(env, de, ate, agora) {
   const porFunil = {};
   for (const x of r.results || []) {
     if (x.ocorridas) porFunil[x.funil] = { agendadas: 0, ocorridas: x.ocorridas, realizadas: x.realizadas, faltas: x.faltas };
+  }
+  for (const c of await calendlyOcorridas(env.DB, de, ate, agora)) {
+    porFunil[c.funil] = porFunil[c.funil] || { agendadas: 0, ocorridas: 0, realizadas: 0, faltas: 0 };
+    porFunil[c.funil].ocorridas += 1;
+    if (c.presenca === 'realizada') porFunil[c.funil].realizadas += 1;
+    if (c.presenca === 'faltou') porFunil[c.funil].faltas += 1;
   }
   for (const { funil } of await reunioesAgendadas(env.DB, de, ate)) {
     porFunil[funil] = porFunil[funil] || { agendadas: 0, ocorridas: 0, realizadas: 0, faltas: 0 };
@@ -101,6 +108,23 @@ export function numerosDoCrm(crm) {
     for (const k of Object.keys(total)) total[k] += porFunil[f][k];
   }
   return { crm: porFunil, crm_total: total };
+}
+
+// Consultorias do Calendly que já passaram da hora no período, com o funil do
+// lead e a presença marcada (null = sem presença). Erro: nenhuma.
+async function calendlyOcorridas(DB, de, ate, agora) {
+  try {
+    const { results } = await DB.prepare(`
+      SELECT email, agendou_em, presenca FROM calendly_consultorias
+       WHERE situacao = 'ativa' AND inicio >= ? AND inicio >= ? AND inicio <= ? AND COALESCE(fim, inicio + ?) < ?`,
+    ).bind(CORTE_CALENDLY, de, ate, DURACAO_CALENDLY, agora).all();
+    const lista = results || [];
+    const funis = await funisDasReunioes(DB, lista.map((c) => ({ email: c.email, quando: c.agendou_em, funil: '' })));
+    return lista.map((c, i) => ({ funil: funis[i].funil, presenca: c.presenca }));
+  } catch (e) {
+    console.error('agenda/taxas: Calendly', e.message);
+    return [];
+  }
 }
 
 async function recorte(env, de, ate, agora, funisComAgenda) {

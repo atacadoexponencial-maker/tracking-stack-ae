@@ -205,3 +205,43 @@ test('CA-S4-07: CRM fora do ar não derruba a tela', () => {
     }
   }
 });
+
+// ---------------------------------------------------------------------------
+// Taxas de passagem (S4-04)
+// ---------------------------------------------------------------------------
+const taxasTiles = (html) => quadros(html.slice(html.indexOf('Taxas de passagem')));
+
+test('CA-S4-08: três taxas de passagem dos leads novos', () => {
+  const atual = {
+    crm_total: { leads_novos: 40, mqls: 12, sqls: 0 }, crm: {},
+    total: { leads_novos: 40, mqls: 12, mqls_com_reuniao: 6, ocorridas: 5, realizadas: 3 }, por_funil: {},
+  };
+  const q = taxasTiles(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, atual) }));
+  assert.deepEqual(q.map((x) => [x.rotulo, x.valor, x.nota]), [
+    ['Lead → MQL', '30%', '12 de 40'],
+    ['MQL → RA', '50%', '6 de 12'],
+    ['RA → RR', '60%', '3 de 5'],
+  ]);
+});
+
+test('CA-S4-09: RA → RR conta as reuniões do Calendly', async () => {
+  const { lerAgenda } = await import('../functions/api/agenda/taxas.js');
+  const { taxasPorFunil } = await import('../functions/api/_agenda-funil.js');
+  reuniaoAgenda('realizada', '2026-10-21T14:00:00');
+  consultoria('realizada', '2026-10-22T16:00:00');
+  consultoria('faltou', '2026-10-23T16:00:00');
+  consultoria('realizada', '2026-10-30T16:00:00'); // ainda no futuro: não entra
+  const agenda = await lerAgenda(env, P.de, P.ate, AGORA);
+  const t = taxasPorFunil({ crm: null, agenda, funisComAgenda: ['sessao-estrategica'] }).total;
+  assert.equal(t.realizadas, 2);
+  assert.equal(t.ocorridas, 3);
+  const q = taxasTiles(telaCom({ ...RESPOSTAS, taxas: taxasCom({ ...t, total: t, crm_total: { leads_novos: 1, mqls: 0 }, crm: {} }, null) }));
+  assert.deepEqual([q[2].valor, q[2].nota], ['67%', '2 de 3']);
+});
+
+test('CA-S4-10: taxa sem base mostra traço', () => {
+  const vazio = { crm_total: { leads_novos: 0, mqls: 0, sqls: 0 }, crm: {}, total: { mqls: 0, mqls_com_reuniao: 0, ocorridas: 0, realizadas: 0 }, por_funil: {} };
+  const q = taxasTiles(telaCom({ ...RESPOSTAS, taxas: taxasCom(vazio, vazio) }));
+  assert.equal(q[0].rotulo, 'Lead → MQL');
+  assert.equal(q[0].valor, '—');
+});
