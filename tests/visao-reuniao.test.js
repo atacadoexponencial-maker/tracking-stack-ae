@@ -125,8 +125,9 @@ test('CA-S4-04: Reunião realizada soma agenda própria e Calendly', async () =>
   assert.equal((await r.json()).reunioes.total.realizadas, 2);
 });
 
+
 // ---------------------------------------------------------------------------
-// Desenho: public/dash/visao-reuniao.js com um contexto falso.
+// Desenho em funil: public/dash/visao-reuniao.js com um contexto falso.
 // ---------------------------------------------------------------------------
 globalThis.window = globalThis.window || {};
 new Function(readFileSync(new URL('../public/dash/visao-reuniao.js', import.meta.url), 'utf8'))();
@@ -135,91 +136,141 @@ const ctx = {
   esc: (x) => String(x), fmtInt: (x) => String(x), fmtNum: (x) => String(Math.round(x)), fmtPct: (x) => `${Math.round(x)}%`,
   money: (x) => `R$ ${x.toFixed(2)}`,
   tile: (k) => `<tile rotulo="${k.rotulo}" valor="${k.valor ?? '—'}" delta="${k.delta ?? ''}" anterior="${k.anterior ?? ''}" nota="${k.nota || ''}"></tile>`,
-  tabela: (el, cols, rows) => { el.innerHTML = rows.map((r) => `<tr>${cols.map((c) => `<td>${c.render(r)}</td>`).join('')}</tr>`).join(''); },
+  tabela: (el, cols, rows) => {
+    el.innerHTML = `<thead>${cols.map((c) => `<th>${c.titulo}</th>`).join('')}</thead>`
+      + rows.map((r) => `<tr>${cols.map((c) => `<td>${c.render(r)}</td>`).join('')}</tr>`).join('');
+  },
   comparar: (a, b, fmt) => ({ anterior: b === null || b === undefined ? null : fmt(b) }),
   delta: (a, b) => (b ? ((a - b) / b) * 100 : null), deltaChip: (p) => `<chip>${Math.round(p)}%</chip>`,
 };
-const quadros = (html) => [...html.matchAll(/<tile rotulo="([^"]+)" valor="([^"]*)" delta="([^"]*)" anterior="([^"]*)" nota="([^"]*)"/g)]
-  .map(([, rotulo, valor, delta, anterior, nota]) => ({ rotulo, valor, delta, anterior, nota }));
+const texto = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 function telaCom(respostas) {
   const tabelaFunis = { innerHTML: '' };
   const raiz = { innerHTML: '', querySelector: () => tabelaFunis };
-  VR.desenhar(raiz, VR.montarNumeros(respostas, ctx), ctx);
-  return raiz.innerHTML + tabelaFunis.innerHTML;
+  const dados = VR.montarNumeros(respostas, ctx);
+  VR.desenhar(raiz, dados, ctx);
+  return { html: raiz.innerHTML, tabela: tabelaFunis.innerHTML, dados };
 }
-const taxasCom = (atual, anterior) => ({ atual: { crm_lido: true, ...atual }, anterior: { crm_lido: true, ...anterior } });
+// Etapas do funil, lidas bloco a bloco: rótulo, número (com variação), custo e nota.
+function etapas(html) {
+  return html.split('class="vr-etapa"').slice(1).map((b) => {
+    const pega = (re) => { const m = b.match(re); return m ? texto(m[1]) : ''; };
+    return {
+      rotulo: pega(/vr-etapa__faixa"><span>([^<]+)/),
+      num: pega(/vr-etapa__num">([\s\S]*?)<\/div>/),
+      custoRotulo: pega(/vr-etapa__custo"><small>([^<]+)<\/small>/),
+      custo: pega(/vr-etapa__custo"><small>[^<]+<\/small>([\s\S]*?)<\/div>/),
+      nota: pega(/vr-etapa__nota">([^<]*)<\/p>/),
+    };
+  });
+}
+function passagens(html) {
+  return html.split('class="vr-passagem"').slice(1).map((b) => ({
+    valor: texto(b.match(/<b>([^<]+)<\/b>/)[1]),
+    rotulo: texto(b.match(/vr-passagem__rotulo">([^<]+)</)[1]),
+    detalhe: texto(b.match(/<small>([^<]*)<\/small>/)[1]),
+  }));
+}
+const quadros = (html) => [...html.matchAll(/<tile rotulo="([^"]+)" valor="([^"]*)" delta="([^"]*)" anterior="([^"]*)" nota="([^"]*)"/g)]
+  .map(([, rotulo, valor, delta, anterior, nota]) => ({ rotulo, valor, delta, anterior, nota }));
+const linhasFunil = (tab) => [...tab.matchAll(/<tr>(.*?)<\/tr>/gs)].map((m) => [...m[1].matchAll(/<td>(.*?)<\/td>/gs)].map((c) => texto(c[1])));
+const colunas = (tab) => [...tab.matchAll(/<th>([^<]+)<\/th>/g)].map((m) => m[1]);
+const primeiro = (s) => s.split(' ')[0];
+
+const taxasCom = (atual, anterior) => ({
+  atual: { crm_lido: true, mql_funil: 'sessao-estrategica', qualificacao_funil: 'sessao-estrategica', ...atual },
+  anterior: anterior === null ? null : { crm_lido: true, mql_funil: 'sessao-estrategica', ...anterior },
+});
+const CRM_A = { 'sessao-estrategica': { leads_novos: 5, mqls: 3, sqls: 2 }, workshop: { leads_novos: 2, mqls: 1, sqls: 0 } };
+const CRM_B = { 'sessao-estrategica': { leads_novos: 4, mqls: 2, sqls: 1 }, workshop: { leads_novos: 2, mqls: 0, sqls: 0 } };
 const RESPOSTAS = {
   leadsA: { funnelCounts: [{ funnel: 'sessao-estrategica', count: 6 }, { funnel: 'workshop', count: 4 }] },
   leadsB: { funnelCounts: [{ funnel: 'sessao-estrategica', count: 5 }, { funnel: 'workshop', count: 3 }] },
   cplA: {
     total_leads_novos: 7,
     por_funil: [{ funnel: 'sessao-estrategica', spend: 300, leads_novos: 4 }, { funnel: 'workshop', spend: 100, leads_novos: 3 }],
-    reunioes: { total: { agendadas: 5, realizadas: 3 }, por_funil: { 'sessao-estrategica': { agendadas: 4, realizadas: 2 }, workshop: { agendadas: 1, realizadas: 1 } } },
+    reunioes: {
+      total: { agendadas: 5, realizadas: 3, custo_agendada: 60, custo_realizada: 100 },
+      por_funil: { 'sessao-estrategica': { agendadas: 4, realizadas: 2, custo_agendada: 75, custo_realizada: 150 }, workshop: { agendadas: 1, realizadas: 1, custo_agendada: 100, custo_realizada: 100 } },
+    },
+    entradas_grupos: { workshop: 7 },
   },
   cplB: {
     total_leads_novos: 6,
     por_funil: [{ funnel: 'sessao-estrategica', spend: 250, leads_novos: 4 }, { funnel: 'workshop', spend: 90, leads_novos: 2 }],
-    reunioes: { total: { agendadas: 4, realizadas: 2 }, por_funil: { 'sessao-estrategica': { agendadas: 3, realizadas: 1 }, workshop: { agendadas: 1, realizadas: 1 } } },
+    reunioes: {
+      total: { agendadas: 4, realizadas: 2, custo_agendada: 62.5, custo_realizada: 125 },
+      por_funil: { 'sessao-estrategica': { agendadas: 3, realizadas: 1, custo_agendada: 83.33, custo_realizada: 250 }, workshop: { agendadas: 1, realizadas: 1, custo_agendada: 90, custo_realizada: 90 } },
+    },
+    entradas_grupos: { workshop: 5 },
   },
   atrA: { meta_spend: 400 }, atrB: { meta_spend: 340 },
   taxas: taxasCom(
-    { crm_total: { leads_novos: 7, mqls: 3, sqls: 2 }, crm: { 'sessao-estrategica': { mqls: 3, sqls: 2 }, workshop: { mqls: 0, sqls: 0 } } },
-    { crm_total: { leads_novos: 6, mqls: 2, sqls: 1 }, crm: { 'sessao-estrategica': { mqls: 2, sqls: 1 }, workshop: { mqls: 0, sqls: 0 } } },
+    { crm_total: { leads_novos: 7, mqls: 4, sqls: 2 }, crm: CRM_A, total: { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 },
+      por_funil: { 'sessao-estrategica': { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 } },
+      qualificacao: { abaixo: 2, acima: 3, nao_informado: 0, total: 5 } },
+    { crm_total: { leads_novos: 6, mqls: 2, sqls: 1 }, crm: CRM_B, total: { mqls: 2, mqls_com_reuniao: 1, ocorridas: 2, realizadas: 1 },
+      por_funil: { 'sessao-estrategica': { mqls: 2, mqls_com_reuniao: 1, ocorridas: 2, realizadas: 1 } },
+      qualificacao: { abaixo: 2, acima: 2, nao_informado: 0, total: 4 } },
   ),
   fSel: '', quando: 'nos últimos 7 dias',
 };
-const OITO = ['Leads', 'Leads novos', 'CPL', 'CPL lead novo', 'MQLs', 'SQL', 'Reunião agendada', 'Reunião realizada'];
+const ETAPAS = ['Leads novos', 'MQL', 'SQL', 'Reunião agendada', 'Reunião realizada'];
 
-test('CA-S4-01: a Visão geral mostra só os oito números da reunião, nesta ordem', () => {
-  const html = telaCom(RESPOSTAS);
-  const linha = html.slice(html.indexOf('vr-numeros'), html.indexOf('Taxas de passagem'));
-  assert.ok(html.indexOf('class="manchete"') < html.indexOf('vr-numeros'), 'manchete antes dos quadros');
-  assert.deepEqual(quadros(linha).map((q) => q.rotulo), OITO);
-  for (const fora of ['Conversão geral', 'Visitantes', 'Investimento', 'Receita', 'ROAS', 'Leads por dia', 'Conversão por LP', 'Metas', 'Agenda: do lead']) {
+test('CA-S4-01: a Visão geral mostra a manchete, o funil da reunião e a lateral, sem os blocos antigos', () => {
+  const { html } = telaCom(RESPOSTAS);
+  assert.ok(html.indexOf('class="manchete"') < html.indexOf('vr-funil'), 'manchete antes do funil');
+  assert.deepEqual(etapas(html).map((e) => e.rotulo), ETAPAS);
+  assert.deepEqual(quadros(html).map((q) => q.rotulo), ['Investimento em ads', 'Leads', 'CPL']);
+  for (const fora of ['Conversão geral', 'Visitantes', 'Receita', 'ROAS', 'Leads por dia', 'Conversão por LP', 'Metas', 'Agenda: do lead']) {
     assert.ok(!html.includes(fora), `não mostra ${fora}`);
   }
 });
 
 test('CA-S4-05: números comparados com o período anterior', () => {
-  const q = quadros(telaCom(RESPOSTAS)).slice(0, 8);
-  assert.equal(q[0].valor, '10');
-  assert.equal(Number(q[0].delta), 25);
-  for (const x of q) assert.notEqual(x.anterior, '', `${x.rotulo} tem o valor anterior`);
-});
-
-test('CA-S4-06: filtro de funil vale para todos os quadros', () => {
-  const q = quadros(telaCom({ ...RESPOSTAS, fSel: 'workshop' })).slice(0, 8);
-  assert.deepEqual(q.map((x) => x.valor), ['4', '3', 'R$ 25.00', 'R$ 33.33', '0', '0', '1', '1']);
-  const se = quadros(telaCom({ ...RESPOSTAS, fSel: 'sessao-estrategica' })).slice(0, 8);
-  assert.deepEqual(se.map((x) => x.valor), ['6', '4', 'R$ 50.00', 'R$ 75.00', '3', '2', '4', '2']);
-});
-
-test('CA-S4-07: CRM fora do ar não derruba a tela', () => {
-  for (const taxas of [null, taxasCom({ crm: null, crm_total: null }, {})]) {
-    if (taxas) taxas.atual.crm_lido = false;
-    const q = quadros(telaCom({ ...RESPOSTAS, taxas })).slice(0, 8);
-    const por = Object.fromEntries(q.map((x) => [x.rotulo, x]));
-    assert.equal(por.MQLs.valor, '—');
-    assert.equal(por.MQLs.nota, 'sem dados do CRM');
-    assert.equal(por.SQL.nota, 'sem dados do CRM');
-    for (const r of ['Leads', 'Leads novos', 'CPL', 'CPL lead novo', 'Reunião agendada', 'Reunião realizada']) {
-      assert.notEqual(por[r].valor, '—', `${r} tem número`);
-    }
+  const { html } = telaCom({
+    ...RESPOSTAS,
+    leadsA: { funnelCounts: [{ funnel: 'sessao-estrategica', count: 10 }] },
+    leadsB: { funnelCounts: [{ funnel: 'sessao-estrategica', count: 8 }] },
+  });
+  const leads = quadros(html).find((q) => q.rotulo === 'Leads');
+  assert.equal(leads.valor, '10');
+  assert.equal(Number(leads.delta), 25);
+  for (const e of etapas(html)) {
+    assert.match(e.num, /[▲▼=]/, `${e.rotulo}: variação do número`);
+    assert.match(e.custo, /[▲▼=]/, `${e.rotulo}: variação do custo`);
   }
 });
 
-// ---------------------------------------------------------------------------
-// Taxas de passagem (S4-04)
-// ---------------------------------------------------------------------------
-const taxasTiles = (html) => quadros(html.slice(html.indexOf('Taxas de passagem')));
+test('CA-S4-06: filtro de funil vale para todos os quadros', () => {
+  const wo = telaCom({ ...RESPOSTAS, fSel: 'workshop' });
+  assert.deepEqual(etapas(wo.html).map((e) => primeiro(e.num)), ['3', '—', '0', '1', '1']);
+  assert.equal(quadros(wo.html).find((q) => q.rotulo === 'Investimento em ads').valor, 'R$ 100.00');
+  const se = telaCom({ ...RESPOSTAS, fSel: 'sessao-estrategica' });
+  assert.deepEqual(etapas(se.html).map((e) => primeiro(e.num)), ['4', '3', '2', '4', '2']);
+  assert.equal(linhasFunil(se.tabela).length, 1);
+});
+
+test('CA-S4-07: CRM fora do ar não derruba a tela', () => {
+  for (const taxas of [null, { atual: { crm_lido: false, crm: null }, anterior: null }]) {
+    const { html } = telaCom({ ...RESPOSTAS, taxas });
+    const e = Object.fromEntries(etapas(html).map((x) => [x.rotulo, x]));
+    assert.equal(e.MQL.num, '—');
+    assert.equal(e.MQL.nota, 'sem dados do CRM');
+    assert.equal(e.SQL.nota, 'sem dados do CRM');
+    for (const r of ['Leads novos', 'Reunião agendada', 'Reunião realizada']) assert.notEqual(e[r].num, '—', `${r} tem número`);
+    assert.ok(quadros(html).every((q) => q.valor !== '—'), 'investimento, leads e CPL aparecem');
+  }
+});
 
 test('CA-S4-08: três taxas de passagem dos leads novos', () => {
   const atual = {
-    crm_total: { leads_novos: 40, mqls: 12, sqls: 0 }, crm: {},
-    total: { leads_novos: 40, mqls: 12, mqls_com_reuniao: 6, ocorridas: 5, realizadas: 3 }, por_funil: {},
+    crm_total: { leads_novos: 50, mqls: 13, sqls: 0 },
+    crm: { 'sessao-estrategica': { leads_novos: 40, mqls: 12, sqls: 0 }, workshop: { leads_novos: 10, mqls: 1, sqls: 0 } },
+    total: { mqls: 12, mqls_com_reuniao: 6, ocorridas: 5, realizadas: 3 }, por_funil: {},
   };
-  const q = taxasTiles(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, atual) }));
-  assert.deepEqual(q.map((x) => [x.rotulo, x.valor, x.nota]), [
+  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, atual) }).html);
+  assert.deepEqual(p.map((x) => [x.rotulo, x.valor, x.detalhe.split(' · ')[0]]), [
     ['Lead → MQL', '30%', '12 de 40'],
     ['MQL → RA', '50%', '6 de 12'],
     ['RA → RR', '60%', '3 de 5'],
@@ -237,20 +288,26 @@ test('CA-S4-09: RA → RR conta as reuniões do Calendly', async () => {
   const t = taxasPorFunil({ crm: null, agenda, funisComAgenda: ['sessao-estrategica'] }).total;
   assert.equal(t.realizadas, 2);
   assert.equal(t.ocorridas, 3);
-  const q = taxasTiles(telaCom({ ...RESPOSTAS, taxas: taxasCom({ ...t, total: t, crm_total: { leads_novos: 1, mqls: 0 }, crm: {} }, null) }));
-  assert.deepEqual([q[2].valor, q[2].nota], ['67%', '2 de 3']);
+  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom({ ...RESPOSTAS.taxas.atual, total: t }, null) }).html);
+  assert.deepEqual([p[2].valor, p[2].detalhe.split(' · ')[0]], ['67%', '2 de 3']);
 });
 
 test('CA-S4-10: taxa sem base mostra traço', () => {
-  const vazio = { crm_total: { leads_novos: 0, mqls: 0, sqls: 0 }, crm: {}, total: { mqls: 0, mqls_com_reuniao: 0, ocorridas: 0, realizadas: 0 }, por_funil: {} };
-  const q = taxasTiles(telaCom({ ...RESPOSTAS, taxas: taxasCom(vazio, vazio) }));
-  assert.equal(q[0].rotulo, 'Lead → MQL');
-  assert.equal(q[0].valor, '—');
+  const zero = { leads_novos: 0, mqls: 0, sqls: 0 };
+  const vazio = { crm_total: zero, crm: { 'sessao-estrategica': zero }, total: { mqls: 0, mqls_com_reuniao: 0, ocorridas: 0, realizadas: 0 }, por_funil: {} };
+  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(vazio, vazio) }).html);
+  assert.equal(p[0].rotulo, 'Lead → MQL');
+  assert.equal(p[0].valor, '—');
 });
 
 // ---------------------------------------------------------------------------
 // Níveis de qualificação da Sessão Estratégica (S4-05)
 // ---------------------------------------------------------------------------
+const faixasNaTela = (html) => html.split('class="vr-faixa"').slice(1).map((b) => [
+  texto(b.match(/vr-faixa__rotulo">([^<]+)</)[1]),
+  texto(b.match(/vr-faixa__num">([\s\S]*?)<\/span>\s*<\/div>/)[1]),
+]);
+
 test('CA-S4-11: leads novos de SE separados por faixa de faturamento', async () => {
   const OPCAO_WO = { id: 'opt-wo', name: 'WORKSHOP', orderindex: 3 };
   db.prepare(`INSERT INTO funis_relatorio VALUES (2, 'Workshop', 'lead_mql', 2, 'workshop', '', ?, 'qualquer', 'ativo')`)
@@ -268,32 +325,33 @@ test('CA-S4-11: leads novos de SE separados por faixa de faturamento', async () 
   const r = await crmDaSe(cards);
   assert.deepEqual(r.qualificacao, { abaixo: 2, acima: 2, nao_informado: 1, total: 5 });
   assert.equal(r.crm.workshop.leads_novos, 3, 'workshop lido, mas fora da qualificação');
-  const html = telaCom({ ...RESPOSTAS, taxas: taxasCom({ ...RESPOSTAS.taxas.atual, qualificacao: r.qualificacao, qualificacao_funil: 'sessao-estrategica' }, {}) });
-  const faixas = [...html.matchAll(/vr-faixa__rotulo">([^<]+)<[\s\S]*?vr-faixa__num">(\d+) <small>([^<]+)</g)].map((m) => [m[1], m[2], m[3]]);
-  assert.deepEqual(faixas, [['Abaixo de R$ 20 mil', '2', '40%'], ['Acima de R$ 20 mil', '2', '40%'], ['Não informado', '1', '20%']]);
+  const { html } = telaCom({ ...RESPOSTAS, taxas: taxasCom({ ...RESPOSTAS.taxas.atual, qualificacao: r.qualificacao }, null) });
+  assert.deepEqual(faixasNaTela(html), [['Abaixo de R$ 20 mil', '2 40%'], ['Acima de R$ 20 mil', '2 40%'], ['Não informado', '1 20%']]);
 });
 
 test('CA-S4-12: faixa usa a mesma leitura de faturamento do MQL', async () => {
   const { faixaDeFaturamento, ehMql } = await import('../functions/api/_feedback-marketing-mql.js');
-  const com = (texto) => ({ status: { status: 'qualificação' }, custom_fields: [{ id: CU_FIELD.faturamento, value: texto }] });
+  const com = (t) => ({ status: { status: 'qualificação' }, custom_fields: [{ id: CU_FIELD.faturamento, value: t }] });
   const casos = { 'menos de 20 mil': 'abaixo', '20k': 'abaixo', 'R$ 35.000': 'acima', 'entre 50 e 100 mil': 'acima' };
-  for (const [texto, faixa] of Object.entries(casos)) {
-    assert.equal(faixaDeFaturamento(com(texto)), faixa, texto);
-    assert.equal(ehMql(com(texto)), faixa === 'acima', `${texto}: mesma régua do MQL`);
+  for (const [t, faixa] of Object.entries(casos)) {
+    assert.equal(faixaDeFaturamento(com(t)), faixa, t);
+    assert.equal(ehMql(com(t)), faixa === 'acima', `${t}: mesma régua do MQL`);
   }
 });
 
 test('CA-S4-13: bloco some com filtro de funil que não é SE', () => {
-  const taxas = taxasCom({ ...RESPOSTAS.taxas.atual, qualificacao: { abaixo: 1, acima: 1, nao_informado: 0, total: 2 }, qualificacao_funil: 'sessao-estrategica' }, {});
-  assert.ok(!telaCom({ ...RESPOSTAS, fSel: 'workshop', taxas }).includes('Níveis de qualificação'));
-  assert.ok(telaCom({ ...RESPOSTAS, fSel: 'sessao-estrategica', taxas }).includes('Níveis de qualificação'));
-  assert.ok(telaCom({ ...RESPOSTAS, taxas }).includes('Níveis de qualificação'));
+  assert.ok(!telaCom({ ...RESPOSTAS, fSel: 'workshop' }).html.includes('Níveis de qualificação'));
+  assert.ok(telaCom({ ...RESPOSTAS, fSel: 'sessao-estrategica' }).html.includes('Níveis de qualificação'));
+  assert.ok(telaCom(RESPOSTAS).html.includes('Níveis de qualificação'));
 });
 
 // ---------------------------------------------------------------------------
-// Leads por funil e entradas nos grupos do workshop (S4-06)
+// Por funil e entradas nos grupos do workshop (S4-06)
 // ---------------------------------------------------------------------------
-const linhasFunil = (html) => [...html.matchAll(/<tr>(.*?)<\/tr>/g)].map((m) => [...m[1].matchAll(/<td>(.*?)<\/td>/g)].map((c) => c[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()));
+const linhasComColunas = (tabela) => {
+  const cols = colunas(tabela);
+  return linhasFunil(tabela).map((l) => Object.fromEntries(cols.map((c, i) => [c, l[i]])));
+};
 
 test('CA-S4-14: tabela por funil com leads e leads novos', () => {
   const r = {
@@ -303,9 +361,9 @@ test('CA-S4-14: tabela por funil com leads e leads novos', () => {
     cplA: { ...RESPOSTAS.cplA, por_funil: [{ funnel: 'sessao-estrategica', spend: 0, leads_novos: 4 }, { funnel: 'workshop', spend: 0, leads_novos: 6 }] },
     cplB: { ...RESPOSTAS.cplB, por_funil: [{ funnel: 'sessao-estrategica', spend: 0, leads_novos: 2 }, { funnel: 'workshop', spend: 0, leads_novos: 4 }] },
   };
-  assert.deepEqual(linhasFunil(telaCom(r)), [
-    ['sessao-estrategica', '10 25%', '4 100%', ''],
-    ['workshop', '6 100%', '6 50%', ''],
+  assert.deepEqual(linhasComColunas(telaCom(r).tabela).map((l) => [l.Funil, l.Leads, l['Leads novos']]), [
+    ['sessao-estrategica', '10 ▲ 25%', '4 ▲ 100%'],
+    ['workshop', '6 ▲ 100%', '6 ▲ 50%'],
   ]);
 });
 
@@ -320,8 +378,50 @@ test('CA-S4-15: workshop mostra quem entrou nos grupos', async () => {
   const resp = await cpl.onRequestGet({ request: new Request(`https://x/api/cpl?key=k&from=${P.de}&to=${P.ate}`), env, waitUntil: () => {} });
   const cplA = await resp.json();
   assert.deepEqual(cplA.entradas_grupos, { workshop: 7 });
-  const linhas = linhasFunil(telaCom({ ...RESPOSTAS, cplA: { ...RESPOSTAS.cplA, entradas_grupos: cplA.entradas_grupos } }));
-  const por = Object.fromEntries(linhas.map((l) => [l[0], l[3]]));
-  assert.equal(por.workshop, '7');
+  const linhas = linhasComColunas(telaCom({ ...RESPOSTAS, cplA: { ...RESPOSTAS.cplA, entradas_grupos: cplA.entradas_grupos } }).tabela);
+  const por = Object.fromEntries(linhas.map((l) => [l.Funil, l['Entraram nos grupos']]));
+  assert.equal(primeiro(por.workshop), '7');
   assert.equal(por['sessao-estrategica'], '');
+});
+
+// ---------------------------------------------------------------------------
+// Ajustes de 26/10 (depois da entrega): MQL só SE, custos por etapa,
+// investimento, comparativo nas faixas e o funil completo por funil.
+// ---------------------------------------------------------------------------
+test('ajuste 26/10: MQL e Lead → MQL olham só a Sessão Estratégica', () => {
+  const { html } = telaCom(RESPOSTAS);
+  assert.equal(primeiro(etapas(html)[1].num), '3', 'MQL de SE, sem o 1 do workshop');
+  assert.equal(passagens(html)[0].detalhe.split(' · ')[0], '3 de 5', 'leads novos de SE no denominador');
+  const wo = telaCom({ ...RESPOSTAS, fSel: 'workshop' }).html;
+  assert.equal(etapas(wo)[1].nota, 'só Sessão Estratégica');
+  assert.equal(passagens(wo)[0].valor, '—');
+});
+
+test('ajuste 26/10: custo de cada etapa do funil', () => {
+  const e = etapas(telaCom(RESPOSTAS).html);
+  assert.deepEqual(e.map((x) => [x.custoRotulo, x.custo.split(' ').slice(0, 2).join(' ')]), [
+    ['CPL lead novo', 'R$ 57.14'], // 400 ÷ 7
+    ['por MQL', 'R$ 100.00'], // investimento da SE (300) ÷ 3 MQLs
+    ['por SQL', 'R$ 200.00'], // 400 ÷ 2
+    ['por reunião agendada', 'R$ 60.00'],
+    ['por reunião realizada', 'R$ 100.00'],
+  ]);
+});
+
+test('ajuste 26/10: faixas de faturamento com o comparativo da semana anterior', () => {
+  const f = faixasNaTela(telaCom(RESPOSTAS).html);
+  assert.deepEqual(f[1], ['Acima de R$ 20 mil', '3 60% ▲ 50% ant. 2']);
+});
+
+test('ajuste 26/10: tabela por funil com o funil completo e o investimento', () => {
+  const { tabela } = telaCom(RESPOSTAS);
+  assert.deepEqual(colunas(tabela), ['Funil', 'Investimento', 'Leads', 'Leads novos', 'CPL', 'CPL lead novo', 'MQL', 'SQL',
+    'Reunião agendada', 'Reunião realizada', 'Custo por MQL', 'Custo por SQL', 'Custo por reunião agendada', 'Custo por reunião realizada',
+    'Lead → MQL', 'MQL → RA', 'RA → RR', 'Entraram nos grupos']);
+  const [se, wo] = linhasComColunas(tabela);
+  assert.equal(se.Funil, 'sessao-estrategica');
+  assert.equal(se.Investimento.split(' ').slice(0, 2).join(' '), 'R$ 300.00');
+  assert.equal(primeiro(se.MQL), '3');
+  assert.equal(wo.MQL, '—', 'workshop não tem MQL');
+  assert.equal(wo['MQL → RA'], '—', 'workshop não agenda reunião');
 });

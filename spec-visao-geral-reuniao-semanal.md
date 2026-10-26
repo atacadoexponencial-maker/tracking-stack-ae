@@ -60,14 +60,14 @@ período anterior de mesmo tamanho (como os quadros de hoje).
 
 **Critérios de aceite:**
 
-#### CA-S4-01 — A Visão geral mostra só os oito números da reunião, nesta ordem · prova: automática
+#### CA-S4-01 — A Visão geral mostra a manchete, o funil da reunião e a lateral · prova: automática
 
 - **Dado** o dash aberto na Visão geral
 - **Quando** a tela termina de carregar
-- **Então** abaixo da manchete, a primeira linha tem exatamente os quadros Leads, Leads novos, CPL, CPL lead
-  novo, MQLs, SQL, Reunião agendada e Reunião realizada, nesta ordem, e não aparecem
-  conversão geral, visitantes, investimento, receita, ROAS, gráfico diário, LPs, metas,
-  painel por funil nem funil da agenda
+- **Então** abaixo da manchete aparece o funil Leads novos → MQL → SQL → Reunião agendada →
+  Reunião realizada, nesta ordem, com a lateral Investimento em ads, Leads e CPL, e não
+  aparecem conversão geral, visitantes, receita, ROAS, gráfico diário, LPs, metas nem funil
+  da agenda (ajuste de 26/10; antes eram oito quadros em linha)
 
 #### CA-S4-02 — SQL conta os leads novos com o campo de SQL preenchido no CRM · prova: automática
 
@@ -287,3 +287,30 @@ workshop, mostra também quantas pessoas entraram nos grupos de WhatsApp.
 | PER-S4-02 | Níveis de qualificação valem para quais leads? | respondida | Só leads de Sessão Estratégica; workshop não informa faturamento (usuária, 26/10/2026) |
 | PER-S4-03 | Para onde vão os blocos que saem da Visão geral? | respondida | Nova aba "Detalhado" (usuária, 26/10/2026) |
 | PER-S4-04 | Quais colunas na tabela de leads por funil? | respondida | Leads e leads novos, mais entradas nos grupos no workshop (usuária, 26/10/2026) |
+
+## Ajustes de 26/10/2026 (depois da entrega, pedidos da usuária)
+
+Decididos no chat depois de ela ver a tela no ar; delimitados, sem issue nova.
+
+- **MQL só da Sessão Estratégica:** o quadro de MQL, o custo por MQL e a taxa Lead → MQL
+  usam só a SE (o workshop não tem MQL e diluía a taxa). Com o filtro em outro funil, mostram
+  "—" com "só Sessão Estratégica". O backend diz qual é o funil do MQL (`mql_funil`).
+- **Formato em funil:** os oito quadros viraram um funil vertical (Leads novos → MQL → SQL →
+  Reunião agendada → Reunião realizada) com o número e a variação à esquerda, o custo da
+  etapa à direita e as taxas de passagem entre as faixas (Lead → MQL entre Leads novos e MQL,
+  MQL → RA entre SQL e Reunião agendada, RA → RR entre agendada e realizada). Faixas com
+  afunilamento fixo, não proporcional.
+- **Lateral:** Investimento em ads (novo), Leads e CPL de todos os canais, com comparativo, e
+  os níveis de qualificação.
+- **Custos por etapa:** CPL lead novo, custo por MQL (investimento da SE ÷ MQLs da SE), por SQL
+  (investimento ÷ SQLs), por reunião agendada e por reunião realizada (os mesmos da aba
+  Detalhado), cada um com a variação (subir é ruim).
+- **Comparativo nas faixas de faturamento:** cada faixa e o total com a variação e o número da
+  semana anterior.
+- **Por funil = funil completo:** a tabela traz, por funil, Investimento, Leads, Leads novos,
+  CPL, CPL lead novo, MQL (só SE), SQL, reuniões, os quatro custos, as três taxas (nos funis
+  que agendam reunião) e as entradas nos grupos (workshop), com a variação embaixo de cada
+  número.
+
+Provas: testes "ajuste 26/10" em `tests/visao-reuniao.test.js`; a aprovação no ar segue no
+critério CA-S4-17.

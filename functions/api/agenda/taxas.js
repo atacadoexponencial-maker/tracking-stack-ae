@@ -100,11 +100,13 @@ export async function lerAgenda(env, de, ate, agora) {
  * Números do CRM para os quadros da Visão geral da reunião (série S4): por
  * funil { leads_novos, mqls, sqls } e a soma de todos os funis. null = CRM não lido.
  */
-// Níveis de qualificação só da Sessão Estratégica: o workshop não pede faturamento.
+// MQL e níveis de qualificação só da Sessão Estratégica: o workshop não pede
+// faturamento, e o MQL dele diluía o Lead → MQL (pedido da usuária em 26/10).
 export const QUALIFICACAO_FUNIL = 'sessao-estrategica';
+export const MQL_FUNIL = QUALIFICACAO_FUNIL;
 
 export function numerosDoCrm(crm) {
-  if (!crm) return { crm: null, crm_total: null, qualificacao: null, qualificacao_funil: QUALIFICACAO_FUNIL };
+  if (!crm) return { crm: null, crm_total: null, qualificacao: null, qualificacao_funil: QUALIFICACAO_FUNIL, mql_funil: MQL_FUNIL };
   const porFunil = {};
   const total = { leads_novos: 0, mqls: 0, sqls: 0 };
   for (const [f, x] of Object.entries(crm)) {
@@ -113,7 +115,7 @@ export function numerosDoCrm(crm) {
   }
   const fx = (crm[QUALIFICACAO_FUNIL] && crm[QUALIFICACAO_FUNIL].faixas) || { abaixo: 0, acima: 0, nao_informado: 0 };
   const qualificacao = { ...fx, total: fx.abaixo + fx.acima + fx.nao_informado };
-  return { crm: porFunil, crm_total: total, qualificacao, qualificacao_funil: QUALIFICACAO_FUNIL };
+  return { crm: porFunil, crm_total: total, qualificacao, qualificacao_funil: QUALIFICACAO_FUNIL, mql_funil: MQL_FUNIL };
 }
 
 // Consultorias do Calendly que já passaram da hora no período, com o funil do
