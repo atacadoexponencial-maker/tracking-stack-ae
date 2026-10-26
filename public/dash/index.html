@@ -895,7 +895,6 @@ td.pago, th.pago { color: var(--alerta); }
 .em-proto__cen { margin-left: auto; display: inline-flex; gap: 0.4rem; align-items: center; color: var(--apagado); }
 .em-proto__cen select { font-size: 0.78rem; padding-top: 0.25rem; padding-bottom: 0.25rem; }
 /* ---------- Visão geral da reunião semanal (public/dash/visao-reuniao.js, série S4) ---------- */
-.visao-proto > :not(#visao-reuniao) { display: none; }
 .vr-numeros { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 980px) { .vr-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .vr-faixa { display: grid; grid-template-columns: minmax(150px, 24%) minmax(0, 1fr) 96px; gap: 0.4rem 0.9rem; align-items: center; margin: 0.35rem 0; }
@@ -1571,6 +1570,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
       <div class="nav-grupo" role="group" aria-labelledby="nav-resultados" data-app="numeros">
         <span class="nav-rotulo" id="nav-resultados">Resultados</span>
         <a href="#visao" data-secao="visao">Visão geral</a>
+        <a href="#detalhado" data-secao="detalhado">Detalhado</a>
         <a href="#leads" data-secao="leads">Leads</a>
         <a href="#vendas" data-secao="vendas">Vendas</a>
         <a href="#greenn" data-secao="greenn">Greenn</a>
@@ -1635,6 +1635,10 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
     <section class="secao" id="secao-visao">
       <!-- Visão geral da reunião semanal (série S4): desenhada por public/dash/visao-reuniao.js. -->
       <div id="visao-reuniao"></div>
+    </section>
+
+    <!-- Detalhado (S4-02): a Visão geral de antes da série S4, sem mudança de conta. -->
+    <section class="secao" id="secao-detalhado">
       <p class="manchete" id="visao-manchete" data-esqueleto="manchete"></p>
       <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:9:heroi"></div>
       <!-- Taxas de passagem (pedido de 02/10): Lead → MQL → RA → RR e no-show. Carga própria. -->
@@ -2967,14 +2971,13 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
   }).join('');
 }
 
+// Visão geral da reunião semanal (série S4): só desenha, em visao-reuniao.js.
 R.visao = async () => {
-  // Protótipo da Visão geral da reunião (issue S4-01): só com proto=1 no link.
-  $('#secao-visao').classList.toggle('visao-proto', visaoProto);
-  if (visaoProto) {
-    window.VisaoReuniao.prototipo($('#visao-reuniao'), { esc, fmtInt, fmtPct, money, tile, tabela, comparar, delta, deltaChip });
-    return;
-  }
-  $('#visao-reuniao').innerHTML = '';
+  window.VisaoReuniao.prototipo($('#visao-reuniao'), { esc, fmtInt, fmtPct, money, tile, tabela, comparar, delta, deltaChip });
+};
+
+// Detalhado (S4-02): a Visão geral de antes da série S4, sem mudança de conta.
+R.detalhado = async () => {
   const p = intervalo();
   // Metas: carga própria, fora do Promise.all — falha nela não derruba a aba.
   carregarMetasAcompanhamento(true);
@@ -6636,13 +6639,14 @@ R['mkt-email'] = () => window.EmailMkt.render(emailCtx());
 R['agenda-emails'] = () => window.EmailMkt.renderAgenda(emailCtx());
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', cloudflare: 'Cloudflare', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
+const TITULOS = { visao: 'Visão geral', detalhado: 'Detalhado', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', cloudflare: 'Cloudflare', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
 // Tirado do código de cada R.*: se uma aba passar a usar um filtro, é aqui.
 const FILTROS = {
   visao: { periodo: true, compara: true, funil: true },
+  detalhado: { periodo: true, compara: true, funil: true },
   leads: { periodo: true, funil: true },
   vendas: { periodo: true, compara: true },
   atribuicao: { periodo: true },
