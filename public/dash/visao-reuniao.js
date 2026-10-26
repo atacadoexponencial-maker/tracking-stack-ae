@@ -10,7 +10,8 @@
 // funnelCounts de /api/leads, investimento do Meta (/api/attribution) ou do
 // funil (/api/cpl), leads novos, reuniões, custos de reunião e entradas nos
 // grupos do /api/cpl, MQLs, SQLs, taxas e qualificação do /api/agenda/taxas.
-// Qual funil tem MQL vem do backend (`mql_funil`).
+// Quais funis têm MQL (SE e Aquisição, que pedem faturamento) vem do backend
+// (`mql_funis`); a soma deles também (`mql`, `qualificacao`).
 //
 // O index.html chama `VisaoReuniao.montarNumeros(respostas, ctx)` e depois
 // `VisaoReuniao.desenhar(raiz, dados, ctx)`. respostas: { leadsA, leadsB,
@@ -22,8 +23,9 @@
 
   const SEM_CRM = 'sem dados do CRM';
   const LENDO = 'lendo o CRM…';
-  const SO_SE = 'só Sessão Estratégica';
-  const MQL_FUNIL_PADRAO = 'sessao-estrategica';
+  const SO_SE = 'só Sessão Estratégica e Aquisição';
+  const MQL_FUNIS_PADRAO = ['sessao-estrategica', 'aquisicao'];
+  const BASE_MQL = 'Sessão Estratégica + Aquisição';
   const vazio = (v) => v === null || v === undefined;
 
   // ---------------------------------------------------------------------------
@@ -49,12 +51,15 @@
       : f ? (cpl.reunioes.por_funil[f] || { agendadas: 0, realizadas: 0, custo_agendada: null, custo_realizada: null })
         : cpl.reunioes.total;
 
-    const mf = (tx && tx.mql_funil) || MQL_FUNIL_PADRAO;
-    const mqlAplica = !f || f === mf;
+    const mf = (tx && tx.mql_funis) || MQL_FUNIS_PADRAO;
+    const mqlAplica = !f || mf.includes(f);
     const crm = tx && tx.crm ? tx.crm : null;
     const crmF = crm ? (f ? crm[f] || { mqls: 0, sqls: 0, leads_novos: 0 } : tx.crm_total) : null;
-    const crmSe = crm ? crm[mf] || { mqls: 0, leads_novos: 0 } : null;
-    const mqls = mqlAplica && crmSe ? crmSe.mqls : null;
+    // Base de MQL: os funis de MQL somados (sem filtro) ou o funil filtrado.
+    const zero = { mqls: 0, leads_novos: 0, mqls_com_reuniao: 0 };
+    const crmMql = !crm || !mqlAplica ? null : f ? crm[f] || zero : tx.mql || zero;
+    const mqls = crmMql ? crmMql.mqls : null;
+    const gastoMql = f ? gasto : mf.reduce((t, fn) => t + (gastoDe(fn) || 0), 0) || null;
     const sqls = crmF ? crmF.sqls || 0 : null;
     const ag = tx ? (f ? (tx.por_funil || {})[f] : tx.total) : null;
     const grupos = f && cpl && cpl.entradas_grupos && f in cpl.entradas_grupos ? cpl.entradas_grupos[f] : null;
@@ -62,12 +67,13 @@
     return {
       gasto, leads, cpl: div(gasto, leads),
       novos, cpl_novos: div(gasto, novos),
-      mqls, custo_mql: div(f ? gasto : gastoDe(mf), mqls),
+      mqls, custo_mql: div(gastoMql, mqls),
       sqls, custo_sql: div(gasto, sqls),
       agendadas: reun ? reun.agendadas : null, custo_agendada: reun ? reun.custo_agendada : null,
       realizadas: reun ? reun.realizadas : null, custo_realizada: reun ? reun.custo_realizada : null,
-      lead_mql: mqlAplica && crmSe ? par(crmSe.mqls, crmSe.leads_novos) : null,
-      mql_ra: ag ? par(ag.mqls_com_reuniao, ag.mqls) : null,
+      // MQL → RA olha os MQLs da base de MQL, como o quadro; RA → RR, todas as reuniões.
+      lead_mql: crmMql ? par(crmMql.mqls, crmMql.leads_novos) : null,
+      mql_ra: crmMql ? par(crmMql.mqls_com_reuniao || 0, crmMql.mqls) : null,
       ra_rr: ag ? par(ag.realizadas, ag.ocorridas) : null,
       grupos, mql_aplica: mqlAplica,
     };
@@ -82,7 +88,8 @@
       .filter((c) => !f || (c.funnel || '') === f)
       .sort((x, y) => Number(y.count || 0) - Number(x.count || 0))
       .map((c) => ({ funil: c.funnel || '', a: recorte(r, c.funnel || '', 'a'), b: recorte(r, c.funnel || '', 'b') }));
-    const qf = (r.taxas && r.taxas.atual && r.taxas.atual.qualificacao_funil) || MQL_FUNIL_PADRAO;
+    const qfs = (r.taxas && r.taxas.atual && r.taxas.atual.mql_funis) || MQL_FUNIS_PADRAO;
+    const faixasDe = (tx) => (!tx ? null : f ? ((tx.crm || {})[f] || {}).faixas || null : tx.qualificacao);
     const d = delta(a.leads, b.leads);
     const manchete = `<strong>${fmtInt(a.leads)} leads</strong> ${esc(r.quando)}`
       + (f ? ` no funil ${esc(f)}` : '')
@@ -93,9 +100,9 @@
       crm_lido: lido,
       a, b,
       por_funil: funis,
-      // Níveis de qualificação: só sem filtro ou no funil da qualificação.
-      qualificacao: r.taxas === undefined || (f && f !== qf) ? null
-        : lido ? { a: r.taxas.atual.qualificacao, b: r.taxas.anterior ? r.taxas.anterior.qualificacao : null } : {},
+      // Níveis de qualificação: só sem filtro ou num funil de MQL (que pede faturamento).
+      qualificacao: r.taxas === undefined || (f && !qfs.includes(f)) ? null
+        : lido ? { a: faixasDe(r.taxas.atual), b: faixasDe(r.taxas.anterior) } : {},
       nota_gasto: f ? 'sem investimento no funil' : 'precisa do sync de investimento',
     };
   }
@@ -122,13 +129,13 @@
     const doCrm = (valor) => (d.crm_lido === false ? { nota: SEM_CRM } : d.crm_lido === null ? { nota: LENDO } : valor);
     const ETAPAS = [
       { rotulo: 'Leads novos', k: 'novos', custo: 'cpl_novos', rotCusto: 'CPL lead novo', nota: 'card novo no CRM' },
-      { rotulo: 'MQL', sub: 'Sessão Estratégica', k: 'mqls', custo: 'custo_mql', rotCusto: 'por MQL', crm: true, so_se: true },
+      { rotulo: 'MQL', sub: BASE_MQL, k: 'mqls', custo: 'custo_mql', rotCusto: 'por MQL', crm: true, so_se: true },
       { rotulo: 'SQL', k: 'sqls', custo: 'custo_sql', rotCusto: 'por SQL', crm: true },
       { rotulo: 'Reunião agendada', k: 'agendadas', custo: 'custo_agendada', rotCusto: 'por reunião agendada', nota: 'pela data em que agendou' },
       { rotulo: 'Reunião realizada', k: 'realizadas', custo: 'custo_realizada', rotCusto: 'por reunião realizada', nota: 'pela data da reunião' },
     ];
     // Passagem depois de cada etapa (índice da etapa de cima).
-    const PASSAGENS = { 0: ['lead_mql', 'Lead → MQL', 'Sessão Estratégica'], 2: ['mql_ra', 'MQL → RA', 'dos MQLs, quantos agendaram'], 3: ['ra_rr', 'RA → RR', 'das que já passaram'] };
+    const PASSAGENS = { 0: ['lead_mql', 'Lead → MQL', BASE_MQL], 2: ['mql_ra', 'MQL → RA', 'dos MQLs, quantos agendaram'], 3: ['ra_rr', 'RA → RR', 'das que já passaram'] };
     const LARGURAS = [100, 88, 76, 64, 52];
     const etapa = (e, i) => {
       let nota = e.nota || '';
@@ -185,20 +192,20 @@
 
   function qualificacao(q, ctx, crmLido) {
     const { fmtInt, fmtPct, delta, fmtNum } = ctx;
-    const cab = '<h2>Níveis de qualificação <small>leads novos da Sessão Estratégica · faturamento mensal no CRM</small></h2>';
+    const cab = `<h2>Níveis de qualificação <small>leads novos de ${BASE_MQL} · faturamento mensal no CRM</small></h2>`;
     if (crmLido === false || !q.a) return `<div class="bloco vr-qualif">${cab}<p class="mini">${crmLido === false ? SEM_CRM : LENDO}</p></div>`;
     const qa = q.a, qb = q.b;
     const pct = (x, k) => (x && x.total ? (x[k] / x.total) * 100 : 0);
     const FAIXAS = [['abaixo', 'Abaixo de R$ 20 mil'], ['acima', 'Acima de R$ 20 mil'], ['nao_informado', 'Não informado']];
     const ant = (k) => (qb ? `<small class="vr-ant">ant. ${fmtInt(qb[k])}</small>` : '');
-    if (!qa.total) return `<div class="bloco vr-qualif">${cab}<p class="mini">Nenhum lead novo de Sessão Estratégica no período.${qb ? ` Anterior: ${fmtInt(qb.total)}.` : ''}</p></div>`;
+    if (!qa.total) return `<div class="bloco vr-qualif">${cab}<p class="mini">Nenhum lead novo de ${BASE_MQL} no período.${qb ? ` Anterior: ${fmtInt(qb.total)}.` : ''}</p></div>`;
     return `<div class="bloco vr-qualif">${cab}
       ${FAIXAS.map(([k, r]) => `<div class="vr-faixa">
         <span class="vr-faixa__rotulo">${r}</span>
         <div class="regua" role="img" aria-label="${r}: ${fmtPct(pct(qa, k), 0)}"><i style="width:${pct(qa, k).toFixed(1)}%"></i></div>
         <span class="vr-faixa__num">${fmtInt(qa[k])} <small>${fmtPct(pct(qa, k), 0)}</small> ${qb ? variacao(qa[k], qb[k], { delta, fmtNum }) : ''} ${ant(k)}</span>
       </div>`).join('')}
-      <p class="mini">${fmtInt(qa.total)} leads novos de Sessão Estratégica no período ${qb ? variacao(qa.total, qb.total, { delta, fmtNum }) : ''} ${qb ? `· anterior: ${fmtInt(qb.total)}` : ''}</p>
+      <p class="mini">${fmtInt(qa.total)} leads novos de ${BASE_MQL} no período ${qb ? variacao(qa.total, qb.total, { delta, fmtNum }) : ''} ${qb ? `· anterior: ${fmtInt(qb.total)}` : ''}</p>
     </div>`;
   }
 

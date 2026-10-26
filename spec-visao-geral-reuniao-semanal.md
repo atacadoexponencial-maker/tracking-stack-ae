@@ -292,9 +292,12 @@ workshop, mostra também quantas pessoas entraram nos grupos de WhatsApp.
 
 Decididos no chat depois de ela ver a tela no ar; delimitados, sem issue nova.
 
-- **MQL só da Sessão Estratégica:** o quadro de MQL, o custo por MQL e a taxa Lead → MQL
-  usam só a SE (o workshop não tem MQL e diluía a taxa). Com o filtro em outro funil, mostram
-  "—" com "só Sessão Estratégica". O backend diz qual é o funil do MQL (`mql_funil`).
+- **MQL só dos funis com formulário completo (SE + Aquisição):** o quadro de MQL, o custo por
+  MQL (investimento da SE + Aquisição ÷ MQLs), as taxas Lead → MQL e MQL → RA e os níveis de
+  qualificação usam só Sessão Estratégica e Aquisição, que pedem faturamento (o workshop não
+  tem MQL e diluía a taxa). RA → RR continua com todas as reuniões. Com o filtro em outro
+  funil, MQL e as duas taxas mostram "—" com "só Sessão Estratégica e Aquisição". O backend diz
+  quais são os funis de MQL (`mql_funis`) e devolve a soma deles (`mql`, `qualificacao`).
 - **Formato em funil:** os oito quadros viraram um funil vertical (Leads novos → MQL → SQL →
   Reunião agendada → Reunião realizada) com o número e a variação à esquerda, o custo da
   etapa à direita e as taxas de passagem entre as faixas (Lead → MQL entre Leads novos e MQL,
@@ -302,7 +305,7 @@ Decididos no chat depois de ela ver a tela no ar; delimitados, sem issue nova.
   afunilamento fixo, não proporcional.
 - **Lateral:** Investimento em ads (novo), Leads e CPL de todos os canais, com comparativo, e
   os níveis de qualificação.
-- **Custos por etapa:** CPL lead novo, custo por MQL (investimento da SE ÷ MQLs da SE), por SQL
+- **Custos por etapa:** CPL lead novo, custo por MQL (investimento da SE + Aquisição ÷ MQLs), por SQL
   (investimento ÷ SQLs), por reunião agendada e por reunião realizada (os mesmos da aba
   Detalhado), cada um com a variação (subir é ruim).
 - **Comparativo nas faixas de faturamento:** cada faixa e o total com a variação e o número da

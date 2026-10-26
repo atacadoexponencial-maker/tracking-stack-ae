@@ -178,11 +178,11 @@ const colunas = (tab) => [...tab.matchAll(/<th>([^<]+)<\/th>/g)].map((m) => m[1]
 const primeiro = (s) => s.split(' ')[0];
 
 const taxasCom = (atual, anterior) => ({
-  atual: { crm_lido: true, mql_funil: 'sessao-estrategica', qualificacao_funil: 'sessao-estrategica', ...atual },
-  anterior: anterior === null ? null : { crm_lido: true, mql_funil: 'sessao-estrategica', ...anterior },
+  atual: { crm_lido: true, mql_funis: ['sessao-estrategica', 'aquisicao'], ...atual },
+  anterior: anterior === null ? null : { crm_lido: true, mql_funis: ['sessao-estrategica', 'aquisicao'], ...anterior },
 });
-const CRM_A = { 'sessao-estrategica': { leads_novos: 5, mqls: 3, sqls: 2 }, workshop: { leads_novos: 2, mqls: 1, sqls: 0 } };
-const CRM_B = { 'sessao-estrategica': { leads_novos: 4, mqls: 2, sqls: 1 }, workshop: { leads_novos: 2, mqls: 0, sqls: 0 } };
+const CRM_A = { 'sessao-estrategica': { leads_novos: 5, mqls: 3, sqls: 2, mqls_com_reuniao: 2 }, workshop: { leads_novos: 2, mqls: 1, sqls: 0, mqls_com_reuniao: 0 } };
+const CRM_B = { 'sessao-estrategica': { leads_novos: 4, mqls: 2, sqls: 1, mqls_com_reuniao: 1 }, workshop: { leads_novos: 2, mqls: 0, sqls: 0, mqls_com_reuniao: 0 } };
 const RESPOSTAS = {
   leadsA: { funnelCounts: [{ funnel: 'sessao-estrategica', count: 6 }, { funnel: 'workshop', count: 4 }] },
   leadsB: { funnelCounts: [{ funnel: 'sessao-estrategica', count: 5 }, { funnel: 'workshop', count: 3 }] },
@@ -206,10 +206,10 @@ const RESPOSTAS = {
   },
   atrA: { meta_spend: 400 }, atrB: { meta_spend: 340 },
   taxas: taxasCom(
-    { crm_total: { leads_novos: 7, mqls: 4, sqls: 2 }, crm: CRM_A, total: { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 },
+    { crm_total: { leads_novos: 7, mqls: 4, sqls: 2 }, crm: CRM_A, mql: { leads_novos: 5, mqls: 3, mqls_com_reuniao: 2 }, total: { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 },
       por_funil: { 'sessao-estrategica': { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 } },
       qualificacao: { abaixo: 2, acima: 3, nao_informado: 0, total: 5 } },
-    { crm_total: { leads_novos: 6, mqls: 2, sqls: 1 }, crm: CRM_B, total: { mqls: 2, mqls_com_reuniao: 1, ocorridas: 2, realizadas: 1 },
+    { crm_total: { leads_novos: 6, mqls: 2, sqls: 1 }, crm: CRM_B, mql: { leads_novos: 4, mqls: 2, mqls_com_reuniao: 1 }, total: { mqls: 2, mqls_com_reuniao: 1, ocorridas: 2, realizadas: 1 },
       por_funil: { 'sessao-estrategica': { mqls: 2, mqls_com_reuniao: 1, ocorridas: 2, realizadas: 1 } },
       qualificacao: { abaixo: 2, acima: 2, nao_informado: 0, total: 4 } },
   ),
@@ -267,7 +267,9 @@ test('CA-S4-08: três taxas de passagem dos leads novos', () => {
   const atual = {
     crm_total: { leads_novos: 50, mqls: 13, sqls: 0 },
     crm: { 'sessao-estrategica': { leads_novos: 40, mqls: 12, sqls: 0 }, workshop: { leads_novos: 10, mqls: 1, sqls: 0 } },
-    total: { mqls: 12, mqls_com_reuniao: 6, ocorridas: 5, realizadas: 3 }, por_funil: {},
+    mql: { leads_novos: 40, mqls: 12, mqls_com_reuniao: 6 },
+    total: { mqls: 13, mqls_com_reuniao: 7, ocorridas: 5, realizadas: 3 },
+    por_funil: { 'sessao-estrategica': { mqls: 12, mqls_com_reuniao: 6, ocorridas: 4, realizadas: 2 } },
   };
   const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, atual) }).html);
   assert.deepEqual(p.map((x) => [x.rotulo, x.valor, x.detalhe.split(' · ')[0]]), [
@@ -294,7 +296,7 @@ test('CA-S4-09: RA → RR conta as reuniões do Calendly', async () => {
 
 test('CA-S4-10: taxa sem base mostra traço', () => {
   const zero = { leads_novos: 0, mqls: 0, sqls: 0 };
-  const vazio = { crm_total: zero, crm: { 'sessao-estrategica': zero }, total: { mqls: 0, mqls_com_reuniao: 0, ocorridas: 0, realizadas: 0 }, por_funil: {} };
+  const vazio = { crm_total: zero, crm: { 'sessao-estrategica': zero }, mql: { ...zero, mqls_com_reuniao: 0 }, total: { mqls: 0, mqls_com_reuniao: 0, ocorridas: 0, realizadas: 0 }, por_funil: {} };
   const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(vazio, vazio) }).html);
   assert.equal(p[0].rotulo, 'Lead → MQL');
   assert.equal(p[0].valor, '—');
@@ -388,13 +390,36 @@ test('CA-S4-15: workshop mostra quem entrou nos grupos', async () => {
 // Ajustes de 26/10 (depois da entrega): MQL só SE, custos por etapa,
 // investimento, comparativo nas faixas e o funil completo por funil.
 // ---------------------------------------------------------------------------
-test('ajuste 26/10: MQL e Lead → MQL olham só a Sessão Estratégica', () => {
+test('ajuste 26/10: MQL e Lead → MQL olham só Sessão Estratégica + Aquisição', async () => {
+  // Backend: a base de MQL soma SE e Aquisição, sem o workshop.
+  const { numerosDoCrm } = await import('../functions/api/agenda/taxas.js');
+  const n = numerosDoCrm({
+    'sessao-estrategica': { leads_novos: 5, mqls: 3, sqls: 1, mqls_com_reuniao: 2, faixas: { abaixo: 1, acima: 3, nao_informado: 1 } },
+    aquisicao: { leads_novos: 2, mqls: 1, sqls: 0, mqls_com_reuniao: 0, faixas: { abaixo: 1, acima: 1, nao_informado: 0 } },
+    workshop: { leads_novos: 9, mqls: 2, sqls: 0, mqls_com_reuniao: 0, faixas: { abaixo: 0, acima: 0, nao_informado: 9 } },
+  });
+  assert.deepEqual(n.mql, { leads_novos: 7, mqls: 4, mqls_com_reuniao: 2 });
+  assert.deepEqual(n.qualificacao, { abaixo: 2, acima: 4, nao_informado: 1, total: 7 });
+  // Tela: o funil usa a base de MQL; com o filtro no workshop, "—".
   const { html } = telaCom(RESPOSTAS);
-  assert.equal(primeiro(etapas(html)[1].num), '3', 'MQL de SE, sem o 1 do workshop');
-  assert.equal(passagens(html)[0].detalhe.split(' · ')[0], '3 de 5', 'leads novos de SE no denominador');
+  assert.equal(primeiro(etapas(html)[1].num), '3', 'MQL da base, sem o 1 do workshop');
+  assert.equal(passagens(html)[0].detalhe.split(' · ')[0], '3 de 5');
   const wo = telaCom({ ...RESPOSTAS, fSel: 'workshop' }).html;
-  assert.equal(etapas(wo)[1].nota, 'só Sessão Estratégica');
+  assert.equal(etapas(wo)[1].nota, 'só Sessão Estratégica e Aquisição');
   assert.equal(passagens(wo)[0].valor, '—');
+  const aq = telaCom({ ...RESPOSTAS, fSel: 'aquisicao', taxas: taxasCom({ ...RESPOSTAS.taxas.atual, crm: { ...CRM_A, aquisicao: { leads_novos: 2, mqls: 1, sqls: 0, mqls_com_reuniao: 1 } } }, null) }).html;
+  assert.equal(primeiro(etapas(aq)[1].num), '1', 'aquisição tem MQL');
+});
+
+test('ajuste 26/10: MQL → RA usa a base de MQL, RA → RR todas as reuniões', () => {
+  const atual = {
+    ...RESPOSTAS.taxas.atual,
+    mql: { leads_novos: 26, mqls: 16, mqls_com_reuniao: 10 },
+    total: { mqls: 17, mqls_com_reuniao: 11, ocorridas: 13, realizadas: 1 },
+  };
+  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, null) }).html);
+  assert.equal(p[1].detalhe.split(' · ')[0], '10 de 16');
+  assert.equal(p[2].detalhe.split(' · ')[0], '1 de 13');
 });
 
 test('ajuste 26/10: custo de cada etapa do funil', () => {

@@ -96,26 +96,39 @@ export async function lerAgenda(env, de, ate, agora) {
   return porFunil;
 }
 
-/**
- * Números do CRM para os quadros da Visão geral da reunião (série S4): por
- * funil { leads_novos, mqls, sqls } e a soma de todos os funis. null = CRM não lido.
- */
-// MQL e níveis de qualificação só da Sessão Estratégica: o workshop não pede
-// faturamento, e o MQL dele diluía o Lead → MQL (pedido da usuária em 26/10).
-export const QUALIFICACAO_FUNIL = 'sessao-estrategica';
-export const MQL_FUNIL = QUALIFICACAO_FUNIL;
+// MQL e níveis de qualificação só dos funis que pedem o formulário completo
+// (com faturamento): Sessão Estratégica e Aquisição. O workshop não pede
+// faturamento e o MQL dele diluía o Lead → MQL (decisão da usuária em 26/10).
+export const MQL_FUNIS = ['sessao-estrategica', 'aquisicao'];
 
+const SEM_FAIXA = { abaixo: 0, acima: 0, nao_informado: 0 };
+const comTotal = (fx) => ({ ...fx, total: fx.abaixo + fx.acima + fx.nao_informado });
+
+/**
+ * Números do CRM para a Visão geral da reunião (série S4): por funil
+ * { leads_novos, mqls, sqls, mqls_com_reuniao, faixas }, a soma de todos os
+ * funis (`crm_total`), a soma dos funis de MQL (`mql`: base de MQL, Lead → MQL,
+ * MQL → RA e custo por MQL) e os níveis de qualificação desses funis.
+ * null = CRM não lido.
+ */
 export function numerosDoCrm(crm) {
-  if (!crm) return { crm: null, crm_total: null, qualificacao: null, qualificacao_funil: QUALIFICACAO_FUNIL, mql_funil: MQL_FUNIL };
+  if (!crm) return { crm: null, crm_total: null, mql: null, qualificacao: null, mql_funis: MQL_FUNIS };
   const porFunil = {};
   const total = { leads_novos: 0, mqls: 0, sqls: 0 };
+  const mql = { leads_novos: 0, mqls: 0, mqls_com_reuniao: 0 };
+  const fx = { ...SEM_FAIXA };
   for (const [f, x] of Object.entries(crm)) {
-    porFunil[f] = { leads_novos: x.leads_novos, mqls: x.mqls, sqls: x.sqls || 0 };
+    porFunil[f] = {
+      leads_novos: x.leads_novos, mqls: x.mqls, sqls: x.sqls || 0, mqls_com_reuniao: x.mqls_com_reuniao || 0,
+      faixas: comTotal({ ...SEM_FAIXA, ...(x.faixas || {}) }),
+    };
     for (const k of Object.keys(total)) total[k] += porFunil[f][k];
+    if (MQL_FUNIS.includes(f)) {
+      for (const k of Object.keys(mql)) mql[k] += porFunil[f][k];
+      for (const k of Object.keys(fx)) fx[k] += porFunil[f].faixas[k];
+    }
   }
-  const fx = (crm[QUALIFICACAO_FUNIL] && crm[QUALIFICACAO_FUNIL].faixas) || { abaixo: 0, acima: 0, nao_informado: 0 };
-  const qualificacao = { ...fx, total: fx.abaixo + fx.acima + fx.nao_informado };
-  return { crm: porFunil, crm_total: total, qualificacao, qualificacao_funil: QUALIFICACAO_FUNIL, mql_funil: MQL_FUNIL };
+  return { crm: porFunil, crm_total: total, mql, qualificacao: comTotal(fx), mql_funis: MQL_FUNIS };
 }
 
 // Consultorias do Calendly que já passaram da hora no período, com o funil do
