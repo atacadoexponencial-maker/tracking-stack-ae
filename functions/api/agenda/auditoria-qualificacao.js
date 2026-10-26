@@ -39,5 +39,20 @@ export async function onRequestGet({ request, env }) {
       });
     }
   }
-  return json({ periodo: r.periodo, total_cards_lidos: crm.cards.length, excluidos_teste_bot: excluidos.length, linhas });
+  // Fora da conta: os outros blocos e o "sem funil", com quantos têm faturamento.
+  const fora = {};
+  const somar = (rotulo, cards) => {
+    for (const c of cards) {
+      const x = fora[rotulo] = fora[rotulo] || { cards: 0, com_faturamento: 0, acima: 0, abaixo: 0, mql_emoji: 0 };
+      x.cards += 1;
+      const fx = faixaDeFaturamento(c);
+      if (fx !== 'nao_informado') x.com_faturamento += 1;
+      if (fx === 'acima') x.acima += 1;
+      if (fx === 'abaixo') x.abaixo += 1;
+      if (Number(lerCampo(c, { id: '818e9198-e84a-4695-b4da-b902ef363ea9' })) > 0) x.mql_emoji += 1;
+    }
+  };
+  for (const f of funis) if (!MQL_FUNIS.includes(f.funil_tracking)) somar(f.nome, leads.blocos.get(f.id) || []);
+  for (const s of leads.sem_funil || []) somar(`sem funil: ${s.opcao}`, s.cards || []);
+  return json({ periodo: r.periodo, total_cards_lidos: crm.cards.length, excluidos_teste_bot: excluidos.length, linhas, fora });
 }
