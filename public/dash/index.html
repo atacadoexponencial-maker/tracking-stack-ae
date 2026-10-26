@@ -894,6 +894,18 @@ td.pago, th.pago { color: var(--alerta); }
 .em-proto__selo { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--alerta); border: 1.5px solid currentColor; border-radius: 2px; padding: 0.05rem 0.4rem; transform: rotate(-2deg); }
 .em-proto__cen { margin-left: auto; display: inline-flex; gap: 0.4rem; align-items: center; color: var(--apagado); }
 .em-proto__cen select { font-size: 0.78rem; padding-top: 0.25rem; padding-bottom: 0.25rem; }
+/* ---------- Visão geral da reunião semanal (public/dash/visao-reuniao.js, série S4) ---------- */
+.visao-proto > :not(#visao-reuniao) { display: none; }
+.vr-numeros { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 980px) { .vr-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.vr-faixa { display: grid; grid-template-columns: minmax(150px, 24%) minmax(0, 1fr) 96px; gap: 0.4rem 0.9rem; align-items: center; margin: 0.35rem 0; }
+.vr-faixa .regua { margin: 0; }
+.vr-faixa__num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.vr-faixa__num small { font-weight: 400; color: var(--apagado); }
+@media (max-width: 640px) {
+  .vr-faixa { grid-template-columns: minmax(0, 1fr) auto; }
+  .vr-faixa .regua { grid-column: 1 / -1; order: 3; }
+}
 .em-barra { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .em-barra .ig-vistas, .em-barra .ag-subvistas { margin-bottom: 0; }
 .em-barra > p { max-width: 60ch; margin: 0; }
@@ -1621,6 +1633,8 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
     </div>
 
     <section class="secao" id="secao-visao">
+      <!-- Visão geral da reunião semanal (série S4): desenhada por public/dash/visao-reuniao.js. -->
+      <div id="visao-reuniao"></div>
       <p class="manchete" id="visao-manchete" data-esqueleto="manchete"></p>
       <div class="grid-etiquetas" id="visao-herois" data-esqueleto="etiquetas:9:heroi"></div>
       <!-- Taxas de passagem (pedido de 02/10): Lead → MQL → RA → RR e no-show. Carga própria. -->
@@ -2185,6 +2199,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-contexto.js"></script>
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
+<script src="/dash/visao-reuniao.js?v=2026-10-26a"></script>
 <script>
 (() => {
 'use strict';
@@ -2953,6 +2968,13 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
 }
 
 R.visao = async () => {
+  // Protótipo da Visão geral da reunião (issue S4-01): só com proto=1 no link.
+  $('#secao-visao').classList.toggle('visao-proto', visaoProto);
+  if (visaoProto) {
+    window.VisaoReuniao.prototipo($('#visao-reuniao'), { esc, fmtInt, fmtPct, money, tile, tabela, comparar, delta, deltaChip });
+    return;
+  }
+  $('#visao-reuniao').innerHTML = '';
   const p = intervalo();
   // Metas: carga própria, fora do Promise.all — falha nela não derruba a aba.
   carregarMetasAcompanhamento(true);
@@ -6649,6 +6671,7 @@ const FILTROS = {
 };
 let secao = 'visao';
 let renderAtual = 0;
+let visaoProto = false; // protótipo da Visão geral da reunião (issue S4-01)
 
 function aplicarFiltrosDaAba() {
   const f = FILTROS[secao] || {};
@@ -6681,6 +6704,7 @@ function escreverUrl() {
   if (secao === 'instagram' && igVista !== 'crescimento') ps.set('v', igVista);
   if (secao === 'agenda' && window.AgendaDash && window.AgendaDash.vista !== 'agendamentos') ps.set('v', window.AgendaDash.vista);
   if (secao === 'mkt-email' && window.EmailMkt && window.EmailMkt.vista !== 'campanhas') ps.set('v', window.EmailMkt.vista);
+  if (secao === 'visao' && visaoProto) ps.set('proto', '1');
   const qs = ps.toString();
   history.replaceState(null, '', location.pathname + location.search + '#' + secao + (qs ? '?' + qs : ''));
 }
@@ -6688,6 +6712,7 @@ function escreverUrl() {
 function lerUrl() {
   const [aba, qs] = location.hash.replace('#', '').split('?');
   secao = TITULOS[aba] ? aba : 'visao';
+  visaoProto = secao === 'visao' && new URLSearchParams(qs || '').get('proto') === '1';
   // A aba Argo abre em Controle, a não ser que o link peça outra parte (ARGO_VISTAS).
   const vArgo = new URLSearchParams(qs || '').get('v');
   argoVista = ARGO_VISTAS.includes(vArgo) ? vArgo : 'controle';
