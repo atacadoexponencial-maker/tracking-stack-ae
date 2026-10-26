@@ -156,11 +156,11 @@ function etapas(html) {
   return html.split('class="vr-etapa"').slice(1).map((b) => {
     const pega = (re) => { const m = b.match(re); return m ? texto(m[1]) : ''; };
     return {
-      rotulo: pega(/vr-etapa__faixa"><span>([^<]+)/),
-      num: pega(/vr-etapa__num">([\s\S]*?)<\/div>/),
+      rotulo: pega(/vr-etapa__nome"><b>([^<]+)/),
+      num: pega(/vr-etapa__faixa"><span>([\s\S]*?)<\/span><\/div>/),
       custoRotulo: pega(/vr-etapa__custo"><small>([^<]+)<\/small>/),
       custo: pega(/vr-etapa__custo"><small>[^<]+<\/small>([\s\S]*?)<\/div>/),
-      nota: pega(/vr-etapa__nota">([^<]*)<\/p>/),
+      nota: pega(/vr-etapa__nota">([^<]*)<\/small>/),
     };
   });
 }

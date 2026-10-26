@@ -147,11 +147,11 @@
         if (s) { num = '<span class="semdado">—</span>'; custo = num; nota = s.nota; }
       }
       const comNumero = !num.includes('semdado');
+      // Nome da etapa à esquerda; o número e a variação dentro da faixa; o custo à direita.
       return `<div class="vr-etapa" style="--vr-largura:${LARGURAS[i]}%">
-        <div class="vr-etapa__num"><b>${num}</b>${comNumero ? variacao(a[e.k], b[e.k], vr) : ''}</div>
-        <div class="vr-etapa__faixa"><span>${e.rotulo}${e.sub ? ` <small>${e.sub}</small>` : ''}</span></div>
+        <div class="vr-etapa__nome"><b>${e.rotulo}</b>${e.sub ? `<small>${e.sub}</small>` : ''}${nota ? `<small class="vr-etapa__nota">${nota}</small>` : ''}</div>
+        <div class="vr-etapa__faixa"><span><b>${num}</b>${comNumero ? variacao(a[e.k], b[e.k], vr) : ''}</span></div>
         <div class="vr-etapa__custo"><small>${e.rotCusto}</small><b>${custo}</b>${comNumero ? variacao(a[e.custo], b[e.custo], { ...vr, invertido: true }) : ''}</div>
-        ${nota ? `<p class="vr-etapa__nota">${nota}</p>` : ''}
       </div>`;
     };
     const passagem = (i) => {
@@ -186,7 +186,6 @@
     ];
     return `<aside class="vr-lateral">
       <div class="vr-lateral__quadros">${quadros.map((k) => tile(k)).join('')}</div>
-      ${d.qualificacao ? qualificacao(d.qualificacao, ctx, d.crm_lido) : ''}
     </aside>`;
   }
 
@@ -252,6 +251,7 @@
     raiz.innerHTML = `
       ${d.manchete ? `<p class="manchete">${d.manchete}</p>` : ''}
       <div class="vr-topo">${funil(d, ctx)}${lateral(d, ctx)}</div>
+      ${d.qualificacao ? qualificacao(d.qualificacao, ctx, d.crm_lido) : ''}
       <div class="bloco"><h2>Por funil <small>o mesmo funil para cada um · variação contra o período anterior</small></h2><div class="tabela-wrap vr-tabela" id="vr-funis"></div></div>`;
     tabelaFunis(raiz.querySelector('#vr-funis'), d.por_funil || [], ctx, d.crm_lido);
   }
