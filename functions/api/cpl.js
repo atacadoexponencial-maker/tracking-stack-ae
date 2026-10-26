@@ -7,7 +7,7 @@
 // filtro de validade do /api/leads: não-bot, não-junk, funil efetivo.
 
 import { custoPorReuniao } from './_agenda-funil.js';
-import { reunioesAgendadas, funisDasReunioes } from './_reunioes-agendadas.js';
+import { reunioesAgendadas, reunioesRealizadas } from './_reunioes-agendadas.js';
 import { calcularCpl, montarAvisosCpl } from './_cpl-calculo.js';
 import { listarFunisConhecidos } from './_funil-campanha.js';
 import { funisDesativados } from './_funis-relatorio.js';
@@ -91,10 +91,8 @@ export async function onRequestGet(context) {
     const [ag, re, tiposComerciais] = await Promise.all([
       // Agenda própria + Calendly (spec-reunioes-calendly.md).
       reunioesAgendadas(env.DB, since, until),
-      env.DB.prepare(`SELECT COALESCE(funil, '') AS funil, email, criado_em FROM agenda_reunioes
-                       WHERE comercial = 1 AND is_teste = 0 AND situacao = 'realizada' AND inicio >= ? AND inicio <= ?`).bind(since, until).all()
-        // Funil pelo lead do mesmo e-mail, como nas agendadas.
-        .then((r) => funisDasReunioes(env.DB, (r.results || []).map((x) => ({ email: x.email, quando: x.criado_em, funil: x.funil })))),
+      // Agenda própria + presença marcada no Calendly (série S4).
+      reunioesRealizadas(env.DB, since, until),
       env.DB.prepare(`SELECT DISTINCT funil FROM agenda_tipos WHERE comercial = 1 AND funil IS NOT NULL`).all(),
     ]);
     reunioes = custoPorReuniao({

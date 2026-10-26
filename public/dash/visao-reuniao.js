@@ -6,15 +6,17 @@
 //                   realizadas } — cada um { a, b } (agora e período anterior;
 //                   null = sem dado)
 //   notas:        { cpl } — nota do CPL quando não há investimento
-//   crm_lido:     false = CRM não respondeu (MQLs e SQL "sem dados do CRM")
+//   crm_lido:     false = CRM não respondeu (MQLs e SQL "sem dados do CRM");
+//                 null = ainda lendo o CRM
 //   taxas:        { a, b } — cada um { lead_mql, mql_ra, ra_rr }: { num, den }
 //   qualificacao: { abaixo, acima, nao_informado, total } ou null (bloco some)
 //   por_funil:    [{ funil, leads, leads_ant, novos, novos_ant, grupos }]
 //                 (grupos: null fora do workshop)
 //   manchete:     frase do topo, HTML já escapado pelo index
 //
-// O index.html chama `VisaoReuniao.desenhar(raiz, dados, ctx)`; ctx traz
-// { esc, fmtInt, fmtPct, money, tile, tabela, comparar, delta, deltaChip }.
+// O index.html chama `VisaoReuniao.montarNumeros(respostas, ctx)` e depois
+// `VisaoReuniao.desenhar(raiz, dados, ctx)`; ctx traz { esc, fmtInt, fmtNum,
+// fmtPct, money, tile, tabela, comparar, delta, deltaChip }.
 (() => {
   'use strict';
 
@@ -31,9 +33,9 @@
       ...comparar(x.a, x.b, fmt),
       ...extra,
     });
-    const crm = (rotulo, x) => (d.crm_lido === false
-      ? { rotulo, valor: null, nota: SEM_CRM }
-      : um(rotulo, x, fmtInt, { nota: 'status atual no CRM' }));
+    const crm = (rotulo, x) => (d.crm_lido === false ? { rotulo, valor: null, nota: SEM_CRM }
+      : d.crm_lido === null ? { rotulo, valor: null, nota: 'lendo o CRM…' }
+        : um(rotulo, x, fmtInt, { nota: 'status atual no CRM' }));
     return [
       um('Leads', n.leads, fmtInt),
       um('Leads novos', n.leads_novos, fmtInt, { nota: 'card novo no CRM' }),
@@ -97,7 +99,6 @@
   function desenhar(raiz, d, ctx) {
     const { tile } = ctx;
     raiz.innerHTML = `
-      ${d.proto || ''}
       ${d.manchete ? `<p class="manchete">${d.manchete}</p>` : ''}
       <div class="grid-etiquetas vr-numeros">${quadros(d, ctx).map((k) => tile(k, true)).join('')}</div>
       <div class="bloco"><h2>Taxas de passagem <small>leads novos · MQL pelo status atual no CRM</small></h2>
@@ -108,56 +109,59 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Protótipo (issue S4-01): números de exemplo por cenário, só com proto=1.
+  // Montagem a partir das respostas da API (issue S4-03). Sem conta nova: as
+  // mesmas da Visão geral antiga (aba Detalhado) — soma dos funnelCounts de
+  // /api/leads, investimento do Meta (/api/attribution) ou do funil (/api/cpl),
+  // leads novos e reuniões do /api/cpl, MQLs e SQLs do /api/agenda/taxas.
+  //   r: { leadsA, leadsB, cplA, cplB, atrA, atrB, taxas, fSel, quando }
+  //   taxas: undefined = ainda lendo o CRM; null = falhou
   // ---------------------------------------------------------------------------
-  const base = () => ({
-    manchete: '<strong>214 leads</strong> nos últimos 7 dias, 14% a mais que no período anterior, com CPL de <strong>R$ 23,36</strong>.',
-    numeros: {
-      leads: { a: 214, b: 187 }, leads_novos: { a: 96, b: 88 },
-      cpl: { a: 23.36, b: 25.67 }, cpl_novos: { a: 52.08, b: 54.55 },
-      mqls: { a: 31, b: 24 }, sqls: { a: 9, b: 7 },
-      agendadas: { a: 18, b: 15 }, realizadas: { a: 11, b: 10 },
-    },
-    notas: {},
-    crm_lido: true,
-    taxas: {
-      a: { lead_mql: { num: 31, den: 96 }, mql_ra: { num: 16, den: 31 }, ra_rr: { num: 11, den: 16 } },
-      b: { lead_mql: { num: 24, den: 88 }, mql_ra: { num: 13, den: 24 }, ra_rr: { num: 10, den: 14 } },
-    },
-    qualificacao: { abaixo: 19, acima: 27, nao_informado: 6, total: 52 },
-    por_funil: [
-      { funil: 'sessao-estrategica', leads: 120, leads_ant: 101, novos: 52, novos_ant: 47, grupos: null },
-      { funil: 'workshop', leads: 78, leads_ant: 70, novos: 38, novos_ant: 35, grupos: 63 },
-      { funil: 'aquisicao', leads: 16, leads_ant: 16, novos: 6, novos_ant: 6, grupos: null },
-    ],
-  });
-  const EXEMPLO = {
-    normal: base,
-    'sem-crm': () => ({ ...base(), crm_lido: false }),
-    workshop: () => {
-      const d = base();
-      return {
-        ...d,
-        manchete: '<strong>78 leads</strong> nos últimos 7 dias no funil workshop, 11% a mais que no período anterior, com CPL de <strong>R$ 12,82</strong>.',
-        numeros: {
-          leads: { a: 78, b: 70 }, leads_novos: { a: 38, b: 35 }, cpl: { a: 12.82, b: 14.29 }, cpl_novos: { a: 26.32, b: 28.57 },
-          mqls: { a: 4, b: 3 }, sqls: { a: 1, b: 0 }, agendadas: { a: 2, b: 1 }, realizadas: { a: 1, b: 1 },
-        },
-        taxas: { a: { lead_mql: { num: 4, den: 38 }, mql_ra: { num: 2, den: 4 }, ra_rr: { num: 1, den: 2 } }, b: null },
-        qualificacao: null,
-        por_funil: d.por_funil.filter((r) => r.funil === 'workshop'),
-      };
-    },
-  };
-  const CENARIOS = [['normal', 'Normal'], ['sem-crm', 'CRM fora do ar'], ['workshop', 'Filtro no workshop']];
-
-  function prototipo(raiz, ctx, cenario = 'normal') {
-    const selo = `<div class="em-proto" role="note"><span class="em-proto__selo">Protótipo</span>
-      <span>Visão geral da reunião semanal com números de exemplo. Nada aqui vem do CRM nem do Meta.</span>
-      <label class="em-proto__cen">Cenário <select id="vr-cenario">${CENARIOS.map(([v, r]) => `<option value="${v}"${v === cenario ? ' selected' : ''}>${r}</option>`).join('')}</select></label></div>`;
-    desenhar(raiz, { ...EXEMPLO[cenario](), proto: selo }, ctx);
-    raiz.querySelector('#vr-cenario').onchange = (e) => prototipo(raiz, ctx, e.target.value);
+  function montarNumeros(r, ctx) {
+    const { esc, fmtInt, fmtNum, money, delta } = ctx;
+    const f = r.fSel || '';
+    const soma = (fc) => (fc || []).filter((c) => !f || (c.funnel || '') === f).reduce((t, c) => t + Number(c.count || 0), 0);
+    const leadsA = soma(r.leadsA && r.leadsA.funnelCounts), leadsB = soma(r.leadsB && r.leadsB.funnelCounts);
+    const linha = (cpl) => ((cpl && cpl.por_funil) || []).find((x) => x.funnel === f);
+    const gasto = (atr, cpl) => {
+      if (!f) return atr && atr.meta_spend > 0 ? atr.meta_spend : null;
+      const l = linha(cpl);
+      return l && l.spend > 0 ? l.spend : null;
+    };
+    const novos = (cpl) => (!cpl ? null : f ? ((linha(cpl) || {}).leads_novos || 0) : (cpl.total_leads_novos || 0));
+    const div = (g, n) => (n && g ? g / n : null);
+    const gA = gasto(r.atrA, r.cplA), gB = gasto(r.atrB, r.cplB);
+    const nA = novos(r.cplA), nB = novos(r.cplB);
+    const reun = (cpl) => {
+      const x = cpl && cpl.reunioes;
+      if (!x) return null;
+      return f ? (x.por_funil[f] || { agendadas: 0, realizadas: 0 }) : x.total;
+    };
+    const rA = reun(r.cplA), rB = reun(r.cplB);
+    const doCrm = (rec) => (!rec || !rec.crm ? null : f ? (rec.crm[f] || { mqls: 0, sqls: 0 }) : rec.crm_total);
+    const lido = r.taxas === undefined ? null : !!(r.taxas && r.taxas.atual && r.taxas.atual.crm_lido);
+    const cA = lido ? doCrm(r.taxas.atual) : null, cB = lido ? doCrm(r.taxas.anterior) : null;
+    const cplA = div(gA, leadsA), cplB = div(gB, leadsB);
+    const d = delta(leadsA, leadsB);
+    const manchete = `<strong>${fmtInt(leadsA)} leads</strong> ${esc(r.quando)}`
+      + (f ? ` no funil ${esc(f)}` : '')
+      + (d !== null && isFinite(d) ? `, ${d === 0 ? 'o mesmo que' : `${fmtNum(Math.abs(d), 0)}% ${d > 0 ? 'a mais que' : 'a menos que'}`} no período anterior` : '')
+      + (cplA !== null ? `, com CPL de <strong>${money(cplA)}</strong>` : '') + '.';
+    return {
+      manchete,
+      crm_lido: lido,
+      notas: { cpl: f ? 'sem investimento no funil' : 'precisa do sync de investimento' },
+      numeros: {
+        leads: { a: leadsA, b: leadsB },
+        leads_novos: { a: nA, b: nB },
+        cpl: { a: cplA, b: cplB },
+        cpl_novos: { a: div(gA, nA), b: div(gB, nB) },
+        mqls: { a: cA ? cA.mqls : null, b: cB ? cB.mqls : null },
+        sqls: { a: cA ? cA.sqls : null, b: cB ? cB.sqls : null },
+        agendadas: { a: rA ? rA.agendadas : null, b: rB ? rB.agendadas : null },
+        realizadas: { a: rA ? rA.realizadas : null, b: rB ? rB.realizadas : null },
+      },
+    };
   }
 
-  window.VisaoReuniao = { desenhar, prototipo };
+  window.VisaoReuniao = { desenhar, montarNumeros };
 })();

@@ -18,6 +18,7 @@
 
 import { listarFunisConhecidos } from './_funil-campanha.js';
 import { funilDoLead, carregarMapaCampanhas, normalizarFunil } from './_funil-lead.js';
+import { CORTE_CALENDLY } from './_agenda-regras.js';
 
 export const FUNIL_SEM_LEAD = 'sessao-estrategica';
 // D1 limita parâmetros por consulta; `IN (?, …)` explícito é o que usa o
@@ -145,4 +146,30 @@ export async function reunioesAgendadas(DB, de, ate) {
     ...(agenda || []).map((r) => ({ email: r.email, quando: r.criado_em, funil: r.funil })),
     ...calendly.map((c) => ({ email: c.email, quando: c.agendou_em, funil: FUNIL_SEM_LEAD })),
   ]);
+}
+
+/**
+ * [{ funil }] das reuniões REALIZADAS entre `de` e `ate` (unix, inclusivo),
+ * pela data da reunião: agenda própria comercial com situação realizada + as
+ * consultorias do Calendly com presença "realizada" marcada no dash (só a
+ * partir de 19/10/2026, quando a presença passou a ser marcada; série S4).
+ * Funil pelo lead do mesmo e-mail, como nas agendadas. Calendly com erro conta
+ * só a agenda própria.
+ */
+export async function reunioesRealizadas(DB, de, ate) {
+  const { results: agenda } = await DB.prepare(`
+    SELECT COALESCE(funil, '') AS funil, email, criado_em FROM agenda_reunioes
+     WHERE comercial = 1 AND is_teste = 0 AND situacao = 'realizada' AND inicio >= ? AND inicio <= ?`,
+  ).bind(de, ate).all();
+  const itens = (agenda || []).map((x) => ({ email: x.email, quando: x.criado_em, funil: x.funil }));
+  try {
+    const { results } = await DB.prepare(`
+      SELECT email, agendou_em FROM calendly_consultorias
+       WHERE situacao = 'ativa' AND presenca = 'realizada' AND inicio >= ? AND inicio >= ? AND inicio <= ?`,
+    ).bind(CORTE_CALENDLY, de, ate).all();
+    for (const c of results || []) itens.push({ email: c.email, quando: c.agendou_em, funil: '' });
+  } catch (e) {
+    console.error('reuniões realizadas: Calendly', e.message);
+  }
+  return funisDasReunioes(DB, itens);
 }

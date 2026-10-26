@@ -43,3 +43,63 @@ SQL.
 | ID | Pergunta | Status | Resposta |
 |---|---|---|---|
 | PER-S4-01 | O que conta como SQL? | respondida | Checkbox no CRM ClickUp (usuária, 26/10/2026); campo confirmado depois: emoji "🏆 SQL" b68130e0-204c-417f-b554-3b9f3782b941 |
+
+## Cenários
+
+### Happy Path
+1. A usuária abre a Visão geral ("Últimos 7 dias", todos os funis).
+2. A tela desenha a manchete e os oito quadros com os números de leads, CPL e reuniões (mesmas fontes da tela antiga: `/api/leads`, `/api/cpl`, `/api/attribution`); MQLs e SQL aparecem "carregando…" até o CRM responder (`/api/agenda/taxas`, que já lê o CRM uma vez por período) e então ganham o número.
+3. Cada quadro mostra carimbo e balão contra o período anterior.
+4. Com um funil no filtro, cada quadro usa só o número daquele funil (`por_funil` das respostas).
+
+### Edge Cases
+- Lead que voltou (card criado antes do período) não entra em MQL nem em SQL: os dois contam só os cards criados no período, os mesmos dos leads novos.
+- Campo "🏆 SQL" com 0 ou vazio não conta.
+- Reunião do Calendly só conta como realizada com presença "Realizada" marcada no dash, a partir de 19/10/2026.
+- Funil sem reunião no período: Reunião agendada e realizada mostram 0.
+
+### Cenário de Erro
+- CRM fora do ar (`crm_lido: false` ou `/api/agenda/taxas` falhou): MQLs e SQL mostram "sem dados do CRM"; os outros seis quadros aparecem normalmente.
+- `/api/cpl` falhou: Leads novos, CPL lead novo e reuniões ficam "—", como na tela antiga.
+
+## Prova
+
+| Critério | Prova | Onde | O que confere |
+|---|---|---|---|
+| CA-S4-01 | automática | `tests/visao-reuniao.test.js` | a tela desenha manchete e exatamente os oito quadros na ordem pedida, sem os blocos antigos |
+| CA-S4-02 | automática | `tests/visao-reuniao.test.js` | com 2 de 3 leads novos com o campo SQL preenchido e um card antigo marcado, SQL = 2 |
+| CA-S4-03 | automática | `tests/visao-reuniao.test.js` | com um lead novo de R$ 50 mil, um de R$ 10 mil e um antigo de R$ 80 mil, MQLs = 1 |
+| CA-S4-04 | automática | `tests/visao-reuniao.test.js` | agenda própria Realizada + Calendly Realizada contam; Faltou e Calendly sem presença não; Reunião realizada = 2 |
+| CA-S4-05 | automática | `tests/visao-reuniao.test.js` | 10 leads contra 8 mostram 10 e +25%, e os oito quadros têm comparação |
+| CA-S4-06 | automática | `tests/visao-reuniao.test.js` | com o filtro num funil, cada quadro usa só os números dele |
+| CA-S4-07 | automática | `tests/visao-reuniao.test.js` | CRM fora do ar: MQLs e SQL com "sem dados do CRM", os outros seis com número |
+
+## Banco de Dados
+
+Sem mudança de tabela. Lê `calendly_consultorias.presenca` (migration 0066) e `agenda_reunioes.situacao`.
+
+## Arquivos
+
+- **Modificar:** `functions/api/_feedback-marketing-mql.js` — `CAMPO_SQL` (emoji "🏆 SQL", id `b68130e0-204c-417f-b554-3b9f3782b941`) e `ehSql(card)`, ao lado de `ehMql`, lendo com `lerCampo`.
+- **Modificar:** `functions/api/feedback-marketing.js` — opção `contarSql` em `montarFeedback`: cada bloco de lead ganha `sqls` (cards do bloco com `ehSql`). O endpoint do relatório não liga.
+- **Modificar:** `functions/api/agenda/taxas.js` — `lerCrm` pede `contarSql` e guarda `sqls` por funil; cada recorte da resposta ganha `crm` (`{ funil: { leads_novos, mqls, sqls } }`) e `crm_total`.
+- **Modificar:** `functions/api/_reunioes-agendadas.js` — `reunioesRealizadas(DB, de, ate)`: agenda própria com situação realizada + consultorias do Calendly com presença realizada (desde `CORTE_CALENDLY`), pela data da reunião, funil por `funisDasReunioes`.
+- **Modificar:** `functions/api/cpl.js` — `reunioes.realizadas` passa a vir de `reunioesRealizadas` (some a consulta só da agenda própria).
+- **Modificar:** `public/dash/visao-reuniao.js` — `montarNumeros(respostas, fSel)` (escolhe total ou funil e monta `numeros`/`manchete`/`crm_lido` a partir das respostas, sem conta nova) e o protótipo sai.
+- **Modificar:** `public/dash/index.html` — `R.visao` busca `/api/leads`, `/api/cpl`, `/api/attribution` (atual e anterior) e `/api/agenda/taxas`, desenha em duas etapas (sem CRM e com CRM); some o modo `proto=1` (`visaoProto`).
+- **Criar:** `tests/visao-reuniao.test.js` — testes CA-S4-01 a 07 (SQLite real + CRM simulado + desenho do `visao-reuniao.js` com contexto falso).
+
+Reaproveitados: `ehMql`/`lerCampo`, `montarFeedback`, `lerCrm`, `funisDasReunioes`, `CORTE_CALENDLY`, `tile`/`comparar`/`delta` do index.
+
+## Dependências Externas
+
+Nenhuma.
+
+## Checklist
+
+- [x] `ehSql` e `sqls` no relatório (opção `contarSql`)
+- [x] `crm` e `crm_total` na resposta de `/api/agenda/taxas`
+- [x] `reunioesRealizadas` com Calendly, usada no `/api/cpl`
+- [x] `montarNumeros` + `R.visao` real em duas etapas; protótipo removido
+- [x] Testes CA-S4-01 a 07
+- [x] Conferir no navegador com dados reais

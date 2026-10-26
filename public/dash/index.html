@@ -2203,7 +2203,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-contexto.js"></script>
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
-<script src="/dash/visao-reuniao.js?v=2026-10-26a"></script>
+<script src="/dash/visao-reuniao.js?v=2026-10-26b"></script>
 <script>
 (() => {
 'use strict';
@@ -2971,9 +2971,40 @@ function desenharPainelPorFunil({ fSel, cplA, cplB, convA, convB }) {
   }).join('');
 }
 
-// Visão geral da reunião semanal (série S4): só desenha, em visao-reuniao.js.
+// "nos últimos 7 dias", "no mês passado"… para a manchete das duas visões.
+function textoQuando() {
+  const QUANDO = { hoje: 'hoje', 1: 'ontem', mes: 'neste mês', 'mes-passado': 'no mês passado', custom: 'no período' };
+  return QUANDO[$('#preset').value] || `nos últimos ${$('#preset').value} dias`;
+}
+
+// Visão geral da reunião semanal (spec-visao-geral-reuniao-semanal.md). As
+// respostas são as mesmas da aba Detalhado; visao-reuniao.js monta e desenha.
+// Duas etapas: leads, CPL e reuniões primeiro; MQLs e SQL quando o CRM
+// responde (/api/agenda/taxas lê o CRM, é a parte lenta).
 R.visao = async () => {
-  window.VisaoReuniao.prototipo($('#visao-reuniao'), { esc, fmtInt, fmtPct, money, tile, tabela, comparar, delta, deltaChip });
+  const p = intervalo();
+  const fSel = $('#funil').value;
+  const minha = renderAtual;
+  const ctx = { esc, fmtInt, fmtNum, fmtPct, money, tile, tabela, comparar, delta, deltaChip };
+  const mapaQ = versaoMapaFunil ? '&mapa=' + versaoMapaFunil : '';
+  const [leadsA, leadsB, cplA, cplB, atrA, atrB] = await Promise.all([
+    fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&only=funnelCounts`),
+    fetchJson(`/api/leads?${q(p.antDe, p.antAte)}${funilQ}&only=funnelCounts`),
+    fetchJson(`/api/cpl?${q(p.de, p.ate)}${mapaQ}`).catch(() => null),
+    fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}`).catch(() => null),
+    fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
+    fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
+  ]);
+  const respostas = { leadsA, leadsB, cplA, cplB, atrA, atrB, fSel, quando: textoQuando() };
+  const desenhar = (taxas) => {
+    window.VisaoReuniao.desenhar($('#visao-reuniao'), window.VisaoReuniao.montarNumeros({ ...respostas, taxas }, ctx), ctx);
+  };
+  desenhar(undefined);
+  contarNumeros($('#visao-reuniao'));
+  // `s4`: respostas antigas (sem `crm`) guardadas no cache de período fechado não servem.
+  fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s4`)
+    .catch(() => null)
+    .then((t) => { if (minha === renderAtual && secao === 'visao') desenhar(t); });
 };
 
 // Detalhado (S4-02): a Visão geral de antes da série S4, sem mudança de conta.
@@ -3039,8 +3070,7 @@ R.detalhado = async () => {
 
   // Manchete: só reescreve em frase os números já calculados acima.
   const dLeads = delta(totalLeads, totalLeadsAnt);
-  const QUANDO = { hoje: 'hoje', 1: 'ontem', mes: 'neste mês', 'mes-passado': 'no mês passado', custom: 'no período' };
-  const quando = QUANDO[$('#preset').value] || `nos últimos ${$('#preset').value} dias`;
+  const quando = textoQuando();
   $('#visao-manchete').innerHTML = `<strong>${fmtInt(totalLeads)} leads</strong> ${esc(quando)}`
     + (fSel ? ` no funil ${esc(fSel)}` : '')
     + (dLeads !== null && isFinite(dLeads) ? `, ${dLeads === 0 ? 'o mesmo que' : `${fmtNum(Math.abs(dLeads), 0)}% ${dLeads > 0 ? 'a mais que' : 'a menos que'}`} no período anterior` : '')
@@ -6675,7 +6705,6 @@ const FILTROS = {
 };
 let secao = 'visao';
 let renderAtual = 0;
-let visaoProto = false; // protótipo da Visão geral da reunião (issue S4-01)
 
 function aplicarFiltrosDaAba() {
   const f = FILTROS[secao] || {};
@@ -6708,7 +6737,6 @@ function escreverUrl() {
   if (secao === 'instagram' && igVista !== 'crescimento') ps.set('v', igVista);
   if (secao === 'agenda' && window.AgendaDash && window.AgendaDash.vista !== 'agendamentos') ps.set('v', window.AgendaDash.vista);
   if (secao === 'mkt-email' && window.EmailMkt && window.EmailMkt.vista !== 'campanhas') ps.set('v', window.EmailMkt.vista);
-  if (secao === 'visao' && visaoProto) ps.set('proto', '1');
   const qs = ps.toString();
   history.replaceState(null, '', location.pathname + location.search + '#' + secao + (qs ? '?' + qs : ''));
 }
@@ -6716,7 +6744,6 @@ function escreverUrl() {
 function lerUrl() {
   const [aba, qs] = location.hash.replace('#', '').split('?');
   secao = TITULOS[aba] ? aba : 'visao';
-  visaoProto = secao === 'visao' && new URLSearchParams(qs || '').get('proto') === '1';
   // A aba Argo abre em Controle, a não ser que o link peça outra parte (ARGO_VISTAS).
   const vArgo = new URLSearchParams(qs || '').get('v');
   argoVista = ARGO_VISTAS.includes(vArgo) ? vArgo : 'controle';

@@ -1,5 +1,9 @@
 // GET /api/agenda/taxas?key=...&from=&to=[&antFrom=&antTo=]
 //
+// Cada recorte traz também `crm` / `crm_total` (leads novos, MQLs e SQLs por
+// funil e no total), lidos na mesma ida ao CRM, para os quadros da Visão geral
+// da reunião (spec-visao-geral-reuniao-semanal.md).
+//
 // Taxas de passagem da Visão geral (pedido de 02/10): Lead → MQL, MQL → RA,
 // RA → RR e no-show, no total e por funil, no período e no anterior.
 //
@@ -18,15 +22,15 @@ const json = (dados, status = 200) => Response.json(dados, { status });
 const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') === env.DASH_KEY;
 
 /**
- * { funil_tracking: { leads_novos, mqls, mqls_com_reuniao } } a partir dos
- * blocos do relatório. mqls_com_reuniao: cards MQL do período cujo e-mail tem
+ * { funil_tracking: { leads_novos, mqls, sqls, mqls_com_reuniao } } a partir dos
+ * blocos do relatório. sqls: cards com o campo "🏆 SQL" (série S4). mqls_com_reuniao: cards MQL do período cujo e-mail tem
  * reunião agendada desde `de` (MQL → RA por coorte, spec-reunioes-calendly.md).
  */
 export async function lerCrm(env, de, ate, agora) {
   try {
     const r = resolverPeriodo({ inicio: ymdBrt(de), fim: ymdBrt(Math.min(ate, agora)) }, agora);
     if (!r.ok) return null;
-    const relatorio = await montarFeedback(env, r.periodo, [], { emailsMql: true });
+    const relatorio = await montarFeedback(env, r.periodo, [], { emailsMql: true, contarSql: true });
     const funis = (await env.DB.prepare('SELECT nome, posicao, funil_tracking FROM funis_relatorio').all()).results || [];
     const porFunil = {};
     for (const b of relatorio.blocos || []) {
@@ -38,9 +42,10 @@ export async function lerCrm(env, de, ate, agora) {
       }
       const f = funis.find((x) => x.nome === b.nome && x.posicao === b.posicao);
       const chave = (f && f.funil_tracking) || b.nome;
-      porFunil[chave] = porFunil[chave] || { leads_novos: 0, mqls: 0, mqls_com_reuniao: 0, emails: [] };
+      porFunil[chave] = porFunil[chave] || { leads_novos: 0, mqls: 0, sqls: 0, mqls_com_reuniao: 0, emails: [] };
       porFunil[chave].leads_novos += m.novos_leads;
       porFunil[chave].mqls += m.mqls;
+      porFunil[chave].sqls += b.sqls || 0;
       porFunil[chave].emails.push(...(b.emails_mql || []));
     }
     // Um card por MQL: o mesmo e-mail em dois cards conta duas vezes, como no denominador.
@@ -83,9 +88,24 @@ export async function lerAgenda(env, de, ate, agora) {
   return porFunil;
 }
 
+/**
+ * Números do CRM para os quadros da Visão geral da reunião (série S4): por
+ * funil { leads_novos, mqls, sqls } e a soma de todos os funis. null = CRM não lido.
+ */
+export function numerosDoCrm(crm) {
+  if (!crm) return { crm: null, crm_total: null };
+  const porFunil = {};
+  const total = { leads_novos: 0, mqls: 0, sqls: 0 };
+  for (const [f, x] of Object.entries(crm)) {
+    porFunil[f] = { leads_novos: x.leads_novos, mqls: x.mqls, sqls: x.sqls || 0 };
+    for (const k of Object.keys(total)) total[k] += porFunil[f][k];
+  }
+  return { crm: porFunil, crm_total: total };
+}
+
 async function recorte(env, de, ate, agora, funisComAgenda) {
   const [crm, agenda] = await Promise.all([lerCrm(env, de, ate, agora), lerAgenda(env, de, ate, agora)]);
-  return { ...taxasPorFunil({ crm, agenda, funisComAgenda }), crm_lido: crm !== null };
+  return { ...taxasPorFunil({ crm, agenda, funisComAgenda }), crm_lido: crm !== null, ...numerosDoCrm(crm) };
 }
 
 export async function onRequestGet(context) {

@@ -87,3 +87,12 @@ export function ehMql(card) {
 export function contarMqls(cards) {
   return (cards || []).filter(ehMql).length;
 }
+
+// SQL (spec-visao-geral-reuniao-semanal.md): o comercial preenche o campo de
+// emoji "🏆 SQL" do card (✅). Existe um checkbox com o mesmo nome que NÃO vale
+// (decisão da usuária em 26/10/2026). Status atual do card, como o MQL.
+export const CAMPO_SQL = { id: 'b68130e0-204c-417f-b554-3b9f3782b941' };
+
+export function ehSql(card) {
+  return Number(lerCampo(card, CAMPO_SQL)) > 0;
+}
