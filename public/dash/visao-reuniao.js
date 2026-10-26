@@ -116,10 +116,30 @@
   //   r: { leadsA, leadsB, cplA, cplB, atrA, atrB, taxas, fSel, quando }
   //   taxas: undefined = ainda lendo o CRM; null = falhou
   // ---------------------------------------------------------------------------
+  // Leads por funil (S4-06): leads de /api/leads, leads novos e entradas nos
+  // grupos de /api/cpl, cada um com o período anterior; mais leads primeiro.
+  function porFunil(r, f, leadsDe) {
+    const antes = Object.fromEntries(leadsDe(r.leadsB && r.leadsB.funnelCounts).map((c) => [c.funnel || '', Number(c.count || 0)]));
+    const novos = (cpl, funil) => (!cpl ? null : ((cpl.por_funil || []).find((x) => x.funnel === funil) || {}).leads_novos || 0);
+    const grupos = r.cplA && r.cplA.entradas_grupos ? r.cplA.entradas_grupos : {};
+    return leadsDe(r.leadsA && r.leadsA.funnelCounts).map((c) => {
+      const funil = c.funnel || '';
+      return {
+        funil: funil || '(sem funil)',
+        leads: Number(c.count || 0),
+        leads_ant: antes[funil] || 0,
+        novos: novos(r.cplA, funil),
+        novos_ant: novos(r.cplB, funil),
+        grupos: funil in grupos ? grupos[funil] : null,
+      };
+    }).sort((a, b) => b.leads - a.leads);
+  }
+
   function montarNumeros(r, ctx) {
     const { esc, fmtInt, fmtNum, money, delta } = ctx;
     const f = r.fSel || '';
-    const soma = (fc) => (fc || []).filter((c) => !f || (c.funnel || '') === f).reduce((t, c) => t + Number(c.count || 0), 0);
+    const leadsDe = (fc) => (fc || []).filter((c) => !f || (c.funnel || '') === f);
+    const soma = (fc) => leadsDe(fc).reduce((t, c) => t + Number(c.count || 0), 0);
     const leadsA = soma(r.leadsA && r.leadsA.funnelCounts), leadsB = soma(r.leadsB && r.leadsB.funnelCounts);
     const linha = (cpl) => ((cpl && cpl.por_funil) || []).find((x) => x.funnel === f);
     const gasto = (atr, cpl) => {
@@ -163,6 +183,7 @@
       manchete,
       crm_lido: lido,
       taxas: r.taxas ? { a: taxasDe(r.taxas.atual), b: taxasDe(r.taxas.anterior) } : null,
+      por_funil: porFunil(r, f, leadsDe),
       // Níveis de qualificação (S4-05): só sem filtro ou no funil da qualificação.
       qualificacao: r.taxas === undefined || (f && f !== (r.taxas && r.taxas.atual && r.taxas.atual.qualificacao_funil || 'sessao-estrategica'))
         ? null : (lido ? r.taxas.atual.qualificacao : {}),

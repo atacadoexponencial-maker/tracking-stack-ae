@@ -35,3 +35,54 @@ inteira serve para a reunião.
 | ID | Pergunta | Status | Resposta |
 |---|---|---|---|
 | PER-S4-04 | Quais colunas na tabela de leads por funil? | respondida | Leads e leads novos, mais entradas nos grupos no workshop (usuária, 26/10/2026) |
+
+## Cenários
+
+### Happy Path
+1. A Visão geral mostra a tabela "Leads por funil": uma linha por funil, do que tem mais leads para o que tem menos, com Leads e Leads novos (cada um com o carimbo contra o período anterior) e "Entraram nos grupos".
+2. Na linha do workshop, "Entraram nos grupos" traz as entradas nos grupos monitorados com rótulo "Workshops" no período (mesma contagem da aba Grupos); nas outras linhas, a coluna fica vazia.
+3. A usuária abre a semana anterior e confirma que a tela inteira serve para a reunião.
+
+### Edge Cases
+- Funil novo (sem leads no período anterior): carimbo "novo".
+- `/api/cpl` falhou: Leads novos e grupos ficam "—"/vazios; Leads continua.
+- Filtro do topo num funil: só a linha dele.
+
+### Cenário de Erro
+- Tabela de grupos indisponível: a coluna fica vazia, o resto do `/api/cpl` segue.
+
+## Prova
+
+| Critério | Prova | Onde | O que confere |
+|---|---|---|---|
+| CA-S4-14 | automática | `tests/visao-reuniao.test.js` | SE com 10 leads e 4 novos, workshop com 6 e 6, nessa ordem, com carimbo |
+| CA-S4-15 | automática | `tests/visao-reuniao.test.js` | 7 entradas nos grupos do workshop (e entradas em outros grupos) viram 7 só na linha do workshop |
+| CA-S4-17 | manual | roteiro abaixo | a usuária aprova a Visão geral para a reunião |
+
+### Roteiro manual — CA-S4-17
+1. Abra o dash no ar, Visão geral, "Últimos 7 dias", "Todos os funis".
+2. Confira manchete, oito quadros, taxas de passagem, níveis de qualificação e leads por funil (com os grupos no workshop).
+3. Compare com o que você espera da semana (ClickUp, aba Agenda, aba Grupos).
+4. Diga se a tela serve para apresentar na reunião semanal.
+
+## Banco de Dados
+
+Sem mudança. Lê `whatsapp_group_events` e `whatsapp_groups_tracked`.
+
+## Arquivos
+
+- **Modificar:** `functions/api/cpl.js` — `entradas_grupos` `{ workshop: n }`: entradas ('entrou') nos grupos monitorados com rótulo "Workshops", por dia de Brasília do período (mesma conta da aba Grupos); erro vira `{}`.
+- **Modificar:** `public/dash/visao-reuniao.js` — `montarNumeros` devolve `por_funil` (leads e anterior de `/api/leads`, leads novos e anterior e grupos de `/api/cpl`), ordenado por leads.
+- **Modificar:** `public/dash/index.html` — `&v=s4` nas chamadas do `/api/cpl` da Visão geral, para resposta antiga guardada no cache de período fechado (sem `entradas_grupos`) não servir.
+- **Modificar:** `tests/visao-reuniao.test.js` — testes CA-S4-14 e 15.
+
+## Dependências Externas
+
+Nenhuma.
+
+## Checklist
+
+- [ ] `entradas_grupos` no `/api/cpl`
+- [ ] `por_funil` em `montarNumeros`
+- [ ] Testes CA-S4-14 e 15
+- [ ] Deploy e conferência no ar

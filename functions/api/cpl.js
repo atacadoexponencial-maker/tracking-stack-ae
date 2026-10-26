@@ -14,6 +14,11 @@ import { funisDesativados } from './_funis-relatorio.js';
 import { clausulasBotIpSql } from '../_bots.js';
 import { ymdBrt } from './_data-brt.js';
 import { respostaJson, respostaEmCache } from './_cache.js';
+import { diaLocalDeUnix } from './webhooks/_classificar.js';
+
+// Grupos de WhatsApp de cada funil (rótulo em whatsapp_groups_tracked), para
+// "Entraram nos grupos" da Visão geral da reunião (série S4).
+const GRUPOS_DO_FUNIL = { workshop: 'Workshops' };
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -126,7 +131,23 @@ export async function onRequestGet(context) {
 
   // `por_canal` é uma LISTA ordenada por CANAIS (ver _cpl-calculo.js); a linha
   // 'meta-ads' só existe quando houve gasto ou lead pago no período.
-  return respostaJson(request, { ...resultado, por_funil: porFunil, avisos, reunioes }, { until, context });
+  // Entradas nos grupos do funil no período: a mesma conta da aba Grupos
+  // (/api/grupos), por dia de Brasília. Falha deixa a coluna vazia.
+  const entradas_grupos = {};
+  try {
+    for (const [funil, rotulo] of Object.entries(GRUPOS_DO_FUNIL)) {
+      const r = await env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM whatsapp_group_events e
+           JOIN whatsapp_groups_tracked t ON t.group_jid = e.group_jid AND t.enabled = 1
+          WHERE t.label = ? AND e.action = 'entrou' AND e.day_local BETWEEN ? AND ?`,
+      ).bind(rotulo, diaLocalDeUnix(since), diaLocalDeUnix(until)).first();
+      entradas_grupos[funil] = (r && r.n) || 0;
+    }
+  } catch (e) {
+    console.error('cpl: entradas nos grupos', e.message);
+  }
+
+  return respostaJson(request, { ...resultado, por_funil: porFunil, avisos, reunioes, entradas_grupos }, { until, context });
 }
 
 function clampInt(raw, fallback, min, max) {

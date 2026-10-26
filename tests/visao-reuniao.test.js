@@ -135,15 +135,17 @@ const ctx = {
   esc: (x) => String(x), fmtInt: (x) => String(x), fmtNum: (x) => String(Math.round(x)), fmtPct: (x) => `${Math.round(x)}%`,
   money: (x) => `R$ ${x.toFixed(2)}`,
   tile: (k) => `<tile rotulo="${k.rotulo}" valor="${k.valor ?? '—'}" delta="${k.delta ?? ''}" anterior="${k.anterior ?? ''}" nota="${k.nota || ''}"></tile>`,
-  tabela: () => {}, comparar: (a, b, fmt) => ({ anterior: b === null || b === undefined ? null : fmt(b) }),
-  delta: (a, b) => (b ? ((a - b) / b) * 100 : null), deltaChip: () => '',
+  tabela: (el, cols, rows) => { el.innerHTML = rows.map((r) => `<tr>${cols.map((c) => `<td>${c.render(r)}</td>`).join('')}</tr>`).join(''); },
+  comparar: (a, b, fmt) => ({ anterior: b === null || b === undefined ? null : fmt(b) }),
+  delta: (a, b) => (b ? ((a - b) / b) * 100 : null), deltaChip: (p) => `<chip>${Math.round(p)}%</chip>`,
 };
 const quadros = (html) => [...html.matchAll(/<tile rotulo="([^"]+)" valor="([^"]*)" delta="([^"]*)" anterior="([^"]*)" nota="([^"]*)"/g)]
   .map(([, rotulo, valor, delta, anterior, nota]) => ({ rotulo, valor, delta, anterior, nota }));
 function telaCom(respostas) {
-  const raiz = { innerHTML: '', querySelector: () => ({}) };
+  const tabelaFunis = { innerHTML: '' };
+  const raiz = { innerHTML: '', querySelector: () => tabelaFunis };
   VR.desenhar(raiz, VR.montarNumeros(respostas, ctx), ctx);
-  return raiz.innerHTML;
+  return raiz.innerHTML + tabelaFunis.innerHTML;
 }
 const taxasCom = (atual, anterior) => ({ atual: { crm_lido: true, ...atual }, anterior: { crm_lido: true, ...anterior } });
 const RESPOSTAS = {
@@ -286,4 +288,40 @@ test('CA-S4-13: bloco some com filtro de funil que não é SE', () => {
   assert.ok(!telaCom({ ...RESPOSTAS, fSel: 'workshop', taxas }).includes('Níveis de qualificação'));
   assert.ok(telaCom({ ...RESPOSTAS, fSel: 'sessao-estrategica', taxas }).includes('Níveis de qualificação'));
   assert.ok(telaCom({ ...RESPOSTAS, taxas }).includes('Níveis de qualificação'));
+});
+
+// ---------------------------------------------------------------------------
+// Leads por funil e entradas nos grupos do workshop (S4-06)
+// ---------------------------------------------------------------------------
+const linhasFunil = (html) => [...html.matchAll(/<tr>(.*?)<\/tr>/g)].map((m) => [...m[1].matchAll(/<td>(.*?)<\/td>/g)].map((c) => c[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()));
+
+test('CA-S4-14: tabela por funil com leads e leads novos', () => {
+  const r = {
+    ...RESPOSTAS,
+    leadsA: { funnelCounts: [{ funnel: 'workshop', count: 6 }, { funnel: 'sessao-estrategica', count: 10 }] },
+    leadsB: { funnelCounts: [{ funnel: 'workshop', count: 3 }, { funnel: 'sessao-estrategica', count: 8 }] },
+    cplA: { ...RESPOSTAS.cplA, por_funil: [{ funnel: 'sessao-estrategica', spend: 0, leads_novos: 4 }, { funnel: 'workshop', spend: 0, leads_novos: 6 }] },
+    cplB: { ...RESPOSTAS.cplB, por_funil: [{ funnel: 'sessao-estrategica', spend: 0, leads_novos: 2 }, { funnel: 'workshop', spend: 0, leads_novos: 4 }] },
+  };
+  assert.deepEqual(linhasFunil(telaCom(r)), [
+    ['sessao-estrategica', '10 25%', '4 100%', ''],
+    ['workshop', '6 100%', '6 50%', ''],
+  ]);
+});
+
+test('CA-S4-15: workshop mostra quem entrou nos grupos', async () => {
+  db.exec(`INSERT INTO whatsapp_groups_tracked (group_jid, label, enabled) VALUES ('wo@g.us', 'Workshops', 1), ('live@g.us', 'Lives Semanais', 1)`);
+  const evento = db.prepare(`INSERT INTO whatsapp_group_events (group_jid, participant_jid, action, occurred_at, day_local, received_at)
+                             VALUES (?, ?, ?, ?, ?, 0)`);
+  for (let i = 0; i < 7; i++) evento.run('wo@g.us', `p${i}@s`, 'entrou', `2026-10-21T13:0${i}:00.000Z`, '2026-10-21');
+  evento.run('wo@g.us', 'px@s', 'saiu', '2026-10-21T15:00:00.000Z', '2026-10-21');
+  evento.run('wo@g.us', 'py@s', 'entrou', '2026-10-27T13:00:00.000Z', '2026-10-27'); // fora do período
+  for (let i = 0; i < 3; i++) evento.run('live@g.us', `l${i}@s`, 'entrou', `2026-10-22T13:0${i}:00.000Z`, '2026-10-22');
+  const resp = await cpl.onRequestGet({ request: new Request(`https://x/api/cpl?key=k&from=${P.de}&to=${P.ate}`), env, waitUntil: () => {} });
+  const cplA = await resp.json();
+  assert.deepEqual(cplA.entradas_grupos, { workshop: 7 });
+  const linhas = linhasFunil(telaCom({ ...RESPOSTAS, cplA: { ...RESPOSTAS.cplA, entradas_grupos: cplA.entradas_grupos } }));
+  const por = Object.fromEntries(linhas.map((l) => [l[0], l[3]]));
+  assert.equal(por.workshop, '7');
+  assert.equal(por['sessao-estrategica'], '');
 });

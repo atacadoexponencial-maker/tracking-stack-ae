@@ -2203,7 +2203,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-contexto.js"></script>
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
-<script src="/dash/visao-reuniao.js?v=2026-10-26b"></script>
+<script src="/dash/visao-reuniao.js?v=2026-10-26c"></script>
 <script>
 (() => {
 'use strict';
@@ -2990,8 +2990,9 @@ R.visao = async () => {
   const [leadsA, leadsB, cplA, cplB, atrA, atrB] = await Promise.all([
     fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&only=funnelCounts`),
     fetchJson(`/api/leads?${q(p.antDe, p.antAte)}${funilQ}&only=funnelCounts`),
-    fetchJson(`/api/cpl?${q(p.de, p.ate)}${mapaQ}`).catch(() => null),
-    fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}`).catch(() => null),
+    // `v=s4`: resposta antiga guardada no cache de período fechado não traz entradas_grupos.
+    fetchJson(`/api/cpl?${q(p.de, p.ate)}${mapaQ}&v=s4`).catch(() => null),
+    fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}&v=s4`).catch(() => null),
     fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
   ]);
