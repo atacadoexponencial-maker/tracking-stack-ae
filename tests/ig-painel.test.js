@@ -177,6 +177,37 @@ test('stories: no ar, captura parcial, navegação e taxa de saída', () => {
   assert.equal(r.periodo_antes_do_registro, true);
 });
 
+test('stories por horário: dia e faixa de Brasília, média por story, nulo fora da média', () => {
+  const r = montarStories({
+    agoraMs: Date.parse('2026-10-27T12:00:00Z'),
+    stories: [
+      // ter 27/10 10h BRT
+      { story_id: 'a', publicado_em: '2026-10-27T13:00:00Z', ultima_captura_em: '2026-10-27T14:00:00Z',
+        alcance: 100, views: 150, interacoes: 4, visitas_perfil: 2, navegacao: {} },
+      // ter 27/10 11h BRT, sem visitas ao perfil
+      { story_id: 'b', publicado_em: '2026-10-27T14:00:00Z', ultima_captura_em: '2026-10-27T15:00:00Z',
+        alcance: 300, views: 350, interacoes: 6, visitas_perfil: null, navegacao: {} },
+      // seg 26/10 23h30 BRT (já terça no UTC)
+      { story_id: 'c', publicado_em: '2026-10-27T02:30:00Z', ultima_captura_em: '2026-10-27T10:00:00Z',
+        alcance: 50, views: 60, interacoes: 1, visitas_perfil: 1, navegacao: {} },
+    ],
+  });
+  const { dias, faixas } = r.por_horario;
+  assert.equal(dias.length, 7);
+  assert.deepEqual(dias.map((d) => d.quantidade), [1, 2, 0, 0, 0, 0, 0]);
+  assert.equal(dias[0].rotulo, 'seg');
+  assert.equal(dias[1].alcance, 200);
+  assert.equal(dias[1].visitas_perfil, 2);
+  assert.equal(dias[2].alcance, null);
+  assert.equal(faixas.length, 8);
+  assert.equal(faixas[3].rotulo, '09h–12h');
+  assert.equal(faixas[3].quantidade, 2);
+  assert.equal(faixas[3].interacoes, 5);
+  assert.equal(faixas[7].rotulo, '21h–24h');
+  assert.equal(faixas[7].quantidade, 1);
+  assert.equal(faixas[7].views, 60);
+});
+
 test('público: distribuição, top 10 cidades, engajados vazio e horário de pico', () => {
   const por_hora = Array.from({ length: 24 }, (_, h) => (h === 17 ? 13300 : 1000));
   const r = montarPublico({

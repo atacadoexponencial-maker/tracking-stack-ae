@@ -896,13 +896,19 @@ td.ig-legenda { white-space: normal; min-width: 220px; max-width: 320px; color: 
 td.ig-legenda a, td.ig-legenda a:visited { color: var(--tinta); text-decoration: none; }
 td.ig-legenda a:hover { text-decoration: underline; }
 td.pago, th.pago { color: var(--alerta); }
-.ig-stories { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; }
-.ig-story { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.8rem; display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 0.8rem; }
+.ig-stories { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 0.75rem; }
+.ig-story { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.8rem; display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 0.8rem; min-width: 0; }
 .ig-story img, .ig-story .sem-img { width: 84px; aspect-ratio: 9 / 16; max-width: 100%; object-fit: cover; border-radius: 2px; background: var(--papel-escuro); display: block; }
 .ig-story .info { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
-.ig-story header { display: flex; justify-content: space-between; gap: 0.4rem; align-items: center; font-size: 0.8rem; color: var(--apagado); }
-.ig-story dl { display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.5rem; font-size: 0.8rem; margin: 0; }
-.ig-story dt { color: var(--apagado); } .ig-story dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.ig-story header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.2rem 0.4rem; align-items: center; font-size: 0.8rem; color: var(--apagado); }
+.ig-story dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.15rem 0.5rem; font-size: 0.8rem; margin: 0; }
+.ig-story dt { color: var(--apagado); overflow-wrap: anywhere; } .ig-story dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.ig-story .mini { overflow-wrap: anywhere; }
+.ig-horario { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 0 1rem; }
+.ig-barras-h.horario .ig-barra-h { grid-template-columns: 70px minmax(0, 1fr) auto; }
+.ig-barras-h.horario .val { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ig-barras-h.horario .val small { color: var(--apagado); margin-left: 0.3rem; }
+.ig-barras-h.horario .vazio .rot, .ig-barras-h.horario .vazio .val { color: var(--apagado); }
 .ig-nav { display: flex; height: 8px; border-radius: 3px; overflow: hidden; gap: 2px; background: var(--papel-escuro); }
 .ig-nav span { display: block; height: 100%; }
 .ig-nav-leg { display: flex; flex-wrap: wrap; gap: 0.15rem 0.6rem; font-size: 0.7rem; color: var(--apagado); }
@@ -2211,6 +2217,22 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
       <div id="ig-vista-stories" hidden>
         <div class="grid-etiquetas" id="ig-st-kpis"></div>
         <div id="ig-st-avisos"></div>
+        <div class="ig-horario">
+          <div class="bloco">
+            <div class="ig-cabeca">
+              <h2>Melhor dia da semana</h2>
+              <div class="tipos" id="ig-st-dia-metrica" role="group" aria-label="Métrica do melhor dia"></div>
+            </div>
+            <div id="ig-st-dias"></div>
+          </div>
+          <div class="bloco">
+            <div class="ig-cabeca">
+              <h2>Melhor horário</h2>
+              <div class="tipos" id="ig-st-hora-metrica" role="group" aria-label="Métrica do melhor horário"></div>
+            </div>
+            <div id="ig-st-faixas"></div>
+          </div>
+        </div>
         <div class="bloco">
           <div class="ig-cabeca">
             <h2>Stories do período</h2>
@@ -6327,6 +6349,8 @@ let igFormato = 'todos';
 let igPago = 'todos';
 let igOrdem = { k: 'alcance', dir: -1 };
 let igOrdemStories = 'recentes';
+let igMetricaDia = 'alcance';
+let igMetricaHora = 'alcance';
 let igQuem = 'seguidores';
 const igDados = {};
 const igNada = '<span class="semdado">—</span>';
@@ -6623,8 +6647,31 @@ function desenharStoriesIg(d) {
   $('#ig-st-avisos').innerHTML = desde
     ? `<div class="aviso ${d.periodo_antes_do_registro ? 'alerta' : 'explica'}">Stories só podem ser lidos enquanto estão no ar (24h). O registro começou em ${esc(desde)}${d.periodo_antes_do_registro ? '; antes disso não há como recuperar.' : '.'}</div>`
     : '<div class="aviso explica">Nenhum story registrado ainda. A captura roda de hora em hora.</div>';
+  igPills($('#ig-st-dia-metrica'), IG_METRICAS_HORARIO, igMetricaDia, (v) => { igMetricaDia = v; desenharHorarioIg(); });
+  igPills($('#ig-st-hora-metrica'), IG_METRICAS_HORARIO, igMetricaHora, (v) => { igMetricaHora = v; desenharHorarioIg(); });
+  desenharHorarioIg();
   igPills($('#ig-st-ordem'), [['recentes', 'Mais recentes'], ['alcance', 'Maior alcance'], ['views', 'Mais visualizações']], igOrdemStories, (v) => { igOrdemStories = v; desenharListaStoriesIg(); });
   desenharListaStoriesIg();
+}
+
+// Melhor dia / melhor horário: médias por story calculadas no backend.
+const IG_METRICAS_HORARIO = [['alcance', 'Alcance'], ['views', 'Visualizações'], ['interacoes', 'Interações'], ['visitas_perfil', 'Visitas ao perfil']];
+function desenharHorarioIg() {
+  const ph = igDados.stories.por_horario;
+  const barras = (linhas, metrica) => {
+    const mx = Math.max(1, ...linhas.map((l) => l[metrica] ?? 0));
+    return `<div class="ig-barras-h horario">${linhas.map((l) => {
+      const v = l[metrica];
+      const qtd = l.quantidade === 1 ? '1 story' : `${fmtInt(l.quantidade)} stories`;
+      if (!l.quantidade || v === null) {
+        return `<div class="ig-barra-h vazio"><span class="rot">${esc(l.rotulo)}</span><span class="trilho"></span><span class="val">${l.quantidade ? `${igNada}<small>${qtd}</small>` : 'sem stories'}</span></div>`;
+      }
+      return `<div class="ig-barra-h" title="${esc(l.rotulo)}: média de ${fmtInt(Math.round(v))} por story (${qtd})">
+        <span class="rot">${esc(l.rotulo)}</span><span class="trilho"><span style="width:${(v / mx) * 100}%"></span></span><span class="val">${fmtInt(Math.round(v))}<small>${qtd}</small></span></div>`;
+    }).join('')}</div>`;
+  };
+  $('#ig-st-dias').innerHTML = barras(ph.dias, igMetricaDia);
+  $('#ig-st-faixas').innerHTML = barras(ph.faixas, igMetricaHora);
 }
 
 function desenharListaStoriesIg() {

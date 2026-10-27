@@ -296,7 +296,34 @@ export function montarStories({ stories = [], registroDesde = null, de = null, a
     },
     registro_desde: desde,
     periodo_antes_do_registro: !!(desde && de && de < desde.slice(0, 10)),
+    por_horario: montarStoriesPorHorario(itens),
     stories: itens,
+  };
+}
+
+// Melhor dia da semana e melhor faixa de horário: MÉDIA por story (o total
+// premiaria só o horário em que mais se posta). Dia e hora de Brasília; o
+// deslocamento é fixo, mesmo pressuposto de _data-brt.js. Story sem o número
+// de uma métrica fica fora da média dela; grupo sem story vem com quantidade 0.
+const METRICAS_HORARIO = ['alcance', 'views', 'interacoes', 'visitas_perfil'];
+const DIAS_SEMANA = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+const FAIXA_HORAS = 3;
+const OFFSET_BRT_MS = 3 * 3600000;
+
+export function montarStoriesPorHorario(itens) {
+  const grupo = (rotulo, doGrupo) => {
+    const linha = { rotulo, quantidade: doGrupo.length };
+    for (const m of METRICAS_HORARIO) linha[m] = media(doGrupo.map((i) => i[m]));
+    return linha;
+  };
+  const brt = itens.map((i) => ({ i, d: new Date(Date.parse(i.publicado_em) - OFFSET_BRT_MS) }));
+  return {
+    dias: DIAS_SEMANA.map((rotulo, k) => grupo(rotulo, brt.filter(({ d }) => (d.getUTCDay() + 6) % 7 === k).map(({ i }) => i))),
+    faixas: Array.from({ length: 24 / FAIXA_HORAS }, (_, k) => {
+      const h = k * FAIXA_HORAS, ate = h + FAIXA_HORAS;
+      const rotulo = `${String(h).padStart(2, '0')}h–${String(ate).padStart(2, '0')}h`;
+      return grupo(rotulo, brt.filter(({ d }) => Math.floor(d.getUTCHours() / FAIXA_HORAS) === k).map(({ i }) => i));
+    }),
   };
 }
 
