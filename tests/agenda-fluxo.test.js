@@ -21,7 +21,7 @@ import * as pubEtapa from '../functions/api/agenda/publico/etapa.js';
 import * as funilApi from '../functions/api/agenda/funil.js';
 import { criarConvite, tipoDoFunil } from '../functions/api/_agenda-convite.js';
 import { CORTE_CALENDLY } from '../functions/api/_agenda-regras.js';
-import { CONSULTORIA_MANYCHAT, dataEHora, motivoParaPular, whatsappDaReuniao } from '../functions/api/_agenda-manychat.js';
+import { CONSULTORIA_MANYCHAT, dataEHora, inicioManychat, motivoParaPular, whatsappDaReuniao } from '../functions/api/_agenda-manychat.js';
 
 const FLUXO_REAL = CONSULTORIA_MANYCHAT.fluxo;
 
@@ -600,6 +600,10 @@ async function agendarRita() {
 }
 const historicoWhats = () => db.prepare("SELECT detalhe FROM agenda_historico WHERE acao = 'whatsapp' ORDER BY id").all().map((x) => x.detalhe);
 
+test('WhatsApp: início no formato do campo Data e hora do ManyChat', () => {
+  assert.equal(inicioManychat(Date.UTC(2026, 9, 27, 17, 0) / 1000), '2026-10-27T17:00:00+00:00');
+});
+
 test('WhatsApp: dia e hora em Brasília, no formato da mensagem', () => {
   // 27/10/2026 17h UTC = terça, 14h em Brasília
   assert.deepEqual(dataEHora(Date.UTC(2026, 9, 27, 17, 0) / 1000), { data: 'terça, 27/10', horario: '14h00' });
@@ -646,6 +650,7 @@ test('WhatsApp: agendamento e as três remarcações mandam a mensagem com os ca
     assert.equal(campos[CONSULTORIA_MANYCHAT.campos.horario], esperado.horario);
     assert.equal(campos[CONSULTORIA_MANYCHAT.campos.meet], reuniao().meet_link);
     assert.match(campos[CONSULTORIA_MANYCHAT.campos.gestao], new RegExp(`/reuniao/${ok.corpo.gestao}$`));
+    assert.equal(campos[CONSULTORIA_MANYCHAT.campos.inicio], inicioManychat(reuniao().inicio));
     assert.deepEqual(mc.chamadas.find((c) => c.caminho.endsWith('/sendFlow')).corpo, { subscriber_id: 'sub-1', flow_ns: 'flow-consultoria' });
     assert.match(historicoWhats()[0], /^WhatsApp enviado \(agendamento\)/);
 
@@ -675,12 +680,14 @@ test('WhatsApp: agendamento e as três remarcações mandam a mensagem com os ca
     assert.equal(mc.caminhos().filter((x) => x === 'sendFlow').length, 1);
     assert.equal(historicoWhats().length, 4);
 
-    // Cancelou: nada no ManyChat.
+    // Cancelou: nenhuma mensagem, só limpa o início para segurar os lembretes.
     mc.chamadas.length = 0;
     pendentes = [];
     await publico(pubReuniao, { corpo: { g: ok.corpo.gestao, acao: 'cancelar' } });
     await Promise.all(pendentes);
-    assert.deepEqual(mc.chamadas, []);
+    assert.deepEqual(mc.caminhos(), ['findBySystemField', 'setCustomFields']);
+    assert.deepEqual(mc.chamadas[1].corpo.fields, [{ field_id: CONSULTORIA_MANYCHAT.campos.inicio, field_value: null }]);
+    assert.match(historicoWhats().at(-1), /^Lembretes do WhatsApp desligados/);
   } finally {
     CONSULTORIA_MANYCHAT.fluxo = FLUXO_REAL;
   }

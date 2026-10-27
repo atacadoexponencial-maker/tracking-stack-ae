@@ -114,10 +114,11 @@ export async function dispararFluxo(subscriberId, flowNs, env) {
 // { field_id: valor }. Existe para a confirmação da consultoria
 // (./_agenda-manychat.js): o modelo da mensagem lê dia, hora e links destes
 // campos, então eles precisam estar gravados ANTES do fluxo.
+// `null` limpa o campo (campo Data e hora recusa texto vazio).
 export async function preencherCampos(subscriberId, campos, env) {
   const res = await manychatFetch('/fb/subscriber/setCustomFields', {
     subscriber_id: subscriberId,
-    fields: Object.entries(campos).map(([id, valor]) => ({ field_id: Number(id), field_value: String(valor ?? '') })),
+    fields: Object.entries(campos).map(([id, valor]) => ({ field_id: Number(id), field_value: valor === null ? null : String(valor ?? '') })),
   }, env);
   const t = await res.text().catch(() => '');
   let status = '';

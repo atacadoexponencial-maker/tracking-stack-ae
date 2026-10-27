@@ -18,7 +18,7 @@ import {
   contasDasAgendas, lerTipo, historico, registrarNoCrm, textoCrm, agora, enviarRealizada,
 } from '../_agenda.js';
 import { emailsDaMudanca } from '../_email-agenda.js';
-import { whatsappDaReuniao } from '../_agenda-manychat.js';
+import { whatsappDaReuniao, limparLembretes } from '../_agenda-manychat.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 const TETO_GOOGLE = 40;
@@ -86,6 +86,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         const tipo = await tipoDe(r.tipo_id);
         if (tipo) await registrarNoCrm(env, r, textoCrm('cancelou', tipo, r, 'Apagada direto na agenda do Google.'));
         await emailsDaMudanca(env, r.id, 'cancelou');
+        await limparLembretes(env, r.id);
         resumo.google.canceladas++;
       } else if (ev.ini !== r.inicio || ev.fim !== r.fim) {
         await env.DB.prepare("UPDATE agenda_reunioes SET inicio = ?, fim = ?, situacao = 'remarcada', atualizado_em = ? WHERE id = ?")

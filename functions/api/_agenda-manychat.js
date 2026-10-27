@@ -29,6 +29,7 @@ export const CONSULTORIA_MANYCHAT = {
     horario: 15103239, // consultoria_horario: "14h00" (Brasília)
     meet: 15103236, // consultoria_meet
     gestao: 15103237, // consultoria_gestao: link de remarcar/cancelar
+    inicio: 15104558, // consultoria_inicio (Data e hora): os Atrasos Inteligentes de 1 h e 10 min esperam por ele
   },
   fluxo: 'content20261026235153_105229', // "Reunião Agendada" (modelo aprovado em 26/10); vazio = desligado
   consentimento: 'agendamento da consultoria individual',
@@ -43,6 +44,11 @@ export function dataEHora(unix) {
   const dia = d.toLocaleDateString('pt-BR', { timeZone: FUSO, day: '2-digit', month: '2-digit' });
   const hora = d.toLocaleTimeString('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
   return { data: `${semana}, ${dia}`, horario: hora };
+}
+
+/** Início no formato do campo Data e hora do ManyChat: ISO 8601 em UTC, sem milissegundos. */
+export function inicioManychat(unix) {
+  return new Date(unix * 1000).toISOString().replace(/\.\d{3}Z$/, '+00:00');
 }
 
 /** Quem recebe e como: devolve o motivo de pular ou '' para seguir. */
@@ -99,6 +105,7 @@ export async function whatsappDaReuniao(env, reuniaoId, acao, cfg = CONSULTORIA_
       [cfg.campos.horario]: horario,
       [cfg.campos.meet]: reuniao.meet_link || '',
       [cfg.campos.gestao]: linkGestao(reuniao.token_gestao),
+      [cfg.campos.inicio]: inicioManychat(reuniao.inicio),
     }, env);
     if (falhaCampos) return registrar('erro', `WhatsApp falhou: ${falhaCampos}`);
 
@@ -107,6 +114,35 @@ export async function whatsappDaReuniao(env, reuniaoId, acao, cfg = CONSULTORIA_
     return registrar('enviado', `WhatsApp enviado (${acao === 'remarcou' ? 'remarcação' : 'agendamento'}): ${data} às ${horario}.`);
   } catch (e) {
     console.error('agenda-manychat — exceção', e && e.message);
+    return 'erro';
+  }
+}
+
+/**
+ * Cancelou: limpa `consultoria_inicio`, e a condição "tem valor" do fluxo no
+ * ManyChat segura os lembretes de 1 h e 10 min que ainda estavam esperando.
+ * Não cria contato (quem não está no ManyChat não tem lembrete). Nunca lança.
+ */
+export async function limparLembretes(env, reuniaoId, cfg = CONSULTORIA_MANYCHAT) {
+  try {
+    const reuniao = await lerReuniao(env, { id: reuniaoId });
+    if (!reuniao) return 'reuniao_nao_encontrada';
+    const tipo = await lerTipo(env, { id: reuniao.tipo_id });
+    if (!tipo || tipo.slug !== cfg.slug) return 'outro_tipo';
+    if (!cfg.fluxo) return 'sem_fluxo';
+    if (!env.MANYCHAT_API) return 'sem_config';
+    const telefone = normalizePhone(reuniao.telefone || '', env.DEFAULT_COUNTRY_CODE || '55');
+    if (!telefone) return 'sem_telefone';
+    const id = await acharPorTelefone(telefone, env);
+    if (!id) return 'sem_contato';
+
+    const falha = await preencherCampos(id, { [cfg.campos.inicio]: null }, env);
+    await historico(env, reuniao.id, 'whatsapp', falha
+      ? `Lembretes do WhatsApp NÃO desligados: ${falha}`
+      : 'Lembretes do WhatsApp desligados (cancelamento).', 'sistema');
+    return falha ? 'erro' : 'limpo';
+  } catch (e) {
+    console.error('agenda-manychat — exceção ao limpar', e && e.message);
     return 'erro';
   }
 }
