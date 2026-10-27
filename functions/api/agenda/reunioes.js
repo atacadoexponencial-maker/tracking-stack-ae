@@ -120,7 +120,7 @@ export async function onRequestGet({ request, env }) {
       pendentes: (c?.pendentes || 0) + cal.pendentes,
     },
     numeros: vista === 'todas' ? numerosComCalendly(rows, cal.rows) : null,
-    resumo: vista === 'todas' ? await resumoDoPeriodo(env, lista, { de, ate: Number(p.get('to')) || t, agora: t, comTestes }) : null,
+    resumo: vista === 'todas' ? await resumoDoPeriodo(env, lista, { de, ate: Number(p.get('to')) || t, agora: t, comTestes, tipo: Number(p.get('tipo')) || 0 }) : null,
     tipos,
   });
 }
@@ -128,8 +128,10 @@ export async function onRequestGet({ request, env }) {
 // Cards de "Todas do período" (pedido de 26/10): por situação, por dia e por
 // funil, pela data da reunião. Funil do Calendly pelo e-mail do lead; agenda
 // própria, o gravado. `agendadas_anterior`: total do período anterior de mesmo
-// tamanho, para o carimbo de variação.
-async function resumoDoPeriodo(env, lista, { de, ate, agora, comTestes }) {
+// tamanho, para o carimbo de variação. `criadas` (pedido de 27/10): marcadas
+// NO período (data do agendamento), para qualquer data de reunião, canceladas
+// depois inclusive; segue o filtro de tipo e, com tipo, o Calendly sai.
+async function resumoDoPeriodo(env, lista, { de, ate, agora, comTestes, tipo }) {
   const cal = lista.filter((r) => r.origem === 'calendly');
   const funisCal = cal.length ? await funisDasReunioes(env.DB, cal.map((r) => ({ email: r.email, quando: r.agendou_em, funil: '' }))) : [];
   const funilDe = new Map(cal.map((r, i) => [r.id, funisCal[i].funil]));
@@ -143,7 +145,20 @@ async function resumoDoPeriodo(env, lista, { de, ate, agora, comTestes }) {
     doCal = await env.DB.prepare(`SELECT COUNT(*) AS n FROM calendly_consultorias WHERE situacao = 'ativa' AND inicio >= ? AND inicio >= ? AND inicio <= ?`)
       .bind(CORTE_CALENDLY, antDe, antAte).first();
   } catch { /* sem Calendly, conta só a agenda própria */ }
-  return { ...resumo, agendadas_anterior: (proprias?.n || 0) + (doCal?.n || 0) };
+  const criadasProprias = await env.DB.prepare(`SELECT COUNT(*) AS n FROM agenda_reunioes WHERE criado_em >= ? AND criado_em <= ? ${semTeste}${tipo ? ' AND tipo_id = ?' : ''}`)
+    .bind(...[de, ate, ...(tipo ? [tipo] : [])]).first();
+  let criadasCal = { n: 0 };
+  if (!tipo) {
+    try {
+      criadasCal = await env.DB.prepare(`SELECT COUNT(*) AS n FROM calendly_consultorias WHERE inicio >= ? AND agendou_em >= ? AND agendou_em <= ?`)
+        .bind(CORTE_CALENDLY, de, ate).first();
+    } catch { /* sem Calendly, conta só a agenda própria */ }
+  }
+  return {
+    ...resumo,
+    agendadas_anterior: (proprias?.n || 0) + (doCal?.n || 0),
+    criadas: (criadasProprias?.n || 0) + (criadasCal?.n || 0),
+  };
 }
 
 // Agendados e cancelados seguem só da agenda própria; faltas e realizadas

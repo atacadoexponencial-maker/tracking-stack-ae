@@ -468,6 +468,7 @@
     const s = r.por_situacao;
     const quadros = [
       { rotulo: 'Agendadas', valor: ctx.fmtInt(s.agendadas), delta: r.agendadas_anterior ? ctx.delta(s.agendadas, r.agendadas_anterior) : undefined, nota: r.agendadas_anterior ? `anterior: ${ctx.fmtInt(r.agendadas_anterior)}` : 'sem base no período anterior' },
+      { rotulo: 'Criadas', valor: ctx.fmtInt(r.criadas || 0), nota: 'marcadas no período, para qualquer data' },
       { rotulo: 'Realizadas', valor: ctx.fmtInt(s.realizada), nota: `${pct(s.realizada, s.agendadas)} · comparecimento ${s.comparecimento === null ? '—' : ctx.fmtPct(s.comparecimento * 100, 0)}` },
       { rotulo: 'Faltas', valor: ctx.fmtInt(s.faltou), nota: `${pct(s.faltou, s.agendadas)} · no-show ${s.comparecimento === null ? '—' : ctx.fmtPct((1 - s.comparecimento) * 100, 0)}` },
       { rotulo: 'Canceladas', valor: ctx.fmtInt(s.cancelada), nota: pct(s.cancelada, s.agendadas) },
