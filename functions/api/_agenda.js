@@ -103,6 +103,29 @@ export async function calcularHorarios(env, tipo, { de, ate, ignorar = null }, f
       : null,
   ]);
   if (!grade) return { erro: 'Tipo sem grade de disponibilidade.' };
+  const o = await lerOcupados(env, tipo, agendas, iniUnix, fimUnix, fetchImpl);
+  if (o.erro) return o;
+  const { ocupados } = o;
+
+  let reunioesNoDia = {};
+  if (reunioes) {
+    for (const x of reunioes.results || []) {
+      if (ignorar && x.inicio === ignorar.ini) continue;
+      const d = ymdBrt(x.inicio);
+      reunioesNoDia[d] = (reunioesNoDia[d] || 0) + 1;
+    }
+  }
+  return { dias: horariosLivres({ tipo, grade, ocupados, reunioesNoDia, agora: t, de: deDia, ate: ateDia, ignorar }) };
+}
+
+/**
+ * Compromissos das agendas do tipo (conflito + destino) entre ini/fim (unix).
+ * `agendas`: resultado de SELECT em agenda_calendarios (lido aqui se faltar).
+ * Devolve { ocupados: [{ ini, fim }] } ou { erro }.
+ */
+async function lerOcupados(env, tipo, agendas, iniUnix, fimUnix, fetchImpl = fetch) {
+  const t = agora();
+  if (!agendas) agendas = await env.DB.prepare('SELECT id, conta_email, ultima_leitura_ok, ultimo_erro FROM agenda_calendarios').all();
   const linhasCal = new Map((agendas.results || []).map((c) => [c.id, c]));
   const contas = new Map([...linhasCal].map(([id, c]) => [id, c.conta_email]));
   // Saúde da agenda: erro grava sempre; leitura OK só se mudou de estado ou
@@ -136,16 +159,19 @@ export async function calcularHorarios(env, tipo, { de, ate, ignorar = null }, f
     if (Object.keys(r.erros).length) return { erro: 'Não foi possível ler a agenda agora.' };
     ocupados.push(...r.ocupados);
   }
+  return { ocupados };
+}
 
-  let reunioesNoDia = {};
-  if (reunioes) {
-    for (const x of reunioes.results || []) {
-      if (ignorar && x.inicio === ignorar.ini) continue;
-      const d = ymdBrt(x.inicio);
-      reunioesNoDia[d] = (reunioesNoDia[d] || 0) + 1;
-    }
-  }
-  return { dias: horariosLivres({ tipo, grade, ocupados, reunioesNoDia, agora: t, de: deDia, ate: ateDia, ignorar }) };
+/**
+ * Remarcar pela equipe fora da grade (29/10): qualquer dia e horário futuro.
+ * Só confere se bate com outro compromisso das agendas do tipo (o próprio
+ * horário da reunião não conta). Devolve { conflito: bool } ou { erro }.
+ */
+async function conflitoNaAgenda(env, tipo, ini, fim, ignorar, fetchImpl = fetch) {
+  const o = await lerOcupados(env, tipo, null, ini, fim, fetchImpl);
+  if (o.erro) return o;
+  const outros = o.ocupados.filter((x) => !(ignorar && x.ini === ignorar.ini && x.fim === ignorar.fim));
+  return { conflito: outros.some((x) => x.ini < fim && x.fim > ini) };
 }
 
 /** Confere se um horário específico continua livre (reconsulta o Google). */
@@ -269,13 +295,24 @@ export async function cancelar(env, reuniao, { por, motivo }, fetchImpl = fetch)
   return { ok: true };
 }
 
-export async function remarcar(env, reuniao, tipo, novoInicio, { por }, fetchImpl = fetch) {
+// `livre` (só a equipe): ignora grade e janela do tipo; com conflito na agenda
+// devolve codigo 'conflito' até vir `confirmado`.
+export async function remarcar(env, reuniao, tipo, novoInicio, { por, livre = false, confirmado = false }, fetchImpl = fetch) {
   if (!SITUACOES_ATIVAS.includes(reuniao.situacao)) return { erro: 'Esta reunião não está mais marcada.' };
   const ignorar = { ini: reuniao.inicio, fim: reuniao.fim };
-  const conf = await horarioContinuaLivre(env, tipo, novoInicio, ignorar, fetchImpl);
-  if (conf.erro) return { erro: conf.erro };
-  if (!conf.livre) return { erro: 'Esse horário acabou de ser ocupado. Escolha outro.', codigo: 'horario_ocupado' };
   const novoFim = novoInicio + (reuniao.fim - reuniao.inicio);
+  if (livre) {
+    if (!Number.isFinite(novoInicio) || novoInicio <= agora()) return { erro: 'Escolha um horário no futuro.' };
+    if (!confirmado) {
+      const c = await conflitoNaAgenda(env, tipo, novoInicio, novoFim, ignorar, fetchImpl);
+      if (c.erro) return { erro: c.erro };
+      if (c.conflito) return { erro: 'Esse horário bate com outro compromisso na agenda.', codigo: 'conflito' };
+    }
+  } else {
+    const conf = await horarioContinuaLivre(env, tipo, novoInicio, ignorar, fetchImpl);
+    if (conf.erro) return { erro: conf.erro };
+    if (!conf.livre) return { erro: 'Esse horário acabou de ser ocupado. Escolha outro.', codigo: 'horario_ocupado' };
+  }
   const contas = await contasDasAgendas(env);
   try {
     await moverEvento(env, contas.get(reuniao.google_cal_id), reuniao.google_cal_id, reuniao.google_event_id, novoInicio, novoFim, fetchImpl);

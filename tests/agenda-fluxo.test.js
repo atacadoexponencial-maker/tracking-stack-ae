@@ -710,3 +710,45 @@ test('WhatsApp: falha no ManyChat fica no histórico e não atrapalha o agendame
     CONSULTORIA_MANYCHAT.fluxo = FLUXO_REAL;
   }
 });
+
+// Remarcar pela equipe fora da grade (29/10): qualquer dia e horário futuro;
+// conflito na agenda avisa e só passa com confirmação. O lead segue preso à grade.
+test('equipe remarca fora da grade; lead não', async () => {
+  await configurar();
+  const { ok, reuniao } = await agendarRita();
+  const id = reuniao().id;
+  // 30 dias à frente e às :30 — fora da janela de 14 dias e da grade de hora em hora.
+  const fora = Math.floor(Date.now() / 1000 / 3600) * 3600 + 30 * 86400 + 1800;
+
+  assert.equal((await publico(pubReuniao, { corpo: { g: ok.corpo.gestao, acao: 'remarcar', inicio: fora } })).status, 409);
+  const semLivre = await dash(reunioes, { acao: 'remarcar', id, inicio: fora });
+  assert.equal(semLivre.status, 409);
+  assert.equal(semLivre.corpo.codigo, 'horario_ocupado');
+
+  const r = await dash(reunioes, { acao: 'remarcar', id, inicio: fora, livre: true });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.equal(reuniao().inicio, fora);
+  assert.equal(reuniao().fim - reuniao().inicio, 45 * 60);
+  assert.equal(Date.parse(google.eventos.get(reuniao().google_event_id).start) / 1000, fora);
+
+  // Outro compromisso na agenda no horário pedido.
+  const alvo = fora + 2 * 86400;
+  google.eventos.set('outro', { cal: CAL, start: new Date((alvo - 600) * 1000).toISOString(), end: new Date((alvo + 1200) * 1000).toISOString() });
+  const conf = await dash(reunioes, { acao: 'remarcar', id, inicio: alvo, livre: true });
+  assert.equal(conf.status, 409);
+  assert.equal(conf.corpo.codigo, 'conflito');
+  assert.equal(reuniao().inicio, fora, 'sem confirmação não muda nada');
+  const mesmoAssim = await dash(reunioes, { acao: 'remarcar', id, inicio: alvo, livre: true, confirmado: true });
+  assert.equal(mesmoAssim.status, 200, JSON.stringify(mesmoAssim.corpo));
+  assert.equal(reuniao().inicio, alvo);
+
+  // O próprio horário da reunião não conta como conflito (mexer 15 min).
+  assert.equal((await dash(reunioes, { acao: 'remarcar', id, inicio: alvo + 900, livre: true, confirmado: true })).status, 200);
+  const proprio = await dash(reunioes, { acao: 'remarcar', id, inicio: alvo + 86400, livre: true });
+  assert.equal(proprio.status, 200, JSON.stringify(proprio.corpo));
+
+  // Passado é recusado.
+  const passado = await dash(reunioes, { acao: 'remarcar', id, inicio: Math.floor(Date.now() / 1000) - 3600, livre: true });
+  assert.equal(passado.status, 409);
+  assert.equal(reuniao().inicio, alvo + 86400);
+});

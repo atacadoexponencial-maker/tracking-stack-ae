@@ -9,7 +9,9 @@
 //          e-mails de teste. Cancelar depois não tira da contagem: o número
 //          mede quantos agendaram.
 // POST /api/agenda/reunioes?key=...  → { acao: 'cancelar', id, motivo? }
-//                                      { acao: 'remarcar', id, inicio }
+//                                      { acao: 'remarcar', id, inicio, livre?, confirmado? }
+//                                        (livre: qualquer horário futuro, fora da grade;
+//                                         conflito na agenda → 409 codigo 'conflito')
 //                                      { acao: 'presenca', id, situacao: 'realizada'|'faltou'|'sem_info' }
 //                                        (id do Calendly = invitee_uri)
 //                                      { acao: 'comentar', id, texto }  (qualquer situação; vai ao ClickUp)
@@ -281,8 +283,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
   }
 
   if (corpo.acao === 'remarcar') {
-    const r = await remarcar(env, reuniao, tipo, Number(corpo.inicio), { por: 'equipe' });
-    if (r.erro) return json({ error: r.erro }, 409);
+    const r = await remarcar(env, reuniao, tipo, Number(corpo.inicio), {
+      por: 'equipe', livre: corpo.livre === true, confirmado: corpo.confirmado === true,
+    });
+    if (r.erro) return json({ error: r.erro, codigo: r.codigo }, 409);
     await registrarNoCrm(env, reuniao, textoCrm('remarcou', tipo, { ...reuniao, inicio: r.inicio }));
     await depois(waitUntil, emailsDaMudanca(env, reuniao.id, 'remarcou'));
     await depois(waitUntil, whatsappDaReuniao(env, reuniao.id, 'remarcou'));

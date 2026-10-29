@@ -624,7 +624,11 @@
     if (br) br.onclick = () => remarcarNaGaveta(g, r, id);
   }
 
-  /** Remarcar: escolhe o dia, depois o horário, e só então confirma. */
+  /**
+   * Remarcar: escolhe o dia, depois o horário, e só então confirma.
+   * "Outro dia e horário" (29/10): a equipe marca fora da grade; se bater com
+   * outro compromisso, o servidor avisa e um segundo clique confirma.
+   */
   async function remarcarNaGaveta(g, r, id) {
     const corpo = g.querySelector('#ag-g-corpo');
     const rodape = g.querySelector('.ag-gaveta__rodape');
@@ -635,21 +639,28 @@
     try { h = await ctx.fetchJson(`/api/agenda/horarios?tipo=${r.tipo_id}&reuniao=${encodeURIComponent(id)}`); }
     catch (e) { corpo.innerHTML = erroHtml(e); return; }
     const dias = Object.keys(h.dias || {}).sort();
-    if (!dias.length) { corpo.innerHTML = '<div class="aviso">Nenhum horário livre na janela deste tipo.</div>'; return; }
     let escolhido = null;
+    let livre = false; // escolhido veio de "Outro dia e horário"
+    let conflito = false; // o servidor avisou que bate com outro compromisso
     corpo.innerHTML = `<p class="mini" style="margin:0">Agora: ${quando(r.inicio)}. O lead recebe a mudança pelo Google.</p>
-      <label class="ag-campo"><span class="ag-campo__rotulo">Dia</span>
+      ${dias.length ? `<label class="ag-campo"><span class="ag-campo__rotulo">Dia</span>
         <select id="ag-rm-dia">${dias.map((d) => `<option value="${d}">${diaLongo(d)} · ${h.dias[d].length} horário(s)</option>`).join('')}</select></label>
-      <div class="ag-slots" id="ag-rm-slots" role="group" aria-label="Horários livres"></div>`;
+      <div class="ag-slots" id="ag-rm-slots" role="group" aria-label="Horários livres"></div>`
+    : '<div class="aviso">Nenhum horário livre na janela deste tipo.</div>'}
+      <fieldset class="ag-campo" style="border:0;padding:0;margin:0"><legend class="ag-campo__rotulo">Outro dia e horário</legend>
+        <p class="mini" style="margin:0 0 6px">Qualquer dia e hora, fora dos horários liberados. O lead não vê esta opção.</p>
+        <div class="ag-acoes"><input type="date" id="ag-rm-livre-dia" aria-label="Dia"><input type="time" id="ag-rm-livre-hora" aria-label="Horário"></div></fieldset>`;
     const desenharSlots = () => {
+      if (!dias.length) return;
       const d = ctx.$('#ag-rm-dia').value;
-      ctx.$('#ag-rm-slots').innerHTML = h.dias[d].map((t) => `<button type="button" class="ag-slot" data-slot="${t}" aria-pressed="${t === escolhido}">${hora(t)}</button>`).join('');
+      ctx.$('#ag-rm-slots').innerHTML = h.dias[d].map((t) => `<button type="button" class="ag-slot" data-slot="${t}" aria-pressed="${!livre && t === escolhido}">${hora(t)}</button>`).join('');
     };
-    desenharSlots();
-    ctx.$('#ag-rm-dia').onchange = () => { escolhido = null; desenharSlots(); atualizarRodape(); };
     const atualizarRodape = () => {
-      rodape.innerHTML = `<div class="ag-acoes">
-        <button class="btn" type="button" id="ag-rm-ok"${escolhido ? '' : ' disabled'}>${escolhido ? `Remarcar para ${ctx.esc(quando(escolhido))}` : 'Escolha um horário'}</button>
+      const rotulo = !escolhido ? 'Escolha um horário'
+        : conflito ? `Remarcar mesmo assim para ${ctx.esc(quando(escolhido))}` : `Remarcar para ${ctx.esc(quando(escolhido))}`;
+      rodape.innerHTML = `${conflito ? '<div class="aviso falha" role="alert">Esse horário bate com outro compromisso na agenda.</div>' : ''}
+        <div class="ag-acoes">
+        <button class="btn" type="button" id="ag-rm-ok"${escolhido ? '' : ' disabled'}>${rotulo}</button>
         <button class="btn sec" type="button" data-voltar>Voltar</button></div>`;
       rodape.querySelector('[data-voltar]').onclick = () => detalhe(id);
       const ok = rodape.querySelector('#ag-rm-ok');
@@ -657,21 +668,40 @@
         ok.disabled = true;
         ok.textContent = 'Remarcando…';
         try {
-          await ctx.postJson('/api/agenda/reunioes', { acao: 'remarcar', id, inicio: escolhido });
+          await ctx.postJson('/api/agenda/reunioes', {
+            acao: 'remarcar', id, inicio: escolhido, ...(livre ? { livre: true, confirmado: conflito } : {}),
+          });
           avisar('Reunião remarcada. O lead foi avisado pelo Google.');
           await agendamentos();
           await detalhe(id);
-        } catch (e) { avisarErro(e); atualizarRodape(); }
+        } catch (e) {
+          if (livre && e.dados && e.dados.codigo === 'conflito') { conflito = true; atualizarRodape(); return; }
+          avisarErro(e); atualizarRodape();
+        }
       };
     };
+    const escolher = (t, deLivre) => { escolhido = t; livre = deLivre; conflito = false; desenharSlots(); atualizarRodape(); };
+    desenharSlots();
     atualizarRodape();
-    ctx.$('#ag-rm-slots').onclick = (ev) => {
-      const b = ev.target.closest('[data-slot]');
-      if (!b) return;
-      escolhido = Number(b.dataset.slot);
-      desenharSlots();
-      atualizarRodape();
+    if (dias.length) {
+      ctx.$('#ag-rm-dia').onchange = () => { if (!livre) escolher(null, false); else desenharSlots(); };
+      ctx.$('#ag-rm-slots').onclick = (ev) => {
+        const b = ev.target.closest('[data-slot]');
+        if (!b) return;
+        ctx.$('#ag-rm-livre-dia').value = '';
+        ctx.$('#ag-rm-livre-hora').value = '';
+        escolher(Number(b.dataset.slot), false);
+      };
+    }
+    // Brasília sem horário de verão desde 2019: -03:00 fixo.
+    const lerLivre = () => {
+      const d = ctx.$('#ag-rm-livre-dia').value;
+      const t = ctx.$('#ag-rm-livre-hora').value;
+      const unix = d && t ? Math.floor(Date.parse(`${d}T${t}:00-03:00`) / 1000) : NaN;
+      escolher(Number.isFinite(unix) ? unix : null, true);
     };
+    ctx.$('#ag-rm-livre-dia').onchange = lerLivre;
+    ctx.$('#ag-rm-livre-hora').onchange = lerLivre;
   }
 
   // ---------------------------------------------------------------------------
