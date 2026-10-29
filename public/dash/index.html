@@ -967,6 +967,38 @@ td.pago, th.pago { color: var(--alerta); }
 .vr-tabela th:nth-child(9), .vr-tabela td:nth-child(9),
 .vr-tabela th:nth-child(15), .vr-tabela td:nth-child(15),
 .vr-tabela th:nth-child(18), .vr-tabela td:nth-child(18) { border-left: 1px solid var(--fio); }
+/* Árvore (public/dash/arvore.js, S5): reaproveita o funil da Visão geral (.vr-etapa). */
+.av-funis { display: inline-flex; gap: 0; margin-bottom: 1.1rem; border: 1px solid var(--fio-forte); border-radius: 2px; }
+.av-funis button { background: none; border: 0; border-right: 1px solid var(--fio-forte); padding: 0.4rem 0.9rem; font: inherit; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; color: var(--tinta-2); cursor: pointer; }
+.av-funis button:last-child { border-right: 0; }
+.av-funis button[aria-pressed="true"] { background: var(--tinta); color: var(--bege); }
+.av-tronco .vr-etapa { grid-template-columns: 170px minmax(0, 1fr) 210px; }
+.av-precisa small { display: block; font-size: 0.72rem; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+.av-precisa b { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.av-falta { color: var(--queda-texto); } .av-sobra { color: var(--alta-texto); }
+.av-gargalo .vr-etapa__faixa > span { background: var(--queda); }
+.av-gargalo .carimbo { display: inline-block; margin-top: 0.3rem; }
+.av-info .vr-etapa__faixa > span { background: var(--tinta-2); }
+.av-investimento { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 1rem; padding-top: 0.8rem; border-top: 1px dashed var(--fio); }
+.av-investimento small { color: var(--apagado); font-size: 0.72rem; }
+.av-investimento .av-precisa { text-align: right; }
+.av-galhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.av-galho { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.9rem 1rem; }
+.av-galho h3 { margin: 0 0 0.6rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.av-galho h3 small { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--apagado); }
+.av-galho dl { margin: 0 0 0.6rem; }
+.av-item { display: flex; justify-content: space-between; gap: 0.8rem; padding: 0.35rem 0; border-bottom: 1px dashed var(--fio); }
+.av-item dt { font-size: 0.82rem; color: var(--tinta-2); }
+.av-item dd { margin: 0; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.av-item dd small { display: block; font-weight: 400; font-size: 0.7rem; color: var(--apagado); }
+.av-galho button[data-av-lista], .bloco button[data-av-voltar] { background: none; border: 0; padding: 0.3rem 0; color: var(--tinta); text-decoration: underline; cursor: pointer; }
+.av-lista th button { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.av-lista td:first-child, .av-lista td:nth-child(2) { white-space: nowrap; }
+.av-semid td { color: var(--apagado); font-style: italic; }
+@media (max-width: 980px) {
+  .av-tronco .vr-etapa { grid-template-columns: minmax(0, 1fr) auto; }
+  .av-galhos { grid-template-columns: 1fr; }
+}
 @media (max-width: 980px) {
   .vr-topo { grid-template-columns: 1fr; }
   .vr-etapa { grid-template-columns: minmax(0, 1fr) auto; }
@@ -1650,6 +1682,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
         <span class="nav-rotulo" id="nav-resultados">Resultados</span>
         <a href="#visao" data-secao="visao">Visão geral</a>
         <a href="#detalhado" data-secao="detalhado">Detalhado</a>
+        <a href="#arvore" data-secao="arvore">Árvore</a>
         <a href="#leads" data-secao="leads">Leads</a>
         <a href="#vendas" data-secao="vendas">Vendas</a>
         <a href="#greenn" data-secao="greenn">Greenn</a>
@@ -2131,6 +2164,10 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
          public/dash/cloudflare.js. PROTÓTIPO S1-01: números de exemplo. -->
     <section class="secao" id="secao-cloudflare"></section>
 
+    <!-- Aba Árvore (spec-arvore-metricas.md, série S5): desenhada por
+         public/dash/arvore.js. PROTÓTIPO S5-01: números de exemplo. -->
+    <section class="secao" id="secao-arvore"></section>
+
     <!-- Aba Argo (spec 2026-09-20-argo-controle-ae-design.md): o Argo já opera
          esta conta sozinho desde agosto — pausa campanhas de tráfego todo dia
          útil às 8h50. Esta aba mostra o que ele fez e comanda o que ele pode
@@ -2298,6 +2335,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-contexto.js"></script>
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
+<script src="/dash/arvore.js?v=2026-10-29a"></script>
 <script src="/dash/visao-reuniao.js?v=2026-10-26o"></script>
 <script>
 (() => {
@@ -4878,6 +4916,17 @@ async function saudeApi(caminho, init) {
   return dados;
 }
 
+// Aba Árvore (spec-arvore-metricas.md, S5): public/dash/arvore.js desenha.
+R.arvore = async () => {
+  if (!window.ArvoreMetricas) return;
+  try {
+    await window.ArvoreMetricas.abrir($('#secao-arvore'), { esc, fmtInt, fmtPct, fmtNum, money });
+  } catch (e) {
+    e.mensagemUsuario = e.mensagemUsuario || 'Não foi possível carregar a árvore de métricas agora.';
+    throw e;
+  }
+};
+
 // Aba Cloudflare (spec-uso-cloudflare.md): public/dash/cloudflare.js desenha.
 R.cloudflare = async () => {
   if (!window.CloudflareUso) return;
@@ -6792,7 +6841,7 @@ R['mkt-email'] = () => window.EmailMkt.render(emailCtx());
 R['agenda-emails'] = () => window.EmailMkt.renderAgenda(emailCtx());
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', detalhado: 'Detalhado', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', cloudflare: 'Cloudflare', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
+const TITULOS = { visao: 'Visão geral', detalhado: 'Detalhado', arvore: 'Árvore', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', cloudflare: 'Cloudflare', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
@@ -6800,6 +6849,7 @@ const TITULOS = { visao: 'Visão geral', detalhado: 'Detalhado', leads: 'Leads',
 const FILTROS = {
   visao: { periodo: true, compara: true, funil: true },
   detalhado: { periodo: true, compara: true, funil: true },
+  arvore: { periodo: true },
   leads: { periodo: true, funil: true },
   vendas: { periodo: true, compara: true },
   atribuicao: { periodo: true },
