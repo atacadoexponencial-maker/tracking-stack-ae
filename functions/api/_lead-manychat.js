@@ -31,15 +31,17 @@ export const FUNIS_MANYCHAT = {
     fluxo: 'content20260929233329_927636',
     consentimento: 'formulário da LP /workshop-gratuito',
   },
-  // Aplicação para o plano de ação ao vivo do workshop de 07/10/2026
-  // (spec-aplicacao-plano-ao-vivo.md). Não vem do /tracker: quem chama é
+  // Aplicação para o plano de ação ao vivo (spec-aplicacao-plano-ao-vivo.md).
+  // 2ª edição (live 11/11/2026). A 1ª (07/10) usava as tags 98044274
+  // aplicou-wo07-10 / 98044275 aplicou-wo07-10-enviado e o fluxo
+  // content20261003121955_441447. Não vem do /tracker: quem chama é
   // functions/api/aplicacao-plano-ao-vivo.js, depois de gravar a linha na
   // planilha. `tagEnviado` só entra quando o ManyChat aceitou o fluxo: quem tem
   // a tagForm e não tem esta ficou sem a mensagem.
   'aplicacao-plano-ao-vivo': {
-    tagForm: 98044274, // aplicou-wo07-10 (criada em 2026-10-03)
-    tagEnviado: 98044275, // aplicou-wo07-10-enviado
-    fluxo: 'content20261003121955_441447', // "Aplicação Plano de Ação ao Vivo"
+    tagForm: 100708114, // aplicou-wo11-11 (criada em 2026-11-03)
+    tagEnviado: 100708117, // aplicou-wo11-11-enviado
+    fluxo: 'content20261103135506_103621', // "Aplicação Plano de Ação ao Vivo (11/11 às 19h)"
     consentimento: 'aplicação /aplicacao-plano-ao-vivo',
   },
 };

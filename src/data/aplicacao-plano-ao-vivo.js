@@ -69,8 +69,10 @@ export const CABECALHO = ['Data/hora', ...PERGUNTAS.map((p) => p.coluna), 'Orige
 export const TEXTOS = {
   selo: 'Plano de Ação · ao vivo',
   titulo: 'Análise individual ao vivo + checklist do seu atacado',
-  subtitulo: 'Na quarta, o Felipe analisa 2 atacados ao vivo, olhando perfil, anúncio e comercial, e monta o plano de ação de cada um. O seu pode ser um deles.',
-  naoEscolhida: 'Se a sua marca não for escolhida, você assiste às duas análises e leva o checklist do plano de ação para aplicar no seu atacado (liberado ao vivo para quem ficar até o fim).',
+  subtitulo: 'O Felipe analisa 2 atacados ao vivo e monta o plano de ação de cada um. O seu pode ser um deles.',
+  analisa: ['Perfil', 'Anúncio', 'Comercial'],
+  naoEscolhidaRotulo: 'Se não for a sua marca',
+  naoEscolhida: 'Você assiste às duas análises e leva o checklist para o seu atacado. Liberado ao vivo, para quem ficar até o fim.',
   quando: 'Quarta, 11/11 · 19h',
   onde: 'Google Meet · ao vivo',
   cta: 'Quero aplicar a minha marca',

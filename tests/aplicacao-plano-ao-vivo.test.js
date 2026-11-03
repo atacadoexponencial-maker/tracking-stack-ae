@@ -51,12 +51,12 @@ test('encerra em 09/11 às 23h59 de Brasília', () => {
   assert.equal(ENCERRA_EM_MS, Date.parse('2026-11-10T00:00:00-03:00'));
 });
 
-test('ManyChat desligado: grava na planilha e não chama o ManyChat', async () => {
+test('interruptor do ManyChat desligado: grava na planilha e não chama o ManyChat', async () => {
   let chamou = false;
   let gravou = false;
   const r = await processarAplicacao({
     request: pedido({ respostas: RESPOSTAS }), env: {}, agoraMs: ANTES,
-    gravar: async () => { gravou = true; }, manychat: async () => { chamou = true; },
+    gravar: async () => { gravou = true; }, manychatLigado: false, manychat: async () => { chamou = true; },
   });
   assert.equal(r.status, 200);
   assert.equal(gravou, true);

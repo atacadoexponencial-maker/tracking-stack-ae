@@ -7,7 +7,7 @@
 //
 // Não vira lead: nada vai para /tracker, CRM, GHL, Meta, GA4 ou dash. O único
 // destino além da planilha é o ManyChat (pedido dela em 03/10): tag
-// aplicou-wo07-10 + fluxo "Aplicação Plano de Ação ao Vivo", em segundo plano,
+// aplicou-wo11-11 + fluxo "Aplicação Plano de Ação ao Vivo (11/11 às 19h)", em segundo plano,
 // depois de a linha estar gravada. Falha no ManyChat não derruba a aplicação.
 // Robô (pelas mesmas listas do /tracker) recebe ok e não vira linha.
 
@@ -24,11 +24,9 @@ const ABA = 'Página1';
 // como ela e tem edição).
 const CONTA = 'marcelle@seteads.com';
 const MAX_CORPO = 20000;
-// ManyChat DESLIGADO na 2ª edição (03/11): o modelo do fluxo "Aplicação Plano
-// de Ação ao Vivo (11/11 às 19h)" ainda está em aprovação. Para ligar: criar as
-// tags aplicou-wo11-11 / aplicou-wo11-11-enviado, trocar tags e fluxo em
-// _lead-manychat.js e virar para true.
-const MANYCHAT_LIGADO = false;
+// Interruptor do ManyChat. Na 2ª edição ficou desligado até o modelo do fluxo
+// "Aplicação Plano de Ação ao Vivo (11/11 às 19h)" ser aprovado (ligado 03/11).
+const MANYCHAT_LIGADO = true;
 
 const json = (dados, status = 200) => new Response(JSON.stringify(dados), {
   status,

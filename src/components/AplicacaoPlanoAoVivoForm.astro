@@ -26,24 +26,37 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
     <Image src={logo} alt="Atacado Exponencial" height={72} class="aplicacao__logo" />
 
     <form class="aplicacao__form" id="apv-form" novalidate>
+      <!-- Capa em duas colunas no computador (pedido dela em 03/11):
+           à esquerda o que é, à direita o cartão com data e botão.
+           No celular as duas empilham, texto primeiro. -->
       <div class="aplicacao__etapa aplicacao__rosto" data-etapa="0">
-        <span class="rosto__badge">{TEXTOS.selo}</span>
-        <h1 class="rosto__titulo">{TEXTOS.titulo}</h1>
-        <p class="rosto__sub">{TEXTOS.subtitulo}</p>
-        <p class="rosto__nao-escolhida">{TEXTOS.naoEscolhida}</p>
-        <dl class="rosto__info">
-          <div><dt>Quando</dt><dd>{TEXTOS.quando}</dd></div>
-          <div><dt>Onde</dt><dd>{TEXTOS.onde}</dd></div>
-        </dl>
-        <div id="apv-rosto-aberta">
-          <button type="button" class="btn-cta rosto__cta" id="apv-comecar" disabled>{TEXTOS.cta}</button>
-          <p class="rosto__nota">{TEXTOS.nota}</p>
-          <p class="rosto__nota rosto__prazo">{TEXTOS.prazo}</p>
-          <p class="rosto__nota">{TEXTOS.lembrete}</p>
+        <div class="rosto__texto">
+          <span class="rosto__badge">{TEXTOS.selo}</span>
+          <h1 class="rosto__titulo">{TEXTOS.titulo}</h1>
+          <p class="rosto__sub">{TEXTOS.subtitulo}</p>
+          <ul class="rosto__analisa" aria-label="O que o Felipe analisa">
+            {TEXTOS.analisa.map((item) => <li>{item}</li>)}
+          </ul>
+          <div class="rosto__nao">
+            <p class="rosto__nao-rotulo">{TEXTOS.naoEscolhidaRotulo}</p>
+            <p class="rosto__nao-texto">{TEXTOS.naoEscolhida}</p>
+          </div>
         </div>
-        <div id="apv-rosto-encerrada" class="rosto__encerrada" hidden>
-          <p class="rosto__encerrada-titulo">{TEXTOS.encerradas}</p>
-          <p class="rosto__nota">{TEXTOS.encerradasLembrete}</p>
+        <div class="rosto__acao">
+          <dl class="rosto__info">
+            <div><dt>Quando</dt><dd>{TEXTOS.quando}</dd></div>
+            <div><dt>Onde</dt><dd>{TEXTOS.onde}</dd></div>
+          </dl>
+          <div id="apv-rosto-aberta">
+            <button type="button" class="btn-cta rosto__cta" id="apv-comecar" disabled>{TEXTOS.cta}</button>
+            <p class="rosto__nota">{TEXTOS.nota}</p>
+            <p class="rosto__nota rosto__prazo">{TEXTOS.prazo}</p>
+            <p class="rosto__nota">{TEXTOS.lembrete}</p>
+          </div>
+          <div id="apv-rosto-encerrada" class="rosto__encerrada" hidden>
+            <p class="rosto__encerrada-titulo">{TEXTOS.encerradas}</p>
+            <p class="rosto__nota">{TEXTOS.encerradasLembrete}</p>
+          </div>
         </div>
       </div>
 
@@ -142,8 +155,32 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
   #apv-rosto-aberta[hidden],
   .rosto__encerrada[hidden] { display: none; }
 
-  /* Folha de rosto: mesma linguagem das iscas, sem a capa. */
-  .aplicacao__rosto { padding: 1.75rem 1.25rem; align-items: center; text-align: center; gap: 0; }
+  /* Folha de rosto: texto solto no papel + cartão de ação. Enquanto ela está
+     na tela, o formulário perde o cartão e a página fica larga. */
+  .aplicacao__inner:has(.aplicacao__rosto:not([hidden])) { align-items: stretch; }
+  .aplicacao__inner:has(.aplicacao__rosto:not([hidden])) .aplicacao__logo { align-self: flex-start; }
+  .aplicacao__form:has(> .aplicacao__rosto:not([hidden])) {
+    background: transparent; border: 0; box-shadow: none; overflow: visible;
+  }
+  .aplicacao__rosto { display: grid; gap: 1.5rem; padding: 0; text-align: left; align-items: start; }
+  .rosto__texto { display: flex; flex-direction: column; align-items: flex-start; }
+  .rosto__acao {
+    display: flex; flex-direction: column; align-items: stretch;
+    background: var(--apv-cartao); border: 1px solid var(--apv-linha); border-radius: 1rem;
+    box-shadow: 0 1px 2px rgba(30, 30, 30, 0.04), 0 8px 24px rgba(30, 30, 30, 0.06);
+    padding: 1.5rem 1.25rem;
+  }
+  .rosto__analisa { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .rosto__analisa li {
+    font-size: 0.85rem; font-weight: 700; color: var(--apv-texto); background: var(--apv-cartao);
+    border: 1px solid var(--apv-linha); border-radius: 999px; padding: 0.4rem 0.95rem;
+  }
+  .rosto__nao {
+    margin-top: 1.5rem; width: 100%; padding: 0.9rem 1rem;
+    background: var(--apv-verde-fundo); border-left: 3px solid var(--apv-verde); border-radius: 0.5rem;
+  }
+  .rosto__nao-rotulo { margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--apv-texto); }
+  .rosto__nao-texto { margin: 0.3rem 0 0; font-size: 0.9rem; line-height: 1.5; color: var(--apv-suave); text-wrap: pretty; }
   .rosto__badge {
     font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em;
     color: var(--apv-verde); background: var(--apv-verde-fundo);
@@ -151,14 +188,14 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
     padding: 0.4rem 0.95rem;
   }
   .rosto__titulo { margin: 1.25rem 0 0; font-size: 1.9rem; line-height: 1.1; font-weight: 700; color: var(--apv-texto); }
-  .rosto__sub { margin: 0.75rem 0 0; font-size: 1rem; line-height: 1.5; color: var(--apv-texto); text-wrap: balance; }
+  .rosto__sub { margin: 0.75rem 0 0; font-size: 1.05rem; line-height: 1.5; color: var(--apv-texto); text-wrap: pretty; max-width: 34rem; }
   .rosto__pilula {
     margin-top: 1.1rem; font-size: 0.85rem; font-weight: 700; color: var(--apv-texto);
     border: 1px solid var(--apv-linha); border-radius: 999px; padding: 0.45rem 1rem;
   }
   /* Quando e onde juntos, num quadro de duas colunas. */
   .rosto__info {
-    margin: 1.5rem 0 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr;
+    margin: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr;
     border: 1px solid var(--apv-linha); border-radius: 0.75rem; text-align: left;
   }
   .rosto__info > div { padding: 0.85rem 1rem; }
@@ -177,7 +214,6 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
   .rosto__nota { margin: 0.75rem 0 0; font-size: 0.8rem; color: var(--apv-suave); text-align: center; }
   .rosto__nota + .rosto__nota { margin-top: 0.3rem; }
   .rosto__prazo { font-weight: 600; color: var(--apv-texto); }
-  .rosto__nao-escolhida { margin: 0.6rem 0 0; font-size: 0.9rem; line-height: 1.5; color: var(--apv-suave); text-wrap: pretty; }
   .rosto__encerrada { margin-top: 1.5rem; }
   .rosto__encerrada-titulo { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--apv-texto); text-align: center; }
 
@@ -266,7 +302,7 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
   @media (min-width: 640px) {
     .aplicacao { display: flex; align-items: center; padding-block: 1.5rem; }
     .aplicacao__inner { width: 100%; }
-    .aplicacao__rosto { padding: 2rem 2.5rem 1.75rem; }
+    .rosto__acao { padding: 1.75rem; }
     .rosto__titulo { font-size: 2.3rem; }
     .aplicacao__etapa:not(.aplicacao__rosto):not(.apv-obrigado) { padding-inline: 1.75rem; }
     .aplicacao__card-titulo { padding-inline: 1.75rem; }
@@ -283,13 +319,20 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
     .apv-opcao { min-height: 44px; padding-block: 0.6rem; }
     .aplicacao__nav { padding-block: 0.5rem; }
     .rosto__titulo { margin-top: 1rem; }
-    .rosto__info { margin-top: 1.25rem; }
     .rosto__cta { margin-top: 1.1rem; }
     .apv-obrigado__blocos { margin-top: 1.1rem; grid-template-columns: 1fr 1fr; }
-    .aplicacao__inner:has(.aplicacao__rosto:not([hidden])),
+    .aplicacao__inner:has(.aplicacao__rosto:not([hidden])) { max-width: 42rem; }
     .aplicacao__inner:has(.apv-obrigado:not([hidden])) { max-width: 42rem; }
     .apv-obrigado__check { width: 2.5rem; height: 2.5rem; font-size: 1.25rem; }
     .apv-obrigado__data { margin-top: 1.1rem; }
+  }
+
+  /* Tela larga: capa em duas colunas ocupando a largura. */
+  @media (min-width: 900px) {
+    .aplicacao__inner:has(.aplicacao__rosto:not([hidden])) { max-width: 70rem; }
+    .aplicacao__rosto { grid-template-columns: 1.2fr 1fr; gap: 4rem; align-items: center; }
+    .rosto__titulo { font-size: 2.75rem; }
+    .rosto__acao { padding: 2rem; }
   }
 </style>
 
