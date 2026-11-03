@@ -344,6 +344,12 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
     .apv-obrigado__data { margin-top: 1.1rem; }
   }
 
+  /* Capa empilhada (celular): logo e selo centralizados (pedido dela em 03/11). */
+  @media (max-width: 899px) {
+    .aplicacao__inner:has(.aplicacao__rosto:not([hidden])) .aplicacao__logo { align-self: center; }
+    .rosto__badge { align-self: center; }
+  }
+
   /* Tela larga: capa em duas colunas ocupando a largura. */
   @media (min-width: 900px) {
     .aplicacao__inner:has(.aplicacao__rosto:not([hidden])) { max-width: 70rem; }
