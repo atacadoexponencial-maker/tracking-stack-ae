@@ -1471,9 +1471,14 @@ ${cabecalhoHtml(E, sel)}${blocos || `<tr data-vazio><td style="padding:40px 28px
     if (br) br.onclick = async () => {
       if (c.quando === 'agendar' && (!c.dia || !c.hora)) return U.avisar('Escolha o dia e a hora do envio.', 'erro');
       if (!(await salvarCampanhaReal(br))) return;
-      const res = alvo.querySelector('#eb-camp-resumo');
+      // Salvar chama mudou(), que redesenha a campanha no próximo tique e troca
+      // o #eb-camp-resumo por um vazio. Espera o redesenho e só então pega o
+      // espaço do resumo; senão ele é escrito num nó que já saiu da tela.
+      await new Promise((ok) => setTimeout(ok, 0));
+      const res = raiz.querySelector('#eb-camp-resumo');
+      if (!res) return;
       OPC.resumo(res, { id: c.id, agendar: c.quando === 'agendar', dia: c.dia, hora: c.hora });
-      res.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      res.scrollIntoView({ block: 'center', behavior: 'smooth' });
     };
     const bc = raiz.querySelector('[data-cancelar-envio]');
     if (bc) bc.onclick = () => ctx.pedirConfirmacao(bc, 'Cancelar o envio agendado? Ninguém recebe.', async () => {
