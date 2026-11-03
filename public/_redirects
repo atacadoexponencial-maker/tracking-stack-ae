@@ -52,7 +52,6 @@
 /aplicacao-trafego-atacado/ / 302
 
 # A aplicação do plano de ação ao vivo era só para o workshop de 07/10/2026
-# (fechou em 06/10 23h59). Fora do ar em 24/10/2026; arquivos mantidos, 302
-# (temporário) para poder voltar numa próxima edição.
-/aplicacao-plano-ao-vivo /workshop-gratuito 302
-/aplicacao-plano-ao-vivo/ /workshop-gratuito 302
+# (fechou em 06/10 23h59). Fora do ar de 24/10 a 03/11/2026; voltou em 03/11
+# só para leitura da copy: o servidor segue recusando envio (410, encerrada)
+# e a página mostra "As aplicações foram encerradas".
