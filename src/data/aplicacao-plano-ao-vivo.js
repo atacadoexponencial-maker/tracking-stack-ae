@@ -1,5 +1,5 @@
-// Aplicação para o plano de ação ao vivo do workshop de 07/10/2026
-// (spec-aplicacao-plano-ao-vivo.md, issues 370–372).
+// Aplicação para o plano de ação ao vivo. 1ª edição: workshop de 07/10/2026
+// (spec-aplicacao-plano-ao-vivo.md, issues 370–372). 2ª edição: 11/11/2026.
 //
 // Fonte única das perguntas: a página monta as etapas daqui e o servidor
 // (functions/api/aplicacao-plano-ao-vivo.js) confere as respostas pelas mesmas
@@ -8,9 +8,9 @@
 //
 // A ordem do array é a ordem das colunas na planilha (depois de Data/hora).
 
-// Terça, 06/10/2026, 23h59 em Brasília. A partir deste instante as
+// Segunda, 09/11/2026, 23h59 em Brasília. A partir deste instante as
 // aplicações estão encerradas. Quem decide é o servidor, nunca o navegador.
-export const ENCERRA_EM_MS = Date.parse('2026-10-07T03:00:00Z');
+export const ENCERRA_EM_MS = Date.parse('2026-11-10T03:00:00Z');
 
 export function aplicacoesAbertas(agoraMs = Date.now()) {
   return agoraMs < ENCERRA_EM_MS;
@@ -55,7 +55,7 @@ export const PERGUNTAS = [
     opcoes: ['Sim', 'Sim, mas sem números exatos', 'Não'],
   },
   {
-    name: 'disponivel', etapa: 10, tipo: 'uma', rotulo: 'Você consegue estar ao vivo na quarta, 07/10, às 19h, com câmera e microfone?', coluna: 'Disponível 07/10 19h',
+    name: 'disponivel', etapa: 10, tipo: 'uma', rotulo: 'Você consegue estar ao vivo na quarta, 11/11, às 19h, com câmera e microfone?', coluna: 'Disponível 11/11 19h',
     opcoes: ['Sim', 'Não'],
   },
 ];
@@ -67,20 +67,23 @@ export const MAX_CAIXA = 2000;
 export const CABECALHO = ['Data/hora', ...PERGUNTAS.map((p) => p.coluna), 'Origem'];
 
 export const TEXTOS = {
-  selo: 'Plano de ação ao vivo',
-  titulo: 'Dos 100 aos 500 mil por mês',
-  subtitulo: 'O Felipe monta ao vivo o plano de 2 atacados reais. O seu pode ser um deles.',
-  quando: 'Quarta, 07/10 às 19h',
-  onde: 'Google Meet, ao vivo',
+  selo: 'Plano de Ação · ao vivo',
+  titulo: 'Análise individual ao vivo + checklist do seu atacado',
+  subtitulo: 'Na quarta, o Felipe analisa 2 atacados ao vivo, olhando perfil, anúncio e comercial, e monta o plano de ação de cada um. O seu pode ser um deles.',
+  naoEscolhida: 'Se a sua marca não for escolhida, você assiste às duas análises e leva o checklist do plano de ação para aplicar no seu atacado (liberado ao vivo para quem ficar até o fim).',
+  quando: 'Quarta, 11/11 · 19h',
+  onde: 'Google Meet · ao vivo',
   cta: 'Quero aplicar a minha marca',
-  nota: 'São só 2 vagas. Preencher não garante a vaga. Leva uns 3 minutos.',
+  nota: 'Só 2 vagas. Aplicar não garante a vaga. Leva uns 3 minutos.',
+  prazo: 'Aplicações abertas até segunda, 09/11, às 23h59.',
+  lembrete: 'O link do Meet chega no grupo de WhatsApp.',
   obrigado: {
     titulo: 'Aplicação recebida',
     escolhidaRotulo: 'Se a sua marca for escolhida',
-    escolhida: 'Avisamos pelo WhatsApp na quarta, 07/10, até o meio-dia.',
+    escolhida: 'Avisamos pelo WhatsApp na quarta, 11/11, até o meio-dia.',
     naoEscolhidaRotulo: 'Se não for',
-    naoEscolhida: 'Você assiste ao plano sendo montado do zero e leva o raciocínio para o seu atacado. Quem ficar até o fim ainda tem uma surpresa que só liberamos ao vivo.',
-    data: 'Quarta, 07/10 · 19h · Google Meet',
+    naoEscolhida: 'Você assiste às duas análises e leva o checklist do plano de ação para aplicar no seu atacado (liberado ao vivo para quem ficar até o fim).',
+    data: 'Quarta, 11/11 · 19h · Google Meet',
     link: 'O link chega no grupo de WhatsApp e por aqui.',
   },
   encerradas: 'As aplicações foram encerradas.',

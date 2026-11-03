@@ -17,12 +17,18 @@ import { acrescentarLinha } from './_google-planilha.js';
 import { enviarLeadAoManyChat } from './_lead-manychat.js';
 import { aplicacoesAbertas, validarAplicacao, PERGUNTAS, CABECALHO } from '../../src/data/aplicacao-plano-ao-vivo.js';
 
-const PLANILHA = '1tWAeZMaAp_hSE-6vymyN8Cx3kAqVo-zKEZfGySHuOHU';
+// 2ª edição (11/11/2026). A da 1ª edição (07/10) era 1tWAeZMaAp_hSE-6vymyN8Cx3kAqVo-zKEZfGySHuOHU.
+const PLANILHA = '1MeD3Fr4DJmHJOeGc9gs8YuGah4HcHwk3sV4xq6gG-f8';
 const ABA = 'Página1';
 // Dona da planilha no Workspace (testado em 03/10: a conta de serviço entra
 // como ela e tem edição).
 const CONTA = 'marcelle@seteads.com';
 const MAX_CORPO = 20000;
+// ManyChat DESLIGADO na 2ª edição (03/11): o modelo do fluxo "Aplicação Plano
+// de Ação ao Vivo (11/11 às 19h)" ainda está em aprovação. Para ligar: criar as
+// tags aplicou-wo11-11 / aplicou-wo11-11-enviado, trocar tags e fluxo em
+// _lead-manychat.js e virar para true.
+const MANYCHAT_LIGADO = false;
 
 const json = (dados, status = 200) => new Response(JSON.stringify(dados), {
   status,
@@ -37,7 +43,7 @@ function dataHoraBrasilia(ms) {
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}:${p.second}`;
 }
 
-export async function processarAplicacao({ request, env, waitUntil, agoraMs = Date.now(), gravar = acrescentarLinha, manychat = enviarLeadAoManyChat }) {
+export async function processarAplicacao({ request, env, waitUntil, agoraMs = Date.now(), gravar = acrescentarLinha, manychat = enviarLeadAoManyChat, manychatLigado = MANYCHAT_LIGADO }) {
   if (!aplicacoesAbertas(agoraMs)) return json({ ok: false, encerrada: true }, 410);
 
   const ua = request.headers.get('user-agent') || '';
@@ -68,6 +74,8 @@ export async function processarAplicacao({ request, env, waitUntil, agoraMs = Da
     console.error('[aplicacao-plano-ao-vivo] falha ao gravar na planilha:', e?.codigo || '', e?.status || '', e?.message || e);
     return json({ ok: false, erro: 'planilha' }, 502);
   }
+
+  if (!manychatLigado) return json({ ok: true });
 
   const envio = manychat({ leadData: { funnel: 'aplicacao-plano-ao-vivo', nome: v.valores.nome, telefone: tel.digitos }, env })
     .then((desfecho) => console.log('[aplicacao-plano-ao-vivo] manychat:', desfecho))

@@ -30,6 +30,7 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
         <span class="rosto__badge">{TEXTOS.selo}</span>
         <h1 class="rosto__titulo">{TEXTOS.titulo}</h1>
         <p class="rosto__sub">{TEXTOS.subtitulo}</p>
+        <p class="rosto__nao-escolhida">{TEXTOS.naoEscolhida}</p>
         <dl class="rosto__info">
           <div><dt>Quando</dt><dd>{TEXTOS.quando}</dd></div>
           <div><dt>Onde</dt><dd>{TEXTOS.onde}</dd></div>
@@ -37,6 +38,8 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
         <div id="apv-rosto-aberta">
           <button type="button" class="btn-cta rosto__cta" id="apv-comecar" disabled>{TEXTOS.cta}</button>
           <p class="rosto__nota">{TEXTOS.nota}</p>
+          <p class="rosto__nota rosto__prazo">{TEXTOS.prazo}</p>
+          <p class="rosto__nota">{TEXTOS.lembrete}</p>
         </div>
         <div id="apv-rosto-encerrada" class="rosto__encerrada" hidden>
           <p class="rosto__encerrada-titulo">{TEXTOS.encerradas}</p>
@@ -172,6 +175,9 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
   }
   .rosto__cta:disabled { opacity: 0.6; cursor: default; }
   .rosto__nota { margin: 0.75rem 0 0; font-size: 0.8rem; color: var(--apv-suave); text-align: center; }
+  .rosto__nota + .rosto__nota { margin-top: 0.3rem; }
+  .rosto__prazo { font-weight: 600; color: var(--apv-texto); }
+  .rosto__nao-escolhida { margin: 0.6rem 0 0; font-size: 0.9rem; line-height: 1.5; color: var(--apv-suave); text-wrap: pretty; }
   .rosto__encerrada { margin-top: 1.5rem; }
   .rosto__encerrada-titulo { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--apv-texto); text-align: center; }
 

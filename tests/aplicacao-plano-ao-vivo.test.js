@@ -45,10 +45,22 @@ test('6 e 7 aceitam várias opções', () => {
   assert.deepEqual(varias, ['publico', 'entrada']);
 });
 
-test('encerra em 06/10 às 23h59 de Brasília', () => {
-  assert.equal(aplicacoesAbertas(Date.parse('2026-10-06T23:59:00-03:00')), true);
-  assert.equal(aplicacoesAbertas(Date.parse('2026-10-07T00:00:00-03:00')), false);
-  assert.equal(ENCERRA_EM_MS, Date.parse('2026-10-07T00:00:00-03:00'));
+test('encerra em 09/11 às 23h59 de Brasília', () => {
+  assert.equal(aplicacoesAbertas(Date.parse('2026-11-09T23:59:00-03:00')), true);
+  assert.equal(aplicacoesAbertas(Date.parse('2026-11-10T00:00:00-03:00')), false);
+  assert.equal(ENCERRA_EM_MS, Date.parse('2026-11-10T00:00:00-03:00'));
+});
+
+test('ManyChat desligado: grava na planilha e não chama o ManyChat', async () => {
+  let chamou = false;
+  let gravou = false;
+  const r = await processarAplicacao({
+    request: pedido({ respostas: RESPOSTAS }), env: {}, agoraMs: ANTES,
+    gravar: async () => { gravou = true; }, manychat: async () => { chamou = true; },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(gravou, true);
+  assert.equal(chamou, false);
 });
 
 test('validação: ordem das opções múltiplas segue a lista; opção inventada é recusada', () => {
@@ -97,7 +109,7 @@ test('depois de gravar, manda ao ManyChat com o funil da aplicação e o telefon
   const enviados = [];
   const r = await processarAplicacao({
     request: pedido({ respostas: RESPOSTAS }), env: {}, agoraMs: ANTES,
-    gravar: async () => {}, manychat: async (a) => { enviados.push(a.leadData); return 'inscrito'; },
+    gravar: async () => {}, manychatLigado: true, manychat: async (a) => { enviados.push(a.leadData); return 'inscrito'; },
   });
   assert.equal(r.status, 200);
   assert.deepEqual(enviados, [{ funnel: 'aplicacao-plano-ao-vivo', nome: 'Maria Silva', telefone: '5511987654321' }]);
@@ -107,13 +119,13 @@ test('ManyChat não é chamado quando a planilha falha, e falha do ManyChat não
   let chamou = false;
   const r1 = await processarAplicacao({
     request: pedido({ respostas: RESPOSTAS }), env: {}, agoraMs: ANTES,
-    gravar: async () => { throw new Error('fora'); }, manychat: async () => { chamou = true; },
+    gravar: async () => { throw new Error('fora'); }, manychatLigado: true, manychat: async () => { chamou = true; },
   });
   assert.equal(r1.status, 502);
   assert.equal(chamou, false);
   const r2 = await processarAplicacao({
     request: pedido({ respostas: RESPOSTAS }), env: {}, agoraMs: ANTES,
-    gravar: async () => {}, manychat: async () => { throw new Error('manychat fora'); },
+    gravar: async () => {}, manychatLigado: true, manychat: async () => { throw new Error('manychat fora'); },
   });
   assert.equal(r2.status, 200);
 });
