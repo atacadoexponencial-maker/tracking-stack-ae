@@ -82,7 +82,7 @@ export const TEXTOS = {
   obrigado: {
     titulo: 'Aplicação recebida',
     escolhidaRotulo: 'Se a sua marca for escolhida',
-    escolhida: 'Avisamos pelo WhatsApp na quarta, 11/11, até o meio-dia.',
+    escolhida: 'Avisamos pelo WhatsApp na terça, 10/11.',
     naoEscolhidaRotulo: 'Se não for',
     naoEscolhida: 'Você assiste às duas análises e leva o checklist do plano de ação para aplicar no seu atacado (liberado ao vivo para quem ficar até o fim).',
     data: 'Quarta, 11/11 · 19h · Google Meet',
