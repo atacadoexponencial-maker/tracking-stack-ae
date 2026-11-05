@@ -195,6 +195,10 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
     'De 300 a 500 Mil', 'Mais de 500 Mil',
   ];
 
+  // As 4 opções de cargo — idênticas às do AplicacaoForm; o ClickUp recebe o
+  // texto da opção no campo Cargo.
+  const CARGO_OPTIONS = ['Dono(a) / Sócio(a)', 'Gestor(a)', 'Funcionário(a)', 'Outro'];
+
   const STEPS: Step[] = [
     { kind: 'messages', texts: [
       'Bem-vindo à inscrição da consultoria individual e gratuita do Atacado Exponencial. 👋',
@@ -208,6 +212,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
     { kind: 'input', key: 'email', inputType: 'email', before: ['(Só lembrando que vou mandar o link da sessão por lá)'], question: 'Qual o seu melhor email?', placeholder: 'Digite seu email', validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), errorMsg: 'Digite um email válido.' },
     { kind: 'input', key: 'instagram', inputType: 'text', question: 'Excelente! Qual o @instagram da sua marca?', placeholder: 'Digite o @ do Instagram', validate: (v) => v.trim().length >= 1, errorMsg: 'Digite o @ da sua marca.' },
     { kind: 'choice', key: 'faturamento', before: ['Show!'], question: 'qual o faturamento MENSAL do seu negócio?', options: FAT_OPTIONS },
+    { kind: 'choice', key: 'cargo', question: 'qual o seu cargo na empresa?', options: CARGO_OPTIONS },
     { kind: 'input', key: 'justificativa', inputType: 'text', question: 'Qual o principal desafio do seu atacado hoje?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
     { kind: 'input', key: 'objetivo', inputType: 'text', question: 'E qual o seu maior objetivo para os próximos meses?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
   ];
@@ -425,7 +430,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
             user_data: { em: answers['email'], ph: answers['telefone'], fn: answers['nome'] },
             lead_data: {
               nome: answers['nome'], telefone: answers['telefone'], email: answers['email'],
-              instagram: answers['instagram'], faturamento: answers['faturamento'],
+              instagram: answers['instagram'], faturamento: answers['faturamento'], cargo: answers['cargo'],
               justificativa: answers['justificativa'], objetivo: answers['objetivo'],
               funnel: leadFunnel,
             },
