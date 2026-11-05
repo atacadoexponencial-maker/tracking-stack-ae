@@ -1,5 +1,5 @@
 // Aplicação para o plano de ação ao vivo. 1ª edição: workshop de 07/10/2026
-// (spec-aplicacao-plano-ao-vivo.md, issues 370–372). 2ª edição: 11/11/2026.
+// (spec-aplicacao-plano-ao-vivo.md, issues 370–372). 2ª edição: 18/11/2026 (era 11/11, adiada).
 //
 // Fonte única das perguntas: a página monta as etapas daqui e o servidor
 // (functions/api/aplicacao-plano-ao-vivo.js) confere as respostas pelas mesmas
@@ -8,9 +8,9 @@
 //
 // A ordem do array é a ordem das colunas na planilha (depois de Data/hora).
 
-// Segunda, 09/11/2026, 23h59 em Brasília. A partir deste instante as
+// Segunda, 16/11/2026, 23h59 em Brasília. A partir deste instante as
 // aplicações estão encerradas. Quem decide é o servidor, nunca o navegador.
-export const ENCERRA_EM_MS = Date.parse('2026-11-10T03:00:00Z');
+export const ENCERRA_EM_MS = Date.parse('2026-11-17T03:00:00Z');
 
 export function aplicacoesAbertas(agoraMs = Date.now()) {
   return agoraMs < ENCERRA_EM_MS;
@@ -55,7 +55,7 @@ export const PERGUNTAS = [
     opcoes: ['Sim', 'Sim, mas sem números exatos', 'Não'],
   },
   {
-    name: 'disponivel', etapa: 10, tipo: 'uma', rotulo: 'Você consegue estar ao vivo na quarta, 11/11, às 19h, com câmera e microfone?', coluna: 'Disponível 11/11 19h',
+    name: 'disponivel', etapa: 10, tipo: 'uma', rotulo: 'Você consegue estar ao vivo na quarta, 18/11, às 19h, com câmera e microfone?', coluna: 'Disponível 11/11 19h',
     opcoes: ['Sim', 'Não'],
   },
 ];
@@ -73,19 +73,19 @@ export const TEXTOS = {
   analisa: ['Perfil', 'Anúncio', 'Comercial'],
   naoEscolhidaRotulo: 'Se não for a sua marca',
   naoEscolhida: 'Você assiste às duas análises e leva o checklist para o seu atacado. Liberado ao vivo, para quem ficar até o fim.',
-  quando: 'Quarta, 11/11 · 19h',
+  quando: 'Quarta, 18/11 · 19h',
   onde: 'Google Meet · ao vivo',
   cta: 'Quero aplicar a minha marca',
   nota: 'Só 2 vagas. Aplicar não garante a vaga. Leva uns 3 minutos.',
-  prazo: 'Aplicações abertas até segunda, 09/11, às 23h59.',
+  prazo: 'Aplicações abertas até segunda, 16/11, às 23h59.',
   lembrete: 'O link do Meet chega no grupo de WhatsApp.',
   obrigado: {
     titulo: 'Aplicação recebida',
     escolhidaRotulo: 'Se a sua marca for escolhida',
-    escolhida: 'Avisamos pelo WhatsApp na terça, 10/11.',
+    escolhida: 'Avisamos pelo WhatsApp na terça, 17/11.',
     naoEscolhidaRotulo: 'Se não for',
     naoEscolhida: 'Você assiste às duas análises e leva o checklist do plano de ação para aplicar no seu atacado (liberado ao vivo para quem ficar até o fim).',
-    data: 'Quarta, 11/11 · 19h · Google Meet',
+    data: 'Quarta, 18/11 · 19h · Google Meet',
     link: 'O link chega no grupo de WhatsApp e por aqui.',
   },
   encerradas: 'As aplicações foram encerradas.',

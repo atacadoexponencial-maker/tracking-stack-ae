@@ -45,10 +45,10 @@ test('6 e 7 aceitam várias opções', () => {
   assert.deepEqual(varias, ['publico', 'entrada']);
 });
 
-test('encerra em 09/11 às 23h59 de Brasília', () => {
-  assert.equal(aplicacoesAbertas(Date.parse('2026-11-09T23:59:00-03:00')), true);
-  assert.equal(aplicacoesAbertas(Date.parse('2026-11-10T00:00:00-03:00')), false);
-  assert.equal(ENCERRA_EM_MS, Date.parse('2026-11-10T00:00:00-03:00'));
+test('encerra em 16/11 às 23h59 de Brasília', () => {
+  assert.equal(aplicacoesAbertas(Date.parse('2026-11-16T23:59:00-03:00')), true);
+  assert.equal(aplicacoesAbertas(Date.parse('2026-11-17T00:00:00-03:00')), false);
+  assert.equal(ENCERRA_EM_MS, Date.parse('2026-11-17T00:00:00-03:00'));
 });
 
 test('interruptor do ManyChat desligado: grava na planilha e não chama o ManyChat', async () => {
