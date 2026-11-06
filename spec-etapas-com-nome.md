@@ -211,6 +211,7 @@ formulário, etapas concluídas e viraram lead.
 | SUP-S6-02 | A ordem do chat antes de 05/11 20h32 foi sempre a mesma desde que as etapas começaram a ser medidas (31/08). | confirmada | Histórico do Git (05/11): de 31/08 até 93078bd o chat só mudou o texto da pergunta do desafio (7a15faf, 16/10), não a ordem; o cartão ganhou a folha de rosto (470bee8), que não é etapa |
 | SUP-S6-03 | O corte da carga do histórico é o horário do commit 93078bd (05/11 20h32 BRT). Quem abriu a página antes do deploy e respondeu depois pode cair do lado errado do corte; são poucos casos e ficam aceitos. | confirmada | Usuária, 05/11 (aprovação da spec) |
 | SUP-S6-04 | A "data em que começou a ser medida" de cada etapa é a primeira vez que aquele nome aparece no banco para aquela página, e não uma data escrita à mão. | confirmada | Usuária, 05/11 (aprovação da spec) |
+| SUP-S6-05 | Nome de etapa que o dash não conhece (pergunta nova sem rótulo cadastrado) aparece como "responderam: <nome>", em vez de sumir ou virar "etapa N". | confirmada | Usuária, 06/11 |
 
 ## Perguntas em aberto
 

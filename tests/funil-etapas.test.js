@@ -203,3 +203,94 @@ test('a entrada não é mutada — o array de etapas do chamador fica intacto', 
   montarFunil({ ...COMPLETO, etapas });
   assert.deepEqual(etapas.map((e) => e.step), [2, 1]);
 });
+
+// ---------------------------------------------------------------------------
+// Série S6, issue S6-02: funil pelo nome da etapa (spec-etapas-com-nome.md).
+// ---------------------------------------------------------------------------
+
+const CORTE_MS = 1793921561 * 1000; // 05/11/2026 20h32 BRT, entrada do cargo
+const ANTES = CORTE_MS - 7 * 86400000;
+const DEPOIS = CORTE_MS + 3600000;
+
+// Chat com a ordem antiga (desafio na 6) e a nova (cargo na 6, desafio na 7).
+const CHAT_MISTO = {
+  visitantes: 1000,
+  cliques: 400,
+  formStarts: 300,
+  etapas: [
+    { step: 5, nome: 'faturamento', sessoes: 200, ultimaMs: DEPOIS, desdeMs: ANTES - 86400000 },
+    { step: 6, nome: 'desafio', sessoes: 10, ultimaMs: CORTE_MS - 1000, desdeMs: ANTES - 86400000 },
+    { step: 7, nome: 'desafio', sessoes: 5, ultimaMs: DEPOIS, desdeMs: ANTES - 86400000 },
+    { step: 6, nome: 'cargo', sessoes: 4, ultimaMs: DEPOIS, desdeMs: CORTE_MS + 600000 },
+  ],
+  leads: 12,
+};
+const degrauDe = (r, chave) => r.degraus.find((d) => d.chave === chave);
+
+test('CA-S6-11: etapas com nome aparecem com o nome da pergunta, não com o número', () => {
+  const r = montarFunil({
+    ...COMPLETO,
+    etapas: [{ step: 5, nome: 'faturamento', sessoes: 140 }, { step: 6, nome: 'cargo', sessoes: 95 }],
+  });
+  const rotulos = r.degraus.map((d) => d.rotulo);
+  assert.ok(rotulos.includes('responderam o faturamento'));
+  assert.ok(rotulos.includes('responderam o cargo'));
+  assert.ok(!rotulos.some((t) => /concluíram a etapa/.test(t)));
+});
+
+test('CA-S6-12: a mesma pergunta soma o período todo, mesmo mudando de posição', () => {
+  const r = montarFunil({ ...CHAT_MISTO, periodoInicioMs: ANTES });
+  const desafio = degrauDe(r, 'etapa-desafio');
+  assert.equal(desafio.rotulo, 'responderam o desafio');
+  assert.equal(desafio.sessoes, 15);
+  assert.equal(r.degraus.filter((d) => d.chave === 'etapa-desafio').length, 1);
+});
+
+test('CA-S6-13: os degraus seguem a ordem atual do formulário (cargo entre faturamento e desafio)', () => {
+  const r = montarFunil({ ...CHAT_MISTO, periodoInicioMs: ANTES });
+  assert.deepEqual(chaves(r), ['visita', 'clique', 'formStart', 'etapa-faturamento', 'etapa-cargo', 'etapa-desafio', 'lead']);
+});
+
+test('CA-S6-14: etapa que começou no período aparece com aviso, sem passagem e sem mexer nos vizinhos', () => {
+  const r = montarFunil({ ...CHAT_MISTO, periodoInicioMs: ANTES });
+  const cargo = degrauDe(r, 'etapa-cargo');
+  assert.equal(cargo.medidaDesdeMs, CORTE_MS + 600000);
+  assert.equal(new Date(cargo.medidaDesdeMs).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }), '05/11');
+  assert.equal(cargo.passagem, null);
+  assert.equal(cargo.maiorQueda, false);
+  assert.equal(cargo.sessoes, 4);
+  // Vizinhos iguais ao funil sem o cargo, e o desafio compara com o faturamento.
+  const semCargo = montarFunil({ ...CHAT_MISTO, etapas: CHAT_MISTO.etapas.filter((e) => e.nome !== 'cargo'), periodoInicioMs: ANTES });
+  for (const chave of ['etapa-faturamento', 'etapa-desafio', 'lead']) {
+    assert.equal(degrauDe(r, chave).sessoes, degrauDe(semCargo, chave).sessoes, chave);
+    assert.equal(degrauDe(r, chave).passagem, degrauDe(semCargo, chave).passagem, chave);
+    assert.equal(degrauDe(r, chave).maiorQueda, degrauDe(semCargo, chave).maiorQueda, chave);
+  }
+  assert.equal(degrauDe(r, 'etapa-desafio').passagem, 15 / 200);
+});
+
+test('CA-S6-15: período todo depois da entrada da etapa mostra o cargo normalmente', () => {
+  const r = montarFunil({
+    ...CHAT_MISTO,
+    etapas: [
+      { step: 5, nome: 'faturamento', sessoes: 8, ultimaMs: DEPOIS, desdeMs: ANTES },
+      { step: 6, nome: 'cargo', sessoes: 6, ultimaMs: DEPOIS, desdeMs: CORTE_MS + 600000 },
+      { step: 7, nome: 'desafio', sessoes: 5, ultimaMs: DEPOIS, desdeMs: ANTES },
+    ],
+    leads: 4,
+    periodoInicioMs: CORTE_MS + 86400000,
+  });
+  const cargo = degrauDe(r, 'etapa-cargo');
+  assert.equal(cargo.medidaDesdeMs, undefined);
+  assert.equal(cargo.passagem, 6 / 8);
+});
+
+test('CA-S6-16: etapa sem nome continua aparecendo como "concluíram a etapa N"', () => {
+  const r = montarFunil({
+    ...COMPLETO,
+    etapas: [{ step: 1, nome: 'nome', sessoes: 140 }, { step: 2, nome: null, sessoes: 95 }],
+  });
+  const semNome = degrauDe(r, 'etapa-2');
+  assert.equal(semNome.rotulo, 'concluíram a etapa 2');
+  assert.equal(semNome.sessoes, 95);
+});

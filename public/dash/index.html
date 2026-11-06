@@ -2721,7 +2721,7 @@ function desenharFunilLp(linha) {
     const largura = topo > 0 ? Math.max((d.sessoes / topo) * 100, 0.5) : 0;
     const passagem = d.passagem == null ? '' : fmtPct(d.passagem * 100, 1);
     return `<tr${d.maiorQueda ? ' class="funil-queda"' : ''}>
-      <td>${esc(d.rotulo)}${d.novo && linha.avisoInicioColetaMs ? ' <span class="funil-aviso">*</span>' : ''}</td>
+      <td>${esc(d.rotulo)}${d.novo && linha.avisoInicioColetaMs ? ' <span class="funil-aviso">*</span>' : ''}${d.medidaDesdeMs ? ` <span class="funil-aviso">medida desde ${new Date(d.medidaDesdeMs).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })}</span>` : ''}</td>
       <td class="num">${fmtInt(d.sessoes)}</td>
       <td class="num">${passagem}</td>
       <td class="funil-barra"><span style="width:${largura}%"></span></td>
@@ -3285,7 +3285,9 @@ R.leads = async () => {
   const comFunis = funisConhecidos.length ? '' : '&with=funnels';
   const [dados, conv, crm] = await Promise.all([
     fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&limit=50${comFunis}`),
-    fetchJson(`/api/conversion?${q(p.de, p.ate)}${funilQ}`),
+    // `&v=s6`: o funil passou a vir pelo nome da etapa (série S6); a marca
+    // nova evita a resposta antiga guardada no cache de período fechado.
+    fetchJson(`/api/conversion?${q(p.de, p.ate)}${funilQ}&v=s6`),
     fetchJson(`/api/crm-funnel?${q(p.de, p.ate)}`).catch(() => null),
   ]);
   popularFunis(dados.funnels);

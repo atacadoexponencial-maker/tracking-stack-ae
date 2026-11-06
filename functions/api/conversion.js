@@ -241,6 +241,8 @@ export async function onRequestGet(context) {
       SELECT
         s.landing_url,
         e.step AS step,
+        e.step_nome AS step_nome,
+        MAX(e.timestamp) AS ultima,
         ${funnel ? `${CAMPANHA_SQL} AS campanha,` : ''}
         COUNT(DISTINCT s.session_id) AS sessoes
       FROM sessions s
@@ -253,18 +255,49 @@ export async function onRequestGet(context) {
       WHERE s.created_at >= ? AND s.created_at <= ?
         AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
         ${botClauses}
-      GROUP BY s.landing_url, e.step${funnel ? ', campanha' : ''}
+      GROUP BY s.landing_url, e.step, e.step_nome${funnel ? ', campanha' : ''}
     `).bind(...bindsSessao).all();
 
     // Merge pelo path normalizado, igual ao byPath acima e pelo mesmo motivo:
     // grupos crus distintos que normalizam para o mesmo path são disjuntos.
     // (cliques e form_starts já entraram no degrausPorPath junto com o byPath,
     // porque vêm da mesma consulta.)
+    // Primeira vez que cada nome de etapa apareceu, por página, no banco
+    // inteiro (série S6, SUP-S6-04): é a data do "medida desde" da etapa que
+    // passou a existir dentro do período. Fora da janela de propósito — a
+    // pergunta é desde quando ela existe, não desde quando aparece no período.
+    // Falhar aqui só tira o aviso; o funil sai como antes.
+    const desdePorEtapa = new Map();
+    try {
+      const desdeQuery = await env.DB.prepare(`
+        SELECT s.landing_url, e.step_nome, MIN(e.timestamp) AS desde
+        FROM event_log e
+        JOIN sessions s ON s.session_id = e.session_id
+        WHERE e.event_name = 'FormStep' AND e.step_nome IS NOT NULL
+          AND e.is_bot = 0 AND e.is_junk = 0
+        GROUP BY s.landing_url, e.step_nome
+      `).all();
+      for (const row of desdeQuery.results || []) {
+        const chave = normalizePath(row.landing_url) + '|' + row.step_nome;
+        const atual = desdePorEtapa.get(chave);
+        if (atual === undefined || row.desde < atual) desdePorEtapa.set(chave, row.desde);
+      }
+    } catch (e) {
+      console.error('conversion: primeira aparição das etapas', e.message);
+    }
+
+    // Uma entrada por posição × nome; o montarFunil junta pelo nome.
     for (const row of etapasQuery.results || []) {
       const lp = normalizePath(row.landing_url);
       if (!isKnownPage(lp) || !doFunil(lp, row.campanha)) continue;
       const acc = degrausPorPath.get(lp) || { cliques: 0, formStarts: 0, etapas: new Map() };
-      acc.etapas.set(row.step, (acc.etapas.get(row.step) || 0) + row.sessoes);
+      const chave = row.step + '|' + (row.step_nome || '');
+      const e = acc.etapas.get(chave) || { step: row.step, nome: row.step_nome || null, sessoes: 0, ultimaMs: null, desdeMs: null };
+      e.sessoes += row.sessoes;
+      e.ultimaMs = Math.max(e.ultimaMs ?? 0, (row.ultima || 0) * 1000);
+      const desde = row.step_nome ? desdePorEtapa.get(lp + '|' + row.step_nome) : undefined;
+      if (desde !== undefined) e.desdeMs = desde * 1000;
+      acc.etapas.set(chave, e);
       degrausPorPath.set(lp, acc);
     }
 
@@ -274,7 +307,7 @@ export async function onRequestGet(context) {
         visitantes: v.visitors,
         cliques: d.cliques,
         formStarts: d.formStarts,
-        etapas: [...d.etapas].map(([step, sessoes]) => ({ step, sessoes })),
+        etapas: [...d.etapas.values()],
         leads: v.leads,
         inicioColetaMs: INICIO_COLETA_MS,
         periodoInicioMs: since * 1000,
