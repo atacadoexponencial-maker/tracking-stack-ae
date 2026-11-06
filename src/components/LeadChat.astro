@@ -199,6 +199,14 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
   // texto da opção no campo Cargo.
   const CARGO_OPTIONS = ['Dono(a) / Sócio(a)', 'Gestor(a)', 'Funcionário(a)', 'Outro'];
 
+  // As 5 faixas de investimento em tráfego — idênticas às do AplicacaoForm
+  // (06/11/2026: entrou no chat a pedido da usuária). Só vai para o campo
+  // "Investimento em Tráfego" do ClickUp; não muda o destino do lead.
+  const INVESTIMENTO_OPTIONS = [
+    'Ainda não invisto', 'Até R$ 1.500/mês', 'De R$ 1.500 a R$ 3.000/mês',
+    'De R$ 3.000 a R$ 10.000/mês', 'Acima de R$ 10.000/mês',
+  ];
+
   const STEPS: Step[] = [
     { kind: 'messages', texts: [
       'Bem-vindo à inscrição da consultoria individual e gratuita do Atacado Exponencial. 👋',
@@ -213,6 +221,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
     { kind: 'input', key: 'instagram', etapa: 'instagram', inputType: 'text', question: 'Excelente! Qual o @instagram da sua marca?', placeholder: 'Digite o @ do Instagram', validate: (v) => v.trim().length >= 1, errorMsg: 'Digite o @ da sua marca.' },
     { kind: 'choice', key: 'faturamento', etapa: 'faturamento', before: ['Show!'], question: 'qual o faturamento MENSAL do seu negócio?', options: FAT_OPTIONS },
     { kind: 'choice', key: 'cargo', etapa: 'cargo', question: 'qual o seu cargo na empresa?', options: CARGO_OPTIONS },
+    { kind: 'choice', key: 'investimento', etapa: 'investimento', question: 'quanto você investe em tráfego pago por mês?', options: INVESTIMENTO_OPTIONS },
     { kind: 'input', key: 'justificativa', etapa: 'desafio', inputType: 'text', question: 'Qual o principal desafio do seu atacado hoje?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
     { kind: 'input', key: 'objetivo', etapa: 'objetivo', inputType: 'text', question: 'E qual o seu maior objetivo para os próximos meses?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
   ];
@@ -461,6 +470,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
             lead_data: {
               nome: answers['nome'], telefone: answers['telefone'], email: answers['email'],
               instagram: answers['instagram'], faturamento: answers['faturamento'], cargo: answers['cargo'],
+              investimento: answers['investimento'],
               justificativa: answers['justificativa'], objetivo: answers['objetivo'],
               gargalo: answers['gargalo'] || undefined,
               funnel: leadFunnel,

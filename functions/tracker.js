@@ -556,9 +556,21 @@ function resolverRedirectDoLead(body, env) {
   }
   const faturamento = (body.lead_data?.faturamento || '').toLowerCase();
   const baixoTicket = faturamento.includes('menos de 20');
-  return baixoTicket
+  // Quem não decide (cargo Funcionário(a) ou Gestor(a)) segue o mesmo caminho
+  // de quem fatura menos de R$ 20 mil: WhatsApp dos especialistas em vez da
+  // agenda. Decisão da usuária em 06/11/2026; "Outro" continua na agenda.
+  // Lead sem cargo (formulários que não perguntam) segue só pelo faturamento.
+  return baixoTicket || naoDecisor(body.lead_data?.cargo)
     ? (env.LEAD_REDIRECT_WHATSAPP || '')
     : (env.LEAD_REDIRECT_CALENDLY || '');
+}
+
+// Cargos que não decidem a contratação (opções do LeadChat e do
+// AplicacaoForm: 'Funcionário(a)' e 'Gestor(a)'). Compara pelo começo da
+// palavra, sem acento e sem caixa, para não depender do "(a)".
+export function naoDecisor(cargo) {
+  const c = String(cargo || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  return c.startsWith('funcionari') || c.startsWith('gestor');
 }
 
 // Troca o destino Calendly pela página da agenda própria quando há um tipo de

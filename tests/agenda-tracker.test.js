@@ -65,3 +65,51 @@ test('com AGENDA_ATIVA o lead vai para a agenda com convite', async () => {
   // Baixo faturamento continua indo ao WhatsApp.
   assert.equal(await lead({ ...env, LEAD_REDIRECT_WHATSAPP: 'https://wa.me/1' }, 'sessao-estrategica', 'Menos de 20 Mil'), 'https://wa.me/1');
 });
+
+// Cargo (06/11/2026): quem não decide (Gestor(a) ou Funcionário(a)) vai para o
+// WhatsApp, como quem fatura menos de R$ 20 mil. "Outro" e Dono(a) seguem na
+// agenda; a aplicação de tráfego continua decidida só pelo investimento.
+const WHATS = 'https://wa.me/5511999999999';
+async function leadCom(env, extra) {
+  globalThis.fetch = async () => new Response('{}', { status: 200 });
+  const r = await onRequestPost({
+    request: new Request('https://x/tracker', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 Chrome/120', 'cf-connecting-ip': '200.1.1.1' },
+      body: JSON.stringify({ event_name: 'Lead', event_id: 'lead-' + Math.random(), event_time: 1, user_data: { em: 'ana@empresa.com' },
+        lead_data: { nome: 'Ana', email: 'ana@empresa.com', telefone: '11987654321', faturamento: 'De 100 a 500 mil', ...extra } }),
+    }),
+    env,
+    waitUntil: () => {},
+  });
+  return (await r.json()).redirect;
+}
+const envRotas = () => ({ DB: d1(banco()), LEAD_REDIRECT_CALENDLY: CALENDLY, LEAD_REDIRECT_WHATSAPP: WHATS });
+
+test('gestor(a) com faturamento alto vai para o WhatsApp', async () => {
+  assert.equal(await leadCom(envRotas(), { funnel: 'sessao-estrategica', cargo: 'Gestor(a)' }), WHATS);
+});
+
+test('funcionário(a) com faturamento alto vai para o WhatsApp, também na aplicação da mentoria', async () => {
+  assert.equal(await leadCom(envRotas(), { funnel: 'sessao-estrategica', cargo: 'Funcionário(a)' }), WHATS);
+  assert.equal(await leadCom(envRotas(), { funnel: 'aplicacao-mentoria', cargo: 'Funcionário(a)' }), WHATS);
+});
+
+test('dono(a) e "Outro" com faturamento alto seguem para a agenda', async () => {
+  assert.equal(await leadCom(envRotas(), { funnel: 'sessao-estrategica', cargo: 'Dono(a) / Sócio(a)' }), CALENDLY);
+  assert.equal(await leadCom(envRotas(), { funnel: 'aplicacao-mentoria', cargo: 'Outro' }), CALENDLY);
+});
+
+test('lead sem cargo segue só pelo faturamento', async () => {
+  assert.equal(await leadCom(envRotas(), { funnel: 'sessao-estrategica' }), CALENDLY);
+  assert.equal(await leadCom(envRotas(), { funnel: 'sessao-estrategica', faturamento: 'Menos de 20 Mil' }), WHATS);
+});
+
+test('investimento no chat e na mentoria não muda o destino', async () => {
+  assert.equal(await leadCom(envRotas(), { funnel: 'sessao-estrategica', cargo: 'Dono(a) / Sócio(a)', investimento: 'Ainda não invisto' }), CALENDLY);
+});
+
+test('aplicação de tráfego ignora o cargo e segue pelo investimento', async () => {
+  const env = { ...envRotas(), LEAD_REDIRECT_CALENDLY_TRAFEGO: 'https://calendly.com/x/trafego' };
+  assert.equal(await leadCom(env, { funnel: 'trafego-atacado', cargo: 'Funcionário(a)', investimento: 'Acima de R$ 10.000/mês' }), 'https://calendly.com/x/trafego');
+});
