@@ -358,11 +358,20 @@ const titulo =
   .hero--enxuto .hero__logo { height: 1.75rem; }
   .hero--enxuto .hero__body { padding: 1rem 1.25rem 2.5rem; gap: 0.9rem; justify-content: flex-start; }
   .hero--enxuto .hero__title { font-size: clamp(1.9rem, 8.4vw, 3.25rem); line-height: 1.1; }
-  .hero--enxuto .hero__sub { font-size: 0.98rem; line-height: 1.45; }
+  /* Mais escura e mais grossa que a frase do hero padrão: aqui ela carrega a
+     data da aula e estava apagada demais (pedido em 06/11). */
+  .hero--enxuto .hero__sub { font-size: 1rem; line-height: 1.45; color: #1e1e1e; font-weight: 500; }
   .hero__linha {
     color: rgba(30, 30, 30, 0.7);
     font-size: 0.8rem;
     font-weight: 500;
+  }
+  /* Celular: o bloco ocupa a tela inteira (descontada a faixa do logo) e o
+     conteúdo fica centralizado nela, para os cartões de números começarem
+     abaixo da primeira dobra (pedido em 06/11). `svh` acompanha a altura útil
+     real, já sem a barra do navegador do Instagram. */
+  @media (max-width: 899px) {
+    .hero--enxuto .hero__body { min-height: calc(100svh - 2.75rem); justify-content: center; }
   }
   @media (min-width: 768px) {
     .hero--enxuto .hero__body { padding-block: 2.5rem 4rem; justify-content: center; gap: 1.25rem; }
