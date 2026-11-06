@@ -1,0 +1,15 @@
+-- Série S6 (spec-etapas-com-nome.md): nome da etapa concluída.
+--
+-- A coluna `step` (migration 0034) guarda só a POSIÇÃO da etapa. Quando uma
+-- pergunta entra no meio do formulário (o cargo no chat, 05/11), as seguintes
+-- mudam de número e o funil passa a somar perguntas diferentes debaixo do
+-- mesmo rótulo. `step_nome` guarda QUAL pergunta foi respondida (`cargo`,
+-- `desafio`, `contato`…), e é por ela que o funil do dash agrupa.
+--
+-- NULL fora do `FormStep` e quando o nome chega inválido (o /tracker valida).
+-- O histórico ganha nome pela carga única da migration 0069.
+--
+-- ⚠️ Aplicar no remoto ANTES de o código que grava a coluna entrar no ar: sem
+-- ela, o INSERT da event_log falha para todos os eventos. Usar
+-- `wrangler d1 execute --remote --file`, NUNCA `migrations apply --remote`.
+ALTER TABLE event_log ADD COLUMN step_nome TEXT;

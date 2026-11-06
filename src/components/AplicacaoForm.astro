@@ -92,7 +92,7 @@ const investimentoOptions = [
 
       <TituloTag class="aplicacao__card-titulo" id="aplicacao-card-titulo" hidden={temRosto}>{titulo} <span class="aplicacao__card-etapa" id="aplicacao-etapa-indicador">1 de 3</span></TituloTag>
 
-      <div class="aplicacao__etapa" data-etapa="1" hidden={temRosto}>
+      <div class="aplicacao__etapa" data-etapa="1" data-etapa-nome="contato" hidden={temRosto}>
         <label class="aplicacao__field">
           <span>Nome *</span>
           <input name="nome" type="text" placeholder="Nome" autocomplete="name" />
@@ -110,7 +110,7 @@ const investimentoOptions = [
         </label>
       </div>
 
-      <div class="aplicacao__etapa" data-etapa="2" hidden>
+      <div class="aplicacao__etapa" data-etapa="2" data-etapa-nome="perfil" hidden>
         <label class="aplicacao__field">
           <span>Email *</span>
           <input name="email" type="email" placeholder="Email" autocomplete="email" />
@@ -360,7 +360,9 @@ const investimentoOptions = [
       // Degrau do funil (spec 2026-08-31): a etapa foi CONCLUÍDA — validada,
       // não apenas vista. A última etapa nunca passa por aqui (ela envia o
       // formulário), e é assim que deve ser: concluí-la já é o `Lead`.
-      enviarFormStep(currentStep, { funnel: form.dataset.funnel ?? '' });
+      // O nome do cartão vai junto (série S6): é por ele que o funil agrupa.
+      const cartao = Array.from(etapaEls).find((el) => el.dataset.etapa === String(currentStep));
+      enviarFormStep(currentStep, { funnel: form.dataset.funnel ?? '', nome: cartao?.dataset.etapaNome ?? '' });
       showStep(currentStep + 1);
     }
 

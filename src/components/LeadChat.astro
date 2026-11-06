@@ -186,8 +186,8 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
   type Step =
     | { kind: 'messages'; texts: string[] }
     | { kind: 'start'; button: string }
-    | { kind: 'input'; key: string; inputType: 'text' | 'tel' | 'email'; before?: string[]; question: string; placeholder: string; validate: (v: string) => boolean; errorMsg: string }
-    | { kind: 'choice'; key: string; before?: string[]; question: string; options: string[] };
+    | { kind: 'input'; key: string; etapa: string; inputType: 'text' | 'tel' | 'email'; before?: string[]; question: string; placeholder: string; validate: (v: string) => boolean; errorMsg: string }
+    | { kind: 'choice'; key: string; etapa: string; before?: string[]; question: string; options: string[] };
 
   const FAT_OPTIONS = [
     'Menos de 20 Mil', 'De 20 a 30 Mil', 'De 30 a 40 Mil', 'De 40 a 75 Mil',
@@ -207,14 +207,14 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
       'Preencha com bastante atenção algumas perguntas bem rápidas 👇🏼',
     ] },
     { kind: 'start', button: 'Toque para começar' },
-    { kind: 'input', key: 'nome', inputType: 'text', question: 'Qual o seu nome?', placeholder: 'Digite seu nome', validate: (v) => v.trim().length >= 2, errorMsg: 'Digite seu nome.' },
-    { kind: 'input', key: 'telefone', inputType: 'tel', before: ['Importante: para que eu consiga entrar em contato pra te avisar sobre sua aprovação.'], question: 'Qual o seu Whatsapp?', placeholder: 'Digite seu Whatsapp', validate: telefoneValido, errorMsg: TELEFONE_ERRO },
-    { kind: 'input', key: 'email', inputType: 'email', before: ['(Só lembrando que vou mandar o link da sessão por lá)'], question: 'Qual o seu melhor email?', placeholder: 'Digite seu email', validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), errorMsg: 'Digite um email válido.' },
-    { kind: 'input', key: 'instagram', inputType: 'text', question: 'Excelente! Qual o @instagram da sua marca?', placeholder: 'Digite o @ do Instagram', validate: (v) => v.trim().length >= 1, errorMsg: 'Digite o @ da sua marca.' },
-    { kind: 'choice', key: 'faturamento', before: ['Show!'], question: 'qual o faturamento MENSAL do seu negócio?', options: FAT_OPTIONS },
-    { kind: 'choice', key: 'cargo', question: 'qual o seu cargo na empresa?', options: CARGO_OPTIONS },
-    { kind: 'input', key: 'justificativa', inputType: 'text', question: 'Qual o principal desafio do seu atacado hoje?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
-    { kind: 'input', key: 'objetivo', inputType: 'text', question: 'E qual o seu maior objetivo para os próximos meses?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
+    { kind: 'input', key: 'nome', etapa: 'nome', inputType: 'text', question: 'Qual o seu nome?', placeholder: 'Digite seu nome', validate: (v) => v.trim().length >= 2, errorMsg: 'Digite seu nome.' },
+    { kind: 'input', key: 'telefone', etapa: 'whatsapp', inputType: 'tel', before: ['Importante: para que eu consiga entrar em contato pra te avisar sobre sua aprovação.'], question: 'Qual o seu Whatsapp?', placeholder: 'Digite seu Whatsapp', validate: telefoneValido, errorMsg: TELEFONE_ERRO },
+    { kind: 'input', key: 'email', etapa: 'email', inputType: 'email', before: ['(Só lembrando que vou mandar o link da sessão por lá)'], question: 'Qual o seu melhor email?', placeholder: 'Digite seu email', validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), errorMsg: 'Digite um email válido.' },
+    { kind: 'input', key: 'instagram', etapa: 'instagram', inputType: 'text', question: 'Excelente! Qual o @instagram da sua marca?', placeholder: 'Digite o @ do Instagram', validate: (v) => v.trim().length >= 1, errorMsg: 'Digite o @ da sua marca.' },
+    { kind: 'choice', key: 'faturamento', etapa: 'faturamento', before: ['Show!'], question: 'qual o faturamento MENSAL do seu negócio?', options: FAT_OPTIONS },
+    { kind: 'choice', key: 'cargo', etapa: 'cargo', question: 'qual o seu cargo na empresa?', options: CARGO_OPTIONS },
+    { kind: 'input', key: 'justificativa', etapa: 'desafio', inputType: 'text', question: 'Qual o principal desafio do seu atacado hoje?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
+    { kind: 'input', key: 'objetivo', etapa: 'objetivo', inputType: 'text', question: 'E qual o seu maior objetivo para os próximos meses?', placeholder: 'Conte em poucas palavras', validate: (v) => v.trim().length >= 2, errorMsg: 'Conta um pouquinho pra gente.' },
   ];
 
   const overlay = document.getElementById('lead-chat') as HTMLElement | null;
@@ -240,7 +240,10 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
       // A última pergunta não vira `FormStep`: respondê-la dispara o envio, e
       // isso já é o `Lead`.
       if (posicao === -1 || posicao === PERGUNTAS.length - 1) return;
-      enviarFormStep(posicao + 1, { funnel: leadFunnel });
+      // O nome da pergunta vai junto (série S6): é por ele que o funil agrupa.
+      const passo = STEPS[indiceDoStep];
+      const nome = passo.kind === 'input' || passo.kind === 'choice' ? passo.etapa : '';
+      enviarFormStep(posicao + 1, { funnel: leadFunnel, nome });
     }
     const fullPage = overlay.dataset.fullPage === 'true';
     const answers: Record<string, string> = {};

@@ -82,14 +82,18 @@ const etapasEnviadas = new Set<number>();
  *
  * A última etapa não deve chamar esta função: concluí-la é enviar o
  * formulário, o que já é o `Lead`.
+ *
+ * `nome` diz QUAL pergunta foi respondida (série S6): é por ele que o funil
+ * agrupa, então a etapa não muda de identidade quando a ordem muda.
  */
-export function enviarFormStep(etapa: number, dados: { funnel: string } = { funnel: '' }) {
+export function enviarFormStep(etapa: number, dados: { funnel: string; nome?: string } = { funnel: '' }) {
   if (!Number.isFinite(etapa) || etapa < 1) return;
   if (etapasEnviadas.has(etapa)) return;
   etapasEnviadas.add(etapa);
 
   enviarEventoInterno('FormStep', 'stp-', {
     step: Math.trunc(etapa),
+    step_nome: dados.nome || '',
     lead_data: { funnel: dados.funnel || '' },
   });
 }
