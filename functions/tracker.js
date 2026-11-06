@@ -29,6 +29,7 @@ import {
   clickupWrite,
   addClickUpTag,
   tagsDoCardNovo,
+  linhaGargalo,
 } from './api/_clickup.js';
 
 export async function onRequestPost(context) {
@@ -1002,6 +1003,8 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
   // Iscas: o card leva a tag do material (isca-<slug>). No card existente a
   // tag é acrescentada às que já tem, então quem baixa vários acumula todas.
   if (!tag && materialSlug) tag = `isca-${materialSlug}`;
+  // Gargalo escolhido no hero da /se-v5 (vazio em todas as outras páginas).
+  const gargalo = linhaGargalo(leadData.gargalo);
 
   const utm = sessionData || {};
   const utmSource = utm.utm_source || '';
@@ -1045,7 +1048,8 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
         `Lead Voltou ao CRM:\n\nNovos Dados:\nNome: ${nome}\nTelefone: ${phoneE164}\n` +
         `E-mail: ${email}\nInstagram: ${instagram}\nFaturamento: ${faturamento}\n` +
         `Cargo: ${cargo}\nInvestimento em Tráfego: ${investimento}\nJustificativa: ${justificativa}\nObjetivo: ${objetivo}\n` +
-        (material ? `Material baixado: ${material}\n` : '') + '\n' +
+        (material ? `Material baixado: ${material}\n` : '') +
+        (gargalo ? `${gargalo}\n` : '') + '\n' +
         `${utmSource} - ${utmMedium} - ${utmContent}`;
       await clickupWrite(() => clickupFetch(`/task/${taskId}/comment`, {
         method: 'POST', body: JSON.stringify({ comment_text: comentario }),
@@ -1080,6 +1084,7 @@ export async function sendToClickUp({ leadData, sessionData, env, eventId = '', 
       const linhaMaterial = material ? `Material baixado: ${material}` : '';
       const linkJornada = [
         linhaMaterial,
+        gargalo,
         email ? `Jornada completa: https://atacadoexponencial.com/dash/?jornada=${encodeURIComponent(email)}#jornada` : '',
       ].filter(Boolean).join('\n');
 

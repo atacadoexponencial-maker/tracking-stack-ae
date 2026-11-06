@@ -57,7 +57,7 @@ const storiesItens = depoimentos.map((d) => ({ tipo: 'video' as const, videoId: 
     compacto
     badge="Atacado que fatura R$ 20 mil+ por mês"
     headline="Por que só chega varejo no seu atacado? Em 35 minutos a gente mostra onde isso começa e como corrigir."
-    highlight="varejo"
+    highlight="seu atacado"
     subheadline="A internet ensinou o atacado a ser um varejo disfarçado. Numa consultoria individual e gratuita, a gente encontra onde isso acontece na sua marca, do perfil ao primeiro pedido."
     ctaLabel="Quero atrair revendedora, não varejo"
   >
@@ -213,3 +213,10 @@ const storiesItens = depoimentos.map((d) => ({ tipo: 'video' as const, videoId: 
   <StickyCta label="Descobrir meu gargalo" note="35 min · grátis" />
   <LeadChat funnel="sessao-estrategica" />
 </BaseLayout>
+<style is:global>
+  /* Celular: o botão da barra só aparece no computador, e sem ele o logo
+     ficava encostado à esquerda. Centralizado, como na /se-v5 (06/11). */
+  @media (max-width: 767px) {
+    .hero .hero__nav { justify-content: center; }
+  }
+</style>

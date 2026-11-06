@@ -127,6 +127,20 @@ export function tagsDoCardNovo({ tag = null, material = '', utm_source = '', utm
   return tags;
 }
 
+// Gargalo escolhido no hero da /se-v5 (06/11/2026): a pessoa toca em "Entra
+// pouco revendedor novo" ou "O revendedor não volta a comprar" antes do chat.
+// O site manda só a CHAVE; o texto do card mora aqui, e chave desconhecida
+// não vira linha nenhuma (o card não aceita texto livre vindo do navegador).
+export const GARGALOS_SITE = {
+  entrada: 'Entrada de revendedores (entra pouco revendedor novo)',
+  recompra: 'Recompra (o revendedor não volta a comprar)',
+};
+
+export function linhaGargalo(chave) {
+  const texto = GARGALOS_SITE[String(chave || '').trim().toLowerCase()];
+  return texto ? `Gargalo escolhido no site: ${texto}` : '';
+}
+
 // Aplica uma tag a uma task JÁ existente (POST /task/{id}/tag/{name}). O ClickUp
 // cria a tag no Space se ela ainda não existir. Best-effort: falha aqui nunca
 // trava o lead — o card/comentário e o lead_dispatch já garantem que nada se perde.

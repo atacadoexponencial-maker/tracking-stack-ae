@@ -249,6 +249,24 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
     const answers: Record<string, string> = {};
     let stepIndex = 0;
     let started = false;
+
+    // Gargalo escolhido no hero (/se-v5, 06/11/2026). O botão do hero carrega
+    // data-gargalo="entrada|recompra"; o chat abre com a escolha como primeira
+    // fala da pessoa, responde e pula o "Toque para começar" (o toque no hero
+    // já foi o começo). O backend traduz a chave para a linha do card do
+    // ClickUp. Botões sem data-gargalo (todas as outras páginas) abrem como
+    // sempre.
+    const GARGALOS: Record<string, { rotulo: string; resposta: string }> = {
+      entrada: {
+        rotulo: 'Entra pouco revendedor novo',
+        resposta: 'Anotado: entrada de revendedores. Na sessão, esse é o ponto que a gente olha primeiro na sua marca.',
+      },
+      recompra: {
+        rotulo: 'O revendedor não volta a comprar',
+        resposta: 'Anotado: recompra. Na sessão, esse é o ponto que a gente olha primeiro na sua marca.',
+      },
+    };
+    let pularInicio = false;
     let lastSender: 'bot' | 'user' | null = null;
 
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -320,11 +338,19 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
 
     function clearInput() { inputEl!.innerHTML = ''; }
 
-    function open() {
+    function open(gargalo = '') {
       overlay!.hidden = false;
       overlay!.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
-      if (!started) { started = true; stepIndex = 0; renderStep(); }
+      if (started) return;
+      started = true;
+      stepIndex = 0;
+      const g = GARGALOS[gargalo];
+      if (!g) { renderStep(); return; }
+      answers['gargalo'] = gargalo;
+      pularInicio = true;
+      addUserBubble(g.rotulo);
+      botSay(g.resposta).then(renderStep);
     }
     function close() {
       overlay!.hidden = true;
@@ -344,6 +370,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
         return;
       }
       if (step.kind === 'start') {
+        if (pularInicio) { stepIndex++; renderStep(); return; }
         const btn = document.createElement('button');
         btn.className = 'lead-chat__btn';
         btn.textContent = step.button;
@@ -435,6 +462,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
               nome: answers['nome'], telefone: answers['telefone'], email: answers['email'],
               instagram: answers['instagram'], faturamento: answers['faturamento'], cargo: answers['cargo'],
               justificativa: answers['justificativa'], objetivo: answers['objetivo'],
+              gargalo: answers['gargalo'] || undefined,
               funnel: leadFunnel,
             },
           }),
@@ -455,7 +483,7 @@ const { funnel = 'diagnostico', fullPage = false } = Astro.props;
     }
 
     document.querySelectorAll('[data-open-chat]').forEach((el) => {
-      el.addEventListener('click', (e) => { e.preventDefault(); open(); });
+      el.addEventListener('click', (e) => { e.preventDefault(); open((el as HTMLElement).dataset.gargalo || ''); });
     });
     overlay.querySelectorAll('[data-close-chat]').forEach((el) => {
       el.addEventListener('click', close);

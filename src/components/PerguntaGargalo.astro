@@ -1,0 +1,103 @@
+---
+/**
+ * Pergunta do Felipe no hero da /se-v5 (06/11/2026), no lugar do botão.
+ *
+ * Por quê: no Clarity a visita do anúncio decide em 1 segundo e 97% não tocam
+ * em nada. O botão de hoje pede um compromisso grande (agendar 35 minutos);
+ * aqui o primeiro toque é responder onde o atacado trava, com as duas metades
+ * da Equação. A foto pequena do Felipe faz a pergunta parecer mensagem de uma
+ * pessoa e emenda com o chat, que abre com o mesmo avatar.
+ *
+ * Cada botão abre o LeadChat com `data-gargalo`: o chat começa com a escolha
+ * já respondida e o backend grava a linha no card do ClickUp. `btn-cta` é o
+ * que faz o funil contar o clique (CTAClick), comparável ao botão da home.
+ */
+import { Image } from 'astro:assets';
+import felipe from '../assets/brand/felipe.webp';
+
+const opcoes = [
+  { chave: 'entrada', rotulo: 'Entra pouco revendedor novo' },
+  { chave: 'recompra', rotulo: 'O revendedor não volta a comprar' },
+];
+---
+
+<div class="pg">
+  <div class="pg__msg">
+    <Image src={felipe} alt="Felipe Santos" width={88} height={88} class="pg__foto" loading="eager" />
+    <div class="pg__balao">
+      <span class="pg__nome">Felipe Santos</span>
+      <span class="pg__pergunta">Onde o seu atacado trava hoje?</span>
+    </div>
+  </div>
+  <div class="pg__opcoes">
+    {opcoes.map((o) => (
+      <button type="button" class="btn-cta pg__op" data-open-chat data-gargalo={o.chave}>
+        <span>{o.rotulo}</span>
+        <span class="pg__seta" aria-hidden="true">→</span>
+      </button>
+    ))}
+  </div>
+</div>
+
+<style>
+  .pg {
+    width: 100%;
+    max-width: 26rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: left;
+  }
+  .pg__msg { display: flex; align-items: flex-end; gap: 0.6rem; }
+  .pg__foto {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 9999px;
+    object-fit: cover;
+    object-position: 50% 15%;
+    flex-shrink: 0;
+  }
+  /* Balão de conversa: canto de baixo à esquerda reto, apontando para a foto. */
+  .pg__balao {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    background: #fff;
+    border: 1px solid rgba(30, 30, 30, 0.08);
+    border-radius: 1.1rem 1.1rem 1.1rem 0.3rem;
+    padding: 0.6rem 0.95rem;
+  }
+  .pg__nome { font-size: 0.72rem; font-weight: 700; color: rgba(30, 30, 30, 0.55); }
+  /* Cabe numa linha a partir de 360px: cada linha a menos aqui é o que deixa
+     os dois botões dentro da primeira tela do celular. */
+  .pg__pergunta { font-size: 0.95rem; font-weight: 700; color: #1e1e1e; line-height: 1.25; }
+  .pg__opcoes { display: flex; flex-direction: column; gap: 0.5rem; }
+  /* Mesmo pill preto do botão do hero, em largura cheia e sem caixa-alta:
+     é uma resposta, não um comando. */
+  .pg__op {
+    justify-content: space-between;
+    width: 100%;
+    background: #1e1e1e;
+    color: #fff;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.95rem;
+    line-height: 1.25;
+    padding: 0.75rem 0.9rem 0.75rem 1.25rem;
+    text-align: left;
+  }
+  @media (min-width: 768px) {
+    .pg__pergunta { font-size: 1.02rem; }
+    .pg__op { font-size: 0.98rem; padding: 0.95rem 1.1rem 0.95rem 1.4rem; }
+  }
+  .pg__seta {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+</style>

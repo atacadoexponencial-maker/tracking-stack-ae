@@ -367,6 +367,7 @@ export const KNOWN_PAGE_PATHS = new Set([
   '/se-v2',
   '/se-v3',
   '/se-v4',
+  '/se-v5',
   '/consultoria-gratuita-atacado',
   '/video-workshop-instagram',
   '/vsl',
