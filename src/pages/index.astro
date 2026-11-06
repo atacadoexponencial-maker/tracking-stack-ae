@@ -2,24 +2,19 @@
 /**
  * HOME do site (atacadoexponencial.com).
  *
- * É a antiga /se-v2, promovida a home em 2026-09-17 por decisão da usuária. O
- * ângulo é o gargalo nomeado (entrada de revendedor novo versus recompra) no
- * lugar da promessa de faturamento, e o diagnóstico é vendido como o jeito de
- * descobrir qual dos dois é o seu.
+ * É a antiga /se-v4, promovida a home em 06/11/2026 por decisão da usuária,
+ * depois do A/B home × /se-v4 (19/10 a 06/11): 38 leads em 1.540 visitas
+ * (2,47%) contra 41 em 1.524 (2,69%). Empate estatístico; a B ficou como
+ * desempate porque conversa com o anúncio que traz o tráfego
+ * (ad16_anuncio-atrai-varejo).
  *
- * Motivo da troca, medido nos 30 dias até 17/09: a home antiga converteu 1
- * lead em 3.099 sessões e a /se-v2, 20 em 1.420. A comparação não é perfeita
- * (a /se-v2 recebia tráfego pago qualificado e a home recebe visita solta e
- * ruído de robô), mas a home praticamente não convertia.
+ * Em relação à home anterior (a ex-/se-v2), só o hero mudou: a copy "só chega
+ * varejo no seu atacado" e as bolinhas com os vídeos de depoimento
+ * (StoriesDepoimentos) no lugar dos selos. Da segunda seção para baixo é igual.
+ * A home anterior está no histórico do Git, no commit anterior a esta troca.
  *
- * O endereço /se-v2 continua valendo: redireciona para cá com 301, em
- * public/_redirects, porque os anúncios no ar apontam para lá. O funil segue
- * `sessao-estrategica`, o mesmo da home antiga — a série do dashboard não
- * quebra.
- *
- * A home antiga (Hero sem props + Pain/Pillars/LogoWall/HowItWorks/
- * Testimonials/AboutFelipe/Faq/FinalCta) foi aposentada; o código dela está no
- * histórico do Git, no commit anterior a esta mudança.
+ * O endereço /se-v4 manda para cá com 301 (public/_redirects). O funil segue
+ * `sessao-estrategica`. Linha do tempo das páginas: docs/historico-paginas.md.
  */
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/sections/Hero.astro';
@@ -34,6 +29,7 @@ import Faq from '../components/sections/Faq.astro';
 import FinalCta from '../components/sections/FinalCta.astro';
 import StickyCta from '../components/StickyCta.astro';
 import LeadChat from '../components/LeadChat.astro';
+import StoriesDepoimentos from '../components/StoriesDepoimentos.astro';
 
 // Depoimentos em vídeo, os mesmos da /trafego-atacado (Panda Video, library
 // vz-718ea161-967). Substituem os três depoimentos de texto anônimos que a
@@ -45,6 +41,11 @@ const depoimentos = [
   { name: 'Adriana', videoId: '03f4e18a-1f52-40f5-844a-3f900f705126' },
   { name: 'Jossanclê', videoId: 'd8d67535-9b07-4713-a21f-14eb4cd70f6b' },
 ];
+
+// Stories do hero: só os vídeos dos clientes da mentoria. Os prints da
+// /workshop-gratuito-v2 ficaram fora por decisão da usuária (19/10): são
+// retorno de quem viu o workshop, e esta página vende a sessão.
+const storiesItens = depoimentos.map((d) => ({ tipo: 'video' as const, videoId: d.videoId, rotulo: d.name }));
 ---
 
 <BaseLayout
@@ -53,13 +54,15 @@ const depoimentos = [
   showHeader={false}
 >
   <Hero
-    badge="Para marcas de atacado que já faturam acima de R$ 20 mil por mês"
-    headline="Descubra em 35 minutos qual dos 2 gargalos está travando o seu atacado"
-    highlight="atacado"
-    subheadline="Numa sessão individual e gratuita, a gente olha sua entrada de revendedores novos e sua recompra, aponta exatamente onde está o vazamento e você sai com as ações para executar já nas próximas semanas."
-    ctaLabel="Quero descobrir meu gargalo"
-    trust={['Individual', '35 min', 'Sem custo', 'Sem cartão']}
-  />
+    compacto
+    badge="Atacado que fatura R$ 20 mil+ por mês"
+    headline="Por que só chega varejo no seu atacado? Em 35 minutos a gente mostra onde isso começa e como corrigir."
+    highlight="varejo"
+    subheadline="A internet ensinou o atacado a ser um varejo disfarçado. Numa consultoria individual e gratuita, a gente encontra onde isso acontece na sua marca, do perfil ao primeiro pedido."
+    ctaLabel="Quero atrair revendedora, não varejo"
+  >
+    <StoriesDepoimentos slot="abaixo-cta" itens={storiesItens} />
+  </Hero>
 
   <main>
     <Fit

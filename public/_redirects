@@ -25,6 +25,11 @@
 /se-v2 / 301
 /se-v2/ / 301
 
+# A /se-v4 virou a HOME em 06/11/2026, depois do A/B home × /se-v4. Mesmo
+# esquema da /se-v2: link antigo cai na home, com as UTMs.
+/se-v4 / 301
+/se-v4/ / 301
+
 # A masterclass /workshop-gratuito-atacado foi desativada em 29/09/2026 e deu
 # lugar à LP perene do workshop quinzenal. Link antigo em anúncio ou bio cai
 # na página nova (mesmo funil "workshop" no ClickUp).
