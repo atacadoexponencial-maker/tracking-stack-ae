@@ -49,8 +49,14 @@ interface Props {
   heroCopy?: { badge: string; headline: string; highlight: string; subheadline: string };
   /** Hero compacto (ver Hero.astro): título menor e selo em destaque. */
   compacto?: boolean;
+  /**
+   * Primeira tela enxuta com o formulário aberto no lugar do botão (a
+   * /workshop-gratuito-v4, 06/11/2026). `linhaApoio` entra no lugar dos selos
+   * e `botaoForm` é o texto do botão de envio. Ver `enxuto` no Hero.astro.
+   */
+  formNoHero?: { linhaApoio: string; botaoForm: string };
 }
-const { stories = false, noindex = false, heroCopy, compacto = false } = Astro.props;
+const { stories = false, noindex = false, heroCopy, compacto = false, formNoHero } = Astro.props;
 
 const CTA = 'Quero participar do próximo workshop';
 
@@ -103,6 +109,8 @@ const varejoAtacado = [
 >
   <Hero
     compacto={compacto}
+    enxuto={!!formNoHero}
+    linhaApoio={formNoHero?.linhaApoio}
     badge={heroCopy?.badge ?? 'Método aplicado em mais de 100 marcas de atacado'}
     headline={heroCopy?.headline ?? 'A conta que faz um atacado crescer tem dois lados. A cada 15 dias, o Felipe abre um deles ao vivo.'}
     highlight={heroCopy?.highlight ?? 'ao vivo'}
@@ -118,6 +126,7 @@ const varejoAtacado = [
     ]}
   >
     {stories && <StoriesDepoimentos slot="abaixo-cta" itens={storiesItens} />}
+    {formNoHero && <LeadFormModal slot="no-lugar-do-cta" inline submitLabel={formNoHero.botaoForm} />}
   </Hero>
 
   <main>
@@ -265,7 +274,7 @@ const varejoAtacado = [
   </main>
 
   <StickyCta label="Quero participar" note="grátis · ao vivo" />
-  <LeadFormModal />
+  {!formNoHero && <LeadFormModal />}
 </BaseLayout>
 
 <style is:global>

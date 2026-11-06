@@ -1,0 +1,36 @@
+---
+/**
+ * Variante da /workshop-gratuito com a primeira tela enxuta (06/11/2026, a
+ * pedido da usuária, a partir da análise do Clarity).
+ *
+ * O que o Clarity mostrou (3 dias até 06/11, celular): 90% das visitas não
+ * passam dos primeiros 10% da página e o tempo ativo mediano é de 2 segundos.
+ * Quase todo o tráfego vem do anúncio ad05 ("lojista pede catálogo e some").
+ * Nos testes anteriores, quem começa o formulário termina (53 de 54); a perda
+ * é antes do primeiro toque.
+ *
+ * Por isso a B muda a primeira tela inteira, não só a copy: título com as
+ * palavras do anúncio, uma frase com a data da aula, o formulário já aberto no
+ * lugar do botão e uma linha curta no lugar dos selos. Abaixo do hero é a A.
+ *
+ * ⚠️ A data vence: trocar a frase depois da aula de 18/11 (próxima aula).
+ *
+ * noindex: é variante, não pode competir com a A na busca.
+ */
+import WorkshopGratuito from '../components/WorkshopGratuito.astro';
+
+const heroCopy = {
+  badge: '',
+  headline: 'O lojista pede o catálogo e some?',
+  highlight: 'some',
+  subheadline:
+    'Na aula gratuita de quarta, 18/11, às 19h, o Felipe mostra ao vivo como a entrada previsível de novos revendedores faz esse contato virar primeiro pedido.',
+};
+
+const formNoHero = {
+  linhaApoio: 'Gratuito · ao vivo · 1h · para atacado acima de R$ 20 mil/mês',
+  botaoForm: 'Garantir minha vaga para 18/11',
+};
+---
+
+<WorkshopGratuito noindex heroCopy={heroCopy} formNoHero={formNoHero} />

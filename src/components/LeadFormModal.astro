@@ -11,8 +11,43 @@
  */
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo.png';
+
+interface Props {
+  /**
+   * Formulário aberto na própria página, no lugar do botão do hero
+   * (/workshop-gratuito-v4, 06/11/2026). Mesmos campos, mesmo envio e mesmo
+   * destino do modal; os botões [data-open-form]/[data-open-chat] do resto da
+   * página rolam até ele em vez de abrir a janela. Uma página usa um modo OU
+   * o outro: o id é o mesmo.
+   */
+  inline?: boolean;
+  submitLabel?: string;
+}
+const { inline = false, submitLabel = 'Confirmar inscrição' } = Astro.props;
 ---
 
+{inline ? (
+<div id="lead-form" class="lform lform--inline" data-inline="true" aria-label="Inscrição no workshop">
+  <div class="lform__panel">
+    <form class="lform__form" id="lead-form-el">
+      <label class="lform__field">
+        <span>Nome</span>
+        <input name="nome" type="text" placeholder="Seu nome" required minlength="2" autocomplete="name" />
+      </label>
+      <label class="lform__field">
+        <span>WhatsApp</span>
+        <input name="telefone" type="tel" placeholder="Seu WhatsApp com DDD" required autocomplete="tel" />
+      </label>
+      <label class="lform__field">
+        <span>E-mail</span>
+        <input name="email" type="email" placeholder="Seu melhor e-mail" required autocomplete="email" />
+      </label>
+      <p class="lform__error" id="lead-form-error" hidden></p>
+      <button type="submit" class="lform__submit" id="lead-form-submit">{submitLabel}</button>
+    </form>
+  </div>
+</div>
+) : (
 <div id="lead-form" class="lform" hidden role="dialog" aria-modal="true" aria-label="Inscrição no workshop">
   <div class="lform__panel">
     <header class="lform__header">
@@ -37,6 +72,7 @@ import logo from '../assets/brand/logo.png';
     </form>
   </div>
 </div>
+)}
 
 <style>
   .lform {
@@ -67,6 +103,29 @@ import logo from '../assets/brand/logo.png';
     text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8rem; padding: 1rem; margin-top: 0.5rem;
   }
   .lform__submit:disabled { opacity: 0.5; }
+
+  /* ---- Aberto no hero (inline) -------------------------------------------
+     Sobre o bege do hero: campos claros e o botão no pill preto do hero.
+     Os rótulos ficam só para leitor de tela; o placeholder diz o que vai em
+     cada campo e economiza a altura que a primeira tela não tem. */
+  .lform--inline { position: static; inset: auto; z-index: auto; background: none; padding: 0; width: 100%; max-width: 26rem; }
+  .lform--inline .lform__panel { max-height: none; overflow: visible; background: none; border: none; border-radius: 0; }
+  .lform--inline .lform__form { gap: 0.6rem; padding: 0; }
+  .lform--inline .lform__field > span {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .lform--inline .lform__field input {
+    background: #fff; border: 1px solid rgba(30, 30, 30, 0.2); color: #1e1e1e;
+    border-radius: 0.6rem; padding: 0.8rem 1rem; font-size: 1rem;
+  }
+  .lform--inline .lform__field input::placeholder { color: rgba(30, 30, 30, 0.45); }
+  .lform--inline .lform__field input:focus { border-color: #1e1e1e; }
+  .lform--inline .lform__error { color: #b91c1c; }
+  .lform--inline .lform__submit {
+    background: #1e1e1e; color: #fff; border-radius: 9999px;
+    padding: 1.05rem 1.25rem; margin-top: 0.15rem; font-size: 0.8rem; letter-spacing: 0.08em;
+  }
 </style>
 
 <script>
@@ -86,7 +145,15 @@ import logo from '../assets/brand/logo.png';
     if (telEl) aplicarMascaraTelefone(telEl);
     if (emailEl) aplicarSugestaoEmail(emailEl);
 
-    const open = () => { overlay.hidden = false; document.body.style.overflow = 'hidden'; };
+    // Aberto na página (inline): não há janela; "abrir" é rolar até o
+    // formulário e pôr o cursor no primeiro campo.
+    const inline = overlay.dataset.inline === 'true';
+    const open = inline
+      ? () => {
+          overlay.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          (form.querySelector('input[name="nome"]') as HTMLInputElement | null)?.focus({ preventScroll: true });
+        }
+      : () => { overlay.hidden = false; document.body.style.overflow = 'hidden'; };
     const close = () => { overlay.hidden = true; document.body.style.overflow = ''; };
 
     // [data-open-chat] vem dos componentes de seção da home (Hero, FinalCta,
@@ -95,8 +162,10 @@ import logo from '../assets/brand/logo.png';
     document.querySelectorAll('[data-open-form], [data-open-chat]').forEach((el) => {
       el.addEventListener('click', (e) => { e.preventDefault(); open(); });
     });
-    overlay.querySelectorAll('[data-close-form]').forEach((el) => el.addEventListener('click', close));
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    if (!inline) {
+      overlay.querySelectorAll('[data-close-form]').forEach((el) => el.addEventListener('click', close));
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
