@@ -96,3 +96,9 @@ Reuso: `normalizePath` e `isKnownPage` já fazem o merge por página em conversi
 
 - Depende da S6-01 (nome já gravado e histórico carregado).
 - Lição L-03: não conferir a tela nova contra a API de produção antes do deploy se houver cache de período fechado; trocar a marca de versão só depois do deploy.
+
+## Testes manuais
+
+| Critério | Conferido por | Dia |
+|---|---|---|
+| CA-S6-17 | Marcelle | 06/11/2026 |

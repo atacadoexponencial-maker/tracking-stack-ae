@@ -9,4 +9,4 @@ As issues até a 410 foram criadas antes das séries e seguem numeradas soltas n
 | S3 | spec-funil-pela-utm.md | issues/concluidas_S3 |
 | S4 | docs/specs-arquivadas/spec-visao-geral-reuniao-semanal.md | issues/concluidas_S4 |
 | S5 | spec-arvore-metricas.md | issues/concluidas_S5 |
-| S6 | spec-etapas-com-nome.md | issues/concluidas_S6 |
+| S6 | docs/specs-arquivadas/spec-etapas-com-nome.md | issues/concluidas_S6 |

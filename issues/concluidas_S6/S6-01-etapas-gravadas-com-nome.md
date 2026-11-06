@@ -113,3 +113,9 @@ Reuso: `enviarEventoInterno` (funil.ts) segue sendo o único envio; `d1()` + `no
 
 - A carga do histórico depende da coluna nova já existir no banco remoto: planejar a ordem (coluna no remoto → deploy → carga) para o checklist não travar o auditor. A carga do intervalo "depois de 20h32 e antes desta mudança" precisa rodar depois do deploy desta issue, para não deixar buraco.
 - Migration no remoto só com `wrangler d1 execute --remote`, nunca `migrations apply --remote`.
+
+## Testes manuais
+
+| Critério | Conferido por | Dia |
+|---|---|---|
+| CA-S6-10 | Marcelle | 06/11/2026 |

@@ -1,7 +1,7 @@
 # Spec: Etapas do formulário com nome
 
 > série: S6
-> estado: aprovada em 05/11/2026
+> estado: aprovada em 05/11/2026 · no ar e concluída em 06/11/2026
 
 ## Visão Geral
 
