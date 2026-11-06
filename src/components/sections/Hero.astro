@@ -367,6 +367,37 @@ const titulo =
   @media (min-width: 768px) {
     .hero--enxuto .hero__body { padding-block: 2.5rem 4rem; justify-content: center; gap: 1.25rem; }
   }
+  /* Computador: em coluna única a primeira tela ficava uma tira estreita no
+     meio do bege (06/11). Em duas colunas o texto fica à esquerda, grande, e
+     o formulário à direita num cartão, como uma ficha de inscrição. */
+  @media (min-width: 900px) {
+    .hero--enxuto .hero__logo { height: 2.25rem; }
+    .hero--enxuto .hero__nav { padding-block: 1.5rem 0; }
+    .hero--enxuto .hero__body {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      grid-template-areas: 'titulo form' 'sub form' 'linha form';
+      align-content: center;
+      column-gap: 4.5rem;
+      row-gap: 1.25rem;
+      max-width: var(--container);
+      width: 100%;
+      text-align: left;
+      padding: 3rem 1.5rem 4rem;
+    }
+    .hero--enxuto .hero__title { grid-area: titulo; align-self: end; font-size: clamp(3rem, 4.6vw, 4.25rem); line-height: 1.04; }
+    .hero--enxuto .hero__sub { grid-area: sub; font-size: 1.15rem; line-height: 1.5; max-width: 34rem; }
+    .hero--enxuto .hero__linha { grid-area: linha; align-self: start; font-size: 0.875rem; }
+    .hero--enxuto :global(.lform--inline) {
+      grid-area: form;
+      max-width: none;
+      background: #fff;
+      border: 1px solid rgba(30, 30, 30, 0.08);
+      border-radius: 1.25rem;
+      padding: 2rem;
+      box-shadow: 0 24px 48px -28px rgba(30, 30, 30, 0.35);
+    }
+  }
 
   /* ---- Celular: foto ocupando o hero, texto por cima ----------------------
      Formato pedido pela usuária em 17/09 (referência: a LP do Rise). A foto
