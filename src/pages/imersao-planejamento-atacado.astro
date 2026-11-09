@@ -443,12 +443,16 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
     height: 3px;
     background: transparent;
   }
+  /* A barra enche por transform (scaleX), não por width: não força o
+     navegador a recalcular o layout a cada passo da animação. */
   .ipa-barra__fio-cheio {
     display: block;
     height: 100%;
-    width: 0;
+    width: 100%;
     background: #e8463b;
-    transition: width 0.6s ease;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.6s ease;
   }
 
   /* ---- Vendas encerradas ------------------------------------------------- */
@@ -553,10 +557,11 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
   .ipa-progresso__cheio {
     display: block;
     height: 100%;
-    width: 0;
+    width: 100%;
     background: #c41d13;
-    border-radius: inherit;
-    transition: width 0.6s ease;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.6s ease;
   }
   .ipa-progresso__ate {
     font-size: 0.75rem;
@@ -978,7 +983,7 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
       const pct = Math.round(
         fracaoDecorrida(estado.inicioMs as number, estado.fimMs as number, agora()) * 1000,
       ) / 10;
-      todos('[data-progresso-fill]').forEach((el) => (el.style.width = `${pct}%`));
+      todos('[data-progresso-fill]').forEach((el) => (el.style.transform = `scaleX(${pct / 100})`));
       todos('[data-progresso-barra]').forEach((el) =>
         el.setAttribute('aria-valuenow', String(Math.round(pct))),
       );
