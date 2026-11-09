@@ -967,6 +967,27 @@ td.pago, th.pago { color: var(--alerta); }
 .vr-tabela th:nth-child(9), .vr-tabela td:nth-child(9),
 .vr-tabela th:nth-child(15), .vr-tabela td:nth-child(15),
 .vr-tabela th:nth-child(18), .vr-tabela td:nth-child(18) { border-left: 1px solid var(--fio); }
+/* Detalhe das reuniões (public/dash/detalhe-reunioes.js, S7): números + listas em drop. */
+.dr-numeros { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.dr-listas { display: grid; gap: 0.5rem; }
+.dr-lista { border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); }
+.dr-lista > summary { cursor: pointer; padding: 0.6rem 0.9rem; font-weight: 700; font-size: 0.9rem; list-style: none; display: flex; align-items: center; gap: 0.4rem; }
+.dr-lista > summary::-webkit-details-marker { display: none; }
+.dr-lista > summary::before { content: '▸'; color: var(--apagado); transition: transform 0.15s; }
+.dr-lista[open] > summary::before { transform: rotate(90deg); }
+.dr-qtd { font-weight: 400; color: var(--apagado); }
+.dr-lista ul { list-style: none; margin: 0; padding: 0 0.9rem 0.6rem; }
+.dr-linha { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 0.2rem 1rem; padding: 0.45rem 0; border-top: 1px dashed var(--fio); font-size: 0.86rem; align-items: baseline; }
+.dr-linha--reag { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); }
+.dr-trocas { grid-column: 1 / -1; margin: 0.1rem 0 0; padding-left: 1.2rem; font-size: 0.78rem; color: var(--tinta-2); }
+.dr-marca { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--alerta); border: 1px solid currentColor; border-radius: 2px; padding: 0 0.3rem; margin-left: 0.3rem; }
+.dr-vazio { color: var(--apagado); font-size: 0.85rem; padding: 0 0.9rem 0.7rem; margin: 0; }
+.dr > .dr-vazio { padding: 0; }
+@media (max-width: 640px) {
+  .dr-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dr-linha, .dr-linha--reag { grid-template-columns: 1fr; gap: 0.1rem; }
+  .dr-linha span { color: var(--tinta-2); font-size: 0.8rem; }
+}
 /* Árvore (public/dash/arvore.js, S5): reaproveita o funil da Visão geral (.vr-etapa). */
 .av-funis { display: inline-flex; gap: 0; margin-bottom: 1.1rem; border: 1px solid var(--fio-forte); border-radius: 2px; }
 .av-funis button { background: none; border: 0; border-right: 1px solid var(--fio-forte); padding: 0.4rem 0.9rem; font: inherit; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; color: var(--tinta-2); cursor: pointer; }
@@ -1747,6 +1768,8 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
     <section class="secao" id="secao-visao">
       <!-- Visão geral da reunião semanal (série S4): desenhada por public/dash/visao-reuniao.js. -->
       <div id="visao-reuniao"></div>
+      <!-- Detalhe das reuniões (série S7): desenhado por public/dash/detalhe-reunioes.js. -->
+      <div id="visao-detalhe-reunioes"></div>
     </section>
 
     <!-- Detalhado (S4-02): a Visão geral de antes da série S4, sem mudança de conta. -->
@@ -2337,6 +2360,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/cloudflare.js"></script>
 <script src="/dash/arvore.js?v=2026-10-29a"></script>
 <script src="/dash/visao-reuniao.js?v=2026-10-26o"></script>
+<script src="/dash/detalhe-reunioes.js?v=2026-11-09a"></script>
 <script>
 (() => {
 'use strict';
@@ -3137,6 +3161,9 @@ R.visao = async () => {
   };
   desenhar(undefined);
   contarNumeros($('#visao-reuniao'));
+  // Detalhe das reuniões (S7): por enquanto só o protótipo, com proto=1 no link.
+  if (visaoProto && window.DetalheReunioes) window.DetalheReunioes.prototipo($('#visao-detalhe-reunioes'), ctx);
+  else $('#visao-detalhe-reunioes').innerHTML = '';
   // `s4`: respostas antigas (sem `crm`) guardadas no cache de período fechado não servem.
   fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s4e`)
     .catch(() => null)
@@ -5710,6 +5737,8 @@ function desenharRegistroArgo(rodadas) {
 // Qual parte da aba está à vista. Mora no hash (#argo?v=propostas) para
 // sobreviver ao recarregar e para o Slack poder mandar link direto.
 let argoVista = 'controle';
+// Protótipo do Detalhe das reuniões (issue S7-01): só com proto=1 no link.
+let visaoProto = false;
 let argoPendentes = 0;
 const ARGO_VISTAS = ['controle', 'propostas', 'relatorio', 'contexto', 'testes'];
 
@@ -6909,6 +6938,7 @@ function escreverUrl() {
   }
   if ($('#funil').value) ps.set('f', $('#funil').value);
   if (secao === 'argo' && argoVista !== 'controle') ps.set('v', argoVista);
+  if (secao === 'visao' && visaoProto) ps.set('proto', '1');
   if (secao === 'instagram' && igVista !== 'crescimento') ps.set('v', igVista);
   if (secao === 'agenda' && window.AgendaDash && window.AgendaDash.vista !== 'agendamentos') ps.set('v', window.AgendaDash.vista);
   if (secao === 'mkt-email' && window.EmailMkt && window.EmailMkt.vista !== 'campanhas') ps.set('v', window.EmailMkt.vista);
@@ -6919,6 +6949,7 @@ function escreverUrl() {
 function lerUrl() {
   const [aba, qs] = location.hash.replace('#', '').split('?');
   secao = TITULOS[aba] ? aba : 'visao';
+  visaoProto = secao === 'visao' && new URLSearchParams(qs || '').get('proto') === '1';
   // A aba Argo abre em Controle, a não ser que o link peça outra parte (ARGO_VISTAS).
   const vArgo = new URLSearchParams(qs || '').get('v');
   argoVista = ARGO_VISTAS.includes(vArgo) ? vArgo : 'controle';
