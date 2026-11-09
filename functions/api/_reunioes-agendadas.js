@@ -226,6 +226,22 @@ export async function coorteDasAgendadas(DB, de, ate, agora) {
   return itens.map((x, i) => ({ funil: funis[i].funil, status: x.status }));
 }
 
+/**
+ * No-show do Detalhe das reuniões (spec-detalhe-reunioes.md, PER-S7-01):
+ * faltou ÷ (realizada + faltou), em % (0–100). Cancelada, a acontecer, sem
+ * presença e fora do registro não entram. Sem presença marcada: null.
+ */
+export function noShow({ realizada, faltou }) {
+  const base = realizada + faltou;
+  return base > 0 ? (faltou / base) * 100 : null;
+}
+
+/** O resumo da coorte com `no_show` no total e em cada funil (Detalhe das reuniões, S7). */
+export function comNoShow(resumo) {
+  const com = (r) => ({ ...r, no_show: noShow(r) });
+  return { total: com(resumo.total), por_funil: Object.fromEntries(Object.entries(resumo.por_funil).map(([f, r]) => [f, com(r)])) };
+}
+
 /** { total, por_funil } com { agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca, fora_do_registro }. */
 export function resumirCoorte(lista) {
   const zero = () => Object.fromEntries([['agendadas', 0], ...STATUS_COORTE.map((s) => [s, 0])]);

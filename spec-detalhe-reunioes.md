@@ -172,6 +172,8 @@ listas de nomes por situação.
 | SUP-S7-03 | Reuniões que vieram do Calendly (antes da agenda própria) entram nos números e listas com o e-mail quando não houver nome; no reagendamento aparecem só como "remarcada", sem os horários das trocas (o Calendly não guarda o histórico) | confirmada | usuária, 09/11/2026 |
 | SUP-S7-04 | Cada linha das listas mostra nome, funil, dia e hora; sem telefone, e-mail ou link do ClickUp | confirmada | usuária, 09/11/2026 |
 | SUP-S7-05 | A seção fica abaixo do funil e da tabela por funil, no fim da Visão geral | confirmada | usuária, 09/11/2026 |
+| SUP-S7-06 | Consultorias antigas do Calendly (antes de 19/10) que passaram sem presença ("fora do registro") aparecem num número próprio "Fora do registro" só quando o período tiver alguma; ficam fora do no-show e das listas, e a soma continua batendo com as criadas | confirmada | usuária, 09/11/2026 |
+| SUP-S7-07 | Reuniões da Aplicação Mentoria contam como Sessão Estratégica (regra única de funil da S3: Mentoria é porta da SE); o filtro de funil separa SE dos outros funis (ex.: workshop), não SE de Mentoria | confirmada | usuária, 09/11/2026 |
 
 ## Perguntas em aberto
 

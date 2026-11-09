@@ -8,7 +8,7 @@
 // Sem cache de período fechado, de propósito: a coorte de uma semana passada
 // muda a cada presença marcada. A leitura é leve (agenda_reunioes e
 // calendly_consultorias do período, e o funil pelo e-mail do lead).
-import { coorteDasAgendadas, resumirCoorte } from '../_reunioes-agendadas.js';
+import { coorteDasAgendadas, resumirCoorte, comNoShow } from '../_reunioes-agendadas.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 
@@ -22,8 +22,9 @@ export async function onRequestGet({ request, env }) {
   const antAte = Number(p.get('antTo')) || de - 1;
   const antDe = Number(p.get('antFrom')) || antAte - (ate - de);
   const [atual, anterior] = await Promise.all([
-    coorteDasAgendadas(env.DB, de, ate, agora).then(resumirCoorte),
-    coorteDasAgendadas(env.DB, antDe, antAte, agora).then(resumirCoorte),
+    // no_show: Detalhe das reuniões (spec-detalhe-reunioes.md, S7).
+    coorteDasAgendadas(env.DB, de, ate, agora).then((l) => comNoShow(resumirCoorte(l))),
+    coorteDasAgendadas(env.DB, antDe, antAte, agora).then((l) => comNoShow(resumirCoorte(l))),
   ]);
   return json({ atual, anterior });
 }

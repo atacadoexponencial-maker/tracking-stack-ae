@@ -5,8 +5,10 @@
 // ao período anterior, e as listas de nomes fechadas em drop (Ainda vão
 // acontecer, Faltaram, Cancelaram, Sem presença marcada, Reagendamentos).
 //
-// PROTÓTIPO S7-01: `prototipo(raiz, ctx)` desenha com dados de exemplo, só com
-// #visao?proto=1. ctx: { esc, fmtInt, fmtPct, tile, deltaChip }.
+// `desenhar(raiz, coorte, fSel, ctx)`: os números com a resposta de
+// /api/agenda/coorte ({ atual, anterior }, cada um { total, por_funil } com o
+// `no_show` já calculado no servidor). `prototipo(raiz, ctx)`: dados de
+// exemplo, só com #visao?proto=1 (S7-01). ctx: { esc, fmtInt, fmtPct, tile }.
 (() => {
   'use strict';
 
@@ -32,8 +34,8 @@
   // ---------------------------------------------------------------------------
   const r = (nome, funil, quando, extra = {}) => ({ nome, funil, quando, ...extra });
   const EXEMPLO = {
-    atual: { criadas: 11, realizada: 1, faltou: 1, cancelada: 1, a_acontecer: 8, sem_presenca: 0 },
-    anterior: { criadas: 8, realizada: 3, faltou: 1, cancelada: 0, a_acontecer: 0, sem_presenca: 4 },
+    atual: { criadas: 11, realizada: 1, faltou: 1, cancelada: 1, a_acontecer: 8, sem_presenca: 0, fora_do_registro: 0, no_show: 50 },
+    anterior: { criadas: 8, realizada: 3, faltou: 1, cancelada: 0, a_acontecer: 0, sem_presenca: 4, fora_do_registro: 0, no_show: 25 },
     listas: {
       a_acontecer: [
         r('Ana Paula', 'sessao-estrategica', '2026-11-09T14:00'),
@@ -65,12 +67,12 @@
     const d = JSON.parse(JSON.stringify(EXEMPLO));
     if (c === 'sem-presenca') {
       // Nenhuma presença marcada: as duas que já passaram ficam aguardando.
-      d.atual = { criadas: 11, realizada: 0, faltou: 0, cancelada: 1, a_acontecer: 8, sem_presenca: 2 };
+      d.atual = { criadas: 11, realizada: 0, faltou: 0, cancelada: 1, a_acontecer: 8, sem_presenca: 2, fora_do_registro: 0, no_show: null };
       d.listas.sem_presenca = [r('Igor Martins', 'sessao-estrategica', '2026-11-06T16:00'), r('Kátia Nunes', 'sessao-estrategica', '2026-11-06T15:00')];
       d.listas.faltou = [];
     }
     if (c === 'vazio') {
-      d.atual = { criadas: 0, realizada: 0, faltou: 0, cancelada: 0, a_acontecer: 0, sem_presenca: 0 };
+      d.atual = { criadas: 0, realizada: 0, faltou: 0, cancelada: 0, a_acontecer: 0, sem_presenca: 0, fora_do_registro: 0, no_show: null };
       Object.keys(d.listas).forEach((k) => { d.listas[k] = []; });
     }
     return d;
@@ -79,9 +81,8 @@
   // ---------------------------------------------------------------------------
   // Desenho
   // ---------------------------------------------------------------------------
-  // Em porcentagem (0–100), como o fmtPct do dash espera.
-  const noShow = (n) => (n.realizada + n.faltou > 0 ? (n.faltou / (n.realizada + n.faltou)) * 100 : null);
-  const variacao = (a, b) => (a === null || b === null || !b ? null : ((a - b) / b) * 100);
+  // Variação contra o anterior, como o `delta` do index: sem base, sem carimbo.
+  const variacao = (a, b) => (a === null || a === undefined || b === null || b === undefined || !b ? null : ((a - b) / b) * 100);
   const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
   function quando(iso) {
     const [d, h] = iso.split('T');
@@ -90,21 +91,60 @@
     return `${sem} ${String(dia).padStart(2, '0')}/${String(m).padStart(2, '0')} · ${h.replace(':00', 'h').replace(':', 'h')}`;
   }
 
-  function numeros(d, ctx) {
-    const { fmtInt, fmtPct, tile } = ctx;
-    const cards = NUMEROS.map(([k, rotulo]) => tile({
-      rotulo, valor: fmtInt(d.atual[k]), anterior: fmtInt(d.anterior[k]),
+  // Os cards: { rotulo, valor, anterior, delta, invertido, neutro, nota } no
+  // formato do `tile` do index (valor null vira "—").
+  function cardsDosNumeros(d, ctx) {
+    const { fmtInt, fmtPct } = ctx;
+    const ant = d.anterior || {};
+    const num = (v) => (v === null || v === undefined ? null : fmtInt(v));
+    const cards = NUMEROS.map(([k, rotulo]) => ({
+      chave: k, rotulo, valor: fmtInt(d.atual[k] || 0), anterior: num(ant[k]),
       // Falta, cancelamento e sem presença subindo é ruim; a acontecer não tem lado.
-      delta: variacao(d.atual[k], d.anterior[k]) ?? undefined,
+      delta: variacao(d.atual[k] || 0, ant[k]) ?? undefined,
       invertido: ['faltou', 'cancelada', 'sem_presenca'].includes(k), neutro: k === 'a_acontecer',
     }));
-    const ns = noShow(d.atual), nsAnt = noShow(d.anterior);
-    cards.push(tile({
-      rotulo: 'No-show', valor: ns === null ? null : fmtPct(ns, 0), anterior: nsAnt === null ? '—' : fmtPct(nsAnt, 0),
+    // Calendly de antes de 19/10 sem presença: só quando houver (SUP-S7-06).
+    if (d.atual.fora_do_registro) {
+      cards.push({ chave: 'fora_do_registro', rotulo: 'Fora do registro', valor: fmtInt(d.atual.fora_do_registro), nota: 'Calendly antes de 19/10, sem presença' });
+    }
+    const ns = d.atual.no_show, nsAnt = ant.no_show;
+    const pct = (v) => (v === null || v === undefined ? null : fmtPct(v, 0));
+    cards.push({
+      chave: 'no_show', rotulo: 'No-show', valor: pct(ns), anterior: pct(nsAnt) ?? '—',
       delta: variacao(ns, nsAnt) ?? undefined, invertido: true,
-      nota: ns === null ? 'sem presença marcada' : `${fmtInt(d.atual.faltou)} de ${fmtInt(d.atual.realizada + d.atual.faltou)}`,
-    }));
-    return `<div class="grid-etiquetas dr-numeros">${cards.join('')}</div>`;
+      nota: ns === null || ns === undefined ? 'sem presença marcada' : `${fmtInt(d.atual.faltou)} de ${fmtInt(d.atual.realizada + d.atual.faltou)}`,
+    });
+    return cards;
+  }
+
+  function numeros(d, ctx) {
+    return `<div class="grid-etiquetas dr-numeros">${cardsDosNumeros(d, ctx).map((c) => ctx.tile(c)).join('')}</div>`;
+  }
+
+  // O recorte do filtro: total, ou o funil escolhido (zerado se não teve reunião).
+  const ZERO = { agendadas: 0, realizada: 0, faltou: 0, cancelada: 0, a_acontecer: 0, sem_presenca: 0, fora_do_registro: 0, no_show: null };
+  function recorte(resumo, fSel) {
+    if (!resumo) return null;
+    const r = fSel ? (resumo.por_funil || {})[fSel] || ZERO : resumo.total || ZERO;
+    return { ...r, criadas: r.agendadas };
+  }
+
+  /** { atual, anterior } dos números da seção, já no recorte do filtro de funil. */
+  function montarNumeros(coorte, fSel) {
+    if (!coorte) return null;
+    return { atual: recorte(coorte.atual, fSel), anterior: recorte(coorte.anterior, fSel) };
+  }
+
+  const CAB = '<h2>Detalhe das reuniões <small>reuniões criadas no período · variação contra o período anterior</small></h2>';
+
+  function desenhar(raiz, coorte, fSel, ctx) {
+    if (!raiz) return;
+    const d = montarNumeros(coorte, fSel);
+    let corpo;
+    if (!d || !d.atual) corpo = '<p class="dr-vazio">Não foi possível carregar as reuniões agora.</p>';
+    else if (!d.atual.criadas) corpo = '<p class="dr-vazio">Nenhuma reunião criada no período.</p>';
+    else corpo = numeros(d, ctx);
+    raiz.innerHTML = `<div class="bloco dr">${CAB}${corpo}</div>`;
   }
 
   function linha(x, k, esc) {
@@ -143,7 +183,7 @@
         <select data-dr-cenario>${CENARIOS.map(([k, t]) => `<option value="${k}"${k === estado.cenario ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>
       </label>
     </div>`;
-    const cab = '<h2>Detalhe das reuniões <small>reuniões criadas no período · variação contra o período anterior</small></h2>';
+    const cab = CAB;
     const corpo = d.atual.criadas
       ? numeros(d, ctx) + listas(d, esc)
       : '<p class="dr-vazio">Nenhuma reunião criada no período.</p>';
@@ -154,5 +194,5 @@
     });
   }
 
-  window.DetalheReunioes = { prototipo };
+  window.DetalheReunioes = { prototipo, desenhar, montarNumeros, cardsDosNumeros };
 })();
