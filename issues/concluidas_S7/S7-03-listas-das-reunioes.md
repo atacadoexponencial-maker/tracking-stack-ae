@@ -112,3 +112,9 @@ Nenhuma.
 - [x] Cinco drops em `detalhe-reunioes.js`, com avisos de lista vazia e erro
 - [x] `R.visao` busca e desenha as listas; versão do script atualizada
 - [x] Testes dos critérios passando junto com `tests/visao-reuniao.test.js`
+
+## Testes manuais
+
+| Critério | Conferido por | Dia |
+|---|---|---|
+| CA-S7-12 | Marcelle | 09/11/2026 |
