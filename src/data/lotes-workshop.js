@@ -73,9 +73,9 @@ export const LOTES = [
 // ninguém a transformou em lote.
 export const VALOR_CHEIO = 'R$ 297';
 
-function aberto(indice) {
-  const lote = LOTES[indice];
-  const seguinte = LOTES[indice + 1];
+function aberto(indice, lotes = LOTES) {
+  const lote = lotes[indice];
+  const seguinte = lotes[indice + 1];
   return {
     estado: 'aberto',
     // Posição na escada de lotes. A régua do hero pinta os anteriores como
@@ -87,6 +87,9 @@ function aberto(indice) {
     // Instante em que ESTE lote acaba — é o alvo do contador. No último lote
     // não é uma troca de preço: é o encerramento das vendas.
     fimMs: Date.parse(lote.fim),
+    // Instante em que ESTE lote começou: com o fimMs, é o que a barra de
+    // progresso da Imersão precisa para saber quanto do lote já passou.
+    inicioMs: Date.parse(lote.inicio),
     ultimo: !seguinte,
   };
 }
@@ -106,17 +109,21 @@ function aberto(indice) {
  * inventa "em breve" nem esconde o preço). Depois do fim do último devolve
  * `{ estado: 'encerrado' }`, sem preço.
  *
+ * `lotes` é opcional: sem ele vale a tabela da Black (LOTES). Outra página com
+ * régua de lotes passa a própria tabela, no mesmo formato, e reaproveita a
+ * regra inteira (ex.: src/data/lotes-imersao.js).
+ *
  * Se alguma fronteira não for finita (literal escrito errado) ou `agoraMs` não
  * for um número finito, devolve o primeiro lote: errar para o lado de continuar
  * vendendo é menos danoso que fechar a loja por engano.
  */
-export function loteVigente(agoraMs) {
-  const fins = LOTES.map((l) => Date.parse(l.fim));
-  if (!fins.every(Number.isFinite)) return aberto(0);
-  if (!Number.isFinite(agoraMs)) return aberto(0);
+export function loteVigente(agoraMs, lotes = LOTES) {
+  const fins = lotes.map((l) => Date.parse(l.fim));
+  if (!fins.every(Number.isFinite)) return aberto(0, lotes);
+  if (!Number.isFinite(agoraMs)) return aberto(0, lotes);
 
-  for (let i = 0; i < LOTES.length; i += 1) {
-    if (agoraMs < fins[i]) return aberto(i);
+  for (let i = 0; i < lotes.length; i += 1) {
+    if (agoraMs < fins[i]) return aberto(i, lotes);
   }
   return { estado: 'encerrado' };
 }
@@ -167,4 +174,17 @@ export function formatarRestante(restanteMs) {
 export function textoContador(estado) {
   if (!estado || estado.estado !== 'aberto') return null;
   return estado.ultimo ? 'Vendas encerram em' : `Sobe para ${estado.proximoValor} em`;
+}
+
+/**
+ * Quanto do lote vigente já passou, de 0 a 1, para a barra de progresso.
+ *
+ * Antes do início dá 0, depois do fim dá 1, e qualquer valor não finito (ou
+ * lote de duração zero) dá 0: a barra nunca sai do trilho nem vira `NaN%`.
+ */
+export function fracaoDecorrida(inicioMs, fimMs, agoraMs) {
+  if (![inicioMs, fimMs, agoraMs].every(Number.isFinite)) return 0;
+  const total = fimMs - inicioMs;
+  if (total <= 0) return 0;
+  return Math.min(1, Math.max(0, (agoraMs - inicioMs) / total));
 }

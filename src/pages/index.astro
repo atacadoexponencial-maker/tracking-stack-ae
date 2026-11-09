@@ -30,17 +30,14 @@ import FinalCta from '../components/sections/FinalCta.astro';
 import StickyCta from '../components/StickyCta.astro';
 import LeadChat from '../components/LeadChat.astro';
 import StoriesDepoimentos from '../components/StoriesDepoimentos.astro';
+import { DEPOIMENTOS_HOME } from '../data/depoimentos.js';
 
 // Depoimentos em vídeo, os mesmos da /trafego-atacado (Panda Video, library
 // vz-718ea161-967). Substituem os três depoimentos de texto anônimos que a
 // /se-v1 usa: gente real, com rosto e voz, é a prova mais forte que a marca
-// tem hoje.
-const depoimentos = [
-  { name: 'Jaque', videoId: '101c1525-fa13-4fe6-a61e-fe38600dec12' },
-  { name: 'Barraca do Willinha', videoId: 'a7d5602a-4f1e-4d28-9b83-9cfc53fde08a' },
-  { name: 'Adriana', videoId: '03f4e18a-1f52-40f5-844a-3f900f705126' },
-  { name: 'Jossanclê', videoId: 'd8d67535-9b07-4713-a21f-14eb4cd70f6b' },
-];
+// tem hoje. A lista mora em src/data/depoimentos.js porque a
+// /imersao-planejamento-atacado mostra os mesmos vídeos.
+const depoimentos = DEPOIMENTOS_HOME;
 
 // Stories do hero: só os vídeos dos clientes da mentoria. Os prints da
 // /workshop-gratuito-v2 ficaram fora por decisão da usuária (19/10): são

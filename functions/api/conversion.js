@@ -387,6 +387,7 @@ export const KNOWN_PAGE_PATHS = new Set([
   '/grupo-da-live',
   '/workshop-black-exponencial-2026',
   '/obrigado-black-exponencial',
+  '/imersao-planejamento-atacado',
 ]);
 
 // '(sem página)' passa direto (não começa com '/'); paths reais só

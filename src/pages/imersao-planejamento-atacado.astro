@@ -1,0 +1,1026 @@
+---
+// Página de ingresso da Imersão Planejamento Atacado 2027 (evento de 05/12).
+// Copy: "Imersão Planejamento Atacado 2027 - proposta de copy da página.md",
+// aprovada pela usuária em 09/11. Base técnica: /workshop-black-exponencial-2026
+// (lotes por data, botão de compra com `sf_trk` da Greenn).
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Faq from '../components/sections/Faq.astro';
+import VideoTestimonials from '../components/sections/VideoTestimonials.astro';
+import { Image } from 'astro:assets';
+import logo from '../assets/brand/logo.png';
+import felipe from '../assets/brand/felipe.webp';
+import { LOTES_IMERSAO, VALOR_CHEIO_IMERSAO } from '../data/lotes-imersao.js';
+import { textoProximo } from '../data/lotes-workshop.js';
+import { DEPOIMENTOS_HOME } from '../data/depoimentos.js';
+import diamandi from '../assets/marcas-imersao/diamandijoias.jpg';
+import lazarf from '../assets/marcas-imersao/lazarf.jpg';
+import upSemijoia from '../assets/marcas-imersao/upsemijoia.jpg';
+import valentt from '../assets/marcas-imersao/valentt.jpg';
+import willinha from '../assets/marcas-imersao/willinha.jpg';
+
+// ---------------------------------------------------------------------------
+// Destino de compra: PONTO ÚNICO de configuração.
+//
+// O checkout ainda não existe (09/11). Enquanto CHECKOUT_URL for null, todo
+// botão de compra leva a `#ingresso` (a seção de preço) e o rastreamento ignora
+// o clique. Quando o link da Greenn existir, é trocar null pela URL AQUI e mais
+// nada. Restrições da URL (o `sf_trk` é concatenado no fim): sem `#`, sem
+// terminar em `?` ou `&`.
+// ---------------------------------------------------------------------------
+const CHECKOUT_URL: string | null = null;
+const HREF_COMPRA = CHECKOUT_URL ?? '#ingresso';
+
+// Parâmetro de rastreio da Greenn, confirmado com venda real na Black
+// (2026-08-12). Ver o comentário completo em workshop-black-exponencial-2026.
+const CHECKOUT_PARAM = 'sf_trk';
+
+// O HTML nasce no lote 01: o site é estático e quem decide o lote vigente é o
+// <script> no fim, no acesso do visitante. Sem JS, a página mostra o lote 01.
+const LOTE_INICIAL = LOTES_IMERSAO[0];
+const PROXIMO_INICIAL = LOTES_IMERSAO[1].valor;
+const TEXTO_PROXIMO_INICIAL = textoProximo(PROXIMO_INICIAL, LOTE_INICIAL.rotulo);
+const LOTE_BOTAO_INICIAL = LOTE_INICIAL.rotulo.toLowerCase();
+
+const marcas = [
+  { img: diamandi, arroba: 'diamandijoias', nicho: 'prata 925 e semijoias' },
+  { img: lazarf, arroba: 'lazarf_', nicho: 'moda fitness' },
+  { img: upSemijoia, arroba: 'up_semijoia', nicho: 'semijoias' },
+  { img: valentt, arroba: 'valenttmodaa', nicho: 'vestuário' },
+  { img: willinha, arroba: 'barracadowillinha', nicho: 'moda feminina' },
+];
+
+const decisoes = [
+  { titulo: 'Raio-X 2026', desc: 'Os números do seu atacado: de onde veio o faturamento deste ano.' },
+  { titulo: 'Meta 2027', desc: 'A meta em revendedoras novas e recompra, mês a mês.' },
+  { titulo: 'Entrada Previsível', desc: 'Como as revendedoras novas vão entrar em 2027.' },
+  { titulo: 'Recompra Escalável', desc: 'Como a sua base vai recomprar ao longo do ano.' },
+];
+
+const sinais = [
+  'a meta do ano for só um número de faturamento, sem a conta de quantas revendedoras novas e quanta recompra ela exige;',
+  'você não souber quantas revendedoras ativas tem hoje e quantas viraram inativas;',
+  'a recompra continuar sem dono, sem controle e sem sell-out;',
+  'o Instagram e o anúncio continuarem trazendo gente que não é revendedora;',
+  'janeiro começar sem campanha pronta no primeiro dia;',
+  'as datas fortes da sua marca não estiverem no calendário com antecedência.',
+];
+
+const agenda = [
+  { hora: '9h30', o: 'Início' },
+  { hora: '12h', o: 'Almoço' },
+  { hora: '13h30', o: 'Retorno' },
+  { hora: '17h30', o: 'Encerramento' },
+];
+
+const ofertaItens = [
+  'Um dia de conteúdo, das 9h30 às 17h30;',
+  'O plano de 2027 da sua marca: a meta de revendedoras novas e de recompra, mês a mês;',
+  'Os números de referência que o Felipe usa com as marcas que ele mentora.',
+];
+
+const faqs = [
+  {
+    q: 'Serve para a minha marca?',
+    a: 'Serve para marcas que já vendem no atacado para revendedoras. Se você ainda não vende no atacado, a Imersão não é para você agora.',
+  },
+  {
+    q: 'Quanto tempo dura?',
+    a: 'Um sábado, 05/12, das 9h30 às 17h30, com pausa para o almoço.',
+  },
+  {
+    q: 'O que preciso levar?',
+    a: 'Os números do seu atacado em 2026. Na quinta, 03/12, o Felipe faz um encontro ao vivo e explica cada um.',
+  },
+  {
+    q: 'Vai ficar gravado?',
+    a: 'O ingresso dá acesso ao vivo. A Imersão em formato de aulas, com hotseat com o Felipe e a planilha do Planejamento 2027, é vendida à parte, por R$ 297, na hora da compra.',
+  },
+  {
+    q: 'E se eu não gostar?',
+    a: 'Você pede o reembolso até 2 dias depois do evento.',
+  },
+];
+
+const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um sábado.';
+---
+
+<BaseLayout
+  title="Imersão Planejamento Atacado 2027 | 05/12, ao vivo com Felipe Santos"
+  description="Um sábado, 05/12, das 9h30 às 17h30, online e ao vivo. Você traz os números de 2026 e sai com a meta de cada mês de 2027: quantas revendedoras novas trazer e quanto a sua base precisa recomprar."
+  showHeader={false}
+>
+  <div class="ipa" data-vendas="abertas" data-checkout-param={CHECKOUT_PARAM}>
+    <!-- Barra fixa: logo, data, lote vigente e botão. -->
+    <div class="ipa-barra">
+      <div class="container ipa-barra__inner">
+        <Image src={logo} alt="Atacado Exponencial" height={72} class="ipa-barra__logo" />
+        <p class="ipa-barra__texto">
+          <span class="ipa-barra__evento">Imersão 2027</span>
+          <span class="ipa-barra__sep" aria-hidden="true">·</span>
+          <span>05/12</span>
+          <span class="ipa-barra__sep ipa-preco-bloco" aria-hidden="true">·</span>
+          <span class="ipa-barra__lote ipa-preco-bloco">
+            <span data-lote>{LOTE_INICIAL.rotulo}</span>
+            <span data-preco>{LOTE_INICIAL.valor}</span>
+          </span>
+        </p>
+        <a class="ipa-barra__cta" href={HREF_COMPRA} data-checkout>Garantir ingresso</a>
+      </div>
+      <!-- Fio de progresso do lote, colado na base da barra. -->
+      <span class="ipa-barra__fio ipa-preco-bloco" aria-hidden="true">
+        <span class="ipa-barra__fio-cheio" data-progresso-fill></span>
+      </span>
+    </div>
+
+    <div class="ipa-encerrado" hidden>
+      <div class="container">
+        <p class="ipa-encerrado__texto">As vendas da Imersão Planejamento Atacado 2027 estão encerradas.</p>
+      </div>
+    </div>
+
+    <!-- 1. Topo ------------------------------------------------------------- -->
+    <header class="ipa-hero">
+      <div class="container ipa-hero__body">
+        <div class="ipa-hero__texto">
+          <span class="ipa-hero__selo">Sábado, 05/12 · 9h30 às 17h30 · online e ao vivo</span>
+          <h1 class="ipa-hero__titulo">{HEADLINE}</h1>
+          <p class="ipa-hero__sub">
+            Dia 05/12, ao vivo com o Felipe Santos, há mais de sete anos no atacado e mentor de
+            marcas que faturam de R$ 200 mil a sete dígitos por mês. Você traz os números de 2026 e
+            sai com a meta de cada mês de 2027: quantas revendedoras novas precisa trazer e quanto
+            a sua base precisa recomprar.
+          </p>
+          <p class="ipa-hero__frase">No atacado, a venda começa na reposição.</p>
+          <a class="btn-cta ipa-cta" href={HREF_COMPRA} data-checkout>
+            Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span>
+          </a>
+          <div class="ipa-progresso ipa-preco-bloco">
+            <div class="ipa-progresso__topo">
+              <span><strong data-lote>{LOTE_INICIAL.rotulo}</strong> · <span data-preco>{LOTE_INICIAL.valor}</span></span>
+              <span class="ipa-progresso__proximo" data-proximo-curto>Próximo lote: {PROXIMO_INICIAL}</span>
+            </div>
+            <div
+              class="ipa-progresso__trilho"
+              role="progressbar"
+              aria-label="Quanto do lote atual já passou"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+              data-progresso-barra
+            >
+              <span class="ipa-progresso__cheio" data-progresso-fill></span>
+            </div>
+            <p class="ipa-progresso__ate" data-ate-linha>
+              <span data-lote>{LOTE_INICIAL.rotulo}</span> vale até <span data-ate>{LOTE_INICIAL.ate}</span>
+            </p>
+          </div>
+        </div>
+        <div class="ipa-hero__visual">
+          <Image src={felipe} alt="Felipe Santos" class="ipa-hero__img" loading="eager" />
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- 2. Destaque ------------------------------------------------------- -->
+      <section class="ipa-destaque">
+        <div class="container">
+          <ul class="ipa-destaque__lista">
+            <li><strong>+7 anos</strong> no atacado</li>
+            <li><strong>+100 marcas</strong> de atacado mentoradas</li>
+            <li>marcas de <strong>R$ 200 mil a 7 dígitos</strong> por mês</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 3. Marcas que aplicam o método ------------------------------------ -->
+      <section class="section section--light ipa-marcas">
+        <div class="container">
+          <div class="section-head">
+            <h2 class="section-title">Marcas de atacado que aplicam o método do Felipe</h2>
+          </div>
+        </div>
+        <ul class="ipa-marcas__faixa">
+          {marcas.map((m) => (
+            <li class="ipa-marcas__item">
+              <a href={`https://www.instagram.com/${m.arroba}/`} target="_blank" rel="noopener" class="ipa-marcas__link">
+                <Image src={m.img} alt={`Foto de perfil de @${m.arroba}`} width={150} height={150} class="ipa-marcas__foto" loading="lazy" />
+                <span class="ipa-marcas__arroba">@{m.arroba}</span>
+                <span class="ipa-marcas__nicho">{m.nicho}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <!-- 4. O que você sai decidindo --------------------------------------- -->
+      <section class="section ipa-decisoes">
+        <div class="container">
+          <div class="section-head">
+            <h2 class="section-title">O que você sai decidindo</h2>
+          </div>
+          <ol class="ipa-decisoes__grid">
+            {decisoes.map((d, i) => (
+              <li class="ipa-decisoes__card">
+                <span class="ipa-decisoes__num">{String(i + 1).padStart(2, '0')}</span>
+                <h3 class="ipa-decisoes__titulo">{d.titulo}</h3>
+                <p class="ipa-decisoes__desc">{d.desc}</p>
+              </li>
+            ))}
+          </ol>
+          <p class="ipa-decisoes__fecho">Tudo preenchido na planilha do Planejamento 2027, com os números da sua marca.</p>
+          <div class="ipa-centro">
+            <a class="btn-cta ipa-cta" href={HREF_COMPRA} data-checkout>
+              Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. Identificação --------------------------------------------------- -->
+      <section class="section section--light ipa-sinais">
+        <div class="container ipa-sinais__inner">
+          <h2 class="section-title">Seu atacado vai repetir 2026 em 2027 se:</h2>
+          <ul class="ipa-sinais__lista">
+            {sinais.map((s) => (
+              <li>
+                <span class="ipa-sinais__marca" aria-hidden="true">✕</span>
+                {s}
+              </li>
+            ))}
+          </ul>
+          <p class="ipa-sinais__fecho">Se isso soa familiar, a Imersão é para você.</p>
+        </div>
+      </section>
+
+      <!-- 6. Quem conduz ------------------------------------------------------ -->
+      <section class="section ipa-felipe">
+        <div class="container ipa-felipe__grid">
+          <div>
+            <Image src={felipe} alt="Felipe Santos" class="ipa-felipe__img" loading="lazy" />
+          </div>
+          <div class="ipa-felipe__texto">
+            <span class="eyebrow">Quem conduz</span>
+            <h2 class="section-title">Felipe Santos</h2>
+            <p class="ipa-felipe__bio">
+              Há mais de sete anos no atacado. Mentor de marcas que faturam de R$ 200 mil a sete
+              dígitos por mês. Criador da Equação Exponencial: Entrada Previsível de novos
+              revendedores + Recompra Escalável de revendedores ativos.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. Como funciona o dia --------------------------------------------- -->
+      <section class="section section--light ipa-dia">
+        <div class="container">
+          <div class="section-head">
+            <h2 class="section-title">Como funciona o dia</h2>
+          </div>
+          <ol class="ipa-dia__linha">
+            {agenda.map((a) => (
+              <li class="ipa-dia__marco">
+                <span class="ipa-dia__hora">{a.hora}</span>
+                <span class="ipa-dia__o">{a.o}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <!-- 8. Preço ------------------------------------------------------------ -->
+      <section class="section ipa-oferta" id="ingresso">
+        <div class="container">
+          <div class="ipa-oferta__caixa">
+            <h2 class="ipa-oferta__titulo">Sábado, 05/12 | Online e ao vivo</h2>
+            <ul class="ipa-oferta__itens">
+              {ofertaItens.map((item) => (
+                <li>
+                  <span class="ipa-oferta__check" aria-hidden="true">✓</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <div class="ipa-oferta__precos ipa-preco-bloco">
+              <span class="ipa-oferta__de">De <s>{VALOR_CHEIO_IMERSAO}</s> por:</span>
+              <strong class="ipa-oferta__valor" data-preco>{LOTE_INICIAL.valor}</strong>
+              <span class="ipa-oferta__lote" data-lote>{LOTE_INICIAL.rotulo}</span>
+            </div>
+            <a class="btn-cta ipa-cta ipa-oferta__cta" href={HREF_COMPRA} data-checkout>
+              Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span>
+            </a>
+            <p class="ipa-oferta__proximo ipa-preco-bloco" data-proximo-frase>{TEXTO_PROXIMO_INICIAL}</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9. Depoimentos: mesma seção e mesmos vídeos da home ---------------- -->
+      <VideoTestimonials
+        title="O que acontece quando a marca descobre onde está o vazamento"
+        sub="Tem marca que chegou faturando dezenas de milhares por mês e hoje passa dos R$ 400 mil. Não foi rápido e não foi sorte. Foi arrumar a entrada e a recompra, nessa ordem."
+        videos={DEPOIMENTOS_HOME}
+      />
+
+      <!-- 10. Por que planejar agora? ----------------------------------------- -->
+      <section class="section ipa-agora">
+        <div class="container ipa-agora__inner">
+          <h2 class="section-title">Por que planejar agora?</h2>
+          <p class="section-sub">Todo ano é desafiador para o atacado, e todo ano pede um bom planejamento.</p>
+          <p class="section-sub">
+            Janeiro é um bom mês de vendas, mas precisa de movimento desde o primeiro dia. Por isso
+            o plano de 2027 se faz agora, em dezembro.
+          </p>
+        </div>
+      </section>
+
+      <!-- 11. Perguntas frequentes -------------------------------------------- -->
+      <Faq sub="" faqs={faqs} />
+    </main>
+
+    <!-- 12. Fechamento -------------------------------------------------------- -->
+    <section class="section ipa-fechamento">
+      <div class="container ipa-fechamento__inner">
+        <h2 class="ipa-fechamento__titulo">{HEADLINE}</h2>
+        <a class="btn-cta ipa-cta" href={HREF_COMPRA} data-checkout>
+          Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span>
+        </a>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .ipa {
+    --ipa-barra-h: 3.25rem;
+  }
+  :global(html) {
+    scroll-padding-top: 3.5rem;
+  }
+
+  /* O `.btn-cta` global nasce escuro (feito para seção bege). Nas seções
+     escuras desta página ele inverte para pílula clara, senão some no fundo.
+     Mesma correção da página da Black. */
+  .ipa .section:not(.section--light) .btn-cta {
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+  }
+  /* O botão carrega o lote num <span>: como inline-flex com gap, o span
+     virava coluna separada. Inline-block deixa o texto fluir. */
+  .ipa-cta {
+    display: inline-block;
+    line-height: 1.4;
+  }
+  .ipa-centro {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+  }
+
+  /* ---- Barra fixa ------------------------------------------------------- */
+  .ipa-barra {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: 50;
+    background: hsl(var(--background));
+    border-bottom: 1px solid hsl(var(--border));
+    min-height: var(--ipa-barra-h);
+    display: flex;
+    align-items: center;
+  }
+  .ipa-barra__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-block: 0.4rem;
+  }
+  .ipa-barra__logo {
+    flex: none;
+    height: 1.5rem;
+    width: auto;
+    filter: brightness(0) invert(1);
+  }
+  .ipa-barra__texto {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .ipa-barra__sep {
+    color: hsl(var(--muted-foreground));
+    margin-inline: 0.25rem;
+  }
+  .ipa-barra__lote {
+    color: hsl(var(--muted-foreground));
+  }
+  .ipa-barra__lote [data-preco] {
+    color: hsl(var(--foreground));
+    margin-inline-start: 0.25rem;
+  }
+  .ipa-barra__cta {
+    flex: none;
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.55rem 1.1rem;
+    border-radius: 9999px;
+    white-space: nowrap;
+    transition: opacity 0.2s ease;
+  }
+  .ipa-barra__cta:hover {
+    opacity: 0.85;
+  }
+  .ipa-barra__fio {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: -1px;
+    height: 3px;
+    background: transparent;
+  }
+  .ipa-barra__fio-cheio {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: #e8463b;
+    transition: width 0.6s ease;
+  }
+
+  /* ---- Vendas encerradas ------------------------------------------------- */
+  .ipa-encerrado {
+    padding: calc(var(--ipa-barra-h) + 1rem) 0 1rem;
+    background: hsl(var(--secondary));
+    text-align: center;
+  }
+  .ipa-encerrado__texto {
+    font-weight: 700;
+  }
+  .ipa[data-vendas='encerradas'] .ipa-encerrado[hidden] {
+    display: block;
+  }
+  .ipa[data-vendas='encerradas'] .ipa-preco-bloco,
+  .ipa[data-vendas='encerradas'] [data-checkout] {
+    display: none;
+  }
+
+  /* ---- 1. Topo ------------------------------------------------------------ */
+  .ipa-hero {
+    background: hsl(var(--light-bg));
+    color: hsl(var(--light-fg));
+    padding-top: var(--ipa-barra-h);
+  }
+  .ipa[data-vendas='encerradas'] .ipa-hero {
+    padding-top: 0;
+  }
+  .ipa-hero__body {
+    display: grid;
+    gap: 2.5rem;
+    padding-block: 2rem 4rem;
+    align-items: center;
+  }
+  .ipa-hero__texto {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.15rem;
+  }
+  .ipa-hero__selo {
+    display: inline-block;
+    border: 1px solid rgba(30, 30, 30, 0.15);
+    border-radius: 9999px;
+    padding: 0.5rem 1.1rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(30, 30, 30, 0.75);
+  }
+  .ipa-hero__titulo {
+    font-size: clamp(1.85rem, 3.6vw, 2.9rem);
+    line-height: 1.08;
+  }
+  .ipa-hero__sub {
+    color: rgba(30, 30, 30, 0.72);
+    max-width: 38rem;
+  }
+  .ipa-hero__frase {
+    font-weight: 700;
+    font-size: 1.05rem;
+    border-left: 3px solid #1e1e1e;
+    padding-left: 0.75rem;
+  }
+  .ipa-hero__img {
+    width: 100%;
+    height: auto;
+    border-radius: 1rem;
+    object-fit: cover;
+  }
+
+  /* ---- Barra de progresso do lote --------------------------------------- */
+  .ipa-progresso {
+    width: 100%;
+    max-width: 26rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .ipa-progresso__topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .ipa-progresso__proximo {
+    color: rgba(30, 30, 30, 0.6);
+  }
+  .ipa-progresso__trilho {
+    height: 8px;
+    border-radius: 9999px;
+    background: rgba(30, 30, 30, 0.12);
+    overflow: hidden;
+  }
+  /* Único vermelho da página: diz "o tempo do lote está andando". #c41d13 dá
+     contraste suficiente sobre o bege (mesmo tom da régua da Black). */
+  .ipa-progresso__cheio {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: #c41d13;
+    border-radius: inherit;
+    transition: width 0.6s ease;
+  }
+  .ipa-progresso__ate {
+    font-size: 0.75rem;
+    color: rgba(30, 30, 30, 0.6);
+  }
+
+  /* ---- 2. Destaque -------------------------------------------------------- */
+  .ipa-destaque {
+    padding-block: 2rem;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .ipa-destaque__lista {
+    list-style: none;
+    display: grid;
+    gap: 1rem;
+    text-align: center;
+    color: hsl(var(--muted-foreground));
+    font-size: 1rem;
+  }
+  .ipa-destaque__lista strong {
+    display: block;
+    color: hsl(var(--foreground));
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    line-height: 1.15;
+  }
+
+  /* ---- 3. Marcas ---------------------------------------------------------- */
+  /* Carrossel horizontal no celular (rola com o dedo), linha centralizada no
+     desktop. */
+  .ipa-marcas__faixa {
+    list-style: none;
+    margin-top: 2.5rem;
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 1.5rem;
+    padding: 0 1.5rem 1rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .ipa-marcas__item {
+    flex: 0 0 9.5rem;
+    scroll-snap-align: start;
+  }
+  .ipa-marcas__link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    text-align: center;
+    padding: 1.25rem 0.75rem;
+    border: 1px solid rgba(30, 30, 30, 0.1);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.55);
+    height: 100%;
+  }
+  .ipa-marcas__foto {
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 9999px;
+    object-fit: cover;
+    margin-bottom: 0.35rem;
+  }
+  .ipa-marcas__arroba {
+    font-weight: 700;
+    font-size: 0.82rem;
+    word-break: break-all;
+  }
+  .ipa-marcas__nicho {
+    font-size: 0.78rem;
+    color: rgba(30, 30, 30, 0.65);
+  }
+
+  /* ---- 4. Decisões -------------------------------------------------------- */
+  .ipa-decisoes__grid {
+    list-style: none;
+    margin-top: 2.5rem;
+    display: grid;
+    gap: 1rem;
+  }
+  .ipa-decisoes__card {
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: hsl(var(--card));
+  }
+  .ipa-decisoes__num {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: hsl(var(--muted-foreground));
+  }
+  .ipa-decisoes__titulo {
+    font-size: 1.2rem;
+  }
+  .ipa-decisoes__desc {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.95rem;
+  }
+  .ipa-decisoes__fecho {
+    margin-top: 2rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: clamp(1.05rem, 2.5vw, 1.25rem);
+  }
+
+  /* ---- 5. Identificação --------------------------------------------------- */
+  .ipa-sinais__inner {
+    max-width: 44rem;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+  .ipa-sinais__lista {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .ipa-sinais__lista li {
+    display: flex;
+    gap: 0.75rem;
+    color: rgba(30, 30, 30, 0.8);
+    font-size: 1.02rem;
+  }
+  .ipa-sinais__marca {
+    flex: none;
+    color: #c41d13;
+    font-weight: 700;
+  }
+  .ipa-sinais__fecho {
+    font-weight: 700;
+    font-size: clamp(1.15rem, 3vw, 1.45rem);
+  }
+
+  /* ---- 6. Felipe ------------------------------------------------------------ */
+  .ipa-felipe__grid {
+    display: grid;
+    gap: 2rem;
+    align-items: center;
+  }
+  .ipa-felipe__img {
+    width: 100%;
+    max-width: 22rem;
+    height: auto;
+    border-radius: 1rem;
+    object-fit: cover;
+  }
+  .ipa-felipe__texto {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    align-items: flex-start;
+  }
+  .ipa-felipe__bio {
+    color: hsl(var(--muted-foreground));
+    font-size: 1.05rem;
+    max-width: 36rem;
+  }
+
+  /* ---- 7. Como funciona o dia --------------------------------------------- */
+  .ipa-dia__linha {
+    list-style: none;
+    margin: 2.5rem auto 0;
+    max-width: 44rem;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  .ipa-dia__marco {
+    border: 1px solid rgba(30, 30, 30, 0.12);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.55);
+    padding: 1.25rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    text-align: center;
+  }
+  .ipa-dia__hora {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .ipa-dia__o {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(30, 30, 30, 0.65);
+  }
+
+  /* ---- 8. Preço --------------------------------------------------------------- */
+  .ipa-oferta__caixa {
+    max-width: 34rem;
+    margin-inline: auto;
+    border: 2px solid hsl(var(--foreground));
+    border-radius: 1rem;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .ipa-oferta__titulo {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .ipa-oferta__itens {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    text-align: left;
+    width: 100%;
+    max-width: 26rem;
+  }
+  .ipa-oferta__itens li {
+    display: flex;
+    gap: 0.6rem;
+    font-size: 0.95rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .ipa-oferta__check {
+    flex: none;
+    color: #4ade80;
+    font-weight: 700;
+  }
+  .ipa-oferta__precos {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .ipa-oferta__de {
+    font-size: 0.95rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .ipa-oferta__valor {
+    font-size: clamp(2.75rem, 9vw, 3.75rem);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .ipa-oferta__lote {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: hsl(var(--muted-foreground));
+  }
+  .ipa-oferta__proximo {
+    font-size: 0.8rem;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* ---- 10. Por que agora -------------------------------------------------- */
+  .ipa-agora__inner {
+    max-width: 40rem;
+    margin-inline: auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ---- 12. Fechamento ------------------------------------------------------ */
+  .ipa-fechamento__inner {
+    max-width: 44rem;
+    margin-inline: auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.75rem;
+  }
+  .ipa-fechamento__titulo {
+    font-size: clamp(1.6rem, 4vw, 2.5rem);
+    line-height: 1.12;
+  }
+
+  /* ---- Responsivo ---------------------------------------------------------- */
+  @media (max-width: 480px) {
+    .ipa-barra__evento,
+    .ipa-barra__evento + .ipa-barra__sep {
+      display: none;
+    }
+    .ipa-barra__texto {
+      font-size: 0.62rem;
+    }
+    .ipa-barra__logo {
+      height: 1.2rem;
+    }
+    .ipa-barra__inner {
+      gap: 0.5rem;
+    }
+    .ipa-barra__cta {
+      font-size: 0.6rem;
+      padding: 0.5rem 0.85rem;
+    }
+    /* No celular a barra só tem espaço para data e preço além do botão: o
+       rótulo "Lote 01" sai (ele aparece logo abaixo, na barra de progresso). */
+    .ipa-barra__lote [data-lote] {
+      display: none;
+    }
+    .ipa-barra__lote [data-preco] {
+      margin-inline-start: 0;
+    }
+    .ipa-cta {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      padding-inline: 1.5rem;
+    }
+  }
+  @media (max-width: 359px) {
+    .ipa-barra__texto .ipa-barra__lote,
+    .ipa-barra__texto .ipa-barra__sep {
+      display: none;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .ipa-destaque__lista {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .ipa-decisoes__grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .ipa-dia__linha {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .ipa-marcas__faixa {
+      justify-content: center;
+      overflow-x: visible;
+      flex-wrap: wrap;
+    }
+    .ipa-marcas__item {
+      flex-basis: 11rem;
+    }
+  }
+
+  @media (min-width: 880px) {
+    .ipa-hero__body {
+      grid-template-columns: 1.45fr 1fr;
+      padding-block: 2rem 3.5rem;
+      gap: 3rem;
+    }
+    .ipa-felipe__grid {
+      grid-template-columns: 20rem 1fr;
+      gap: 3rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ipa-barra__cta,
+    .ipa-barra__fio-cheio,
+    .ipa-progresso__cheio {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  // Lote vigente, barra de progresso e estado das vendas.
+  //
+  // Roda no navegador porque a página é estática. A hora vem do servidor
+  // (/api/hora), como na Black: pinta primeiro com o relógio do aparelho e
+  // corrige quando a resposta chega. Se a rede falhar, segue o aparelho.
+  import { LOTES_IMERSAO } from '../data/lotes-imersao.js';
+  import { loteVigente, textoProximo, fracaoDecorrida } from '../data/lotes-workshop.js';
+  import { ligarCheckout } from '../scripts/checkout-venda';
+
+  const wrapper = document.querySelector('.ipa') as HTMLElement | null;
+
+  try {
+    let desvioMs = 0;
+    const agora = () => Date.now() + desvioMs;
+    const todos = (sel: string) => Array.from(document.querySelectorAll(sel)) as HTMLElement[];
+
+    function aplicar(estado: ReturnType<typeof loteVigente>) {
+      if (estado.estado === 'encerrado') {
+        if (wrapper) wrapper.dataset.vendas = 'encerradas';
+        const aviso = document.querySelector('.ipa-encerrado') as HTMLElement | null;
+        if (aviso) aviso.hidden = false;
+        return;
+      }
+      const rotulo = estado.rotulo as string;
+      const lote = LOTES_IMERSAO[estado.indice as number];
+
+      todos('[data-lote]').forEach((el) => (el.textContent = rotulo));
+      todos('[data-preco]').forEach((el) => (el.textContent = estado.valor as string));
+      todos('[data-lote-botao]').forEach((el) => (el.textContent = rotulo.toLowerCase()));
+      todos('[data-ate]').forEach((el) => (el.textContent = lote.ate));
+
+      // Último lote: nunca anuncia um preço que não existe. Diz que as
+      // vendas encerram no início do evento.
+      const curto = estado.proximoValor
+        ? `Próximo lote: ${estado.proximoValor}`
+        : 'Último lote';
+      todos('[data-proximo-curto]').forEach((el) => (el.textContent = curto));
+
+      const frase = textoProximo(estado.proximoValor, rotulo) ??
+        'Último lote. As vendas encerram no início do evento, 05/12 às 9h30.';
+      todos('[data-proximo-frase]').forEach((el) => (el.textContent = frase));
+
+      todos('[data-ate-linha]').forEach((el) => {
+        if (estado.ultimo) el.textContent = 'Vendas encerram no início do evento, 05/12 às 9h30';
+      });
+    }
+
+    function pintarProgresso(estado: ReturnType<typeof loteVigente>) {
+      if (estado.estado !== 'aberto') return;
+      const pct = Math.round(
+        fracaoDecorrida(estado.inicioMs as number, estado.fimMs as number, agora()) * 1000,
+      ) / 10;
+      todos('[data-progresso-fill]').forEach((el) => (el.style.width = `${pct}%`));
+      todos('[data-progresso-barra]').forEach((el) =>
+        el.setAttribute('aria-valuenow', String(Math.round(pct))),
+      );
+    }
+
+    let pintado: string | null = LOTES_IMERSAO[0].rotulo;
+    let timer = 0;
+
+    function tique() {
+      const estado = loteVigente(agora(), LOTES_IMERSAO);
+      const chave = estado.estado === 'aberto' ? (estado.rotulo as string) : 'encerrado';
+      if (chave !== pintado) {
+        pintado = chave;
+        aplicar(estado);
+      }
+      pintarProgresso(estado);
+      if (estado.estado === 'encerrado' && timer) {
+        window.clearInterval(timer);
+        timer = 0;
+      }
+    }
+
+    async function sincronizarHora() {
+      try {
+        const r = await fetch('/api/hora', { cache: 'no-store' });
+        if (!r.ok) return;
+        const dados = (await r.json()) as { agora?: unknown };
+        if (typeof dados.agora !== 'number' || !Number.isFinite(dados.agora)) return;
+        desvioMs = dados.agora - Date.now();
+      } catch (e) {
+        /* fica no relógio do aparelho */
+      }
+    }
+
+    tique();
+    sincronizarHora().then(tique);
+    // A barra anda devagar (lotes de 3 a 7 dias): um tique por minuto basta e
+    // ainda vira o lote com a aba aberta.
+    timer = window.setInterval(tique, 60_000);
+  } catch (e) {
+    /* o HTML inicial (lote 01) já é legível e vendável */
+  }
+
+  if (wrapper) ligarCheckout(wrapper);
+</script>
