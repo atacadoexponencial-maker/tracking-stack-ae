@@ -1,22 +1,32 @@
 ---
 // Página de ingresso da Imersão Planejamento Atacado 2027 (evento de 05/12).
+//
 // Copy: "Imersão Planejamento Atacado 2027 - proposta de copy da página.md",
-// aprovada pela usuária em 09/11. Base técnica: /workshop-black-exponencial-2026
-// (lotes por data, botão de compra com `sf_trk` da Greenn).
+// aprovada pela usuária em 09/11.
+// Layout: referência https://workshop.orbyka.com/sprintlp (foto grande no topo,
+// faixa de cards de mentorados, bloco de preço em cor chapada, faixa de
+// depoimentos em cor). Cores e fonte: as do site (carvão, bege, cinza quente,
+// Satoshi). Onde a referência usa vermelho chapado, aqui entra o bege.
+// Decisão da usuária em 09/11, depois da primeira versão (parecida demais com a
+// página da Black, que converteu mal).
+//
+// Base técnica: /workshop-black-exponencial-2026 (lotes por data, botão de
+// compra com `sf_trk` da Greenn).
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Faq from '../components/sections/Faq.astro';
 import VideoTestimonials from '../components/sections/VideoTestimonials.astro';
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo.png';
-import felipe from '../assets/brand/felipe.webp';
+import fotoQuadro from '../assets/imersao/felipe-quadro.jpg';
+import fotoNotebook from '../assets/imersao/felipe-notebook.jpg';
+import fotoMesa from '../assets/imersao/felipe-mesa.jpg';
 import { LOTES_IMERSAO, VALOR_CHEIO_IMERSAO } from '../data/lotes-imersao.js';
 import { textoProximo } from '../data/lotes-workshop.js';
 import { DEPOIMENTOS_HOME } from '../data/depoimentos.js';
-import diamandi from '../assets/marcas-imersao/diamandijoias.jpg';
-import lazarf from '../assets/marcas-imersao/lazarf.jpg';
-import upSemijoia from '../assets/marcas-imersao/upsemijoia.jpg';
-import valentt from '../assets/marcas-imersao/valentt.jpg';
-import willinha from '../assets/marcas-imersao/willinha.jpg';
+import igDiamandi from '../assets/marcas-imersao/ig-diamandi.jpg';
+import igLazarf from '../assets/marcas-imersao/ig-lazarf.jpg';
+import igUp from '../assets/marcas-imersao/ig-upsemijoia.jpg';
+import igValentt from '../assets/marcas-imersao/ig-valentt.jpg';
+import igWillinha from '../assets/marcas-imersao/ig-willinha.jpg';
 
 // ---------------------------------------------------------------------------
 // Destino de compra: PONTO ÚNICO de configuração.
@@ -41,12 +51,13 @@ const PROXIMO_INICIAL = LOTES_IMERSAO[1].valor;
 const TEXTO_PROXIMO_INICIAL = textoProximo(PROXIMO_INICIAL, LOTE_INICIAL.rotulo);
 const LOTE_BOTAO_INICIAL = LOTE_INICIAL.rotulo.toLowerCase();
 
+// Prints do perfil no Instagram (capturados em 09/11). Nicho lido na bio.
 const marcas = [
-  { img: diamandi, arroba: 'diamandijoias', nicho: 'prata 925 e semijoias' },
-  { img: lazarf, arroba: 'lazarf_', nicho: 'moda fitness' },
-  { img: upSemijoia, arroba: 'up_semijoia', nicho: 'semijoias' },
-  { img: valentt, arroba: 'valenttmodaa', nicho: 'vestuário' },
-  { img: willinha, arroba: 'barracadowillinha', nicho: 'moda feminina' },
+  { img: igDiamandi, arroba: 'diamandijoias', nicho: 'prata 925 e semijoias' },
+  { img: igLazarf, arroba: 'lazarf_', nicho: 'moda fitness' },
+  { img: igUp, arroba: 'up_semijoia', nicho: 'semijoias' },
+  { img: igValentt, arroba: 'valenttmodaa', nicho: 'vestuário' },
+  { img: igWillinha, arroba: 'barracadowillinha', nicho: 'moda feminina' },
 ];
 
 const decisoes = [
@@ -110,142 +121,138 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
   showHeader={false}
 >
   <div class="ipa" data-vendas="abertas" data-checkout-param={CHECKOUT_PARAM}>
-    <!-- Barra fixa: logo, data, lote vigente e botão. -->
-    <div class="ipa-barra">
-      <div class="container ipa-barra__inner">
-        <Image src={logo} alt="Atacado Exponencial" height={72} class="ipa-barra__logo" />
-        <p class="ipa-barra__texto">
-          <span class="ipa-barra__evento">Imersão 2027</span>
-          <span class="ipa-barra__sep" aria-hidden="true">·</span>
-          <span>05/12</span>
-          <span class="ipa-barra__sep ipa-preco-bloco" aria-hidden="true">·</span>
-          <span class="ipa-barra__lote ipa-preco-bloco">
-            <span data-lote>{LOTE_INICIAL.rotulo}</span>
-            <span data-preco>{LOTE_INICIAL.valor}</span>
-          </span>
-        </p>
-        <a class="ipa-barra__cta" href={HREF_COMPRA} data-checkout>Garantir ingresso</a>
-      </div>
-      <!-- Fio de progresso do lote, colado na base da barra. -->
-      <span class="ipa-barra__fio ipa-preco-bloco" aria-hidden="true">
-        <span class="ipa-barra__fio-cheio" data-progresso-fill></span>
-      </span>
-    </div>
-
     <div class="ipa-encerrado" hidden>
-      <div class="container">
-        <p class="ipa-encerrado__texto">As vendas da Imersão Planejamento Atacado 2027 estão encerradas.</p>
-      </div>
+      <p>As vendas da Imersão Planejamento Atacado 2027 estão encerradas.</p>
     </div>
 
     <!-- 1. Topo ------------------------------------------------------------- -->
     <header class="ipa-hero">
-      <div class="container ipa-hero__body">
-        <div class="ipa-hero__texto">
-          <span class="ipa-hero__selo">Sábado, 05/12 · 9h30 às 17h30 · online e ao vivo</span>
-          <h1 class="ipa-hero__titulo">{HEADLINE}</h1>
-          <p class="ipa-hero__sub">
-            Dia 05/12, ao vivo com o Felipe Santos, há mais de sete anos no atacado e mentor de
-            marcas que faturam de R$ 200 mil a sete dígitos por mês. Você traz os números de 2026 e
-            sai com a meta de cada mês de 2027: quantas revendedoras novas precisa trazer e quanto
-            a sua base precisa recomprar.
-          </p>
-          <p class="ipa-hero__frase">No atacado, a venda começa na reposição.</p>
-          <a class="btn-cta ipa-cta" href={HREF_COMPRA} data-checkout>
-            Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span>
-          </a>
-          <div class="ipa-progresso ipa-preco-bloco">
-            <div class="ipa-progresso__topo">
-              <span><strong data-lote>{LOTE_INICIAL.rotulo}</strong> · <span data-preco>{LOTE_INICIAL.valor}</span></span>
-              <span class="ipa-progresso__proximo" data-proximo-curto>Próximo lote: {PROXIMO_INICIAL}</span>
-            </div>
-            <div
-              class="ipa-progresso__trilho"
-              role="progressbar"
-              aria-label="Quanto do lote atual já passou"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              aria-valuenow="0"
-              data-progresso-barra
-            >
-              <span class="ipa-progresso__cheio" data-progresso-fill></span>
-            </div>
-            <p class="ipa-progresso__ate" data-ate-linha>
-              <span data-lote>{LOTE_INICIAL.rotulo}</span> vale até <span data-ate>{LOTE_INICIAL.ate}</span>
-            </p>
+      <Image
+        src={fotoQuadro}
+        alt="Felipe Santos escrevendo Entrada Previsível no quadro"
+        class="ipa-hero__foto"
+        widths={[640, 960, 1400, 1800]}
+        sizes="(min-width: 880px) 60vw, 100vw"
+        loading="eager"
+        fetchpriority="high"
+      />
+      <div class="ipa-hero__veu" aria-hidden="true"></div>
+
+      <div class="ipa-topo">
+        <Image src={logo} alt="Atacado Exponencial" height={72} class="ipa-topo__logo" />
+        <p class="ipa-topo__data">
+          <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /></svg>
+          <span><span class="ipa-topo__dia">Sábado, </span>05/12</span><span class="ipa-topo__sep" aria-hidden="true">|</span><span>9h30 às 17h30</span><span class="ipa-topo__extra"><span class="ipa-topo__sep" aria-hidden="true">|</span>online e ao vivo</span>
+        </p>
+      </div>
+
+      <div class="ipa-hero__corpo">
+        <h1 class="ipa-hero__titulo">{HEADLINE}</h1>
+        <p class="ipa-hero__sub">
+          Dia 05/12, ao vivo com o Felipe Santos, há mais de sete anos no atacado e mentor de marcas
+          que faturam de R$&nbsp;200&nbsp;mil a sete dígitos por mês. Você traz os números de 2026 e sai com a
+          meta de cada mês de 2027: quantas revendedoras novas precisa trazer e quanto a sua base
+          precisa recomprar.
+        </p>
+        <p class="ipa-hero__frase">No atacado, a venda começa na reposição.</p>
+        <a class="ipa-botao" href={HREF_COMPRA} data-checkout>
+          <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+          <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
+        </a>
+        <div class="ipa-progresso ipa-preco-bloco">
+          <div
+            class="ipa-progresso__trilho"
+            role="progressbar"
+            aria-label="Quanto do lote atual já passou"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            data-progresso-barra
+          >
+            <span class="ipa-progresso__cheio" data-progresso-fill></span>
           </div>
-        </div>
-        <div class="ipa-hero__visual">
-          <Image src={felipe} alt="Felipe Santos" class="ipa-hero__img" loading="eager" />
+          <p class="ipa-progresso__texto">
+            <strong data-lote>{LOTE_INICIAL.rotulo}</strong> de <s>{VALOR_CHEIO_IMERSAO}</s> por
+            <strong data-preco>{LOTE_INICIAL.valor}</strong>
+            <span class="ipa-progresso__prazo" data-ate-linha>· vale até <span data-ate>{LOTE_INICIAL.ate}</span></span>
+            <span class="ipa-progresso__prox" data-proximo-curto>· próximo lote: {PROXIMO_INICIAL}</span>
+          </p>
         </div>
       </div>
+
+      <!-- 2. Destaque, colado na base do topo -->
+      <ul class="ipa-destaque">
+        <li><strong>+7 anos</strong> no atacado</li>
+        <li><strong>+100 marcas</strong> de atacado mentoradas</li>
+        <li>marcas de <strong>R$&nbsp;200&nbsp;mil a 7&nbsp;dígitos</strong> por mês</li>
+      </ul>
     </header>
 
     <main>
-      <!-- 2. Destaque ------------------------------------------------------- -->
-      <section class="ipa-destaque">
-        <div class="container">
-          <ul class="ipa-destaque__lista">
-            <li><strong>+7 anos</strong> no atacado</li>
-            <li><strong>+100 marcas</strong> de atacado mentoradas</li>
-            <li>marcas de <strong>R$ 200 mil a 7 dígitos</strong> por mês</li>
-          </ul>
-        </div>
-      </section>
-
       <!-- 3. Marcas que aplicam o método ------------------------------------ -->
-      <section class="section section--light ipa-marcas">
-        <div class="container">
-          <div class="section-head">
-            <h2 class="section-title">Marcas de atacado que aplicam o método do Felipe</h2>
-          </div>
-        </div>
+      <section class="ipa-marcas" aria-labelledby="ipa-marcas-titulo">
         <ul class="ipa-marcas__faixa">
           {marcas.map((m) => (
-            <li class="ipa-marcas__item">
-              <a href={`https://www.instagram.com/${m.arroba}/`} target="_blank" rel="noopener" class="ipa-marcas__link">
-                <Image src={m.img} alt={`Foto de perfil de @${m.arroba}`} width={150} height={150} class="ipa-marcas__foto" loading="lazy" />
-                <span class="ipa-marcas__arroba">@{m.arroba}</span>
-                <span class="ipa-marcas__nicho">{m.nicho}</span>
+            <li class="ipa-marca">
+              <a href={`https://www.instagram.com/${m.arroba}/`} target="_blank" rel="noopener" class="ipa-marca__link">
+                <Image
+                  src={m.img}
+                  alt={`Perfil @${m.arroba} no Instagram`}
+                  widths={[320, 422]}
+                  sizes="17rem"
+                  class="ipa-marca__print"
+                  loading="lazy"
+                />
+                <span class="ipa-marca__legenda">
+                  <span class="ipa-marca__nicho">{m.nicho}</span>
+                  <span class="ipa-marca__arroba">@{m.arroba}</span>
+                </span>
               </a>
             </li>
           ))}
         </ul>
+        <h2 class="ipa-marcas__titulo" id="ipa-marcas-titulo">
+          Marcas de atacado que aplicam o método do Felipe
+        </h2>
       </section>
 
       <!-- 4. O que você sai decidindo --------------------------------------- -->
-      <section class="section ipa-decisoes">
-        <div class="container">
-          <div class="section-head">
-            <h2 class="section-title">O que você sai decidindo</h2>
-          </div>
-          <ol class="ipa-decisoes__grid">
-            {decisoes.map((d, i) => (
-              <li class="ipa-decisoes__card">
-                <span class="ipa-decisoes__num">{String(i + 1).padStart(2, '0')}</span>
-                <h3 class="ipa-decisoes__titulo">{d.titulo}</h3>
-                <p class="ipa-decisoes__desc">{d.desc}</p>
-              </li>
+      <section class="ipa-claro ipa-decisoes">
+        <div class="ipa-decisoes__foto">
+          <Image
+            src={fotoNotebook}
+            alt="Felipe Santos trabalhando no notebook"
+            widths={[480, 800, 1100]}
+            sizes="(min-width: 880px) 38vw, 100vw"
+            loading="lazy"
+          />
+        </div>
+        <div class="ipa-decisoes__texto">
+          <h2 class="ipa-h2">O que você sai decidindo</h2>
+          <dl class="ipa-decisoes__lista">
+            {decisoes.map((d) => (
+              <div class="ipa-decisoes__linha">
+                <dt>{d.titulo}</dt>
+                <dd>{d.desc}</dd>
+              </div>
             ))}
-          </ol>
+          </dl>
           <p class="ipa-decisoes__fecho">Tudo preenchido na planilha do Planejamento 2027, com os números da sua marca.</p>
-          <div class="ipa-centro">
-            <a class="btn-cta ipa-cta" href={HREF_COMPRA} data-checkout>
-              Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span>
-            </a>
-          </div>
+          <a class="ipa-botao ipa-botao--escuro" href={HREF_COMPRA} data-checkout>
+            <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+          </a>
         </div>
       </section>
 
       <!-- 5. Identificação --------------------------------------------------- -->
-      <section class="section section--light ipa-sinais">
-        <div class="container ipa-sinais__inner">
-          <h2 class="section-title">Seu atacado vai repetir 2026 em 2027 se:</h2>
+      <section class="ipa-claro ipa-sinais">
+        <div class="ipa-largura ipa-sinais__grade">
+          <h2 class="ipa-h2 ipa-sinais__titulo">Seu atacado vai repetir 2026 em 2027 se:</h2>
           <ul class="ipa-sinais__lista">
             {sinais.map((s) => (
               <li>
-                <span class="ipa-sinais__marca" aria-hidden="true">✕</span>
-                {s}
+                <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="m9 9 6 6M15 9l-6 6" /></svg>
+                <span>{s}</span>
               </li>
             ))}
           </ul>
@@ -254,95 +261,132 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
       </section>
 
       <!-- 6. Quem conduz ------------------------------------------------------ -->
-      <section class="section ipa-felipe">
-        <div class="container ipa-felipe__grid">
-          <div>
-            <Image src={felipe} alt="Felipe Santos" class="ipa-felipe__img" loading="lazy" />
-          </div>
+      <section class="ipa-felipe">
+        <div class="ipa-largura ipa-felipe__grade">
           <div class="ipa-felipe__texto">
-            <span class="eyebrow">Quem conduz</span>
-            <h2 class="section-title">Felipe Santos</h2>
+            <h2 class="ipa-felipe__nome">Felipe Santos</h2>
             <p class="ipa-felipe__bio">
-              Há mais de sete anos no atacado. Mentor de marcas que faturam de R$ 200 mil a sete
+              Há mais de sete anos no atacado. Mentor de marcas que faturam de R$&nbsp;200&nbsp;mil a sete
               dígitos por mês. Criador da Equação Exponencial: Entrada Previsível de novos
               revendedores + Recompra Escalável de revendedores ativos.
             </p>
+          </div>
+          <div class="ipa-felipe__foto">
+            <Image
+              src={fotoMesa}
+              alt="Felipe Santos no escritório"
+              widths={[480, 800, 1100]}
+              sizes="(min-width: 880px) 40vw, 100vw"
+              loading="lazy"
+            />
           </div>
         </div>
       </section>
 
       <!-- 7. Como funciona o dia --------------------------------------------- -->
-      <section class="section section--light ipa-dia">
-        <div class="container">
-          <div class="section-head">
-            <h2 class="section-title">Como funciona o dia</h2>
+      <section class="ipa-dia">
+        <div class="ipa-largura ipa-dia__grade">
+          <div class="ipa-dia__cabeca">
+            <p class="ipa-pilula">
+              <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /></svg>
+              Sábado, 05/12 | 9h30 às 17h30
+            </p>
+            <h2 class="ipa-h2">Como funciona o dia</h2>
           </div>
-          <ol class="ipa-dia__linha">
-            {agenda.map((a) => (
-              <li class="ipa-dia__marco">
-                <span class="ipa-dia__hora">{a.hora}</span>
-                <span class="ipa-dia__o">{a.o}</span>
-              </li>
-            ))}
-          </ol>
+          <div class="ipa-dia__cartao">
+            <ol class="ipa-dia__lista">
+              {agenda.map((a) => (
+                <li>
+                  <span class="ipa-dia__hora">
+                    <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5" /><path d="M12 9.5V13l2.5 1.5M9.5 3h5" /></svg>
+                    {a.hora}
+                  </span>
+                  <span class="ipa-dia__o">{a.o}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
       </section>
 
       <!-- 8. Preço ------------------------------------------------------------ -->
-      <section class="section ipa-oferta" id="ingresso">
-        <div class="container">
-          <div class="ipa-oferta__caixa">
-            <h2 class="ipa-oferta__titulo">Sábado, 05/12 | Online e ao vivo</h2>
-            <ul class="ipa-oferta__itens">
-              {ofertaItens.map((item) => (
-                <li>
-                  <span class="ipa-oferta__check" aria-hidden="true">✓</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <div class="ipa-oferta__precos ipa-preco-bloco">
-              <span class="ipa-oferta__de">De <s>{VALOR_CHEIO_IMERSAO}</s> por:</span>
-              <strong class="ipa-oferta__valor" data-preco>{LOTE_INICIAL.valor}</strong>
-              <span class="ipa-oferta__lote" data-lote>{LOTE_INICIAL.rotulo}</span>
+      <section class="ipa-oferta" id="ingresso">
+        <div class="ipa-oferta__cartao">
+          <h2 class="ipa-oferta__titulo">Imersão Planejamento Atacado 2027</h2>
+          <p class="ipa-oferta__data">Sábado, 05/12 | Online e ao vivo</p>
+          <ul class="ipa-oferta__itens">
+            {ofertaItens.map((item) => (
+              <li>
+                <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          <div class="ipa-oferta__precos ipa-preco-bloco">
+            <span class="ipa-oferta__de">De <s>{VALOR_CHEIO_IMERSAO}</s> por:</span>
+            <strong class="ipa-oferta__valor" data-preco>{LOTE_INICIAL.valor}</strong>
+          </div>
+          <a class="ipa-botao ipa-botao--escuro ipa-oferta__botao" href={HREF_COMPRA} data-checkout>
+            <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+          </a>
+          <div class="ipa-progresso ipa-progresso--claro ipa-preco-bloco">
+            <div class="ipa-progresso__trilho" aria-hidden="true">
+              <span class="ipa-progresso__cheio" data-progresso-fill></span>
             </div>
-            <a class="btn-cta ipa-cta ipa-oferta__cta" href={HREF_COMPRA} data-checkout>
-              Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span>
-            </a>
-            <p class="ipa-oferta__proximo ipa-preco-bloco" data-proximo-frase>{TEXTO_PROXIMO_INICIAL}</p>
+            <p class="ipa-progresso__texto" data-proximo-frase>{TEXTO_PROXIMO_INICIAL}</p>
           </div>
         </div>
       </section>
 
-      <!-- 9. Depoimentos: mesma seção e mesmos vídeos da home ---------------- -->
-      <VideoTestimonials
-        title="O que acontece quando a marca descobre onde está o vazamento"
-        sub="Tem marca que chegou faturando dezenas de milhares por mês e hoje passa dos R$ 400 mil. Não foi rápido e não foi sorte. Foi arrumar a entrada e a recompra, nessa ordem."
-        videos={DEPOIMENTOS_HOME}
-      />
+      <!-- 9. Depoimentos: mesma seção e mesmos vídeos da home, em faixa bege -->
+      <div class="ipa-depoimentos">
+        <VideoTestimonials
+          title="O que acontece quando a marca descobre onde está o vazamento"
+          sub="Tem marca que chegou faturando dezenas de milhares por mês e hoje passa dos R$ 400 mil. Não foi rápido e não foi sorte. Foi arrumar a entrada e a recompra, nessa ordem."
+          videos={DEPOIMENTOS_HOME}
+        />
+      </div>
 
       <!-- 10. Por que planejar agora? ----------------------------------------- -->
-      <section class="section ipa-agora">
-        <div class="container ipa-agora__inner">
-          <h2 class="section-title">Por que planejar agora?</h2>
-          <p class="section-sub">Todo ano é desafiador para o atacado, e todo ano pede um bom planejamento.</p>
-          <p class="section-sub">
-            Janeiro é um bom mês de vendas, mas precisa de movimento desde o primeiro dia. Por isso
-            o plano de 2027 se faz agora, em dezembro.
-          </p>
+      <section class="ipa-agora">
+        <div class="ipa-largura ipa-agora__grade">
+          <h2 class="ipa-h2 ipa-agora__titulo">Por que planejar agora?</h2>
+          <div class="ipa-agora__texto">
+            <p>Todo ano é desafiador para o atacado, e todo ano pede um bom planejamento.</p>
+            <p>
+              Janeiro é um bom mês de vendas, mas precisa de movimento desde o primeiro dia. Por isso
+              o plano de 2027 se faz agora, em dezembro.
+            </p>
+          </div>
         </div>
       </section>
 
       <!-- 11. Perguntas frequentes -------------------------------------------- -->
-      <Faq sub="" faqs={faqs} />
+      <section class="ipa-faq">
+        <div class="ipa-largura ipa-faq__grade">
+          <h2 class="ipa-h2">Perguntas frequentes</h2>
+          <div class="ipa-faq__lista">
+            {faqs.map((f) => (
+              <details class="ipa-faq__item">
+                <summary>
+                  <span>{f.q}</span>
+                  <svg class="ipa-icone ipa-faq__sinal" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" /></svg>
+                </summary>
+                <p>{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- 12. Fechamento -------------------------------------------------------- -->
-    <section class="section ipa-fechamento">
-      <div class="container ipa-fechamento__inner">
+    <section class="ipa-fechamento">
+      <div class="ipa-largura ipa-fechamento__corpo">
         <h2 class="ipa-fechamento__titulo">{HEADLINE}</h2>
-        <a class="btn-cta ipa-cta" href={HREF_COMPRA} data-checkout>
-          Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span>
+        <a class="ipa-botao" href={HREF_COMPRA} data-checkout>
+          <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+          <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
         </a>
       </div>
     </section>
@@ -350,118 +394,93 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
 </BaseLayout>
 
 <style>
+  /* Paleta: só as cores do site (src/styles/global.css). */
   .ipa {
-    --ipa-barra-h: 3.25rem;
+    --carvao: #1e1e1e;
+    --fundo: #171717;
+    --cinza: #393536;
+    --bege: #f5f0eb;
+    --bege-tinta: rgba(30, 30, 30, 0.72);
+    --branco-2: rgba(255, 255, 255, 0.68);
+    --fio: rgba(255, 255, 255, 0.12);
+    --gutter: clamp(1rem, 4vw, 2.5rem);
+    background: var(--fundo);
+    color: #fff;
+    overflow-x: clip;
   }
-  :global(html) {
-    scroll-padding-top: 3.5rem;
+  .ipa ::selection {
+    background: var(--bege);
+    color: var(--carvao);
   }
-
-  /* O `.btn-cta` global nasce escuro (feito para seção bege). Nas seções
-     escuras desta página ele inverte para pílula clara, senão some no fundo.
-     Mesma correção da página da Black. */
-  .ipa .section:not(.section--light) .btn-cta {
-    background: hsl(var(--foreground));
-    color: hsl(var(--background));
+  .ipa-largura {
+    width: 100%;
+    max-width: 76rem;
+    margin-inline: auto;
+    padding-inline: var(--gutter);
   }
-  /* O botão carrega o lote num <span>: como inline-flex com gap, o span
-     virava coluna separada. Inline-block deixa o texto fluir. */
-  .ipa-cta {
-    display: inline-block;
-    line-height: 1.4;
-  }
-  .ipa-centro {
-    display: flex;
-    justify-content: center;
-    margin-top: 2rem;
-  }
-
-  /* ---- Barra fixa ------------------------------------------------------- */
-  .ipa-barra {
-    position: fixed;
-    inset-block-start: 0;
-    inset-inline: 0;
-    z-index: 50;
-    background: hsl(var(--background));
-    border-bottom: 1px solid hsl(var(--border));
-    min-height: var(--ipa-barra-h);
-    display: flex;
-    align-items: center;
-  }
-  .ipa-barra__inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding-block: 0.4rem;
-  }
-  .ipa-barra__logo {
+  .ipa-icone {
+    width: 1.15em;
+    height: 1.15em;
     flex: none;
-    height: 1.5rem;
-    width: auto;
-    filter: brightness(0) invert(1);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
-  .ipa-barra__texto {
-    font-size: 0.7rem;
-    font-weight: 700;
+  .ipa-h2 {
+    font-size: clamp(1.9rem, 4.4vw, 3.4rem);
+    line-height: 0.98;
+    letter-spacing: -0.03em;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    line-height: 1.3;
-    white-space: nowrap;
+    text-wrap: balance;
   }
-  .ipa-barra__sep {
-    color: hsl(var(--muted-foreground));
-    margin-inline: 0.25rem;
-  }
-  .ipa-barra__lote {
-    color: hsl(var(--muted-foreground));
-  }
-  .ipa-barra__lote [data-preco] {
-    color: hsl(var(--foreground));
-    margin-inline-start: 0.25rem;
-  }
-  .ipa-barra__cta {
-    flex: none;
-    background: hsl(var(--foreground));
-    color: hsl(var(--background));
-    font-size: 0.65rem;
+
+  /* ---- Botão: retângulo chapado, como na referência ------------------------ */
+  .ipa-botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: var(--bege);
+    color: var(--carvao);
     font-weight: 700;
+    font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    padding: 0.55rem 1.1rem;
-    border-radius: 9999px;
-    white-space: nowrap;
-    transition: opacity 0.2s ease;
+    padding: 1.15rem 1.75rem;
+    border-radius: 4px;
+    box-shadow: 0 10px 30px -12px rgba(245, 240, 235, 0.45);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
   }
-  .ipa-barra__cta:hover {
-    opacity: 0.85;
+  .ipa-botao:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 36px -14px rgba(245, 240, 235, 0.6);
   }
-  .ipa-barra__fio {
-    position: absolute;
-    inset-inline: 0;
-    inset-block-end: -1px;
-    height: 3px;
-    background: transparent;
+  .ipa-botao:focus-visible,
+  .ipa a:focus-visible,
+  .ipa summary:focus-visible {
+    outline: 2px solid var(--bege);
+    outline-offset: 3px;
   }
-  /* A barra enche por transform (scaleX), não por width: não força o
-     navegador a recalcular o layout a cada passo da animação. */
-  .ipa-barra__fio-cheio {
-    display: block;
-    height: 100%;
-    width: 100%;
-    background: #e8463b;
-    transform: scaleX(0);
-    transform-origin: left center;
-    transition: transform 0.6s ease;
+  .ipa-botao--escuro {
+    background: var(--carvao);
+    color: var(--bege);
+    box-shadow: 0 12px 28px -14px rgba(30, 30, 30, 0.55);
+  }
+  .ipa-botao--escuro:hover {
+    box-shadow: 0 16px 34px -14px rgba(30, 30, 30, 0.7);
+  }
+  .ipa-claro .ipa-botao--escuro:focus-visible,
+  .ipa-oferta .ipa-botao--escuro:focus-visible {
+    outline-color: var(--carvao);
   }
 
-  /* ---- Vendas encerradas ------------------------------------------------- */
+  /* ---- Vendas encerradas ---------------------------------------------------- */
   .ipa-encerrado {
-    padding: calc(var(--ipa-barra-h) + 1rem) 0 1rem;
-    background: hsl(var(--secondary));
+    background: var(--cinza);
     text-align: center;
-  }
-  .ipa-encerrado__texto {
+    padding: 1rem var(--gutter);
     font-weight: 700;
   }
   .ipa[data-vendas='encerradas'] .ipa-encerrado[hidden] {
@@ -472,459 +491,748 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
     display: none;
   }
 
-  /* ---- 1. Topo ------------------------------------------------------------ */
+  /* ---- 1. Topo ------------------------------------------------------------- */
   .ipa-hero {
-    background: hsl(var(--light-bg));
-    color: hsl(var(--light-fg));
-    padding-top: var(--ipa-barra-h);
+    position: relative;
+    isolation: isolate;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    background: var(--carvao);
   }
-  .ipa[data-vendas='encerradas'] .ipa-hero {
-    padding-top: 0;
+  /* Celular: a foto é um bloco no alto (rosto e quadro visíveis) e o texto
+     entra por baixo, sobre o véu que funde a foto no carvão. */
+  .ipa-hero__foto {
+    position: absolute;
+    inset: 0 0 auto 0;
+    width: 100%;
+    height: 64svh;
+    object-fit: cover;
+    object-position: 58% 30%;
+    z-index: -2;
   }
-  .ipa-hero__body {
-    display: grid;
-    gap: 2.5rem;
-    padding-block: 2rem 4rem;
+  .ipa-hero__veu {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 64svh;
+    z-index: -1;
+    background:
+      linear-gradient(180deg, rgba(30, 30, 30, 0.6) 0%, rgba(30, 30, 30, 0) 22%),
+      linear-gradient(0deg, var(--carvao) 0%, rgba(30, 30, 30, 0.7) 22%, rgba(30, 30, 30, 0) 50%);
+  }
+  .ipa-topo {
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem var(--gutter);
+    border-bottom: 1px solid var(--fio);
   }
-  .ipa-hero__texto {
+  .ipa-topo__logo {
+    height: 1.6rem;
+    width: auto;
+    filter: brightness(0) invert(1);
+  }
+  .ipa-topo__data {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(23, 23, 23, 0.55);
+    backdrop-filter: blur(6px);
+    padding: 0.5rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .ipa-topo__sep {
+    color: rgba(255, 255, 255, 0.4);
+    margin-inline: 0.1rem;
+  }
+  .ipa-topo__extra {
+    display: none;
+  }
+  @media (max-width: 400px) {
+    .ipa-topo__dia {
+      display: none;
+    }
+    .ipa-topo__logo {
+      height: 1.35rem;
+    }
+  }
+  .ipa-hero__corpo {
+    margin-top: auto;
+    width: 100%;
+    max-width: 76rem;
+    margin-inline: auto;
+    padding: 44svh var(--gutter) 2rem;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 1.15rem;
-  }
-  .ipa-hero__selo {
-    display: inline-block;
-    border: 1px solid rgba(30, 30, 30, 0.15);
-    border-radius: 9999px;
-    padding: 0.5rem 1.1rem;
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: rgba(30, 30, 30, 0.75);
+    gap: 1.1rem;
   }
   .ipa-hero__titulo {
-    font-size: clamp(1.85rem, 3.6vw, 2.9rem);
-    line-height: 1.08;
+    max-width: 15ch;
+    font-size: clamp(2.05rem, 7.6vw, 4.4rem);
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+    text-wrap: balance;
   }
   .ipa-hero__sub {
-    color: rgba(30, 30, 30, 0.72);
-    max-width: 38rem;
+    max-width: 36rem;
+    color: var(--branco-2);
+    font-size: 0.98rem;
+    line-height: 1.55;
   }
   .ipa-hero__frase {
     font-weight: 700;
     font-size: 1.05rem;
-    border-left: 3px solid #1e1e1e;
-    padding-left: 0.75rem;
   }
-  .ipa-hero__img {
-    width: 100%;
-    height: auto;
-    border-radius: 1rem;
-    object-fit: cover;
+  .ipa-hero .ipa-botao {
+    margin-top: 0.4rem;
   }
 
-  /* ---- Barra de progresso do lote --------------------------------------- */
+  /* ---- Barra de progresso do lote ------------------------------------------ */
   .ipa-progresso {
     width: 100%;
-    max-width: 26rem;
+    max-width: 28rem;
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
-  }
-  .ipa-progresso__topo {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-  }
-  .ipa-progresso__proximo {
-    color: rgba(30, 30, 30, 0.6);
+    gap: 0.55rem;
   }
   .ipa-progresso__trilho {
-    height: 8px;
-    border-radius: 9999px;
-    background: rgba(30, 30, 30, 0.12);
+    height: 6px;
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
     overflow: hidden;
   }
-  /* Único vermelho da página: diz "o tempo do lote está andando". #c41d13 dá
-     contraste suficiente sobre o bege (mesmo tom da régua da Black). */
+  /* Enche por transform (scaleX), não por width: sem recalcular layout. */
   .ipa-progresso__cheio {
     display: block;
-    height: 100%;
     width: 100%;
-    background: #c41d13;
+    height: 100%;
+    background: var(--bege);
     transform: scaleX(0);
     transform-origin: left center;
-    transition: transform 0.6s ease;
+    transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .ipa-progresso__ate {
-    font-size: 0.75rem;
-    color: rgba(30, 30, 30, 0.6);
+  .ipa-progresso__texto {
+    font-size: 0.78rem;
+    color: var(--branco-2);
+    line-height: 1.5;
   }
-
-  /* ---- 2. Destaque -------------------------------------------------------- */
-  .ipa-destaque {
-    padding-block: 2rem;
-    border-bottom: 1px solid hsl(var(--border));
+  .ipa-progresso__texto strong {
+    color: #fff;
   }
-  .ipa-destaque__lista {
-    list-style: none;
-    display: grid;
-    gap: 1rem;
+  .ipa-progresso--claro .ipa-progresso__trilho {
+    background: rgba(30, 30, 30, 0.14);
+  }
+  .ipa-progresso--claro .ipa-progresso__cheio {
+    background: var(--carvao);
+  }
+  .ipa-progresso--claro .ipa-progresso__texto {
+    color: var(--bege-tinta);
     text-align: center;
-    color: hsl(var(--muted-foreground));
-    font-size: 1rem;
-  }
-  .ipa-destaque__lista strong {
-    display: block;
-    color: hsl(var(--foreground));
-    font-size: clamp(1.6rem, 4vw, 2.2rem);
-    line-height: 1.15;
   }
 
-  /* ---- 3. Marcas ---------------------------------------------------------- */
-  /* Carrossel horizontal no celular (rola com o dedo), linha centralizada no
-     desktop. */
+  /* ---- 2. Destaque --------------------------------------------------------- */
+  .ipa-destaque {
+    list-style: none;
+    width: 100%;
+    max-width: 76rem;
+    margin-inline: auto;
+    padding: 1.25rem var(--gutter) 1.75rem;
+    display: grid;
+    gap: 0.9rem;
+    border-top: 1px solid var(--fio);
+    color: var(--branco-2);
+    font-size: 0.85rem;
+  }
+  .ipa-destaque strong {
+    color: #fff;
+    font-size: 1.25rem;
+    letter-spacing: -0.01em;
+    margin-inline-end: 0.3rem;
+  }
+
+  /* ---- 3. Marcas ------------------------------------------------------------ */
+  .ipa-marcas {
+    padding-block: 3.5rem 4.5rem;
+    background: var(--fundo);
+  }
   .ipa-marcas__faixa {
     list-style: none;
-    margin-top: 2.5rem;
     display: flex;
-    gap: 1rem;
+    gap: 0.9rem;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    scroll-padding-inline: 1.5rem;
-    padding: 0 1.5rem 1rem;
-    -webkit-overflow-scrolling: touch;
+    scroll-padding-inline: var(--gutter);
+    padding: 0 var(--gutter) 0.5rem;
     scrollbar-width: none;
   }
-  .ipa-marcas__item {
-    flex: 0 0 9.5rem;
+  .ipa-marcas__faixa::-webkit-scrollbar {
+    display: none;
+  }
+  .ipa-marca {
+    flex: 0 0 15.5rem;
     scroll-snap-align: start;
   }
-  .ipa-marcas__link {
+  /* O card é o print: recorte alto, borda fina e a legenda por cima de um véu
+     escuro na base, como os cards de mentorados da referência. */
+  .ipa-marca__link {
+    position: relative;
+    display: block;
+    aspect-ratio: 422 / 600;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--fio);
+    background: #fff;
+    box-shadow: 0 24px 50px -28px rgba(0, 0, 0, 0.9);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ipa-marca__link:hover {
+    transform: translateY(-4px);
+  }
+  .ipa-marca__print {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+  }
+  .ipa-marca__legenda {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 3.5rem 1rem 1rem;
+    background: linear-gradient(0deg, rgba(23, 23, 23, 0.96) 15%, rgba(23, 23, 23, 0));
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.4rem;
-    text-align: center;
-    padding: 1.25rem 0.75rem;
-    border: 1px solid rgba(30, 30, 30, 0.1);
-    border-radius: 0.75rem;
-    background: rgba(255, 255, 255, 0.55);
-    height: 100%;
+    gap: 0.15rem;
   }
-  .ipa-marcas__foto {
-    width: 4.5rem;
-    height: 4.5rem;
-    border-radius: 9999px;
-    object-fit: cover;
-    margin-bottom: 0.35rem;
-  }
-  .ipa-marcas__arroba {
+  .ipa-marca__nicho {
+    font-size: 0.7rem;
     font-weight: 700;
-    font-size: 0.82rem;
-    word-break: break-all;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(245, 240, 235, 0.75);
   }
-  .ipa-marcas__nicho {
-    font-size: 0.78rem;
-    color: rgba(30, 30, 30, 0.65);
+  .ipa-marca__arroba {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+  }
+  .ipa-marcas__titulo {
+    max-width: 76rem;
+    margin: 2.5rem auto 0;
+    padding-inline: var(--gutter);
+    text-align: right;
+    font-size: clamp(1.15rem, 2.4vw, 1.6rem);
+    font-weight: 400;
+    color: var(--branco-2);
+    line-height: 1.35;
   }
 
-  /* ---- 4. Decisões -------------------------------------------------------- */
-  .ipa-decisoes__grid {
-    list-style: none;
-    margin-top: 2.5rem;
-    display: grid;
-    gap: 1rem;
+  /* ---- Seções claras (bege) ------------------------------------------------- */
+  .ipa-claro {
+    background: var(--bege);
+    color: var(--carvao);
   }
-  .ipa-decisoes__card {
-    border: 1px solid hsl(var(--border));
-    border-radius: 0.75rem;
-    padding: 1.5rem;
+
+  /* ---- 4. Decisões ---------------------------------------------------------- */
+  .ipa-decisoes {
+    display: grid;
+    padding-block: 0 4.5rem;
+  }
+  .ipa-decisoes__foto img {
+    width: 100%;
+    height: 22rem;
+    object-fit: cover;
+    object-position: 50% 30%;
+    display: block;
+  }
+  .ipa-decisoes__texto {
+    padding: 3rem var(--gutter) 0;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    background: hsl(var(--card));
+    align-items: flex-start;
+    gap: 2rem;
   }
-  .ipa-decisoes__num {
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.15em;
-    color: hsl(var(--muted-foreground));
+  .ipa-decisoes__lista {
+    width: 100%;
+    border-top: 1px solid rgba(30, 30, 30, 0.15);
   }
-  .ipa-decisoes__titulo {
+  .ipa-decisoes__linha {
+    display: grid;
+    gap: 0.3rem;
+    padding-block: 1.15rem;
+    border-bottom: 1px solid rgba(30, 30, 30, 0.15);
+  }
+  .ipa-decisoes__linha dt {
     font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
-  .ipa-decisoes__desc {
-    color: hsl(var(--muted-foreground));
-    font-size: 0.95rem;
+  .ipa-decisoes__linha dd {
+    color: var(--bege-tinta);
+    font-size: 0.98rem;
   }
   .ipa-decisoes__fecho {
-    margin-top: 2rem;
-    text-align: center;
     font-weight: 700;
-    font-size: clamp(1.05rem, 2.5vw, 1.25rem);
+    font-size: 1.1rem;
+    max-width: 30rem;
   }
 
-  /* ---- 5. Identificação --------------------------------------------------- */
-  .ipa-sinais__inner {
-    max-width: 44rem;
-    margin-inline: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1.75rem;
+  /* ---- 5. Identificação ------------------------------------------------------ */
+  .ipa-sinais {
+    padding-block: 4rem 5rem;
+    border-top: 1px solid rgba(30, 30, 30, 0.1);
+  }
+  .ipa-sinais__grade {
+    display: grid;
+    gap: 2rem;
   }
   .ipa-sinais__lista {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
+    gap: 0.6rem;
   }
   .ipa-sinais__lista li {
     display: flex;
-    gap: 0.75rem;
-    color: rgba(30, 30, 30, 0.8);
-    font-size: 1.02rem;
-  }
-  .ipa-sinais__marca {
-    flex: none;
-    color: #c41d13;
-    font-weight: 700;
-  }
-  .ipa-sinais__fecho {
-    font-weight: 700;
-    font-size: clamp(1.15rem, 3vw, 1.45rem);
-  }
-
-  /* ---- 6. Felipe ------------------------------------------------------------ */
-  .ipa-felipe__grid {
-    display: grid;
-    gap: 2rem;
-    align-items: center;
-  }
-  .ipa-felipe__img {
-    width: 100%;
-    max-width: 22rem;
-    height: auto;
-    border-radius: 1rem;
-    object-fit: cover;
-  }
-  .ipa-felipe__texto {
-    display: flex;
-    flex-direction: column;
     gap: 0.85rem;
     align-items: flex-start;
+    background: #fff;
+    border: 1px solid rgba(30, 30, 30, 0.08);
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+    font-size: 0.98rem;
+    line-height: 1.5;
+    color: rgba(30, 30, 30, 0.85);
   }
-  .ipa-felipe__bio {
-    color: hsl(var(--muted-foreground));
-    font-size: 1.05rem;
-    max-width: 36rem;
+  .ipa-sinais__lista .ipa-icone {
+    margin-top: 0.15rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--carvao);
+  }
+  .ipa-sinais__fecho {
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
-  /* ---- 7. Como funciona o dia --------------------------------------------- */
-  .ipa-dia__linha {
-    list-style: none;
-    margin: 2.5rem auto 0;
-    max-width: 44rem;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+  /* ---- 6. Felipe ------------------------------------------------------------- */
+  .ipa-felipe {
+    padding-block: 4.5rem;
+    background: var(--carvao);
   }
-  .ipa-dia__marco {
-    border: 1px solid rgba(30, 30, 30, 0.12);
-    border-radius: 0.75rem;
-    background: rgba(255, 255, 255, 0.55);
-    padding: 1.25rem 1rem;
+  .ipa-felipe__grade {
+    display: grid;
+    gap: 2.5rem;
+    align-items: center;
+  }
+  .ipa-felipe__papel {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: rgba(245, 240, 235, 0.7);
+  }
+  .ipa-felipe__nome {
+    margin-top: 0.6rem;
+    font-size: clamp(2.6rem, 8vw, 5.5rem);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+  }
+  .ipa-felipe__bio {
+    margin-top: 1.5rem;
+    max-width: 34rem;
+    color: var(--branco-2);
+    font-size: 1.08rem;
+    line-height: 1.6;
+  }
+  .ipa-felipe__foto img {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    object-position: 40% 30%;
+    border-radius: 10px;
+    display: block;
+  }
+
+  /* ---- 7. Como funciona o dia ------------------------------------------------- */
+  .ipa-dia {
+    padding-block: 4.5rem;
+    background: var(--fundo);
+  }
+  .ipa-dia__grade {
+    display: grid;
+    gap: 2.25rem;
+    align-items: center;
+  }
+  .ipa-dia__cabeca {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+  .ipa-pilula {
+    display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
-    text-align: center;
+    gap: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  /* Card com luz diagonal em bege sobre o cinza quente: o equivalente do
+     degradê vermelho do cronograma da referência, dentro da nossa paleta. */
+  .ipa-dia__cartao {
+    position: relative;
+    border-radius: 12px;
+    padding: 4.5rem 1.25rem 1.25rem;
+    background:
+      linear-gradient(135deg, rgba(245, 240, 235, 0.32) 0%, rgba(245, 240, 235, 0.06) 28%, transparent 46%),
+      linear-gradient(160deg, var(--cinza) 0%, #262424 55%, var(--carvao) 100%);
+    border: 1px solid var(--fio);
+    box-shadow: 0 30px 60px -36px rgba(0, 0, 0, 0.9);
+  }
+  .ipa-dia__lista {
+    list-style: none;
+    border: 1px solid var(--fio);
+    border-radius: 8px;
+    background: rgba(23, 23, 23, 0.55);
+  }
+  .ipa-dia__lista li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 1.15rem;
+  }
+  .ipa-dia__lista li + li {
+    border-top: 1px solid var(--fio);
   }
   .ipa-dia__hora {
-    font-size: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
     font-weight: 700;
+    font-size: 1.1rem;
     font-variant-numeric: tabular-nums;
   }
   .ipa-dia__o {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: rgba(30, 30, 30, 0.65);
+    color: var(--branco-2);
+    font-size: 0.95rem;
   }
 
-  /* ---- 8. Preço --------------------------------------------------------------- */
-  .ipa-oferta__caixa {
-    max-width: 34rem;
+  /* ---- 8. Preço: bloco bege chapado (o vermelho da referência) --------------- */
+  .ipa-oferta {
+    padding: 4.5rem var(--gutter) 5rem;
+    background:
+      radial-gradient(60rem 30rem at 50% 0%, rgba(245, 240, 235, 0.08), transparent 70%),
+      var(--fundo);
+    scroll-margin-top: 1rem;
+  }
+  .ipa-oferta__cartao {
+    max-width: 32rem;
     margin-inline: auto;
-    border: 2px solid hsl(var(--foreground));
-    border-radius: 1rem;
-    padding: 2rem 1.5rem;
-    text-align: center;
+    background: var(--bege);
+    color: var(--carvao);
+    border-radius: 12px;
+    padding: 2.25rem 1.5rem 1.75rem;
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 1.25rem;
+    box-shadow: 0 40px 80px -40px rgba(245, 240, 235, 0.35);
   }
   .ipa-oferta__titulo {
-    font-size: 0.9rem;
+    font-size: 1.35rem;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+  }
+  .ipa-oferta__data {
+    align-self: flex-start;
+    border: 1px solid rgba(30, 30, 30, 0.3);
+    border-radius: 4px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 700;
   }
   .ipa-oferta__itens {
     list-style: none;
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
-    text-align: left;
-    width: 100%;
-    max-width: 26rem;
   }
   .ipa-oferta__itens li {
     display: flex;
     gap: 0.6rem;
+    align-items: flex-start;
     font-size: 0.95rem;
-    color: hsl(var(--muted-foreground));
+    line-height: 1.5;
   }
-  .ipa-oferta__check {
-    flex: none;
-    color: #4ade80;
-    font-weight: 700;
+  .ipa-oferta__itens .ipa-icone {
+    margin-top: 0.15rem;
+    stroke-width: 2.2;
   }
   .ipa-oferta__precos {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
+    gap: 0.1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(30, 30, 30, 0.15);
   }
   .ipa-oferta__de {
     font-size: 0.95rem;
-    color: hsl(var(--muted-foreground));
+    color: var(--bege-tinta);
   }
   .ipa-oferta__valor {
-    font-size: clamp(2.75rem, 9vw, 3.75rem);
-    line-height: 1;
-    letter-spacing: -0.02em;
+    font-size: clamp(3.75rem, 14vw, 5.25rem);
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+    font-variant-numeric: tabular-nums;
   }
-  .ipa-oferta__lote {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: hsl(var(--muted-foreground));
+  .ipa-oferta__botao {
+    width: 100%;
   }
-  .ipa-oferta__proximo {
-    font-size: 0.8rem;
-    color: hsl(var(--muted-foreground));
+  .ipa-oferta .ipa-progresso {
+    max-width: none;
   }
 
-  /* ---- 10. Por que agora -------------------------------------------------- */
-  .ipa-agora__inner {
-    max-width: 40rem;
-    margin-inline: auto;
-    text-align: center;
+  /* ---- 9. Depoimentos em faixa bege ------------------------------------------ */
+  /* VideoTestimonials é compartilhado com a home: aqui só muda o fundo e o
+     tamanho do título, sem tocar no componente. */
+  .ipa-depoimentos :global(.vtesti) {
+    background: var(--bege);
+  }
+  .ipa-depoimentos :global(.vtesti .eyebrow) {
+    display: none;
+  }
+  .ipa-depoimentos :global(.vtesti .section-title) {
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 0.98;
+  }
+
+  /* ---- 10. Por que agora ------------------------------------------------------ */
+  .ipa-agora {
+    padding-block: 5rem;
+    background: var(--carvao);
+  }
+  .ipa-agora__grade {
+    display: grid;
+    gap: 1.5rem;
+  }
+  .ipa-agora__texto {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    color: var(--branco-2);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    max-width: 34rem;
+  }
+  .ipa-agora__texto p:last-child {
+    color: #fff;
   }
 
-  /* ---- 12. Fechamento ------------------------------------------------------ */
-  .ipa-fechamento__inner {
-    max-width: 44rem;
-    margin-inline: auto;
-    text-align: center;
+  /* ---- 11. FAQ ----------------------------------------------------------------- */
+  .ipa-faq {
+    padding-block: 4.5rem;
+    background: var(--fundo);
+  }
+  .ipa-faq__grade {
+    display: grid;
+    gap: 2rem;
+  }
+  .ipa-faq__lista {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .ipa-faq__item {
+    background: #242424;
+    border: 1px solid var(--fio);
+    border-radius: 8px;
+  }
+  .ipa-faq__item summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 1.2rem;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .ipa-faq__item summary::-webkit-details-marker {
+    display: none;
+  }
+  .ipa-faq__sinal {
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0.3rem;
+    border-radius: 999px;
+    background: var(--bege);
+    color: var(--carvao);
+    stroke-width: 2.4;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ipa-faq__item[open] .ipa-faq__sinal {
+    transform: rotate(45deg);
+  }
+  .ipa-faq__item p {
+    padding: 0 1.2rem 1.2rem;
+    color: var(--branco-2);
+    line-height: 1.6;
+    max-width: 62ch;
+  }
+
+  /* ---- 12. Fechamento ----------------------------------------------------------- */
+  .ipa-fechamento {
+    padding-block: 5rem 5.5rem;
+    background:
+      radial-gradient(50rem 24rem at 50% 100%, rgba(245, 240, 235, 0.1), transparent 70%),
+      var(--carvao);
+    border-top: 1px solid var(--fio);
+  }
+  .ipa-fechamento__corpo {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.75rem;
+    text-align: center;
+    gap: 2rem;
   }
   .ipa-fechamento__titulo {
-    font-size: clamp(1.6rem, 4vw, 2.5rem);
-    line-height: 1.12;
+    max-width: 18ch;
+    font-size: clamp(2rem, 5.6vw, 4rem);
+    line-height: 0.96;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+    text-wrap: balance;
   }
 
-  /* ---- Responsivo ---------------------------------------------------------- */
-  @media (max-width: 480px) {
-    .ipa-barra__evento,
-    .ipa-barra__evento + .ipa-barra__sep {
-      display: none;
-    }
-    .ipa-barra__texto {
-      font-size: 0.62rem;
-    }
-    .ipa-barra__logo {
-      height: 1.2rem;
-    }
-    .ipa-barra__inner {
-      gap: 0.5rem;
-    }
-    .ipa-barra__cta {
-      font-size: 0.6rem;
-      padding: 0.5rem 0.85rem;
-    }
-    /* No celular a barra só tem espaço para data e preço além do botão: o
-       rótulo "Lote 01" sai (ele aparece logo abaixo, na barra de progresso). */
-    .ipa-barra__lote [data-lote] {
-      display: none;
-    }
-    .ipa-barra__lote [data-preco] {
-      margin-inline-start: 0;
-    }
-    .ipa-cta {
-      font-size: 0.78rem;
-      letter-spacing: 0.08em;
-      padding-inline: 1.5rem;
-    }
-  }
-  @media (max-width: 359px) {
-    .ipa-barra__texto .ipa-barra__lote,
-    .ipa-barra__texto .ipa-barra__sep {
-      display: none;
+  /* ---- Celular estreito: botão ocupa a largura --------------------------------- */
+  @media (max-width: 560px) {
+    .ipa-botao {
+      width: 100%;
+      padding-inline: 1rem;
+      font-size: 0.82rem;
     }
   }
 
-  @media (min-width: 768px) {
-    .ipa-destaque__lista {
-      grid-template-columns: repeat(3, 1fr);
+  /* ---- Tablet em diante ----------------------------------------------------------- */
+  @media (min-width: 720px) {
+    .ipa-topo__extra {
+      display: inline;
     }
-    .ipa-decisoes__grid {
-      grid-template-columns: repeat(2, 1fr);
+    .ipa-destaque {
+      grid-template-columns: repeat(3, auto);
+      justify-content: space-between;
     }
-    .ipa-dia__linha {
-      grid-template-columns: repeat(4, 1fr);
-    }
-    .ipa-marcas__faixa {
-      justify-content: center;
-      overflow-x: visible;
-      flex-wrap: wrap;
-    }
-    .ipa-marcas__item {
-      flex-basis: 11rem;
+    .ipa-marca {
+      flex-basis: 17rem;
     }
   }
 
   @media (min-width: 880px) {
-    .ipa-hero__body {
-      grid-template-columns: 1.45fr 1fr;
-      padding-block: 2rem 3.5rem;
-      gap: 3rem;
+    /* Computador: foto à direita, texto à esquerda sobre o véu horizontal. */
+    .ipa-hero__foto {
+      inset: 0 0 0 auto;
+      width: 62%;
+      height: 100%;
+      object-position: 50% 22%;
     }
-    .ipa-felipe__grid {
-      grid-template-columns: 20rem 1fr;
-      gap: 3rem;
+    .ipa-hero__veu {
+      inset: 0;
+      height: 100%;
+      background:
+        linear-gradient(90deg, var(--carvao) 38%, rgba(30, 30, 30, 0.85) 50%, rgba(30, 30, 30, 0) 75%),
+        linear-gradient(0deg, var(--carvao) 0%, rgba(30, 30, 30, 0) 30%);
+    }
+    .ipa-hero__corpo {
+      margin-block: auto;
+      padding-top: 3rem;
+    }
+    .ipa-decisoes {
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 4rem;
+      padding-block: 5.5rem;
+      align-items: center;
+    }
+    .ipa-decisoes__foto img {
+      height: auto;
+      aspect-ratio: 4 / 5;
+      border-radius: 0 12px 12px 0;
+    }
+    .ipa-decisoes__texto {
+      padding: 0 var(--gutter) 0 0;
+      max-width: 40rem;
+    }
+    .ipa-decisoes__linha {
+      grid-template-columns: 13rem 1fr;
+      gap: 1.5rem;
+      align-items: baseline;
+    }
+    .ipa-sinais__grade {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+      gap: 4rem;
+      align-items: start;
+    }
+    .ipa-sinais__titulo {
+      position: sticky;
+      top: 2rem;
+    }
+    .ipa-sinais__fecho {
+      grid-column: 1 / -1;
+    }
+    .ipa-felipe__grade {
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 4rem;
+    }
+    .ipa-dia__grade {
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+    }
+    .ipa-dia__cartao {
+      padding: 5.5rem 2rem 2rem;
+    }
+    .ipa-agora__grade {
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: start;
+    }
+    .ipa-faq__grade {
+      grid-template-columns: 22rem 1fr;
+      gap: 4rem;
+      align-items: start;
+    }
+    .ipa-oferta__cartao {
+      padding: 2.75rem 2.5rem 2.25rem;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .ipa-marcas__faixa {
+      justify-content: center;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .ipa-barra__cta,
-    .ipa-barra__fio-cheio,
-    .ipa-progresso__cheio {
+    .ipa-botao,
+    .ipa-marca__link,
+    .ipa-progresso__cheio,
+    .ipa-faq__sinal {
       transition: none;
     }
   }
@@ -962,30 +1270,25 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
       todos('[data-lote-botao]').forEach((el) => (el.textContent = rotulo.toLowerCase()));
       todos('[data-ate]').forEach((el) => (el.textContent = lote.ate));
 
-      // Último lote: nunca anuncia um preço que não existe. Diz que as
-      // vendas encerram no início do evento.
-      const curto = estado.proximoValor
-        ? `Próximo lote: ${estado.proximoValor}`
-        : 'Último lote';
-      todos('[data-proximo-curto]').forEach((el) => (el.textContent = curto));
-
-      const frase = textoProximo(estado.proximoValor, rotulo) ??
+      // Último lote: nunca anuncia um preço que não existe.
+      todos('[data-proximo-curto]').forEach((el) => {
+        el.textContent = estado.proximoValor ? `· próximo lote: ${estado.proximoValor}` : '· último lote';
+      });
+      const frase =
+        textoProximo(estado.proximoValor, rotulo) ??
         'Último lote. As vendas encerram no início do evento, 05/12 às 9h30.';
       todos('[data-proximo-frase]').forEach((el) => (el.textContent = frase));
-
-      todos('[data-ate-linha]').forEach((el) => {
-        if (estado.ultimo) el.textContent = 'Vendas encerram no início do evento, 05/12 às 9h30';
-      });
+      if (estado.ultimo) {
+        todos('[data-ate-linha]').forEach((el) => (el.textContent = '· vendas encerram 05/12 às 9h30'));
+      }
     }
 
     function pintarProgresso(estado: ReturnType<typeof loteVigente>) {
       if (estado.estado !== 'aberto') return;
-      const pct = Math.round(
-        fracaoDecorrida(estado.inicioMs as number, estado.fimMs as number, agora()) * 1000,
-      ) / 10;
-      todos('[data-progresso-fill]').forEach((el) => (el.style.transform = `scaleX(${pct / 100})`));
+      const fracao = fracaoDecorrida(estado.inicioMs as number, estado.fimMs as number, agora());
+      todos('[data-progresso-fill]').forEach((el) => (el.style.transform = `scaleX(${fracao})`));
       todos('[data-progresso-barra]').forEach((el) =>
-        el.setAttribute('aria-valuenow', String(Math.round(pct))),
+        el.setAttribute('aria-valuenow', String(Math.round(fracao * 100))),
       );
     }
 
@@ -1018,10 +1321,12 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
       }
     }
 
-    tique();
+    // Primeiro quadro: a barra nasce vazia e enche até o ponto certo (é o único
+    // movimento da página que conta alguma coisa).
+    requestAnimationFrame(() => tique());
     sincronizarHora().then(tique);
-    // A barra anda devagar (lotes de 3 a 7 dias): um tique por minuto basta e
-    // ainda vira o lote com a aba aberta.
+    // Lotes de 3 a 7 dias: um tique por minuto basta e ainda vira o lote com a
+    // aba aberta.
     timer = window.setInterval(tique, 60_000);
   } catch (e) {
     /* o HTML inicial (lote 01) já é legível e vendável */
