@@ -200,10 +200,14 @@ export function statusNaCoorte({ situacao, presenca, inicio, fim, origem }, agor
   return fim > agora ? 'a_acontecer' : 'sem_presenca';
 }
 
-/** [{ funil, status }] das reuniões agendadas entre `de` e `ate` (unix, inclusivo). */
-export async function coorteDasAgendadas(DB, de, ate, agora) {
+/**
+ * Cada reunião da coorte (agendadas entre `de` e `ate`, unix, inclusivo), com o
+ * que o Detalhe das reuniões (S7) precisa: { origem, id, nome, email, inicio,
+ * funil, status }. Agenda própria: id = id da reunião; Calendly: id = invitee_uri.
+ */
+export async function reunioesDaCoorte(DB, de, ate, agora) {
   const { results: agenda } = await DB.prepare(`
-    SELECT COALESCE(funil, '') AS funil, email, criado_em, situacao, fim FROM agenda_reunioes
+    SELECT id, nome, COALESCE(funil, '') AS funil, email, criado_em, situacao, inicio, fim FROM agenda_reunioes
      WHERE comercial = 1 AND is_teste = 0 AND criado_em >= ? AND criado_em <= ?
        AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)`,
   ).bind(de, ate).all();
@@ -211,7 +215,7 @@ export async function coorteDasAgendadas(DB, de, ate, agora) {
   let calendly = [];
   try {
     const { results } = await DB.prepare(`
-      SELECT email, agendou_em, presenca, inicio, COALESCE(fim, inicio + ?) AS fim FROM calendly_consultorias
+      SELECT invitee_uri, nome, email, agendou_em, presenca, inicio, COALESCE(fim, inicio + ?) AS fim FROM calendly_consultorias
        WHERE situacao = 'ativa' AND marcada_pela_equipe = 0 AND agendou_em >= ? AND agendou_em <= ?`,
     ).bind(DURACAO_CALENDLY, de, ate).all();
     calendly = (results || []).filter((c) => !naAgenda.has(normalizar(c.email)));
@@ -219,11 +223,89 @@ export async function coorteDasAgendadas(DB, de, ate, agora) {
     console.error('coorte: Calendly', e.message);
   }
   const itens = [
-    ...(agenda || []).map((r) => ({ email: r.email, quando: r.criado_em, funil: r.funil, status: statusNaCoorte(r, agora) })),
-    ...calendly.map((c) => ({ email: c.email, quando: c.agendou_em, funil: FUNIL_SEM_LEAD, status: statusNaCoorte({ ...c, origem: 'calendly' }, agora) })),
+    ...(agenda || []).map((r) => ({
+      origem: 'agenda', id: r.id, nome: r.nome, email: r.email, inicio: r.inicio, quando: r.criado_em, funil: r.funil,
+      remarcada: r.situacao === 'remarcada', status: statusNaCoorte(r, agora),
+    })),
+    ...calendly.map((c) => ({
+      origem: 'calendly', id: c.invitee_uri, nome: c.nome, email: c.email, inicio: c.inicio, quando: c.agendou_em, funil: FUNIL_SEM_LEAD,
+      remarcada: false, status: statusNaCoorte({ ...c, origem: 'calendly' }, agora),
+    })),
   ];
   const funis = await funisDasReunioes(DB, itens);
-  return itens.map((x, i) => ({ funil: funis[i].funil, status: x.status }));
+  return itens.map((x, i) => ({ ...x, funil: funis[i].funil }));
+}
+
+/** [{ funil, status }] das reuniões agendadas entre `de` e `ate` (unix, inclusivo). */
+export async function coorteDasAgendadas(DB, de, ate, agora) {
+  return (await reunioesDaCoorte(DB, de, ate, agora)).map((x) => ({ funil: x.funil, status: x.status }));
+}
+
+// ---------------------------------------------------------------------------
+// Listas do Detalhe das reuniões (spec-detalhe-reunioes.md, S7-03): os nomes
+// por situação, das mesmas reuniões da coorte. Fora do registro não entra em
+// lista (SUP-S7-06). Reagendamentos: agenda própria pelo histórico
+// ('remarcou'); Calendly, quando o mesmo e-mail tem uma consulta cancelada por
+// remarcação (SUP-S7-08), sem as trocas.
+// ---------------------------------------------------------------------------
+export const LISTAS_DETALHE = ['a_acontecer', 'faltou', 'cancelada', 'sem_presenca', 'reagendamentos'];
+
+async function trocasDaAgenda(DB, ids) {
+  const porId = new Map();
+  for (let i = 0; i < ids.length; i += LOTE) {
+    const lote = ids.slice(i, i + LOTE);
+    const { results } = await DB.prepare(`
+      SELECT reuniao_id, detalhe, criado_em FROM agenda_historico
+       WHERE acao = 'remarcou' AND reuniao_id IN (${lote.map(() => '?').join(', ')}) ORDER BY criado_em, id`,
+    ).bind(...lote).all();
+    for (const h of results || []) {
+      if (!porId.has(h.reuniao_id)) porId.set(h.reuniao_id, []);
+      porId.get(h.reuniao_id).push({ detalhe: h.detalhe || '', em: h.criado_em });
+    }
+  }
+  return porId;
+}
+
+async function emailsRemarcadosNoCalendly(DB, emails) {
+  const achados = new Set();
+  try {
+    for (let i = 0; i < emails.length; i += LOTE) {
+      const lote = emails.slice(i, i + LOTE);
+      const { results } = await DB.prepare(`
+        SELECT DISTINCT email FROM calendly_consultorias
+         WHERE remarcada = 1 AND email IN (${lote.map(() => '?').join(', ')})`,
+      ).bind(...lote).all();
+      for (const r of results || []) achados.add(normalizar(r.email));
+    }
+  } catch (e) {
+    console.error('detalhe: Calendly remarcado', e.message);
+  }
+  return achados;
+}
+
+/**
+ * { a_acontecer, faltou, cancelada, sem_presenca, reagendamentos }, cada uma
+ * [{ nome, funil, inicio, remarcada }] em ordem da reunião; reagendamentos
+ * também com { situacao, trocas: [{ detalhe, em }] }. Nome vazio vira o e-mail
+ * (SUP-S7-03). `funil` vazio = todos.
+ */
+export async function listasDaCoorte(DB, de, ate, agora, funil = '') {
+  const todas = (await reunioesDaCoorte(DB, de, ate, agora))
+    .filter((x) => !funil || x.funil === funil)
+    .sort((a, b) => (a.inicio || 0) - (b.inicio || 0));
+  const trocas = await trocasDaAgenda(DB, todas.filter((x) => x.origem === 'agenda').map((x) => x.id));
+  const doCalendly = todas.filter((x) => x.origem === 'calendly').map((x) => normalizar(x.email)).filter(Boolean);
+  const remarcadosCal = doCalendly.length ? await emailsRemarcadosNoCalendly(DB, [...new Set(doCalendly)]) : new Set();
+
+  const listas = Object.fromEntries(LISTAS_DETALHE.map((k) => [k, []]));
+  for (const x of todas) {
+    const t = x.origem === 'agenda' ? trocas.get(x.id) || [] : [];
+    const remarcada = x.remarcada || t.length > 0 || (x.origem === 'calendly' && remarcadosCal.has(normalizar(x.email)));
+    const linha = { nome: (x.nome || '').trim() || x.email, funil: x.funil, inicio: x.inicio, remarcada };
+    if (listas[x.status]) listas[x.status].push(linha);
+    if (remarcada) listas.reagendamentos.push({ ...linha, situacao: x.status, trocas: t });
+  }
+  return listas;
 }
 
 /**

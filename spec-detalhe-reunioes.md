@@ -174,6 +174,7 @@ listas de nomes por situação.
 | SUP-S7-05 | A seção fica abaixo do funil e da tabela por funil, no fim da Visão geral | confirmada | usuária, 09/11/2026 |
 | SUP-S7-06 | Consultorias antigas do Calendly (antes de 19/10) que passaram sem presença ("fora do registro") aparecem num número próprio "Fora do registro" só quando o período tiver alguma; ficam fora do no-show e das listas, e a soma continua batendo com as criadas | confirmada | usuária, 09/11/2026 |
 | SUP-S7-07 | Reuniões da Aplicação Mentoria contam como Sessão Estratégica (regra única de funil da S3: Mentoria é porta da SE); o filtro de funil separa SE dos outros funis (ex.: workshop), não SE de Mentoria | confirmada | usuária, 09/11/2026 |
+| SUP-S7-08 | Remarcação feita direto na agenda do Google (o histórico não guarda o horário antigo) aparece como "movida direto na agenda do Google em dd/mm"; as demais mostram "de → para". No Calendly, a reunião ativa é marcada como remarcada quando o mesmo e-mail tem uma consulta cancelada por remarcação | confirmada | usuária, 09/11/2026 |
 
 ## Perguntas em aberto
 

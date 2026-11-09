@@ -2360,7 +2360,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/cloudflare.js"></script>
 <script src="/dash/arvore.js?v=2026-10-29a"></script>
 <script src="/dash/visao-reuniao.js?v=2026-10-26o"></script>
-<script src="/dash/detalhe-reunioes.js?v=2026-11-09b"></script>
+<script src="/dash/detalhe-reunioes.js?v=2026-11-09c"></script>
 <script>
 (() => {
 'use strict';
@@ -3144,7 +3144,7 @@ R.visao = async () => {
   const minha = renderAtual;
   const ctx = { esc, fmtInt, fmtNum, fmtPct, money, tile, tabela, comparar, delta, deltaChip };
   const mapaQ = versaoMapaFunil ? '&mapa=' + versaoMapaFunil : '';
-  const [leadsA, leadsB, cplA, cplB, atrA, atrB, coorte] = await Promise.all([
+  const [leadsA, leadsB, cplA, cplB, atrA, atrB, coorte, detalheReunioes] = await Promise.all([
     fetchJson(`/api/leads?${q(p.de, p.ate)}${funilQ}&only=funnelCounts`),
     fetchJson(`/api/leads?${q(p.antDe, p.antAte)}${funilQ}&only=funnelCounts`),
     // `v=s4`: resposta antiga guardada no cache de período fechado não traz entradas_grupos.
@@ -3154,6 +3154,8 @@ R.visao = async () => {
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
     // Coorte de agendamento: sem cache, muda a cada presença marcada.
     fetchJson(`/api/agenda/coorte?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&_=${Date.now()}`).catch(() => null),
+    // Listas do Detalhe das reuniões (S7-03): nomes da mesma coorte, no funil do filtro.
+    fetchJson(`/api/agenda/detalhe?from=${p.de}&to=${p.ate}&funil=${encodeURIComponent(fSel)}&_=${Date.now()}`).catch(() => null),
   ]);
   const respostas = { leadsA, leadsB, cplA, cplB, atrA, atrB, coorte, fSel, quando: textoQuando() };
   const desenhar = (taxas) => {
@@ -3164,7 +3166,7 @@ R.visao = async () => {
   // Detalhe das reuniões (S7): números da coorte; com proto=1, o protótipo.
   if (window.DetalheReunioes) {
     if (visaoProto) window.DetalheReunioes.prototipo($('#visao-detalhe-reunioes'), ctx);
-    else window.DetalheReunioes.desenhar($('#visao-detalhe-reunioes'), coorte, fSel, ctx);
+    else window.DetalheReunioes.desenhar($('#visao-detalhe-reunioes'), coorte, fSel, ctx, detalheReunioes);
   }
   // `s4`: respostas antigas (sem `crm`) guardadas no cache de período fechado não servem.
   fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s4e`)

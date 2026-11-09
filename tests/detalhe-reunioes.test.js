@@ -44,11 +44,12 @@ beforeEach(() => {
 });
 
 /** Reunião da agenda própria criada em `criada`, marcada para `dia` (horários de Brasília). */
-function reuniao({ situacao = 'marcada', criada = '2026-11-03T10:00:00', dia = '2026-11-12T15:00:00', funil = 'sessao-estrategica' } = {}) {
+function reuniao({ situacao = 'marcada', criada = '2026-11-03T10:00:00', dia = '2026-11-12T15:00:00', funil = 'sessao-estrategica', nome } = {}) {
   seq++;
   db.prepare(`INSERT INTO agenda_reunioes (id, tipo_id, inicio, fim, nome, email, funil, situacao, token_gestao, criado_em, atualizado_em)
               VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(`r${seq}`, em(dia), em(dia) + 2700, `Lead ${seq}`, `l${seq}@x.com`, funil, situacao, `t${seq}`, em(criada), em(criada));
+    .run(`r${seq}`, em(dia), em(dia) + 2700, nome || `Lead ${seq}`, `l${seq}@x.com`, funil, situacao, `t${seq}`, em(criada), em(criada));
+  return `r${seq}`;
 }
 
 /** A resposta de /api/agenda/coorte para a semana 02–08/11 (e a anterior), vista de `agora`. */
@@ -187,3 +188,141 @@ test('CA-S7-14: números comparados com o período anterior', async () => {
   assert.equal(cards['No-show'].anterior, '25%');
   assert.equal(cards['No-show'].delta, '100');
 });
+
+// ---------------------------------------------------------------------------
+// Listas de nomes (S7-03): /api/agenda/detalhe e os cinco drops.
+// ---------------------------------------------------------------------------
+import { onRequestGet as detalheGet } from '../functions/api/agenda/detalhe.js';
+
+/** Remarcação gravada no histórico, como o _agenda.js e o sync do Google gravam. */
+function remarcou(id, detalhe, quando) {
+  db.prepare(`INSERT INTO agenda_historico (reuniao_id, acao, detalhe, por, criado_em) VALUES (?, 'remarcou', ?, 'equipe', ?)`)
+    .run(id, detalhe, em(quando));
+}
+
+async function detalhe({ agora = '2026-11-09T08:00:00', funil = '', key = 'k', de = SEMANA.de, ate = SEMANA.ate } = {}) {
+  const real = Date.now;
+  Date.now = () => em(agora) * 1000;
+  try {
+    const q = new URLSearchParams({ from: String(de), to: String(ate), funil });
+    if (key !== null) q.set('key', key);
+    return await detalheGet({ request: new Request(`https://x/api/agenda/detalhe?${q}`), env });
+  } finally {
+    Date.now = real;
+  }
+}
+
+/** { título: { qtd, aberta, linhas: [texto da linha], vazia } } das listas na tela. */
+async function listasNaTela({ agora, funil = '' } = {}) {
+  const resposta = await (await detalhe({ agora, funil })).json();
+  const { html } = tela(await coorte(agora), funil);
+  const raiz = { innerHTML: '' };
+  DR.desenhar(raiz, await coorte(agora), funil, CTX, resposta);
+  const listas = {};
+  for (const bloco of raiz.innerHTML.split('<details').slice(1)) {
+    const [, attrs, titulo, qtd] = bloco.match(/^([^>]*)><summary>(.*?) <span class="dr-qtd">\((\d+)\)<\/span><\/summary>/);
+    const linhas = [...bloco.matchAll(/<li class="dr-linha[^"]*">([\s\S]*?)<\/li>(?=<li class="dr-linha|<\/ul>)/g)]
+      .map(([, l]) => l.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+    const vazia = (bloco.match(/<p class="dr-vazio">(.*?)<\/p>/) || [])[1] || null;
+    listas[titulo] = { qtd: Number(qtd), aberta: /\bopen\b/.test(attrs), linhas, vazia };
+  }
+  return { listas, html: raiz.innerHTML, numeros: html };
+}
+
+test('CA-S7-04: lista de quem ainda vai fazer mostra todas as futuras do período', async () => {
+  reuniao({ nome: 'Yago', criada: '2026-11-03T23:07:00', dia: '2026-11-16T17:00:00' });
+  reuniao({ nome: 'Fabiane', criada: '2026-11-04T18:07:00', dia: '2026-11-09T14:00:00' });
+  reuniao({ nome: 'Erica', criada: '2026-11-06T15:17:00', dia: '2026-11-10T15:00:00' });
+  reuniao({ nome: 'Antiga', criada: '2026-10-30T10:00:00', dia: '2026-11-10T09:00:00' }); // criada antes do período
+
+  const { listas } = await listasNaTela();
+  const lista = listas['Ainda vão acontecer'];
+  assert.equal(lista.qtd, 3);
+  assert.deepEqual(lista.linhas, [
+    'Fabiane Sessão Estratégica seg., 09/11, 14:00',
+    'Erica Sessão Estratégica ter., 10/11, 15:00',
+    'Yago Sessão Estratégica seg., 16/11, 17:00',
+  ]);
+  assert.ok(!lista.linhas.some((l) => l.includes('Antiga')));
+});
+
+test('CA-S7-05: reunião remarcada para o futuro conta como a acontecer', async () => {
+  const id = reuniao({ nome: 'Caio', situacao: 'remarcada', criada: '2026-11-03T05:43:00', dia: '2026-11-12T15:00:00' });
+  remarcou(id, 'sex., 06/11, 15:00 → qui., 12/11, 15:00', '2026-11-05T10:00:00');
+
+  const { listas, numeros } = await listasNaTela();
+  assert.match(numeros, /<card>A acontecer \| 1 \|/);
+  assert.deepEqual(listas['Ainda vão acontecer'].linhas, ['Caio remarcada Sessão Estratégica qui., 12/11, 15:00']);
+});
+
+test('CA-S7-06: listas de faltaram e cancelaram com os nomes', async () => {
+  reuniao({ nome: 'Patricia', situacao: 'faltou', criada: '2026-11-02T13:47:00', dia: '2026-11-06T16:00:00' });
+  reuniao({ nome: 'Daniel Aguiar', situacao: 'cancelada', criada: '2026-11-02T20:35:00', dia: '2026-11-06T15:00:00', funil: 'workshop' });
+
+  const { listas } = await listasNaTela();
+  assert.deepEqual(listas['Faltaram'].linhas, ['Patricia Sessão Estratégica sex., 06/11, 16:00']);
+  assert.deepEqual(listas['Cancelaram'].linhas, ['Daniel Aguiar Workshop sex., 06/11, 15:00']);
+});
+
+test('CA-S7-07: reunião que passou sem presença fica em lista própria', async () => {
+  reuniao({ nome: 'Izabell', situacao: 'realizada', dia: '2026-11-06T15:00:00' });
+  reuniao({ nome: 'Patricia', situacao: 'faltou', dia: '2026-11-06T16:00:00' });
+  reuniao({ nome: 'Ellen', dia: '2026-11-07T15:00:00' }); // passou e ninguém marcou
+
+  const { listas, numeros } = await listasNaTela();
+  assert.deepEqual(listas['Sem presença marcada'].linhas, ['Ellen Sessão Estratégica sáb., 07/11, 15:00']);
+  assert.equal(listas['Ainda vão acontecer'].qtd, 0);
+  assert.match(numeros, /<card>No-show \| 50% \|/); // 1 de 2: a Ellen não entra
+});
+
+test('CA-S7-08: reagendamentos com o histórico das trocas', async () => {
+  const id = reuniao({ nome: 'Hugo', situacao: 'realizada', criada: '2026-11-04T22:16:00', dia: '2026-11-12T17:00:00' });
+  remarcou(id, 'sex., 06/11, 15:00 → ter., 10/11, 15:00', '2026-11-05T09:00:00');
+  remarcou(id, 'ter., 10/11, 15:00 → qui., 12/11, 17:00', '2026-11-07T11:00:00');
+  reuniao({ nome: 'Miqueias', criada: '2026-11-07T16:50:00', dia: '2026-11-13T17:00:00' }); // não remarcou
+
+  const { listas, numeros } = await listasNaTela({ agora: '2026-11-13T08:00:00' });
+  const reag = listas['Reagendamentos'];
+  assert.equal(reag.qtd, 1);
+  assert.equal(reag.linhas[0],
+    'Hugo Sessão Estratégica 2 remarcações · agora: realizada sex., 06/11, 15:00 → ter., 10/11, 15:00 ter., 10/11, 15:00 → qui., 12/11, 17:00');
+  assert.match(numeros, /<card>Realizadas \| 1 \|/);
+});
+
+test('CA-S7-10: só a equipe com a chave do dash vê os nomes', async () => {
+  reuniao({ nome: 'Patricia', situacao: 'faltou', dia: '2026-11-06T16:00:00' });
+  for (const key of [null, 'errada']) {
+    const res = await detalhe({ key });
+    assert.equal(res.status, 401);
+    const corpo = await res.text();
+    assert.ok(!corpo.includes('Patricia'));
+    assert.ok(!corpo.includes('@x.com'));
+  }
+  assert.equal((await detalhe()).status, 200);
+});
+
+test('CA-S7-11: período ou lista vazios avisam em vez de sumir', async () => {
+  // Período sem nenhuma reunião criada.
+  const vazio = await listasNaTela();
+  assert.match(vazio.html, /Nenhuma reunião criada no período\./);
+  assert.equal(Object.keys(vazio.listas).length, 0);
+  // Período em que ninguém faltou.
+  reuniao({ nome: 'Izabell', situacao: 'realizada', dia: '2026-11-06T15:00:00' });
+  const { listas } = await listasNaTela();
+  assert.equal(listas['Faltaram'].qtd, 0);
+  assert.equal(listas['Faltaram'].vazia, 'Ninguém faltou.');
+});
+
+test('CA-S7-13: listas começam fechadas, cada uma num drop próprio', async () => {
+  reuniao({ nome: 'Patricia', situacao: 'faltou', dia: '2026-11-06T16:00:00' });
+  for (let i = 0; i < 8; i++) reuniao({ nome: `Futuro ${i}`, dia: '2026-11-12T15:00:00' });
+
+  const { listas, html } = await listasNaTela();
+  assert.deepEqual(Object.keys(listas), ['Ainda vão acontecer', 'Faltaram', 'Cancelaram', 'Sem presença marcada', 'Reagendamentos']);
+  assert.equal(listas['Ainda vão acontecer'].qtd, 8);
+  assert.equal(listas['Faltaram'].qtd, 1);
+  // Fechadas ao abrir a tela; cada uma é um <details> à parte (abre e fecha sozinha).
+  assert.ok(Object.values(listas).every((l) => !l.aberta));
+  assert.equal((html.match(/<details /g) || []).length, 5);
+  assert.equal((html.match(/<\/details>/g) || []).length, 5);
+}); 

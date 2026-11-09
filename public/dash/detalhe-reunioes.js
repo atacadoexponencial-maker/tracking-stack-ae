@@ -5,14 +5,17 @@
 // ao período anterior, e as listas de nomes fechadas em drop (Ainda vão
 // acontecer, Faltaram, Cancelaram, Sem presença marcada, Reagendamentos).
 //
-// `desenhar(raiz, coorte, fSel, ctx)`: os números com a resposta de
+// `desenhar(raiz, coorte, fSel, ctx, detalhe)`: os números com a resposta de
 // /api/agenda/coorte ({ atual, anterior }, cada um { total, por_funil } com o
-// `no_show` já calculado no servidor). `prototipo(raiz, ctx)`: dados de
-// exemplo, só com #visao?proto=1 (S7-01). ctx: { esc, fmtInt, fmtPct, tile }.
+// `no_show` já calculado no servidor) e as listas com a de /api/agenda/detalhe
+// ({ listas }, já no funil do filtro; null = falhou). `prototipo(raiz, ctx)`:
+// dados de exemplo, só com #visao?proto=1 (S7-01). ctx: { esc, fmtInt, fmtPct, tile }.
 (() => {
   'use strict';
 
-  const FUNIS = { 'sessao-estrategica': 'Sessão Estratégica', 'aplicacao-mentoria': 'Aplicação Mentoria' };
+  const FUNIS = {
+    'sessao-estrategica': 'Sessão Estratégica', 'aplicacao-mentoria': 'Aplicação Mentoria', workshop: 'Workshop', aquisicao: 'Aquisição',
+  };
   const LISTAS = [
     ['a_acontecer', 'Ainda vão acontecer'],
     ['faltou', 'Faltaram'],
@@ -20,6 +23,10 @@
     ['sem_presenca', 'Sem presença marcada'],
     ['reagendamentos', 'Reagendamentos'],
   ];
+  const VAZIA = {
+    a_acontecer: 'Ninguém com reunião pela frente.', faltou: 'Ninguém faltou.', cancelada: 'Ninguém cancelou.',
+    sem_presenca: 'Nenhuma reunião aguardando presença.', reagendamentos: 'Ninguém remarcou.',
+  };
   const SITUACAO = {
     realizada: 'realizada', faltou: 'faltou', cancelada: 'cancelada', a_acontecer: 'a acontecer', sem_presenca: 'sem presença marcada',
   };
@@ -29,10 +36,11 @@
   ];
 
   // ---------------------------------------------------------------------------
-  // Dados de exemplo (nomes fictícios), no formato que a API vai devolver.
-  // Horários em texto ISO de Brasília para o protótipo não depender de fuso.
+  // Dados de exemplo (nomes fictícios), no formato que a API devolve.
   // ---------------------------------------------------------------------------
-  const r = (nome, funil, quando, extra = {}) => ({ nome, funil, quando, ...extra });
+  const u = (iso) => Math.floor(Date.parse(`${iso}:00-03:00`) / 1000); // horário de Brasília → unix
+  const r = (nome, funil, quando, extra = {}) => ({ nome, funil, inicio: u(quando), ...extra });
+  const troca = (detalhe, em) => ({ detalhe, em: u(em) });
   const EXEMPLO = {
     atual: { criadas: 11, realizada: 1, faltou: 1, cancelada: 1, a_acontecer: 8, sem_presenca: 0, fora_do_registro: 0, no_show: 50 },
     anterior: { criadas: 8, realizada: 3, faltou: 1, cancelada: 0, a_acontecer: 0, sem_presenca: 4, fora_do_registro: 0, no_show: 25 },
@@ -52,11 +60,11 @@
       sem_presenca: [],
       reagendamentos: [
         r('Carla Souza', 'sessao-estrategica', '2026-11-10T15:00', {
-          situacao: 'a_acontecer', trocas: [{ de: '2026-11-06T15:00', para: '2026-11-10T15:00' }],
+          remarcada: true, situacao: 'a_acontecer', trocas: [troca('sex., 06/11, 15:00 → ter., 10/11, 15:00', '2026-11-05T10:00')],
         }),
         r('Eduardo Reis', 'sessao-estrategica', '2026-11-12T17:00', {
-          situacao: 'a_acontecer',
-          trocas: [{ de: '2026-11-07T10:00', para: '2026-11-10T11:00' }, { de: '2026-11-10T11:00', para: '2026-11-12T17:00' }],
+          remarcada: true, situacao: 'a_acontecer',
+          trocas: [troca('sáb., 07/11, 10:00 → ter., 10/11, 11:00', '2026-11-04T09:00'), troca('movida direto na agenda do Google', '2026-11-06T16:00')],
         }),
       ],
     },
@@ -83,13 +91,15 @@
   // ---------------------------------------------------------------------------
   // Variação contra o anterior, como o `delta` do index: sem base, sem carimbo.
   const variacao = (a, b) => (a === null || a === undefined || b === null || b === undefined || !b ? null : ((a - b) / b) * 100);
-  const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-  function quando(iso) {
-    const [d, h] = iso.split('T');
-    const [a, m, dia] = d.split('-').map(Number);
-    const sem = SEMANA[new Date(Date.UTC(a, m - 1, dia)).getUTCDay()];
-    return `${sem} ${String(dia).padStart(2, '0')}/${String(m).padStart(2, '0')} · ${h.replace(':00', 'h').replace(':', 'h')}`;
-  }
+  // Horário da reunião em Brasília, no mesmo formato das trocas do histórico
+  // ("seg., 09/11, 14:00").
+  const FUSO = 'America/Sao_Paulo';
+  const quando = (unix) => (unix ? new Date(unix * 1000).toLocaleString('pt-BR', {
+    timeZone: FUSO, weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  }) : '—');
+  const dia = (unix) => new Date(unix * 1000).toLocaleDateString('pt-BR', { timeZone: FUSO, day: '2-digit', month: '2-digit' });
+  // Troca do histórico: "de → para"; movida no Google não tem os horários (SUP-S7-08).
+  const textoTroca = (t) => (t.detalhe.includes('→') ? t.detalhe : `${t.detalhe || 'remarcada'} em ${dia(t.em)}`);
 
   // Os cards: { rotulo, valor, anterior, delta, invertido, neutro, nota } no
   // formato do `tile` do index (valor null vira "—").
@@ -137,13 +147,17 @@
 
   const CAB = '<h2>Detalhe das reuniões <small>reuniões criadas no período · variação contra o período anterior</small></h2>';
 
-  function desenhar(raiz, coorte, fSel, ctx) {
+  function desenhar(raiz, coorte, fSel, ctx, detalhe) {
     if (!raiz) return;
     const d = montarNumeros(coorte, fSel);
     let corpo;
     if (!d || !d.atual) corpo = '<p class="dr-vazio">Não foi possível carregar as reuniões agora.</p>';
     else if (!d.atual.criadas) corpo = '<p class="dr-vazio">Nenhuma reunião criada no período.</p>';
-    else corpo = numeros(d, ctx);
+    else {
+      corpo = numeros(d, ctx) + (detalhe && detalhe.listas
+        ? listas(detalhe.listas, ctx.esc)
+        : '<p class="dr-vazio">Não foi possível carregar os nomes agora.</p>');
+    }
     raiz.innerHTML = `<div class="bloco dr">${CAB}${corpo}</div>`;
   }
 
@@ -151,21 +165,24 @@
     const funil = esc(FUNIS[x.funil] || x.funil || 'sem funil');
     const marca = x.remarcada ? ' <span class="dr-marca">remarcada</span>' : '';
     if (k !== 'reagendamentos') {
-      return `<li class="dr-linha"><div><b>${esc(x.nome)}</b>${marca}</div><span>${funil}</span><span>${esc(quando(x.quando))}</span></li>`;
+      return `<li class="dr-linha"><div><b>${esc(x.nome)}</b>${marca}</div><span>${funil}</span><span>${esc(quando(x.inicio))}</span></li>`;
     }
-    const n = x.trocas.length;
-    const trocas = x.trocas.map((t) => `<li>${esc(quando(t.de))} → ${esc(quando(t.para))}</li>`).join('');
+    // Calendly remarcado vem sem as trocas (SUP-S7-03): só a marca.
+    const trocasDe = x.trocas || [];
+    const n = trocasDe.length;
+    const qtd = n ? `${n} ${n === 1 ? 'remarcação' : 'remarcações'}` : 'remarcada';
+    const trocas = n ? `<ol class="dr-trocas">${trocasDe.map((t) => `<li>${esc(textoTroca(t))}</li>`).join('')}</ol>` : '';
     return `<li class="dr-linha dr-linha--reag"><b>${esc(x.nome)}</b><span>${funil}</span>
-      <span>${n} ${n === 1 ? 'remarcação' : 'remarcações'} · agora: ${esc(SITUACAO[x.situacao] || x.situacao)}</span>
-      <ol class="dr-trocas">${trocas}</ol></li>`;
+      <span>${qtd} · agora: ${esc(SITUACAO[x.situacao] || x.situacao)}</span>${trocas}</li>`;
   }
 
-  function listas(d, esc) {
+  // As cinco listas, cada uma num drop próprio que começa fechado.
+  function listas(dados, esc) {
     return `<div class="dr-listas">${LISTAS.map(([k, titulo]) => {
-      const itens = d.listas[k] || [];
+      const itens = dados[k] || [];
       const corpo = itens.length
         ? `<ul>${itens.map((x) => linha(x, k, esc)).join('')}</ul>`
-        : '<p class="dr-vazio">Ninguém nesta situação no período.</p>';
+        : `<p class="dr-vazio">${esc(VAZIA[k])}</p>`;
       return `<details class="dr-lista"><summary>${esc(titulo)} <span class="dr-qtd">(${itens.length})</span></summary>${corpo}</details>`;
     }).join('')}</div>`;
   }
@@ -185,7 +202,7 @@
     </div>`;
     const cab = CAB;
     const corpo = d.atual.criadas
-      ? numeros(d, ctx) + listas(d, esc)
+      ? numeros(d, ctx) + listas(d.listas, esc)
       : '<p class="dr-vazio">Nenhuma reunião criada no período.</p>';
     raiz.innerHTML = `<div class="bloco dr">${cab}${proto}${corpo}</div>`;
     raiz.querySelector('[data-dr-cenario]').addEventListener('change', (e) => {
