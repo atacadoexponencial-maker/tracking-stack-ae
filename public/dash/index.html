@@ -1035,6 +1035,13 @@ td.pago, th.pago { color: var(--alerta); }
 .im-metas .mini { grid-column: 1 / -1; }
 .im-msg { font-size: 0.8rem; color: var(--alta-texto); }
 .im-msg--erro { color: var(--queda-texto); }
+.im-ajuste { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+.im-ajuste label { font-size: 0.8rem; font-weight: 700; }
+.im-ajuste input { font: inherit; width: 6.5rem; padding: 0.4rem 0.5rem; border: 1px solid var(--fio-forte); border-radius: 2px; background: var(--etiqueta); }
+.im-ajuste button { background: none; border: 1px solid var(--fio); border-radius: 999px; padding: 0.3rem 0.8rem; font: inherit; font-size: 0.78rem; cursor: pointer; color: var(--tinta-2); }
+.im-ajuste button:hover { border-color: var(--tinta); color: var(--tinta); }
+.im-veredito { margin-bottom: 0.5rem; font-size: 0.8rem; }
+tr.im-linha-meta td { background: #d7efdf; font-weight: 700; }
 @media (max-width: 900px) { .im-duas { grid-template-columns: 1fr; } .im-lotes { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .im-herois { grid-template-columns: 1fr; } .im-lotes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
@@ -2414,7 +2421,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
 <script src="/dash/arvore.js?v=2026-10-29a"></script>
-<script src="/dash/imersao.js?v=2026-11-09b"></script>
+<script src="/dash/imersao.js?v=2026-11-09c"></script>
 <script src="/dash/visao-reuniao.js?v=2026-10-26o"></script>
 <script src="/dash/detalhe-reunioes.js?v=2026-11-09c"></script>
 <script>

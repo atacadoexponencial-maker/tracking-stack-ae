@@ -422,3 +422,79 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
     resultado,
   };
 }
+
+// ── Simulação: projeção até o fim (S8-03) ──────────────────────────────────
+
+/**
+ * Ritmo atual (SUP-S8-10): média de ingressos por dia nos últimos 3 dias de
+ * venda já fechados (ou em todos, se houver menos de 3). No primeiro dia, o
+ * que já foi vendido hoje.
+ */
+export function ritmoAtual(vendas, agora) {
+  const ingressos = (vendas || []).filter((v) => v.produto === 'ingresso' && (v.situacao || 'paga') === 'paga');
+  const hoje = ymdBrt(agora);
+  const fechados = hoje > PRIMEIRO_DIA ? diasEntre(PRIMEIRO_DIA, hoje > DIA_EVENTO ? DIA_EVENTO : hoje).filter((d) => d < hoje) : [];
+  const base = fechados.slice(-3);
+  if (!base.length) return r1(ingressos.filter((v) => ymdBrt(v.pago_em) === hoje).length);
+  const noPeriodo = ingressos.filter((v) => base.includes(ymdBrt(v.pago_em))).length;
+  return r1(noPeriodo / base.length);
+}
+
+/**
+ * Projeção dia a dia até o fim da venda. `ajuste` em % sobre o ritmo (mínimo
+ * -100). `dias` é opcional (padrão: os dias de venda que faltam, SUP-S8-12).
+ */
+export function projetar({ vendidos, ritmo, ajuste = 0, agora, conversaoBump = 0, realizado = 0, dias = null }) {
+  const aj = Math.max(-100, Number(ajuste) || 0);
+  const porDia = Math.max(0, ritmo * (1 + aj / 100));
+  const lista = dias || diasDeVenda(agora).lista;
+  let acumulado = vendidos, fatIngressos = 0, fatBump = 0, bate = vendidos >= META_INGRESSOS ? ymdBrt(agora) : null;
+  const linhas = lista.map((dia) => {
+    const preco = precoDoDia(dia);
+    acumulado += porDia;
+    fatIngressos += porDia * preco;
+    fatBump += porDia * ((Number(conversaoBump) || 0) / 100) * PRECO_BUMP;
+    if (!bate && r1(acumulado) >= META_INGRESSOS) bate = dia;
+    return { dia, preco, ingressos: r1(porDia), acumulado: r1(acumulado) };
+  });
+  const faltam = Math.max(0, META_INGRESSOS - vendidos);
+  return {
+    vendidos,
+    ritmo_atual: ritmo,
+    ajuste: aj,
+    ritmo_usado: r1(porDia),
+    ritmo_necessario: faltam && lista.length ? r1(faltam / lista.length) : null,
+    dias: lista.length,
+    projetado_fim: r1(acumulado),
+    bate_meta: !!bate,
+    bate_em: bate,
+    faltam_no_fim: Math.max(0, Math.ceil(META_INGRESSOS - r1(acumulado))),
+    faturamento: {
+      realizado: r2(realizado),
+      ingressos_projetados: r2(fatIngressos),
+      bump_projetado: r2(fatBump),
+      total: r2(realizado + fatIngressos + fatBump),
+    },
+    linhas,
+  };
+}
+
+/** Simulação a partir dos dados da tela (exemplo ou reais). */
+export function simular(dados, agora, ajuste = 0, { exemplo = false } = {}) {
+  const pagas = (dados.vendas || []).filter((v) => (v.situacao || 'paga') === 'paga');
+  const ingressos = pagas.filter((v) => v.produto === 'ingresso');
+  const bumps = pagas.filter((v) => v.produto === 'bump');
+  const realizado = [...ingressos, ...bumps].reduce((s, v) => s + (Number(v.valor) || 0), 0);
+  return {
+    exemplo,
+    hoje: ymdBrt(agora),
+    ...projetar({
+      vendidos: ingressos.length,
+      ritmo: ritmoAtual(pagas, agora),
+      ajuste,
+      agora,
+      conversaoBump: ingressos.length ? (bumps.length / ingressos.length) * 100 : 0,
+      realizado,
+    }),
+  };
+}

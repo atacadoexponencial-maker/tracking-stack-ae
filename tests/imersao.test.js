@@ -363,3 +363,66 @@ test('CA-S8-07: valor inválido é recusado com motivo', async () => {
   assert.match(raiz.innerHTML, /data-im-erro="meta_mentoria">a porcentagem vai de 0 a 100/);
   IM._definir({ erros: null, digitado: null, msgMetas: null, metasAberto: false });
 });
+
+// ── S8-03: simulação ─────────────────────────────────────────────────────
+import { projetar, ritmoAtual } from '../functions/api/_imersao.js';
+import { onRequestGet as simulacaoGet } from '../functions/api/imersao/simulacao.js';
+
+/** Banco real com 37 ingressos: 25 em 12/11 e 4 em cada um de 22, 23 e 24/11 (ritmo 4/dia). */
+function cenario37() {
+  const ins = db.prepare("INSERT INTO imersao_vendas (id, produto, valor_centavos, pago_em, email) VALUES (?, 'ingresso', 3500, ?, ?)");
+  let n = 0;
+  for (let i = 0; i < 25; i++) ins.run(`s${++n}`, em('2026-11-12T10:00:00'), `s${n}@x.com`);
+  for (const d of ['22', '23', '24']) for (let i = 0; i < 4; i++) ins.run(`s${++n}`, em(`2026-11-${d}T10:00:00`), `s${n}@x.com`);
+}
+async function getSimulacao(ajuste, agora = '2026-11-25T10:00:00') {
+  const real = Date.now;
+  Date.now = () => em(agora) * 1000;
+  try {
+    const q = ajuste === undefined ? '' : `&ajuste=${ajuste}`;
+    const res = await simulacaoGet({ request: new Request(`https://x/api/imersao/simulacao?key=k${q}`), env });
+    assert.equal(res.status, 200);
+    return res.json();
+  } finally {
+    Date.now = real;
+  }
+}
+
+test('CA-S8-28: projeção pelo ritmo atual', async () => {
+  cenario37();
+  const s = await getSimulacao();
+  assert.equal(s.exemplo, false);
+  assert.equal(s.vendidos, 37);
+  assert.equal(s.ritmo_atual, 4);
+  assert.equal(s.dias, 10);
+  assert.equal(s.projetado_fim, 77);
+  assert.equal(s.bate_meta, false);
+  assert.equal(s.ritmo_necessario, 6.3);
+  const html = IM.desenharSimulacao(s, CTX);
+  assert.match(html, /Não bate a meta · faltam 23/);
+  assert.match(html, /6,3\/dia/);
+});
+
+test('CA-S8-29: ajuste de ritmo', async () => {
+  cenario37();
+  const s = await getSimulacao(60);
+  assert.equal(s.projetado_fim, 101);
+  assert.equal(s.bate_meta, true);
+  assert.equal(s.bate_em, '2026-12-04');
+  assert.match(IM.desenharSimulacao(s, CTX), /Bate a meta em 04\/12/);
+  // Nada gravado: outra pessoa (sem ajuste) continua vendo o ritmo atual.
+  assert.equal((await getSimulacao()).projetado_fim, 77);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM imersao_metas').get().n, 0);
+});
+
+test('CA-S8-30: faturamento projetado com o preço de cada lote', () => {
+  assert.equal(ritmoAtual([], em('2026-11-25T10:00:00')), 0);
+  const p = projetar({
+    vendidos: 37, ritmo: 4, agora: em('2026-11-24T08:00:00'), conversaoBump: 10, realizado: 2000,
+    dias: ['2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27', '2026-11-28'],
+  });
+  assert.deepEqual(p.linhas.map((l) => l.preco), [45, 45, 49, 49, 49]);
+  assert.equal(r2(p.faturamento.ingressos_projetados + p.faturamento.bump_projetado), 1542);
+  assert.equal(p.faturamento.total, 3542);
+});
+const r2 = (n) => Math.round(n * 100) / 100;

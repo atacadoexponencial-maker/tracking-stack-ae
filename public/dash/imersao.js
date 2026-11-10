@@ -233,11 +233,57 @@
       + blocoEvento(ctx, r.evento) + blocoResultado(ctx, r.resultado);
   }
 
+  // ── Simulação (S8-03) ──────────────────────────────────────────────────
+  /** Resultado da projeção (sem o campo de ajuste). */
+  function desenharSimulacao(s, ctx) {
+    const f = fmt(ctx);
+    if (!s) return '<p class="mini">Calculando a projeção…</p>';
+    if (s.erro) return `<p class="aviso alerta">${ctx.esc(s.erro)}</p>`;
+    const veredito = s.bate_meta
+      ? `<span class="im-cor im-cor--forte">Bate a meta em ${dia(s.bate_em)}</span>`
+      : `<span class="im-cor im-cor--vermelho">Não bate a meta · faltam ${f.int(s.faltam_no_fim)}</span>`;
+    const cards = [
+      card(ctx, { rotulo: 'Ingressos no fim', valor: f.int(Math.round(s.projetado_fim)), grande: true, nota: `${f.int(s.vendidos)} hoje + ${f.num(s.ritmo_usado)}/dia × ${f.int(s.dias)} dias`, extra: `<div class="im-veredito">${veredito}</div>` }),
+      card(ctx, { rotulo: 'Ritmo atual', valor: `${f.num(s.ritmo_atual)}/dia`, nota: 'média dos últimos 3 dias de venda' }),
+      card(ctx, { rotulo: 'Ritmo necessário', valor: vazio(s.ritmo_necessario) ? null : `${f.num(s.ritmo_necessario)}/dia`, nota: 'para bater 100 ingressos' }),
+      card(ctx, { rotulo: 'Faturamento projetado', valor: f.brl(s.faturamento.total), nota: `realizado ${f.brl(s.faturamento.realizado)} + ingressos ${f.brl(s.faturamento.ingressos_projetados)} + bump ${f.brl(s.faturamento.bump_projetado)}` }),
+    ].join('');
+    const linhas = s.linhas.map((l) => `<tr${l.dia === s.bate_em ? ' class="im-linha-meta"' : ''}><td>${dia(l.dia)}</td><td class="num">${f.brl(l.preco)}</td><td class="num">${f.num(l.ingressos)}</td><td class="num">${f.num(l.acumulado)}</td></tr>`).join('');
+    return `<div class="grid-etiquetas">${cards}</div>
+      <h3 class="im-h3">Dia a dia <small>até sexta 04/12 · o sábado 05/12 só tem a manhã</small></h3>
+      <div class="tabela-wrap im-rolagem"><table><thead><tr><th>Dia</th><th class="num">Lote</th><th class="num">Ingressos</th><th class="num">Acumulado</th></tr></thead><tbody>${linhas || '<tr><td colspan="4" class="mini">Venda encerrada.</td></tr>'}</tbody></table></div>`;
+  }
+
+  function cascaSimulacao(ctx) {
+    return `<div class="bloco im-bloco" data-im-bloco="simulacao">
+      <h2>Projeção até o fim <small>se o ritmo continuar; nada aqui é gravado</small></h2>
+      <div class="im-ajuste">
+        <label for="im-ajuste">Ajuste de ritmo (%)</label>
+        <input id="im-ajuste" type="number" step="5" value="${ctx.esc(estado.ajuste || 0)}" data-im-ajuste>
+        <button type="button" data-im-zerar>Voltar ao ritmo atual</button>
+      </div>
+      <div data-im-sim>${desenharSimulacao(estado.sim, ctx)}</div>
+    </div>`;
+  }
+
+  async function carregarSimulacao(raiz, ctx) {
+    const pedido = (estado.pedidoSim || 0) + 1;
+    estado.pedidoSim = pedido;
+    let s;
+    try {
+      s = await ctx.fetchJson(`/api/imersao/simulacao?ajuste=${encodeURIComponent(estado.ajuste || 0)}`);
+    } catch {
+      s = { erro: 'Não foi possível calcular a simulação agora.' };
+    }
+    if (pedido !== estado.pedidoSim) return; // chegou uma resposta mais nova
+    estado.sim = s;
+    const alvo = raiz.querySelector && raiz.querySelector('[data-im-sim]');
+    if (alvo) alvo.innerHTML = desenharSimulacao(s, ctx);
+  }
+
   /** Cabeçalho + conteúdo da subaba atual. */
   function desenhar(raiz, r, ctx) {
-    const conteudo = estado.aba === 'visao'
-      ? desenharVisao(r, ctx)
-      : '<div class="bloco"><h2>Simulação</h2><p class="mini">Em construção.</p></div>';
+    const conteudo = estado.aba === 'visao' ? desenharVisao(r, ctx) : cascaSimulacao(ctx);
     raiz.innerHTML = `<div class="im">${cabecalho(ctx, r)}<div class="im-conteudo" data-im-conteudo="${estado.aba}">${conteudo}</div></div>`;
   }
 
@@ -252,13 +298,33 @@
     }
     estado.resposta = r;
     desenhar(raiz, r, ctx);
+    if (estado.aba === 'simulacao') carregarSimulacao(raiz, ctx);
     if (raiz.dataset.imLigado) return;
     raiz.dataset.imLigado = '1';
     raiz.addEventListener('click', (ev) => {
       const aba = ev.target.closest('[data-im-aba]');
-      if (aba) { estado.aba = aba.dataset.imAba; desenhar(raiz, estado.resposta, ctx); return; }
+      if (aba) {
+        estado.aba = aba.dataset.imAba;
+        desenhar(raiz, estado.resposta, ctx);
+        if (estado.aba === 'simulacao') carregarSimulacao(raiz, ctx);
+        return;
+      }
+      if (ev.target.closest('[data-im-zerar]')) {
+        estado.ajuste = 0;
+        const campo = raiz.querySelector('[data-im-ajuste]');
+        if (campo) campo.value = '0';
+        carregarSimulacao(raiz, ctx);
+        return;
+      }
       const ordem = ev.target.closest('[data-im-ordem]');
       if (ordem) { estado.ordem = ordem.dataset.imOrdem; desenhar(raiz, estado.resposta, ctx); }
+    });
+    let espera = null;
+    raiz.addEventListener('input', (ev) => {
+      if (!ev.target.matches('[data-im-ajuste]')) return;
+      estado.ajuste = ev.target.value === '' ? 0 : Number(ev.target.value);
+      clearTimeout(espera);
+      espera = setTimeout(() => carregarSimulacao(raiz, ctx), 300);
     });
     raiz.addEventListener('toggle', (ev) => {
       if (ev.target.matches && ev.target.matches('details.im-metas')) estado.metasAberto = ev.target.open;
@@ -271,5 +337,5 @@
     });
   }
 
-  window.Imersao = { abrir, desenhar, desenharVisao, salvarMetas, _estado: () => estado, _definir: (e) => { estado = { ...estado, ...e }; } };
+  window.Imersao = { abrir, desenhar, desenharVisao, desenharSimulacao, salvarMetas, _estado: () => estado, _definir: (e) => { estado = { ...estado, ...e }; } };
 })();

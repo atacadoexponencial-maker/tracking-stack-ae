@@ -74,9 +74,8 @@ Nenhuma mudança.
 
 ## Arquivos
 
-- **Modificar:** `functions/api/_imersao.js` — `ritmoAtual(vendas, agora)` e `projetar({ vendidos, ritmo, ajuste, agora, conversaoBump, realizado })`.
-- **Modificar:** `functions/api/imersao/index.js` — exporta a leitura dos dados (exemplo × real) para a simulação reaproveitar.
-- **Criar:** `functions/api/imersao/simulacao.js` — `GET /api/imersao/simulacao?key=&ajuste=`.
+- **Modificar:** `functions/api/_imersao.js` — `ritmoAtual(vendas, agora)`, `projetar({ vendidos, ritmo, ajuste, agora, conversaoBump, realizado, dias })` e `simular(dados, agora, ajuste)`.
+- **Criar:** `functions/api/imersao/simulacao.js` — `GET /api/imersao/simulacao?key=&ajuste=` (reaproveita `carregarDados` e `autorizado`, já exportados por `functions/api/imersao/index.js` na S8-01).
 - **Modificar:** `public/dash/imersao.js` — subaba Simulação: campo de ajuste, botão de voltar, desenho da projeção.
 - **Modificar:** `public/dash/index.html` — CSS da Simulação e versão do script.
 - **Modificar:** `tests/imersao.test.js` — testes CA-S8-28, CA-S8-29, CA-S8-30.
@@ -87,11 +86,11 @@ Nenhuma.
 
 ## Checklist
 
-- [ ] `ritmoAtual` e `projetar` em `_imersao.js`
-- [ ] `GET /api/imersao/simulacao`
-- [ ] Subaba Simulação desenhada em `imersao.js`
-- [ ] CSS e versão do script em `index.html`
-- [ ] Testes CA-S8-28, CA-S8-29, CA-S8-30 passando
+- [x] `ritmoAtual` e `projetar` em `_imersao.js`
+- [x] `GET /api/imersao/simulacao`
+- [x] Subaba Simulação desenhada em `imersao.js`
+- [x] CSS e versão do script em `index.html`
+- [x] Testes CA-S8-28, CA-S8-29, CA-S8-30 passando
 
 ### Depois do commit (fora do checklist: só dá para fazer com o código no ar)
 
