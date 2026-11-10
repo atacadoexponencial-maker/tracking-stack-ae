@@ -988,6 +988,42 @@ td.pago, th.pago { color: var(--alerta); }
   .dr-linha, .dr-linha--reag { grid-template-columns: 1fr; gap: 0.1rem; }
   .dr-linha span { color: var(--tinta-2); font-size: 0.8rem; }
 }
+/* Imersão 2027 (public/dash/imersao.js, spec-imersao-2027.md, S8). */
+.im-subabas { display: flex; gap: 0.2rem; border-bottom: 1px solid var(--fio); margin-bottom: 1rem; overflow-x: auto; }
+.im-subabas button { background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-size: 0.9rem; padding: 0.55rem 0.7rem; color: var(--tinta-2); cursor: pointer; margin-bottom: -1px; white-space: nowrap; }
+.im-subabas button[aria-selected="true"] { color: var(--tinta); border-bottom-color: var(--tinta); font-weight: 700; }
+.im-faixa-exemplo { background: var(--papel-escuro); border-left: 3px solid var(--alerta); color: var(--alerta-texto); padding: 0.55rem 0.9rem; font-size: 0.82rem; margin-bottom: 1.2rem; }
+.im-h3 { font-size: 0.82rem; font-weight: 700; margin: 0.4rem 0 0.6rem; }
+.im-h3 small { font-weight: 400; color: var(--apagado); }
+.im-ref { font-size: 0.7rem; color: var(--apagado); text-align: left; }
+.im-ref b { font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.62rem; color: var(--info); margin-right: 0.25rem; }
+.im-ref--linha { margin-top: 0.5rem; }
+.etiqueta .rodape:has(.im-ref) { flex-wrap: wrap; }
+.im-falta-meta { font-size: 1rem; font-weight: 700; color: var(--alerta-texto); }
+.etiqueta.im-alerta { border-color: var(--queda); }
+.etiqueta.im-alerta .valor { color: var(--queda-texto); }
+.im-barra { height: 6px; background: var(--papel-escuro); border-radius: 3px; overflow: hidden; margin-bottom: 0.5rem; }
+.im-barra span { display: block; height: 100%; background: var(--tinta); }
+.im-duas { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1.6rem; margin-bottom: 1.2rem; }
+.im-rolagem { max-height: 320px; overflow-y: auto; }
+.im-cor { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 2px; font-weight: 700; }
+.im-cor--forte { background: var(--alta); color: #fff; }
+.im-cor--claro { background: #d7efdf; color: var(--alta-texto); }
+.im-cor--vermelho { background: #f6dcd9; color: var(--queda-texto); }
+.im-legenda { margin-top: 0.5rem; line-height: 2; }
+.im-lotes { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.5rem; }
+.im-lote { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.55rem 0.6rem; display: grid; gap: 0.15rem; }
+.im-lote small { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--apagado); }
+.im-lote b { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.im-lote span { font-size: 0.7rem; color: var(--tinta-2); }
+.im-lote--atual { border-color: var(--fio-forte); box-shadow: inset 0 0 0 1px var(--fio-forte); }
+.im-lote--atual small { color: var(--tinta); }
+.im-ordem { margin-bottom: 0.4rem; }
+.im-indisponivel { color: var(--apagado); font-size: 0.86rem; padding: 0.4rem 0 0.8rem; }
+.im-herois { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) { .im-duas { grid-template-columns: 1fr; } .im-lotes { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .im-herois { grid-template-columns: 1fr; } .im-lotes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 /* Árvore (public/dash/arvore.js, S5): reaproveita o funil da Visão geral (.vr-etapa). */
 .av-funis { display: inline-flex; gap: 0; margin-bottom: 1.1rem; border: 1px solid var(--fio-forte); border-radius: 2px; }
 .av-funis button { background: none; border: 0; border-right: 1px solid var(--fio-forte); padding: 0.4rem 0.9rem; font: inherit; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; color: var(--tinta-2); cursor: pointer; }
@@ -1704,6 +1740,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
         <a href="#visao" data-secao="visao">Visão geral</a>
         <a href="#detalhado" data-secao="detalhado">Detalhado</a>
         <a href="#arvore" data-secao="arvore">Árvore</a>
+        <a href="#imersao" data-secao="imersao">Imersão 2027</a>
         <a href="#leads" data-secao="leads">Leads</a>
         <a href="#vendas" data-secao="vendas">Vendas</a>
         <a href="#greenn" data-secao="greenn">Greenn</a>
@@ -2191,6 +2228,10 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
          public/dash/arvore.js. PROTÓTIPO S5-01: números de exemplo. -->
     <section class="secao" id="secao-arvore"></section>
 
+    <!-- Aba Imersão 2027 (spec-imersao-2027.md, série S8): desenhada por
+         public/dash/imersao.js com a resposta de /api/imersao. -->
+    <section class="secao" id="secao-imersao"></section>
+
     <!-- Aba Argo (spec 2026-09-20-argo-controle-ae-design.md): o Argo já opera
          esta conta sozinho desde agosto — pausa campanhas de tráfego todo dia
          útil às 8h50. Esta aba mostra o que ele fez e comanda o que ele pode
@@ -2359,6 +2400,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
 <script src="/dash/arvore.js?v=2026-10-29a"></script>
+<script src="/dash/imersao.js?v=2026-11-09a"></script>
 <script src="/dash/visao-reuniao.js?v=2026-10-26o"></script>
 <script src="/dash/detalhe-reunioes.js?v=2026-11-09c"></script>
 <script>
@@ -4960,6 +5002,12 @@ R.arvore = async () => {
   }
 };
 
+// Aba Imersão 2027 (spec-imersao-2027.md, S8): public/dash/imersao.js desenha.
+R.imersao = async () => {
+  if (!window.Imersao) return;
+  await window.Imersao.abrir($('#secao-imersao'), { esc, fmtInt, fmtPct, fmtNum, money, fetchJson });
+};
+
 // Aba Cloudflare (spec-uso-cloudflare.md): public/dash/cloudflare.js desenha.
 R.cloudflare = async () => {
   if (!window.CloudflareUso) return;
@@ -6876,7 +6924,7 @@ R['mkt-email'] = () => window.EmailMkt.render(emailCtx());
 R['agenda-emails'] = () => window.EmailMkt.renderAgenda(emailCtx());
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', detalhado: 'Detalhado', arvore: 'Árvore', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', cloudflare: 'Cloudflare', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
+const TITULOS = { visao: 'Visão geral', detalhado: 'Detalhado', arvore: 'Árvore', imersao: 'Imersão 2027', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', cloudflare: 'Cloudflare', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
@@ -6885,6 +6933,7 @@ const FILTROS = {
   visao: { periodo: true, compara: true, funil: true },
   detalhado: { periodo: true, compara: true, funil: true },
   arvore: { periodo: true },
+  imersao: { nota: 'lançamento inteiro · não usa o filtro de datas' },
   leads: { periodo: true, funil: true },
   vendas: { periodo: true, compara: true },
   atribuicao: { periodo: true },

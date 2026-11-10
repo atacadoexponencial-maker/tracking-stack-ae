@@ -11,3 +11,4 @@ As issues até a 410 foram criadas antes das séries e seguem numeradas soltas n
 | S5 | spec-arvore-metricas.md | issues/concluidas_S5 |
 | S6 | docs/specs-arquivadas/spec-etapas-com-nome.md | issues/concluidas_S6 |
 | S7 | docs/specs-arquivadas/spec-detalhe-reunioes.md | issues/concluidas_S7 |
+| S8 | spec-imersao-2027.md | issues/concluidas_S8 |
