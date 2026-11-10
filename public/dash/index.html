@@ -1021,6 +1021,20 @@ td.pago, th.pago { color: var(--alerta); }
 .im-ordem { margin-bottom: 0.4rem; }
 .im-indisponivel { color: var(--apagado); font-size: 0.86rem; padding: 0.4rem 0 0.8rem; }
 .im-herois { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.im-metas { border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); padding: 0.6rem 0.9rem; margin-bottom: 1.4rem; }
+.im-metas summary { cursor: pointer; font-weight: 700; font-size: 0.86rem; }
+.im-metas summary small { font-weight: 400; color: var(--apagado); margin-left: 0.4rem; }
+.im-metas form { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.8rem 1.2rem; padding-top: 0.9rem; }
+.im-campo { display: grid; gap: 0.3rem; align-content: start; }
+.im-campo span { font-size: 0.72rem; color: var(--apagado); }
+.im-campo input { font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--fio); border-radius: 2px; background: var(--papel); color: var(--tinta); width: 100%; }
+.im-campo--erro input { border-color: var(--queda); }
+.im-erro { color: var(--queda-texto); font-size: 0.72rem; }
+.im-metas-acoes { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; grid-column: 1 / -1; }
+.im-metas-acoes button { background: var(--tinta); color: var(--bege); border: 0; border-radius: 2px; padding: 0.5rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+.im-metas .mini { grid-column: 1 / -1; }
+.im-msg { font-size: 0.8rem; color: var(--alta-texto); }
+.im-msg--erro { color: var(--queda-texto); }
 @media (max-width: 900px) { .im-duas { grid-template-columns: 1fr; } .im-lotes { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .im-herois { grid-template-columns: 1fr; } .im-lotes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
@@ -2400,7 +2414,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
 <script src="/dash/arvore.js?v=2026-10-29a"></script>
-<script src="/dash/imersao.js?v=2026-11-09a"></script>
+<script src="/dash/imersao.js?v=2026-11-09b"></script>
 <script src="/dash/visao-reuniao.js?v=2026-10-26o"></script>
 <script src="/dash/detalhe-reunioes.js?v=2026-11-09c"></script>
 <script>
@@ -5005,7 +5019,11 @@ R.arvore = async () => {
 // Aba Imersão 2027 (spec-imersao-2027.md, S8): public/dash/imersao.js desenha.
 R.imersao = async () => {
   if (!window.Imersao) return;
-  await window.Imersao.abrir($('#secao-imersao'), { esc, fmtInt, fmtPct, fmtNum, money, fetchJson });
+  // POST com a chave do dash; devolve status e corpo para a tela mostrar o erro de cada campo.
+  const postJson = (p, corpo) => fetch(p + (p.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key), {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo),
+  }).then(async (r) => ({ ok: r.ok, status: r.status, dados: await r.json().catch(() => ({})) }));
+  await window.Imersao.abrir($('#secao-imersao'), { esc, fmtInt, fmtPct, fmtNum, money, fetchJson, postJson });
 };
 
 // Aba Cloudflare (spec-uso-cloudflare.md): public/dash/cloudflare.js desenha.

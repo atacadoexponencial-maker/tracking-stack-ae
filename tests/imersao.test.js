@@ -12,6 +12,7 @@ import {
 } from '../functions/api/_imersao.js';
 import { dadosDeExemplo, AGORA_EXEMPLO, METAS_EXEMPLO } from '../functions/api/_imersao-exemplo.js';
 import { onRequestGet as imersaoGet } from '../functions/api/imersao/index.js';
+import { onRequestPost as metasPost } from '../functions/api/imersao/metas.js';
 
 const em = (iso) => Math.floor(Date.parse(`${iso}-03:00`) / 1000);
 const SEM_METAS = metasEfetivas({});
@@ -320,4 +321,45 @@ test('CA-S8-31: dados de exemplo coerentes', () => {
     && d.visualizacoes <= d.trafego.cliques && d.trafego.cliques <= d.trafego.impressoes);
   assert.ok(r.resultado.conversao_mentoria.mentorias <= vendidos);
   assert.ok(r.bump.total.bumps <= vendidos);
+});
+
+// ── S8-02: metas editáveis ───────────────────────────────────────────────
+async function postMetas(corpo) {
+  const res = await metasPost({ request: new Request('https://x/api/imersao/metas?key=k', { method: 'POST', body: JSON.stringify(corpo) }), env });
+  return { status: res.status, dados: await res.json() };
+}
+const metasNoBanco = () => Object.fromEntries(db.prepare('SELECT campo, valor FROM imersao_metas').all().map((l) => [l.campo, l.valor]));
+
+test('CA-S8-05: meta salva vale para todo mundo', async () => {
+  // Venda real, para o CPA teto não usar a meta de exemplo.
+  db.prepare("INSERT INTO imersao_vendas (id, produto, valor_centavos, pago_em, email) VALUES ('z1', 'ingresso', 2900, ?, 'a@x.com')").run(em('2026-11-10T10:00:00'));
+  const salvo = await postMetas({ verba_ingresso: '5000', pct_trafego: '75' });
+  assert.equal(salvo.status, 200);
+  assert.equal(salvo.dados.trafego.cpa_teto.valor, 66.67);
+  // "Outra pessoa": um GET novo, sem nada do POST em memória.
+  const r = await getImersao();
+  assert.equal(r.metas.verba_ingresso, 5000);
+  assert.equal(r.metas.origem.verba_ingresso, 'salva');
+  assert.equal(r.trafego.cpa_teto.valor, 66.67);
+  assert.match(cardDe(tela(r), 'CPA teto'), /R\$\s?66,67/);
+});
+
+test('CA-S8-07: valor inválido é recusado com motivo', async () => {
+  const neg = await postMetas({ verba_ingresso: '-10', meta_bump: '20' });
+  assert.equal(neg.status, 400);
+  assert.equal(neg.dados.erros.verba_ingresso, 'a verba não pode ser negativa');
+  const pct = await postMetas({ meta_mentoria: '120' });
+  assert.equal(pct.status, 400);
+  assert.equal(pct.dados.erros.meta_mentoria, 'a porcentagem vai de 0 a 100');
+  assert.deepEqual(metasNoBanco(), {}); // nem o meta_bump válido do mesmo envio foi gravado
+
+  // A tela mostra o motivo junto do campo.
+  const r = await getImersao();
+  IM._definir({ aba: 'visao', ordem: 'vendas', resposta: r });
+  const raiz = { innerHTML: '' };
+  const form = { elements: Object.fromEntries(['verba_ingresso', 'pct_trafego', 'meta_bump', 'meta_mentoria', 'horario_oferta'].map((c) => [c, { value: '' }])) };
+  form.elements.meta_mentoria.value = '120';
+  await IM.salvarMetas(raiz, form, { ...CTX, postJson: async (_p, corpo) => { const x = await postMetas(corpo); return { ok: x.status === 200, ...x }; } });
+  assert.match(raiz.innerHTML, /data-im-erro="meta_mentoria">a porcentagem vai de 0 a 100/);
+  IM._definir({ erros: null, digitado: null, msgMetas: null, metasAberto: false });
 });

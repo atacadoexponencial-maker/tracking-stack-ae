@@ -195,6 +195,41 @@ export function metasDasLinhas(linhas) {
   return m;
 }
 
+const CAMPOS_PCT = ['pct_trafego', 'meta_bump', 'meta_mentoria'];
+export const ERRO_NUMERO = 'digite um número';
+export const ERRO_NEGATIVO = 'a verba não pode ser negativa';
+export const ERRO_PCT = 'a porcentagem vai de 0 a 100';
+export const ERRO_HORARIO = 'use o formato HH:MM (ex.: 16:00)';
+
+/**
+ * Valida as metas enviadas pela tela (S8-02). Só os campos conhecidos que
+ * vierem no corpo; vazio = apagar a meta. Qualquer erro recusa o envio inteiro.
+ * → { ok: true, metas: { campo: valor|null } } | { ok: false, erros: { campo: motivo } }
+ */
+export function validarMetas(corpo) {
+  const metas = {};
+  const erros = {};
+  for (const campo of CAMPOS_META) {
+    if (!corpo || !(campo in corpo)) continue;
+    const bruto = corpo[campo];
+    if (vazio(bruto) || String(bruto).trim() === '') { metas[campo] = null; continue; }
+    if (campo === 'horario_oferta') {
+      const h = String(bruto).trim();
+      if (/^([01]\d|2[0-3]):[0-5]\d$/.test(h)) metas[campo] = h; else erros[campo] = ERRO_HORARIO;
+      continue;
+    }
+    // "3.500,50" (com vírgula) → 3500.5; "10.5" ou 10.5 → 10.5.
+    const texto = String(bruto).trim();
+    const num = typeof bruto === 'number' ? bruto
+      : Number(texto.includes(',') ? texto.replace(/\./g, '').replace(',', '.') : texto);
+    if (!Number.isFinite(num)) { erros[campo] = ERRO_NUMERO; continue; }
+    if (CAMPOS_PCT.includes(campo) && (num < 0 || num > 100)) { erros[campo] = ERRO_PCT; continue; }
+    if (campo === 'verba_ingresso' && num < 0) { erros[campo] = ERRO_NEGATIVO; continue; }
+    metas[campo] = num;
+  }
+  return Object.keys(erros).length ? { ok: false, erros } : { ok: true, metas };
+}
+
 /** Metas salvas prevalecem; no exemplo, as vazias recebem o valor de exemplo. */
 export function metasEfetivas(salvas, exemplo = null) {
   const out = {};

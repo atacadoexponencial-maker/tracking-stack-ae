@@ -64,7 +64,7 @@ Usa `imersao_metas` criada na S8-01 (INSERT ... ON CONFLICT(campo) DO UPDATE).
 - **Modificar:** `functions/api/_imersao.js` — `validarMetas(corpo)` (devolve `{ ok, metas }` ou `{ ok: false, erros: { campo: motivo } }`).
 - **Criar:** `functions/api/imersao/metas.js` — `POST /api/imersao/metas?key=`: autoriza, valida, grava em lote e devolve a Visão geral recalculada (reaproveita `montarResposta` de `functions/api/imersao/index.js`).
 - **Modificar:** `public/dash/imersao.js` — formulário "Metas do lançamento", envio e erros por campo.
-- **Modificar:** `public/dash/index.html` — passa um `postJson` no `ctx` de `R.imersao` e sobe a versão do script.
+- **Modificar:** `public/dash/index.html` — passa um `postJson` no `ctx` de `R.imersao`, CSS do formulário (`.im-metas`, `.im-campo`) e sobe a versão do script.
 - **Modificar:** `tests/imersao.test.js` — testes CA-S8-05 e CA-S8-07.
 
 ## Dependências Externas
@@ -73,8 +73,8 @@ Nenhuma.
 
 ## Checklist
 
-- [ ] `validarMetas` em `_imersao.js`
-- [ ] `POST /api/imersao/metas` gravando e devolvendo a visão recalculada
-- [ ] Formulário de metas em `imersao.js` com erro por campo
-- [ ] `ctx.postJson` e versão do script em `index.html`
-- [ ] Testes CA-S8-05 e CA-S8-07 passando
+- [x] `validarMetas` em `_imersao.js`
+- [x] `POST /api/imersao/metas` gravando e devolvendo a visão recalculada
+- [x] Formulário de metas em `imersao.js` com erro por campo
+- [x] `ctx.postJson`, CSS do formulário e versão do script em `index.html`
+- [x] Testes CA-S8-05 e CA-S8-07 passando

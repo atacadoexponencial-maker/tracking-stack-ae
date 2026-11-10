@@ -179,9 +179,57 @@
     </div>`;
   }
 
+  // ── Metas editáveis (S8-02) ────────────────────────────────────────────
+  const CAMPOS = [
+    { id: 'verba_ingresso', rotulo: 'Verba de anúncios de ingresso (R$)', tipo: 'text', modo: 'decimal' },
+    { id: 'pct_trafego', rotulo: '% de ingressos esperado do tráfego pago', tipo: 'text', modo: 'decimal', padrao: '75' },
+    { id: 'meta_bump', rotulo: 'Meta de conversão do bump (%)', tipo: 'text', modo: 'decimal' },
+    { id: 'meta_mentoria', rotulo: 'Meta de conversão na Mentoria (%)', tipo: 'text', modo: 'decimal' },
+    { id: 'horario_oferta', rotulo: 'Horário da oferta no dia 05/12', tipo: 'text', modo: 'text', dica: 'HH:MM' },
+  ];
+
+  function formMetas(ctx, m) {
+    const erros = estado.erros || {};
+    const campos = CAMPOS.map((c) => {
+      const salvo = m.origem && m.origem[c.id] === 'salva' ? m[c.id] : '';
+      const valor = estado.digitado && c.id in estado.digitado ? estado.digitado[c.id] : (vazio(salvo) ? '' : salvo);
+      const exemplo = m.origem && m.origem[c.id] === 'exemplo' ? `exemplo: ${m[c.id]}` : (c.padrao ? `padrão: ${c.padrao}` : (c.dica || 'sem meta'));
+      return `<label class="im-campo${erros[c.id] ? ' im-campo--erro' : ''}"><span>${ctx.esc(c.rotulo)}</span>
+        <input name="${c.id}" type="${c.tipo}" inputmode="${c.modo}" value="${ctx.esc(valor)}" placeholder="${ctx.esc(exemplo)}">
+        ${erros[c.id] ? `<small class="im-erro" data-im-erro="${c.id}">${ctx.esc(erros[c.id])}</small>` : ''}</label>`;
+    }).join('');
+    const msg = estado.msgMetas ? `<p class="im-msg${estado.msgMetasErro ? ' im-msg--erro' : ''}" role="status">${ctx.esc(estado.msgMetas)}</p>` : '';
+    return `<details class="im-metas"${estado.metasAberto ? ' open' : ''}><summary>Metas do lançamento <small>meta de ingressos: ${ctx.fmtInt(m.meta_ingressos)} · fixa</small></summary>
+      <form data-im-form-metas novalidate>${campos}
+        <div class="im-metas-acoes"><button type="submit" class="botao">Salvar metas</button>${msg}</div>
+        <p class="mini">Vale para todo mundo que abre o dash. Campo vazio = sem meta.</p>
+      </form></details>`;
+  }
+
+  async function salvarMetas(raiz, form, ctx) {
+    const corpo = {};
+    for (const c of CAMPOS) corpo[c.id] = form.elements[c.id].value;
+    estado.digitado = corpo;
+    estado.metasAberto = true;
+    let res;
+    try {
+      res = await ctx.postJson('/api/imersao/metas', corpo);
+    } catch {
+      res = { ok: false, status: 0, dados: {} };
+    }
+    if (res.ok) {
+      estado = { ...estado, resposta: res.dados, erros: null, digitado: null, msgMetas: 'Metas salvas.', msgMetasErro: false };
+    } else if (res.status === 400 && res.dados && res.dados.erros) {
+      estado = { ...estado, erros: res.dados.erros, msgMetas: res.dados.erro || 'Confira os campos marcados.', msgMetasErro: true };
+    } else {
+      estado = { ...estado, erros: null, msgMetas: 'Não foi possível salvar as metas agora.', msgMetasErro: true };
+    }
+    desenhar(raiz, estado.resposta, ctx);
+  }
+
   /** HTML da Visão geral inteira (sem as subabas). */
   function desenharVisao(r, ctx) {
-    return blocoIngressos(ctx, r.ingressos) + blocoTrafego(ctx, r.trafego) + blocoBump(ctx, r.bump)
+    return formMetas(ctx, r.metas) + blocoIngressos(ctx, r.ingressos) + blocoTrafego(ctx, r.trafego) + blocoBump(ctx, r.bump)
       + blocoEvento(ctx, r.evento) + blocoResultado(ctx, r.resultado);
   }
 
@@ -212,7 +260,16 @@
       const ordem = ev.target.closest('[data-im-ordem]');
       if (ordem) { estado.ordem = ordem.dataset.imOrdem; desenhar(raiz, estado.resposta, ctx); }
     });
+    raiz.addEventListener('toggle', (ev) => {
+      if (ev.target.matches && ev.target.matches('details.im-metas')) estado.metasAberto = ev.target.open;
+    }, true);
+    raiz.addEventListener('submit', (ev) => {
+      const form = ev.target.closest('[data-im-form-metas]');
+      if (!form) return;
+      ev.preventDefault();
+      salvarMetas(raiz, form, ctx);
+    });
   }
 
-  window.Imersao = { abrir, desenhar, desenharVisao, _estado: () => estado, _definir: (e) => { estado = { ...estado, ...e }; } };
+  window.Imersao = { abrir, desenhar, desenharVisao, salvarMetas, _estado: () => estado, _definir: (e) => { estado = { ...estado, ...e }; } };
 })();
