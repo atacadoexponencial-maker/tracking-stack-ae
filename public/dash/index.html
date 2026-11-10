@@ -1021,9 +1021,7 @@ td.pago, th.pago { color: var(--alerta); }
 .im-ordem { margin-bottom: 0.4rem; }
 .im-indisponivel { color: var(--apagado); font-size: 0.86rem; padding: 0.4rem 0 0.8rem; }
 .im-herois { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.im-metas { border: 1px solid var(--fio); border-radius: 2px; background: var(--etiqueta); padding: 0.6rem 0.9rem; margin-bottom: 1.4rem; }
-.im-metas summary { cursor: pointer; font-weight: 700; font-size: 0.86rem; }
-.im-metas summary small { font-weight: 400; color: var(--apagado); margin-left: 0.4rem; }
+.im-metas form { max-width: 900px; }
 .im-metas form { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.8rem 1.2rem; padding-top: 0.9rem; }
 .im-campo { display: grid; gap: 0.3rem; align-content: start; }
 .im-campo span { font-size: 0.72rem; color: var(--apagado); }
@@ -1042,6 +1040,22 @@ td.pago, th.pago { color: var(--alerta); }
 .im-ajuste button:hover { border-color: var(--tinta); color: var(--tinta); }
 .im-veredito { margin-bottom: 0.5rem; font-size: 0.8rem; }
 tr.im-linha-meta td { background: #d7efdf; font-weight: 700; }
+.im-projecao { font-size: 0.9rem; margin: 0.2rem 0 1.2rem; line-height: 1.9; }
+.im-alertas { list-style: none; margin: 0 0 1.2rem; padding: 0; display: grid; gap: 0.35rem; }
+.im-alertas li { font-size: 0.84rem; padding: 0.45rem 0.7rem; border-left: 3px solid var(--queda); background: #f6dcd9; color: var(--queda-texto); }
+.im-alertas li b { display: inline-grid; place-items: center; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--queda); color: #fff; font-size: 0.7rem; margin-right: 0.3rem; }
+.im-alertas-ok { font-size: 0.84rem; padding: 0.45rem 0.7rem; border-left: 3px solid var(--alta); background: #d7efdf; color: var(--alta-texto); margin: 0 0 1.2rem; }
+.im-graf { width: 100%; height: auto; display: block; margin-bottom: 0.8rem; }
+.im-graf-barra { fill: var(--tinta); }
+.im-graf-meta { stroke: var(--alerta); stroke-width: 2; stroke-linecap: round; }
+.im-graf-base { stroke: var(--fio); stroke-width: 1; }
+.im-graf-eixo { font-size: 10px; fill: var(--apagado); font-variant-numeric: tabular-nums; }
+.im-graf-alvo { fill: transparent; }
+.im-graf-col:hover .im-graf-barra { fill: var(--tinta-2); }
+.im-graf-legenda { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: 0.74rem; color: var(--tinta-2); margin-bottom: 0.3rem; }
+.im-graf-legenda i { display: inline-block; vertical-align: middle; margin-right: 0.35rem; }
+.im-leg-barra { width: 10px; height: 10px; border-radius: 2px; background: var(--tinta); }
+.im-leg-meta { width: 14px; height: 2px; background: var(--alerta); }
 @media (max-width: 900px) { .im-duas { grid-template-columns: 1fr; } .im-lotes { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .im-herois { grid-template-columns: 1fr; } .im-lotes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
@@ -2421,7 +2435,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/argo-testes.js"></script>
 <script src="/dash/cloudflare.js"></script>
 <script src="/dash/arvore.js?v=2026-10-29a"></script>
-<script src="/dash/imersao.js?v=2026-11-09c"></script>
+<script src="/dash/imersao.js?v=2026-11-10a"></script>
 <script src="/dash/visao-reuniao.js?v=2026-10-26o"></script>
 <script src="/dash/detalhe-reunioes.js?v=2026-11-09c"></script>
 <script>

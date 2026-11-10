@@ -34,29 +34,29 @@ números fictícios, mas coerentes entre si, até a primeira venda real chegar d
 
 **Componentes:**
 - Item "Imersão 2027" no menu de abas do dash.
-- Subabas no topo da tela: "Visão geral do lançamento" e "Simulação".
+- Subabas no topo da tela: "Resumo", "Ingressos", "Tráfego e página", "Bump", "Evento e pós",
+  "Simulação" e "Metas" (revisão de 10/11; antes eram "Visão geral do lançamento" e "Simulação").
 - Faixa "dados de exemplo" no topo, enquanto não houver venda real.
 
 **Comportamentos:**
-- Abrir a tela: a pessoa clica em "Imersão 2027" e cai na subaba "Visão geral do lançamento".
-- Trocar de subaba: a pessoa clica em "Simulação" ou volta para "Visão geral do lançamento".
+- Abrir a tela: a pessoa clica em "Imersão 2027" e cai na subaba "Resumo".
+- Trocar de subaba: a pessoa clica em qualquer subaba e volta para o "Resumo".
 - Ver se os números são de exemplo: enquanto a Zouti não registrar nenhuma venda de
   ingresso, a faixa "dados de exemplo" fica visível; com a primeira venda real, ela some
   e a tela passa a mostrar só dados reais.
 
 **Critérios de aceite:**
 
-#### CA-S8-01 — A aba Imersão 2027 abre na Visão geral · prova: manual
+#### CA-S8-01 — A aba Imersão 2027 abre no Resumo · prova: manual
 
 - **Dado** que a pessoa está logada no dash
 - **Quando** clica em "Imersão 2027" no menu
-- **Então** a tela abre com as subabas "Visão geral do lançamento" e "Simulação" no topo,
-  com a primeira selecionada
+- **Então** a tela abre com as subabas no topo, com a primeira ("Resumo") selecionada
 
 #### CA-S8-02 — Trocar de subaba mostra o conteúdo certo · prova: manual
 
 - **Dado** que a tela Imersão 2027 está aberta
-- **Quando** a pessoa clica em "Simulação" e depois em "Visão geral do lançamento"
+- **Quando** a pessoa clica em "Simulação" e depois em "Resumo"
 - **Então** cada clique mostra o conteúdo da subaba clicada e marca a subaba como selecionada
 
 #### CA-S8-03 — Sem venda real, a tela mostra dados de exemplo com aviso · prova: automática
@@ -317,7 +317,7 @@ ritmo da meta.
 
 #### CA-S8-25 — Três cards grandes no topo do bloco 5 · prova: manual
 
-- **Dado** a Visão geral aberta
+- **Dado** a subaba "Evento e pós" aberta
 - **Quando** a pessoa chega ao bloco 5
 - **Então** vê, antes de qualquer outro número do bloco, três cards grandes: pessoas ao
   vivo, ticket médio e conversão na Mentoria
@@ -398,6 +398,85 @@ tela inteira funcionando.
 - **Quando** a usuária abre a Visão geral e a Simulação
 - **Então** ela aprova o layout e a ordem dos blocos
 
+### 10. Resumo e telas de detalhe (revisão de 10/11)
+
+**Descrição:** a primeira subaba vira um **Resumo** para bater o olho e saber o estado do
+lançamento. Cada bloco do briefing ganha a sua subaba de detalhe, e as metas ganham uma
+subaba própria. Pedido da usuária em 10/11/2026, depois de ver a primeira versão no ar.
+
+**Componentes:**
+- Subabas, nesta ordem: Resumo · Ingressos (bloco 1) · Tráfego e página (bloco 2) ·
+  Bump (bloco 3) · Evento e pós (blocos 4 e 5) · Simulação · Metas.
+- Resumo, de cima para baixo:
+  - Cards de estado: ingressos vendidos × meta, faturamento até agora (ingressos + bump),
+    quanto precisa vender por dia, CAC × CPA teto, conversão do bump × meta.
+  - Projeção em uma linha: "no ritmo atual termina com N ingressos", se bate a meta e em
+    que dia (a mesma conta da Simulação, sem ajuste).
+  - Alertas: lista curta do que está fora (ver SUP-S8-14); sem nada fora, "nada fora do
+    previsto".
+  - Venda por dia: gráfico com a quantidade de ingressos vendidos em cada dia e a meta de
+    ingressos do dia; embaixo, por dia, ingressos, faturamento, conversão (visitas da
+    página → compra) e atingimento da meta diária.
+- As subabas de detalhe mostram os blocos de antes, sem mudança nas contas.
+
+**Comportamentos:**
+- Bater o olho no Resumo e saber se o lançamento está no ritmo.
+- Abrir a subaba de um bloco para ver o detalhe dele.
+- Gravar as metas na subaba "Metas".
+
+**Critérios de aceite:**
+
+#### CA-S8-33 — Venda por dia no Resumo · prova: automática
+
+- **Dado** um dia com 5 ingressos, R$ 240 faturados (ingressos + bump), 80 visitas na
+  página, previsto de R$ 200 e meta de 4 ingressos para o dia
+- **Quando** a tela monta o Resumo
+- **Então** a linha do dia mostra 5 ingressos, R$ 240, conversão de 6,25%, meta do dia de
+  4 ingressos e atingimento de 120% (com a cor do dia)
+
+#### CA-S8-34 — Conversão do dia sem visitas · prova: automática
+
+- **Dado** um dia sem visitas registradas na página (ou visitas ainda não ligadas)
+- **Quando** a tela monta o Resumo
+- **Então** a conversão do dia aparece como "—", sem erro e sem 0%
+
+#### CA-S8-35 — Cards de estado do Resumo · prova: automática
+
+- **Dado** 40 ingressos a R$ 39 e 8 bumps (R$ 3.936 em ingressos + bump), R$ 2.080
+  investidos (CAC de R$ 52), verba de R$ 3.500 com 75% do tráfego (CPA teto de R$ 46,67),
+  meta do bump de 25%, em 20/11 com 15 dias de venda pela frente
+- **Quando** a tela monta o Resumo
+- **Então** os cards mostram 40 de 100, R$ 3.936, 4/dia para bater a meta, o CAC de R$ 52
+  ao lado do teto de R$ 46,67 marcado em alerta e o bump de 20% ao lado da meta de 25%
+
+#### CA-S8-36 — Projeção em uma linha igual à Simulação · prova: automática
+
+- **Dado** qualquer conjunto de vendas
+- **Quando** a tela monta o Resumo
+- **Então** a linha de projeção traz os mesmos ingressos no fim, o mesmo "bate / não bate"
+  e o mesmo dia que a Simulação mostra com ajuste 0
+
+#### CA-S8-37 — Alertas do Resumo · prova: automática
+
+- **Dado** o último dia fechado abaixo do previsto, CAC acima do teto antes da reta final,
+  bump abaixo da meta e projeção sem bater a meta
+- **Quando** a tela monta o Resumo
+- **Então** aparecem os quatro alertas; e, sem nenhuma dessas situações, aparece "nada
+  fora do previsto"
+
+#### CA-S8-38 — Cada subaba mostra o seu bloco · prova: automática
+
+- **Dado** a tela aberta
+- **Quando** a pessoa abre "Ingressos", "Tráfego e página", "Bump", "Evento e pós" e "Metas"
+- **Então** cada uma mostra só o seu conteúdo (bloco 1; bloco 2; bloco 3; blocos 4 e 5;
+  campos das metas), e o Resumo não mostra o formulário das metas
+
+#### CA-S8-39 — Resumo e telas de detalhe aprovados no ar · prova: manual
+
+- **Dado** a tela no ar com os dados de exemplo
+- **Quando** a usuária abre o Resumo e passa pelas subabas
+- **Então** ela consegue dizer o estado do lançamento só pelo Resumo e aprova o layout
+
 ## Fora de escopo
 
 - Ligar a Zouti de verdade (receber vendas, bump, Mentoria e inícios de checkout) fica para
@@ -425,6 +504,9 @@ tela inteira funcionando.
 | SUP-S8-09 | A coleta do Meet traz entrada e saída de cada pessoa; "pico no pitch" = maior número de presentes simultâneos entre o horário da oferta e 30 min depois | confirmada | usuária, 09/11/2026 (aprovou a spec como escrita) |
 | SUP-S8-10 | Ritmo atual da Simulação = média de ingressos por dia dos últimos 3 dias de venda (ou de todos os dias, se houver menos de 3) | confirmada | usuária, 09/11/2026 (aprovou a spec como escrita) |
 | SUP-S8-12 | Dias de venda do pacing e da Simulação vão de hoje até sexta 04/12; o sábado 05/12 (venda até 9h30) só conta quando hoje é 05/12 | confirmada | usuária, 09/11/2026 |
+| SUP-S8-13 | No gráfico, a meta de ingressos do dia = ingressos que faltavam no começo do dia ÷ dias de venda que restavam (a mesma conta do previsto); o atingimento = faturamento realizado ÷ previsto do dia, a mesma base das cores | confirmada | usuária, 10/11/2026 |
+| SUP-S8-14 | Alertas do Resumo: (a) o último dia de venda já fechado ficou abaixo do previsto; (b) CAC acima do teto antes da reta final; (c) conversão do bump abaixo da meta; (d) a projeção pelo ritmo atual não bate a meta | confirmada | usuária, 10/11/2026 |
+| SUP-S8-15 | Visitas por dia = visualizações da página da Imersão no dia; no modo real ficam "—" até a ligação da página (como as visualizações hoje) | confirmada | usuária, 10/11/2026 |
 | SUP-S8-11 | Compras canceladas ou reembolsadas na Zouti saem de todos os números | confirmada | usuária, 09/11/2026 (aprovou a spec como escrita) |
 
 ## Perguntas em aberto

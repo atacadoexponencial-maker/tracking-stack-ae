@@ -21,6 +21,9 @@ export const METAS_EXEMPLO = {
 // Ingressos por dia, de 09/11 a 26/11 (o último dia vai até 14h).
 const POR_DIA = [1, 2, 2, 3, 2, 2, 3, 6, 3, 3, 4, 7, 4, 3, 4, 7, 8, 2];
 
+// Visitas na página por dia (soma = 960 visualizações), para a conversão do dia.
+const VISITAS_DIA = [30, 38, 40, 45, 42, 40, 48, 70, 52, 50, 58, 80, 60, 55, 62, 78, 92, 20];
+
 const ANUNCIOS = [
   { anuncio: 'Planejamento 2027 · vídeo Felipe', campanha: '[IMERSAO] Ingresso · Vídeos', investimento: 720 },
   { anuncio: 'Erros de coleção · carrossel', campanha: '[IMERSAO] Ingresso · Estáticos', investimento: 410 },
@@ -80,7 +83,8 @@ export function dadosDeExemplo() {
   return {
     vendas,
     trafego: { investimento: ANUNCIOS.reduce((s, a) => s + a.investimento, 0), impressoes: 112000, cliques: 1150 },
-    visualizacoes: 960,
+    visualizacoes: VISITAS_DIA.reduce((a, b) => a + b, 0),
+    visitas_por_dia: Object.fromEntries(dias.map((d, i) => [d, VISITAS_DIA[i]])),
     inicios_checkout: 140,
     anuncios: ANUNCIOS,
     meet,

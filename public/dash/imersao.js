@@ -6,13 +6,19 @@
 (() => {
   'use strict';
 
+  // Revisão de 10/11 (S8-04): Resumo para bater o olho + uma subaba por bloco.
   const SUBABAS = [
-    { id: 'visao', rotulo: 'Visão geral do lançamento' },
+    { id: 'resumo', rotulo: 'Resumo' },
+    { id: 'ingressos', rotulo: 'Ingressos' },
+    { id: 'trafego', rotulo: 'Tráfego e página' },
+    { id: 'bump', rotulo: 'Bump' },
+    { id: 'evento', rotulo: 'Evento e pós' },
     { id: 'simulacao', rotulo: 'Simulação' },
+    { id: 'metas', rotulo: 'Metas' },
   ];
   const COR_TEXTO = { forte: 'superou muito', claro: 'superou', vermelho: 'abaixo' };
 
-  let estado = { aba: 'visao', ordem: 'vendas', resposta: null };
+  let estado = { aba: 'resumo', ordem: 'vendas', resposta: null };
 
   const dia = (ymd) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
   const vazio = (v) => v === null || v === undefined;
@@ -77,7 +83,7 @@
     const origem = b.origem.linhas.map((o) => `<tr><td>${ctx.esc(o.rotulo)}</td><td class="num">${f.int(o.quantidade)}</td><td class="num">${f.pct(o.pct) ?? '—'}</td></tr>`).join('');
 
     return `<div class="bloco im-bloco" data-im-bloco="ingressos">
-      <h2>1. Venda de ingressos <small>meta: ${f.int(b.vendidos.meta)} ingressos</small></h2>
+      <h2>Venda de ingressos <small>meta: ${f.int(b.vendidos.meta)} ingressos</small></h2>
       <div class="grid-etiquetas">${cards}</div>
       <div class="im-duas">
         <div><h3 class="im-h3">Faturamento por dia <small>ingressos + bump · previsto pela meta</small></h3>
@@ -115,7 +121,7 @@
     const botoes = [['vendas', 'por vendas'], ['custo', 'por custo por venda']]
       .map(([id, rot]) => `<button type="button" data-im-ordem="${id}" aria-pressed="${estado.ordem === id}">${rot}</button>`).join('');
     return `<div class="bloco im-bloco" data-im-bloco="trafego">
-      <h2>2. Tráfego e página <small>investimento em anúncios de ingresso: ${f.brl(t.investimento) ?? '—'}</small></h2>
+      <h2>Tráfego e página <small>investimento em anúncios de ingresso: ${f.brl(t.investimento) ?? '—'}</small></h2>
       <div class="grid-etiquetas">${cards}</div>
       <h3 class="im-h3">Ranking de criativos <small>atualiza todo dia; revisar a cada 2 ou 3 dias</small></h3>
       <div class="abas im-ordem">${botoes}</div>
@@ -136,7 +142,7 @@
       card(ctx, { rotulo: 'Diferença', valor: dif, ref: m.referencia }),
     ].join('');
     return `<div class="bloco im-bloco" data-im-bloco="bump">
-      <h2>3. Order bump <small>aulas da Imersão · R$ 297</small></h2>
+      <h2>Order bump <small>aulas da Imersão · R$ 297</small></h2>
       <div class="grid-etiquetas">${cards}</div>
       <h3 class="im-h3">Conversão do bump por dia</h3>
       <div class="tabela-wrap im-rolagem"><table><thead><tr><th>Dia</th><th class="num">Ingressos</th><th class="num">Bumps</th><th class="num">Conversão</th></tr></thead><tbody>${linhas || '<tr><td colspan="4" class="mini">Nenhum dia de venda ainda.</td></tr>'}</tbody></table></div>
@@ -152,13 +158,13 @@
       card(ctx, { rotulo: 'Comparecimento', valor: f.pct(e.comparecimento.valor), nota: vazio(e.comparecimento.presentes) ? 'pelo Meet' : `${f.int(e.comparecimento.presentes)} pessoas no Meet`, ref: e.comparecimento.referencia }),
       card(ctx, { rotulo: 'Pessoas ao vivo no pitch', valor: f.int(e.pico.valor), faltaMeta: e.pico.falta_meta, nota: e.pico.horario ? `pico entre ${e.pico.horario} e 30 min depois` : 'grave o horário da oferta', ref: e.pico.referencia }),
     ].join('')}</div>`;
-    return `<div class="bloco im-bloco" data-im-bloco="evento"><h2>4. Evento <small>sábado 05/12 · 9h30 às 17h30 · Google Meet</small></h2>${corpo}</div>`;
+    return `<div class="bloco im-bloco" data-im-bloco="evento"><h2>Evento <small>sábado 05/12 · 9h30 às 17h30 · Google Meet</small></h2>${corpo}</div>`;
   }
 
   // ── Bloco 5 ────────────────────────────────────────────────────────────
   function blocoResultado(ctx, r) {
     const f = fmt(ctx);
-    if (!r.disponivel) return `<div class="bloco im-bloco" data-im-bloco="resultado"><h2>5. Venda depois do evento</h2>${indisponivel}</div>`;
+    if (!r.disponivel) return `<div class="bloco im-bloco" data-im-bloco="resultado"><h2>Venda depois do evento</h2>${indisponivel}</div>`;
     const d = r.destaque;
     const herois = [
       card(ctx, { rotulo: 'Pessoas ao vivo', valor: f.int(d.pessoas_ao_vivo), grande: true, nota: 'no momento da oferta' }),
@@ -173,7 +179,7 @@
       card(ctx, { rotulo: 'ROAS', valor: f.num(r.roas, 2), nota: 'faturamento ÷ investimento em anúncios' }),
     ].join('');
     return `<div class="bloco im-bloco" data-im-bloco="resultado">
-      <h2>5. Venda depois do evento <small>resultado</small></h2>
+      <h2>Venda depois do evento <small>resultado</small></h2>
       <div class="grid-heroi im-herois">${herois}</div>
       <div class="grid-etiquetas">${cards}</div>
     </div>`;
@@ -199,18 +205,17 @@
         ${erros[c.id] ? `<small class="im-erro" data-im-erro="${c.id}">${ctx.esc(erros[c.id])}</small>` : ''}</label>`;
     }).join('');
     const msg = estado.msgMetas ? `<p class="im-msg${estado.msgMetasErro ? ' im-msg--erro' : ''}" role="status">${ctx.esc(estado.msgMetas)}</p>` : '';
-    return `<details class="im-metas"${estado.metasAberto ? ' open' : ''}><summary>Metas do lançamento <small>meta de ingressos: ${ctx.fmtInt(m.meta_ingressos)} · fixa</small></summary>
+    return `<div class="bloco im-bloco im-metas" data-im-bloco="metas"><h2>Metas do lançamento <small>meta de ingressos: ${ctx.fmtInt(m.meta_ingressos)} · fixa</small></h2>
       <form data-im-form-metas novalidate>${campos}
         <div class="im-metas-acoes"><button type="submit" class="botao">Salvar metas</button>${msg}</div>
         <p class="mini">Vale para todo mundo que abre o dash. Campo vazio = sem meta.</p>
-      </form></details>`;
+      </form></div>`;
   }
 
   async function salvarMetas(raiz, form, ctx) {
     const corpo = {};
     for (const c of CAMPOS) corpo[c.id] = form.elements[c.id].value;
     estado.digitado = corpo;
-    estado.metasAberto = true;
     let res;
     try {
       res = await ctx.postJson('/api/imersao/metas', corpo);
@@ -227,10 +232,85 @@
     desenhar(raiz, estado.resposta, ctx);
   }
 
-  /** HTML da Visão geral inteira (sem as subabas). */
-  function desenharVisao(r, ctx) {
-    return formMetas(ctx, r.metas) + blocoIngressos(ctx, r.ingressos) + blocoTrafego(ctx, r.trafego) + blocoBump(ctx, r.bump)
-      + blocoEvento(ctx, r.evento) + blocoResultado(ctx, r.resultado);
+  // ── Resumo (S8-04) ─────────────────────────────────────────────────────
+  /** Gráfico de barras: ingressos por dia + marca da meta do dia. Só desenha o que veio pronto. */
+  function graficoVendaDia(ctx, linhas) {
+    if (!linhas.length) return '<p class="mini">Nenhum dia de venda ainda.</p>';
+    const f = fmt(ctx);
+    const W = 640, H = 170, base = H - 22, topo = 12, esq = 26;
+    const max = Math.max(1, ...linhas.map((l) => Math.max(l.ingressos, l.meta_ingressos || 0)));
+    const passo = (W - esq) / linhas.length;
+    const larg = Math.max(4, Math.min(22, passo - 4));
+    const y = (v) => base - ((base - topo) * v) / max;
+    const salto = Math.ceil(linhas.length / 9);
+    const colunas = linhas.map((l, i) => {
+      const cx = esq + passo * i + passo / 2;
+      const alto = base - y(l.ingressos);
+      const raio = Math.min(4, alto, larg / 2);
+      const barra = l.ingressos > 0
+        ? `<path class="im-graf-barra" d="M${cx - larg / 2},${base} V${y(l.ingressos) + raio} q0,-${raio} ${raio},-${raio} h${larg - 2 * raio} q${raio},0 ${raio},${raio} V${base} Z"/>` : '';
+      const meta = l.meta_ingressos ? `<line class="im-graf-meta" x1="${cx - larg / 2 - 3}" x2="${cx + larg / 2 + 3}" y1="${y(l.meta_ingressos)}" y2="${y(l.meta_ingressos)}"/>` : '';
+      const rot = i % salto === 0 ? `<text class="im-graf-eixo" x="${cx}" y="${H - 6}" text-anchor="middle">${dia(l.dia)}</text>` : '';
+      const dica = `${dia(l.dia)}: ${f.int(l.ingressos)} ingressos · meta do dia ${vazio(l.meta_ingressos) ? '—' : f.num(l.meta_ingressos)} · ${f.brl(l.faturamento)}`;
+      return `<g class="im-graf-col">${barra}${meta}${rot}<rect class="im-graf-alvo" x="${cx - passo / 2}" y="${topo}" width="${passo}" height="${base - topo}"><title>${ctx.esc(dica)}</title></rect></g>`;
+    }).join('');
+    const grade = `<line class="im-graf-base" x1="${esq}" x2="${W}" y1="${base}" y2="${base}"/><text class="im-graf-eixo" x="${esq - 6}" y="${topo + 4}" text-anchor="end">${f.int(Math.round(max))}</text><text class="im-graf-eixo" x="${esq - 6}" y="${base}" text-anchor="end">0</text>`;
+    return `<div class="im-graf-legenda"><span><i class="im-leg-barra"></i>ingressos vendidos</span><span><i class="im-leg-meta"></i>meta de ingressos do dia</span></div>
+      <svg class="im-graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Ingressos vendidos por dia e meta do dia" data-im-grafico>${grade}${colunas}</svg>`;
+  }
+
+  function desenharResumo(r, ctx) {
+    const f = fmt(ctx);
+    const z = r.resumo;
+    const c = z.cards;
+    const barra = `<div class="im-barra" aria-hidden="true"><span style="width:${Math.min(100, c.vendidos.pct || 0)}%"></span></div>`;
+    const porDia = c.por_dia.encerrada ? card(ctx, { rotulo: 'Precisa vender por dia', valor: 'Venda encerrada' })
+      : c.por_dia.meta_batida ? card(ctx, { rotulo: 'Precisa vender por dia', valor: 'Meta batida' })
+      : card(ctx, { rotulo: 'Precisa vender por dia', valor: vazio(c.por_dia.valor) ? null : `${f.num(c.por_dia.valor)}/dia`, nota: `${f.int(c.por_dia.faltam)} ingressos em ${f.int(c.por_dia.dias)} dias` });
+    const cards = [
+      card(ctx, { rotulo: 'Vendidos x meta', valor: `${f.int(c.vendidos.valor)} de ${f.int(c.vendidos.meta)}`, nota: `${f.pct(c.vendidos.pct, 0)} da meta`, extra: barra }),
+      card(ctx, { rotulo: 'Faturamento até agora', valor: f.brl(c.faturamento_ate_agora), nota: 'ingressos + bump' }),
+      porDia,
+      card(ctx, { rotulo: 'CAC x CPA teto', valor: f.brl(c.cac.valor), alerta: c.cac.alerta, nota: c.cac.falta_meta ? 'teto: defina a verba em Metas' : `teto ${f.brl(c.cac.teto) ?? '—'}${c.cac.alerta ? ' · acima do teto' : ''}` }),
+      card(ctx, { rotulo: 'Bump x meta', valor: f.pct(c.bump.conversao), nota: `meta ${vazio(c.bump.meta) ? 'a definir' : f.pct(c.bump.meta, 0)}` }),
+    ].join('');
+
+    const p = z.projecao;
+    const projecao = p.encerrada ? '' : `<p class="im-projecao" data-im-projecao>No ritmo atual (${f.num(p.ritmo_atual)}/dia) a venda termina com <b>${f.int(Math.round(p.projetado_fim))} ingressos</b> · ${p.bate_meta
+      ? `<span class="im-cor im-cor--forte">bate a meta em ${dia(p.bate_em)}</span>`
+      : `<span class="im-cor im-cor--vermelho">não bate a meta · faltam ${f.int(p.faltam_no_fim)}</span>`}</p>`;
+
+    const alertas = z.alertas.length
+      ? `<ul class="im-alertas" data-im-alertas>${z.alertas.map((a) => `<li data-im-alerta="${ctx.esc(a.chave)}"><b aria-hidden="true">!</b> ${ctx.esc(a.texto)}</li>`).join('')}</ul>`
+      : '<p class="im-alertas-ok" data-im-alertas>Nada fora do previsto.</p>';
+
+    const linhas = z.venda_por_dia.slice().reverse().map((d) => `<tr>
+        <td>${dia(d.dia)}</td><td class="num">${f.int(d.ingressos)}</td><td class="num">${vazio(d.meta_ingressos) ? '—' : f.num(d.meta_ingressos)}</td>
+        <td class="num">${f.brl(d.faturamento)}</td><td class="num">${f.pct(d.conversao, 2) ?? '—'}</td>
+        <td class="num">${vazio(d.atingimento) ? '—' : `<span class="im-cor im-cor--${d.cor || 'neutra'}" title="${ctx.esc(COR_TEXTO[d.cor] || '')}">${f.pct(d.atingimento, 0)}</span>`}</td>
+      </tr>`).join('');
+
+    return `<div class="bloco im-bloco" data-im-bloco="resumo">
+      <h2>Estado do lançamento <small>meta: ${f.int(c.vendidos.meta)} ingressos até 05/12</small></h2>
+      <div class="grid-etiquetas">${cards}</div>
+      ${projecao}
+      <h3 class="im-h3">Alertas</h3>${alertas}
+      <h3 class="im-h3">Venda por dia</h3>
+      ${graficoVendaDia(ctx, z.venda_por_dia)}
+      <div class="tabela-wrap im-rolagem"><table data-im-venda-dia><thead><tr><th>Dia</th><th class="num">Ingressos</th><th class="num">Meta do dia</th><th class="num">Faturamento</th><th class="num">Conversão</th><th class="num">Atingimento</th></tr></thead><tbody>${linhas || '<tr><td colspan="6" class="mini">Nenhum dia de venda ainda.</td></tr>'}</tbody></table></div>
+      <p class="mini im-legenda">Conversão = ingressos ÷ visitas da página no dia · atingimento = faturamento ÷ previsto do dia: <span class="im-cor im-cor--forte">verde forte</span> 20% ou mais acima · <span class="im-cor im-cor--claro">verde claro</span> acima ou igual · <span class="im-cor im-cor--vermelho">vermelho</span> abaixo</p>
+    </div>`;
+  }
+
+  /** HTML de uma subaba (sem o cabeçalho). */
+  function desenharAba(aba, r, ctx) {
+    if (aba === 'ingressos') return blocoIngressos(ctx, r.ingressos);
+    if (aba === 'trafego') return blocoTrafego(ctx, r.trafego);
+    if (aba === 'bump') return blocoBump(ctx, r.bump);
+    if (aba === 'evento') return blocoEvento(ctx, r.evento) + blocoResultado(ctx, r.resultado);
+    if (aba === 'metas') return formMetas(ctx, r.metas);
+    if (aba === 'simulacao') return cascaSimulacao(ctx);
+    return desenharResumo(r, ctx);
   }
 
   // ── Simulação (S8-03) ──────────────────────────────────────────────────
@@ -283,7 +363,8 @@
 
   /** Cabeçalho + conteúdo da subaba atual. */
   function desenhar(raiz, r, ctx) {
-    const conteudo = estado.aba === 'visao' ? desenharVisao(r, ctx) : cascaSimulacao(ctx);
+    if (!SUBABAS.some((a) => a.id === estado.aba)) estado.aba = 'resumo';
+    const conteudo = desenharAba(estado.aba, r, ctx);
     raiz.innerHTML = `<div class="im">${cabecalho(ctx, r)}<div class="im-conteudo" data-im-conteudo="${estado.aba}">${conteudo}</div></div>`;
   }
 
@@ -326,9 +407,6 @@
       clearTimeout(espera);
       espera = setTimeout(() => carregarSimulacao(raiz, ctx), 300);
     });
-    raiz.addEventListener('toggle', (ev) => {
-      if (ev.target.matches && ev.target.matches('details.im-metas')) estado.metasAberto = ev.target.open;
-    }, true);
     raiz.addEventListener('submit', (ev) => {
       const form = ev.target.closest('[data-im-form-metas]');
       if (!form) return;
@@ -337,5 +415,5 @@
     });
   }
 
-  window.Imersao = { abrir, desenhar, desenharVisao, desenharSimulacao, salvarMetas, _estado: () => estado, _definir: (e) => { estado = { ...estado, ...e }; } };
+  window.Imersao = { abrir, desenhar, desenharAba, desenharResumo, desenharSimulacao, salvarMetas, _estado: () => estado, _definir: (e) => { estado = { ...estado, ...e }; } };
 })();

@@ -54,11 +54,15 @@ const CTX = {
   fmtNum: (n, c = 2) => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: c }),
   money: (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
 };
+/** HTML de uma subaba; sem `aba`, junta as telas de detalhe e o Resumo (nessa ordem). */
 function tela(resposta, estado = {}) {
-  IM._definir({ aba: 'visao', ordem: 'vendas', ...estado });
-  const raiz = { innerHTML: '' };
-  IM.desenhar(raiz, resposta, CTX);
-  return raiz.innerHTML;
+  const abas = estado.aba ? [estado.aba] : ['ingressos', 'trafego', 'bump', 'evento', 'resumo'];
+  return abas.map((aba) => {
+    IM._definir({ ordem: 'vendas', ...estado, aba });
+    const raiz = { innerHTML: '' };
+    IM.desenhar(raiz, resposta, CTX);
+    return raiz.innerHTML;
+  }).join('\n');
 }
 /** Texto do card (rótulo → HTML do card). */
 function cardDe(html, rotulo) {
@@ -355,13 +359,13 @@ test('CA-S8-07: valor inválido é recusado com motivo', async () => {
 
   // A tela mostra o motivo junto do campo.
   const r = await getImersao();
-  IM._definir({ aba: 'visao', ordem: 'vendas', resposta: r });
+  IM._definir({ aba: 'metas', ordem: 'vendas', resposta: r });
   const raiz = { innerHTML: '' };
   const form = { elements: Object.fromEntries(['verba_ingresso', 'pct_trafego', 'meta_bump', 'meta_mentoria', 'horario_oferta'].map((c) => [c, { value: '' }])) };
   form.elements.meta_mentoria.value = '120';
   await IM.salvarMetas(raiz, form, { ...CTX, postJson: async (_p, corpo) => { const x = await postMetas(corpo); return { ok: x.status === 200, ...x }; } });
   assert.match(raiz.innerHTML, /data-im-erro="meta_mentoria">a porcentagem vai de 0 a 100/);
-  IM._definir({ erros: null, digitado: null, msgMetas: null, metasAberto: false });
+  IM._definir({ erros: null, digitado: null, msgMetas: null });
 });
 
 // ── S8-03: simulação ─────────────────────────────────────────────────────
@@ -426,3 +430,133 @@ test('CA-S8-30: faturamento projetado com o preço de cada lote', () => {
   assert.equal(p.faturamento.total, 3542);
 });
 const r2 = (n) => Math.round(n * 100) / 100;
+
+// ── S8-04: Resumo e telas de detalhe ─────────────────────────────────────
+import { linhaVendaDia, simular } from '../functions/api/_imersao.js';
+
+const resumoExemplo = () => calcularVisao(dadosDeExemplo(), metasEfetivas({}, METAS_EXEMPLO), AGORA_EXEMPLO, { exemplo: true });
+/** Linha <tr> da tabela de venda por dia que começa com o dia dd/mm. */
+function linhaDaTabela(html, ddmm) {
+  const t = html.slice(html.indexOf('data-im-venda-dia'));
+  const i = t.indexOf(`<td>${ddmm}</td>`);
+  assert.ok(i >= 0, `linha ${ddmm} não encontrada`);
+  return t.slice(i, t.indexOf('</tr>', i));
+}
+
+test('CA-S8-33: venda por dia no Resumo', () => {
+  const l = linhaVendaDia({ dia: '2026-11-20', ingressos: 5, realizado: 240, previsto: 200, meta_ingressos: 4, cor: corDoDia(240, 200) }, 80);
+  assert.deepEqual(
+    { ingressos: l.ingressos, faturamento: l.faturamento, conversao: l.conversao, meta: l.meta_ingressos, atingimento: l.atingimento, cor: l.cor },
+    { ingressos: 5, faturamento: 240, conversao: 6.25, meta: 4, atingimento: 120, cor: 'forte' },
+  );
+  const r = resumoExemplo();
+  r.resumo.venda_por_dia = [l];
+  const linha = linhaDaTabela(tela(r, { aba: 'resumo' }), '20/11');
+  assert.match(linha, /<td class="num">5<\/td><td class="num">4<\/td>/);
+  assert.match(linha, /R\$\s?240,00/);
+  assert.match(linha, /6,25%/);
+  assert.match(linha, /im-cor--forte[^>]*>120%/);
+
+  // Na conta de verdade: 10/11 sem nada vendido antes → meta do dia = 100 ÷ 25 dias = 4.
+  const v = visao(ingressos(5, { quando: '2026-11-10T10:00:00', valor: 48 }), { agora: '2026-11-11T12:00:00', extra: { visitas_por_dia: { '2026-11-10': 80 } } });
+  const d = v.resumo.venda_por_dia.find((x) => x.dia === '2026-11-10');
+  assert.equal(d.meta_ingressos, 4);
+  assert.equal(d.previsto, 116); // 4 × R$ 29 (lote 01), sem meta de bump
+  assert.equal(d.conversao, 6.25);
+  assert.equal(d.atingimento, 206.9);
+  // O exemplo traz visitas em todos os dias.
+  assert.ok(resumoExemplo().resumo.venda_por_dia.every((x) => x.conversao !== null && x.conversao <= 100));
+});
+
+test('CA-S8-34: conversão do dia sem visitas', () => {
+  const base = { dia: '2026-11-20', ingressos: 3, realizado: 117, previsto: 150, meta_ingressos: 4, cor: 'vermelho' };
+  assert.equal(linhaVendaDia(base, null).conversao, null);
+  assert.equal(linhaVendaDia(base, 0).conversao, null);
+  const v = visao(ingressos(3), { agora: '2026-11-21T12:00:00' });
+  assert.ok(v.resumo.venda_por_dia.every((x) => x.conversao === null));
+  const linha = linhaDaTabela(tela(v, { aba: 'resumo' }), '20/11');
+  assert.doesNotMatch(linha, /0,00%/);
+  assert.match(linha, /<td class="num">—<\/td>/);
+});
+
+/** 40 ingressos do tráfego a R$ 39 + 8 bumps; CAC R$ 52 > teto R$ 46,67; bump 20% < meta 25%. */
+function cenarioResumo() {
+  const vendas = [];
+  for (let i = 1; i <= 40; i++) {
+    vendas.push(venda({ pessoa: `r${i}`, utm_source: 'facebookads' }));
+    if (i <= 8) vendas.push(venda({ produto: 'bump', valor: 297, pessoa: `r${i}` }));
+  }
+  return visao(vendas, {
+    metas: metasEfetivas({ verba_ingresso: 3500, pct_trafego: 75, meta_bump: 25 }),
+    extra: { trafego: { investimento: 2080, impressoes: 100000, cliques: 1000 } },
+  });
+}
+
+test('CA-S8-35: cards de estado do Resumo', () => {
+  const r = cenarioResumo();
+  const c = r.resumo.cards;
+  assert.deepEqual(c.vendidos, { valor: 40, meta: 100, pct: 40 });
+  assert.equal(c.faturamento_ate_agora, 3936);
+  assert.equal(c.por_dia.valor, 4); // 60 em 15 dias (20/11 a 04/12)
+  assert.deepEqual(c.cac, { valor: 52, teto: 46.67, falta_meta: false, alerta: true });
+  assert.deepEqual(c.bump, { conversao: 20, meta: 25 });
+  const html = tela(r, { aba: 'resumo' });
+  assert.match(cardDe(html, 'Vendidos x meta'), /40 de 100/);
+  assert.match(cardDe(html, 'Faturamento até agora'), /R\$\s?3\.936,00/);
+  assert.match(cardDe(html, 'Precisa vender por dia'), /4\/dia/);
+  assert.match(html, /etiqueta im-alerta" data-im-card="CAC x CPA teto"/);
+  assert.match(cardDe(html, 'CAC x CPA teto'), /R\$\s?52,00[\s\S]*teto R\$\s?46,67/);
+  assert.match(cardDe(html, 'Bump x meta'), /20,0%[\s\S]*meta 25%/);
+});
+
+test('CA-S8-36: projeção em uma linha igual à Simulação', () => {
+  const casos = [
+    [dadosDeExemplo(), AGORA_EXEMPLO, true],
+    [dados([...ingressos(25, { quando: '2026-11-12T10:00:00' }), ...ingressos(12, { quando: '2026-11-23T10:00:00' })]), em('2026-11-25T10:00:00'), false],
+  ];
+  for (const [d, agora, exemplo] of casos) {
+    const p = calcularVisao(d, metasEfetivas({}), agora, { exemplo }).resumo.projecao;
+    const s = simular(d, agora, 0, { exemplo });
+    assert.deepEqual([p.projetado_fim, p.bate_meta, p.bate_em, p.faltam_no_fim], [s.projetado_fim, s.bate_meta, s.bate_em, s.faltam_no_fim]);
+  }
+  const r = resumoExemplo();
+  const s = simular(dadosDeExemplo(), AGORA_EXEMPLO, 0, { exemplo: true });
+  const html = tela(r, { aba: 'resumo' });
+  assert.match(html, new RegExp(`termina com <b>${Math.round(s.projetado_fim)} ingressos</b>`));
+  assert.match(html, s.bate_meta ? /bate a meta em/ : /não bate a meta · faltam/);
+});
+
+test('CA-S8-37: alertas do Resumo', () => {
+  const r = cenarioResumo(); // 19/11 sem venda, CAC acima do teto, bump abaixo, ritmo 0
+  assert.deepEqual(r.resumo.alertas.map((a) => a.chave), ['dia_abaixo', 'cac_acima', 'bump_abaixo', 'projecao']);
+  const html = tela(r, { aba: 'resumo' });
+  assert.match(html, /data-im-alerta="dia_abaixo">[\s\S]*19\/11 faturou R\$ 0,00, abaixo do previsto/);
+  assert.match(html, /CAC de R\$ 52,00 acima do teto de R\$ 46,67/);
+  assert.match(html, /Bump convertendo 20%, abaixo da meta de 25%/);
+  assert.match(html, /não bate a meta de 100/);
+
+  // Meta batida ontem, sem tráfego e sem meta de bump: nada fora.
+  const ok = visao(ingressos(104, { quando: '2026-11-19T10:00:00' }));
+  assert.deepEqual(ok.resumo.alertas, []);
+  assert.match(tela(ok, { aba: 'resumo' }), /data-im-alertas>Nada fora do previsto/);
+});
+
+test('CA-S8-38: cada subaba mostra o seu bloco', () => {
+  const r = resumoExemplo();
+  const blocos = (html) => [...html.matchAll(/data-im-bloco="([a-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(blocos(tela(r, { aba: 'ingressos' })), ['ingressos']);
+  assert.deepEqual(blocos(tela(r, { aba: 'trafego' })), ['trafego']);
+  assert.deepEqual(blocos(tela(r, { aba: 'bump' })), ['bump']);
+  assert.deepEqual(blocos(tela(r, { aba: 'evento' })), ['evento', 'resultado']);
+  const metas = tela(r, { aba: 'metas' });
+  assert.deepEqual(blocos(metas), ['metas']);
+  assert.match(metas, /data-im-form-metas/);
+  const resumo = tela(r, { aba: 'resumo' });
+  assert.deepEqual(blocos(resumo), ['resumo']);
+  assert.doesNotMatch(resumo, /data-im-form-metas/);
+  assert.match(resumo, /data-im-grafico/);
+  // As subabas na ordem combinada; aba desconhecida cai no Resumo.
+  const rotulos = [...resumo.matchAll(/data-im-aba="([a-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(rotulos, ['resumo', 'ingressos', 'trafego', 'bump', 'evento', 'simulacao', 'metas']);
+  assert.match(tela(r, { aba: 'visao' }), /data-im-conteudo="resumo"/);
+});

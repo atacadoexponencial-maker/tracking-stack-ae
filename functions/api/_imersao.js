@@ -294,7 +294,8 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
     const faltamNoDia = Math.max(0, META_INGRESSOS - acumulado);
     const diasNoDia = diasDeVenda(Date.parse(`${d.dia}T00:00:00-03:00`) / 1000).corridos;
     const previsto = previstoDoDia({ faltam: faltamNoDia, dias: diasNoDia, preco: precoDoDia(d.dia), metaBump: metas.meta_bump });
-    faturamentoDia.push({ ...d, realizado: r2(d.realizado), previsto, cor: corDoDia(d.realizado, previsto) });
+    const metaIngressos = diasNoDia > 0 && faltamNoDia > 0 ? r1(faltamNoDia / diasNoDia) : null;
+    faturamentoDia.push({ ...d, realizado: r2(d.realizado), previsto, meta_ingressos: metaIngressos, cor: corDoDia(d.realizado, previsto) });
     acumulado += d.ingressos;
   }
 
@@ -404,11 +405,17 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
     roas: inv ? r2(faturamento / inv) : null,
   };
 
+  const resumo = montarResumo({
+    dados, agora, hoje, exemplo, faturamentoDia, pacing, trafego, bump,
+    vendidos, faturamentoAteAgora: r2(fatIngressos + fatBump),
+  });
+
   return {
     exemplo,
     agora,
     hoje,
     metas,
+    resumo,
     ingressos: {
       vendidos: { valor: vendidos, meta: META_INGRESSOS, pct: pct(vendidos, META_INGRESSOS) },
       pacing,
@@ -420,6 +427,75 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
     bump,
     evento,
     resultado,
+  };
+}
+
+// ── Resumo (S8-04) ─────────────────────────────────────────────────────────
+
+const brl = (n) => `R$ ${Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const ddmm = (ymd) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
+
+/**
+ * Linha do gráfico de venda por dia (CA-S8-33/34, SUP-S8-13/15): conversão =
+ * ingressos ÷ visitas da página no dia; atingimento = realizado ÷ previsto.
+ */
+export function linhaVendaDia(d, visitas) {
+  const vis = vazio(visitas) ? null : Number(visitas);
+  return {
+    dia: d.dia,
+    ingressos: d.ingressos,
+    faturamento: d.realizado,
+    visitas: vis,
+    conversao: vis > 0 ? pct(d.ingressos, vis) : null,
+    meta_ingressos: d.meta_ingressos ?? null,
+    previsto: d.previsto,
+    atingimento: d.previsto > 0 ? pct(d.realizado, d.previsto) : null,
+    cor: d.cor ?? null,
+  };
+}
+
+/** Alertas do Resumo (SUP-S8-14). Lista vazia = nada fora do previsto. */
+export function alertasDoResumo({ hoje, faturamentoDia, pacing, trafego, bump, projecao }) {
+  const out = [];
+  const fechados = faturamentoDia.filter((d) => d.dia < hoje);
+  const ultimo = fechados[fechados.length - 1];
+  if (ultimo && ultimo.cor === 'vermelho') {
+    out.push({ chave: 'dia_abaixo', texto: `${ddmm(ultimo.dia)} faturou ${brl(ultimo.realizado)}, abaixo do previsto de ${brl(ultimo.previsto)}` });
+  }
+  if (trafego.cac.alerta) {
+    out.push({ chave: 'cac_acima', texto: `CAC de ${brl(trafego.cac.valor)} acima do teto de ${brl(trafego.cpa_teto.valor)} antes da reta final` });
+  }
+  if (bump.meta !== null && bump.total.conversao !== null && bump.total.conversao < bump.meta) {
+    out.push({ chave: 'bump_abaixo', texto: `Bump convertendo ${String(bump.total.conversao).replace('.', ',')}%, abaixo da meta de ${String(bump.meta).replace('.', ',')}%` });
+  }
+  if (!pacing.encerrada && !pacing.meta_batida && projecao && !projecao.bate_meta) {
+    out.push({ chave: 'projecao', texto: `No ritmo atual a venda termina com ${Math.round(projecao.projetado_fim)} ingressos e não bate a meta de ${META_INGRESSOS}` });
+  }
+  return out;
+}
+
+function montarResumo({ dados, agora, hoje, exemplo, faturamentoDia, pacing, trafego, bump, vendidos, faturamentoAteAgora }) {
+  const s = simular(dados, agora, 0, { exemplo });
+  const projecao = {
+    projetado_fim: s.projetado_fim,
+    bate_meta: s.bate_meta,
+    bate_em: s.bate_em,
+    faltam_no_fim: s.faltam_no_fim,
+    ritmo_atual: s.ritmo_atual,
+    encerrada: pacing.encerrada,
+  };
+  const visitas = dados.visitas_por_dia || null;
+  return {
+    cards: {
+      vendidos: { valor: vendidos, meta: META_INGRESSOS, pct: pct(vendidos, META_INGRESSOS) },
+      faturamento_ate_agora: faturamentoAteAgora,
+      por_dia: { valor: pacing.por_dia_corrido, faltam: pacing.faltam, dias: pacing.dias_corridos, meta_batida: pacing.meta_batida, encerrada: pacing.encerrada },
+      cac: { valor: trafego.cac.valor, teto: trafego.cpa_teto.valor, falta_meta: trafego.cpa_teto.falta_meta, alerta: trafego.cac.alerta },
+      bump: { conversao: bump.total.conversao, meta: bump.meta },
+    },
+    projecao,
+    alertas: alertasDoResumo({ hoje, faturamentoDia, pacing, trafego, bump, projecao }),
+    venda_por_dia: faturamentoDia.map((d) => linhaVendaDia(d, visitas ? visitas[d.dia] : null)),
   };
 }
 

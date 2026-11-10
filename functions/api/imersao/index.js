@@ -35,6 +35,7 @@ export async function carregarDados(env, agoraReal = Math.floor(Date.now() / 100
       vendas: lista.map((v) => ({ ...v, valor: (Number(v.valor_centavos) || 0) / 100 })),
       trafego: null,
       visualizacoes: null,
+      visitas_por_dia: null,
       inicios_checkout: null,
       anuncios: [],
       meet: null,

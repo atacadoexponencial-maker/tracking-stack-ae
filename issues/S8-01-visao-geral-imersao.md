@@ -18,8 +18,8 @@ faixas de referência ao lado e a faixa "dados de exemplo" no topo.
 
 ## Critérios de aceite
 
-- **CA-S8-01** (manual) — A aba Imersão 2027 abre na Visão geral. Dado que a pessoa está logada no dash, quando clica em "Imersão 2027" no menu, então a tela abre com as subabas "Visão geral do lançamento" e "Simulação" no topo, com a primeira selecionada.
-- **CA-S8-02** (manual) — Trocar de subaba mostra o conteúdo certo. Dado que a tela Imersão 2027 está aberta, quando a pessoa clica em "Simulação" e depois em "Visão geral do lançamento", então cada clique mostra o conteúdo da subaba clicada e marca a subaba como selecionada.
+- **CA-S8-01** (manual) — A aba Imersão 2027 abre no Resumo. Dado que a pessoa está logada no dash, quando clica em "Imersão 2027" no menu, então a tela abre com as subabas no topo, com a primeira ("Resumo") selecionada. *(texto revisto em 10/11 junto com a S8-04)*
+- **CA-S8-02** (manual) — Trocar de subaba mostra o conteúdo certo. Dado que a tela Imersão 2027 está aberta, quando a pessoa clica em "Simulação" e depois em "Resumo", então cada clique mostra o conteúdo da subaba clicada e marca a subaba como selecionada.
 - **CA-S8-03** (automática) — Sem venda real, a tela mostra dados de exemplo com aviso. Dado que não há nenhuma venda de ingresso da Zouti registrada, quando a tela pede os dados do lançamento, então recebe os dados de exemplo marcados como exemplo, e a faixa "dados de exemplo" aparece no topo.
 - **CA-S8-04** (automática) — Com a primeira venda real, o aviso some e só entram dados reais. Dado que existe ao menos uma venda de ingresso da Zouti registrada, quando a tela pede os dados do lançamento, então recebe só dados reais, sem a marca de exemplo, e a faixa não aparece.
 - **CA-S8-06** (automática) — Indicador sem meta pede a meta. Dado que a verba de anúncios de ingresso está vazia, quando a tela calcula o CPA teto, então o card do CPA teto mostra "defina a meta" em vez de um número.
@@ -40,7 +40,7 @@ faixas de referência ao lado e a faixa "dados de exemplo" no topo.
 - **CA-S8-22** (automática) — Comparecimento pelo Meet. Dado 100 ingressos vendidos e 74 pessoas distintas que entraram no Meet do evento (equipe excluída), quando a tela calcula o bloco 4, então mostra 74% com a referência 70%–80%.
 - **CA-S8-23** (automática) — Pico ao vivo no horário da oferta. Dado entradas e saídas do Meet e o horário da oferta gravado como 16h, quando a tela calcula o pico no pitch, então mostra o maior número de pessoas presentes ao mesmo tempo na janela da oferta.
 - **CA-S8-24** (automática) — Bloco do evento antes da data. Dado dados reais e a data de hoje antes de 05/12, quando a tela monta o bloco 4, então mostra "disponível a partir de 05/12" no lugar dos números.
-- **CA-S8-25** (manual) — Três cards grandes no topo do bloco 5. Dado a Visão geral aberta, quando a pessoa chega ao bloco 5, então vê, antes de qualquer outro número do bloco, três cards grandes: pessoas ao vivo, ticket médio e conversão na Mentoria.
+- **CA-S8-25** (manual) — Três cards grandes no topo do bloco 5. Dado a subaba "Evento e pós" aberta, quando a pessoa chega ao bloco 5, então vê, antes de qualquer outro número do bloco, três cards grandes: pessoas ao vivo, ticket médio e conversão na Mentoria.
 - **CA-S8-26** (automática) — Conversão na Mentoria no dia x 14 dias seguintes. Dado 100 ingressos, 9 mentorias em 05/12, 11 entre 06/12 e 19/12 e 2 depois de 19/12, quando a tela calcula o bloco 5, então mostra 9% no dia, 11% nos 14 dias seguintes e conversão total de 22% (todas as mentorias de compradores do ingresso).
 - **CA-S8-27** (automática) — Faturamento total, ticket médio e ROAS. Dado R$ 4.500 em ingressos, R$ 5.940 em bump, R$ 60.000 em Mentoria, 100 compradores e R$ 6.000 investidos em anúncios, quando a tela calcula o bloco 5, então o faturamento total é R$ 70.440, o ticket médio é R$ 704,40 e o ROAS é 11,74.
 - **CA-S8-31** (automática) — Dados de exemplo coerentes. Dado o conjunto de dados de exemplo, quando a tela calcula todos os blocos com ele, então nenhuma taxa passa de 100%, compras ≤ inícios de checkout ≤ visualizações ≤ cliques ≤ impressões, e mentorias ≤ compradores de ingresso.
@@ -127,14 +127,14 @@ faixas de referência ao lado e a faixa "dados de exemplo" no topo.
 
 ### Roteiro manual — CA-S8-01
 1. Abrir o dash no ar e clicar em "Imersão 2027" no menu.
-2. Ver as subabas "Visão geral do lançamento" e "Simulação" no topo, com a primeira marcada.
+2. Ver as subabas no topo (Resumo, Ingressos, Tráfego e página, Bump, Evento e pós, Simulação, Metas), com "Resumo" marcada.
 
 ### Roteiro manual — CA-S8-02
 1. Na tela Imersão 2027, clicar em "Simulação": o conteúdo troca e a subaba fica marcada.
-2. Clicar em "Visão geral do lançamento": os 5 blocos voltam e a subaba fica marcada.
+2. Clicar em "Resumo": o Resumo volta e a subaba fica marcada.
 
 ### Roteiro manual — CA-S8-25
-1. Na Visão geral, rolar até "Venda depois do evento".
+1. Abrir a subaba "Evento e pós" e rolar até "Venda depois do evento".
 2. Os primeiros elementos do bloco são três cards grandes: Pessoas ao vivo, Ticket médio e Conversão na Mentoria.
 
 ## Banco de Dados
