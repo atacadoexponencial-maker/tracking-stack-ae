@@ -988,6 +988,25 @@ td.pago, th.pago { color: var(--alerta); }
   .dr-linha, .dr-linha--reag { grid-template-columns: 1fr; gap: 0.1rem; }
   .dr-linha span { color: var(--tinta-2); font-size: 0.8rem; }
 }
+/* Cérebro (public/dash/cerebro.js, série S9 do gestor-ae). */
+.cb-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; margin-bottom: 1rem; }
+.cb-escolha { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.cb-nota { font-size: 0.8rem; margin: 0 0 0.8rem; }
+.cb-card .valor { margin-bottom: 0.3rem; }
+.cb-cmp { margin-bottom: 0.4rem; }
+.cb-linhas { border-top: 1px dashed var(--fio); padding-top: 0.55rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; }
+.cb-ruim { color: var(--queda-texto); font-weight: 700; }
+.cb-grafico { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 1rem; }
+.cb-barras { display: flex; align-items: flex-end; gap: 0.5rem; min-height: 210px; min-width: max-content; }
+.cb-dia { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.3rem; width: 2.6rem; }
+.cb-num { font-size: 0.72rem; font-variant-numeric: tabular-nums; text-align: center; }
+.cb-barra { width: 100%; display: flex; flex-direction: column; }
+.cb-escura { background: var(--tinta); }
+.cb-clara { background: var(--taupe); }
+.cb-rot { font-size: 0.68rem; color: var(--tinta-2); white-space: nowrap; }
+.cb-problemas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.cb-problemas li { background: var(--etiqueta); border: 1px solid var(--fio); border-radius: 2px; padding: 0.7rem 0.9rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.85rem; }
+.cb-problemas b { min-width: 8rem; }
 /* Imersão 2027 (public/dash/imersao.js, spec-imersao-2027.md, S8). */
 .im-subabas { display: flex; gap: 0.2rem; border-bottom: 1px solid var(--fio); margin-bottom: 1rem; overflow-x: auto; }
 .im-subabas button { background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-size: 0.9rem; padding: 0.55rem 0.7rem; color: var(--tinta-2); cursor: pointer; margin-bottom: -1px; white-space: nowrap; }
@@ -1800,6 +1819,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
         <a href="#saude-meta" data-secao="saude-meta">Saúde das integrações</a>
         <a href="#cloudflare" data-secao="cloudflare">Cloudflare</a>
         <a href="#argo" data-secao="argo">Argo</a>
+        <a href="#cerebro" data-secao="cerebro">Cérebro</a>
       </div>
       <div class="nav-grupo" role="group" aria-labelledby="nav-marketing" data-app="marketing">
         <span class="nav-rotulo" id="nav-marketing">Marketing</span>
@@ -2266,6 +2286,9 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
     <!-- Aba Imersão 2027 (spec-imersao-2027.md, série S8): desenhada por
          public/dash/imersao.js com a resposta de /api/imersao. -->
     <section class="secao" id="secao-imersao"></section>
+    <!-- Aba Cérebro (série S9 do gestor-ae, S9-04): desenhada por public/dash/cerebro.js
+         com a resposta de /api/cerebro (painel montado na VPS). -->
+    <section class="secao" id="secao-cerebro"></section>
 
     <!-- Aba Argo (spec 2026-09-20-argo-controle-ae-design.md): o Argo já opera
          esta conta sozinho desde agosto — pausa campanhas de tráfego todo dia
@@ -2436,6 +2459,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/cloudflare.js"></script>
 <script src="/dash/arvore.js?v=2026-10-29a"></script>
 <script src="/dash/imersao.js?v=2026-11-10a"></script>
+<script src="/dash/cerebro.js?v=2026-11-10a"></script>
 <script src="/dash/visao-reuniao.js?v=2026-10-26o"></script>
 <script src="/dash/detalhe-reunioes.js?v=2026-11-09c"></script>
 <script>
@@ -5047,6 +5071,12 @@ R.imersao = async () => {
   await window.Imersao.abrir($('#secao-imersao'), { esc, fmtInt, fmtPct, fmtNum, money, fetchJson, postJson });
 };
 
+// Aba Cérebro (série S9 do gestor-ae, S9-04): public/dash/cerebro.js desenha.
+R.cerebro = async () => {
+  if (!window.Cerebro) return;
+  await window.Cerebro.abrir($('#secao-cerebro'), { esc, fmtInt, fetchJson });
+};
+
 // Aba Cloudflare (spec-uso-cloudflare.md): public/dash/cloudflare.js desenha.
 R.cloudflare = async () => {
   if (!window.CloudflareUso) return;
@@ -6963,7 +6993,7 @@ R['mkt-email'] = () => window.EmailMkt.render(emailCtx());
 R['agenda-emails'] = () => window.EmailMkt.renderAgenda(emailCtx());
 
 // ---------- navegação/ciclo ----------
-const TITULOS = { visao: 'Visão geral', detalhado: 'Detalhado', arvore: 'Árvore', imersao: 'Imersão 2027', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', cloudflare: 'Cloudflare', argo: 'Argo', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
+const TITULOS = { visao: 'Visão geral', detalhado: 'Detalhado', arvore: 'Árvore', imersao: 'Imersão 2027', leads: 'Leads', vendas: 'Vendas', greenn: 'Greenn', atribuicao: 'Atribuição', metaads: 'Meta Ads', email: 'Email', workshops: 'Workshops', grupos: 'Grupos', disparos: 'Disparos', links: 'Links', bloqueios: 'Bloqueios', 'funis-relatorio': 'Funis do relatório', ab: 'Testes A/B', jornada: 'Jornada', eventos: 'Eventos', 'saude-meta': 'Saúde das integrações', cloudflare: 'Cloudflare', argo: 'Argo', cerebro: 'Cérebro', instagram: 'Instagram', agenda: 'Agenda', 'mkt-email': 'E-mail', 'agenda-emails': 'E-mails da agenda' };
 // Quais filtros do topo cada aba realmente usa. Antes o topo mostrava período e
 // funil em todas, e o subtítulo dizia "comparado ao período anterior" até em
 // aba que não compara nada. `nota` substitui as datas nas abas sem período.
@@ -6973,6 +7003,7 @@ const FILTROS = {
   detalhado: { periodo: true, compara: true, funil: true },
   arvore: { periodo: true },
   imersao: { nota: 'lançamento inteiro · não usa o filtro de datas' },
+  cerebro: { nota: 'semanas de segunda a domingo · não usa o filtro de datas' },
   leads: { periodo: true, funil: true },
   vendas: { periodo: true, compara: true },
   atribuicao: { periodo: true },
