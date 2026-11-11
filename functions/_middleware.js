@@ -43,7 +43,9 @@ export async function onRequest(context) {
     // lead nem número no dash: as respostas vão só para uma planilha. A página
     // não carrega pixel algum (ver `src/layouts/SemRastreioLayout.astro`) e
     // esta linha impede que a visita vire sessão.
-    && !url.pathname.startsWith('/aplicacao-plano-ao-vivo');
+    && !url.pathname.startsWith('/aplicacao-plano-ao-vivo')
+    // Hotseat com Giulliano Puga (16/11/2026): marketing interno, mesma regra.
+    && !url.pathname.startsWith('/hotseat-giulliano-puga');
 
   if (!isPageRequest) {
     return next();
