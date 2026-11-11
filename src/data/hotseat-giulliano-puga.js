@@ -8,17 +8,21 @@
 // A ordem do array é a ordem das colunas na planilha (depois de Data/hora).
 // Sem prazo de encerramento (decisão dela em 11/11).
 
+// Etapa 1 junta os dados; depois, uma pergunta por tela (mesmo desenho da
+// aplicação do plano ao vivo, pedido dela em 11/11).
+export const TOTAL_ETAPAS = 3;
+
 export const PERGUNTAS = [
-  { name: 'nome', tipo: 'texto', rotulo: 'Seu nome', coluna: 'Nome', placeholder: 'Seu nome', autocomplete: 'name' },
-  { name: 'telefone', tipo: 'telefone', rotulo: 'WhatsApp', coluna: 'WhatsApp', placeholder: 'WhatsApp', autocomplete: 'tel' },
-  { name: 'email', tipo: 'email', rotulo: 'E-mail', coluna: 'E-mail', placeholder: 'E-mail', autocomplete: 'email' },
-  { name: 'instagram', tipo: 'texto', rotulo: 'Instagram da marca', coluna: 'Instagram da marca', placeholder: '@ da sua marca' },
+  { name: 'nome', etapa: 1, tipo: 'texto', rotulo: 'Seu nome', coluna: 'Nome', placeholder: 'Nome', autocomplete: 'name' },
+  { name: 'telefone', etapa: 1, tipo: 'telefone', rotulo: 'WhatsApp', coluna: 'WhatsApp', placeholder: 'WhatsApp com DDD', autocomplete: 'tel' },
+  { name: 'email', etapa: 1, tipo: 'email', rotulo: 'E-mail', coluna: 'E-mail', placeholder: 'voce@email.com', autocomplete: 'email' },
+  { name: 'instagram', etapa: 1, tipo: 'texto', rotulo: 'Instagram da marca', coluna: 'Instagram da marca', placeholder: '@suamarca' },
   {
-    name: 'participa', tipo: 'uma', rotulo: 'Você se compromete a participar ao vivo?', coluna: 'Vai participar',
+    name: 'participa', etapa: 2, tipo: 'uma', rotulo: 'Você se compromete a participar ao vivo na segunda, 16/11, das 20h às 22h?', coluna: 'Vai participar',
     opcoes: ['Sim, eu vou', 'Não consigo'],
   },
   {
-    name: 'analise', tipo: 'uma', rotulo: 'Quer concorrer à análise do Giulliano Puga?', coluna: 'Quer análise',
+    name: 'analise', etapa: 3, tipo: 'uma', rotulo: 'Quer que a sua marca concorra a uma análise do Giulliano Puga?', coluna: 'Quer análise',
     opcoes: ['Sim, quero', 'Só vou assistir'],
   },
 ];
@@ -44,7 +48,7 @@ export const TEXTOS = {
   ],
   quando: 'Segunda, 16/11 · 20h às 22h · Google Meet',
   ctaCapa: 'Quero participar',
-  formTitulo: 'Confirme a sua presença',
+  formTitulo: 'Confirmação',
   cta: 'Confirmar presença',
   privacidade: 'Suas respostas ficam só com a equipe.',
   obrigado: {

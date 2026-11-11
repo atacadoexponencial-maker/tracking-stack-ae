@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PERGUNTAS, CABECALHO, validarResposta } from '../src/data/hotseat-giulliano-puga.js';
+import { PERGUNTAS, CABECALHO, TOTAL_ETAPAS, validarResposta } from '../src/data/hotseat-giulliano-puga.js';
 import { processarResposta } from '../functions/api/hotseat-giulliano-puga.js';
 
 const RESPOSTAS = {
@@ -25,6 +25,8 @@ function pedido(corpo, ua = UA) {
 
 test('6 perguntas na ordem pedida e cabeçalho com data e origem', () => {
   assert.deepEqual(PERGUNTAS.map((p) => p.name), ['nome', 'telefone', 'email', 'instagram', 'participa', 'analise']);
+  assert.deepEqual(PERGUNTAS.map((p) => p.etapa), [1, 1, 1, 1, 2, 3]);
+  assert.equal(TOTAL_ETAPAS, 3);
   assert.deepEqual(CABECALHO, ['Data/hora', 'Nome', 'WhatsApp', 'E-mail', 'Instagram da marca', 'Vai participar', 'Quer análise', 'Origem']);
 });
 

@@ -1,19 +1,19 @@
 ---
 /**
  * Hotseat especial com Giulliano Puga: capa (foto, apresentação e botão) e
- * depois o formulário, cada um numa tela SEM rolagem (pedidos dela em 11/11).
- * Por isso tudo é compacto: os 4 campos
- * ficam em duas colunas, sem rótulo solto (o nome do campo vai no placeholder e
- * no aria-label), e as 2 perguntas são de um toque.
+ * depois o formulário, tudo sem rolagem (pedidos dela em 11/11).
  *
- * Visual da capa da /aplicacao-plano-ao-vivo (papel claro, cartão branco, selo
- * verde). Não vira lead: o envio vai só para /api/hotseat-giulliano-puga, que
- * grava na planilha. Por isso não reaproveita o AplicacaoForm (amarrado ao
- * /tracker).
+ * O formulário tem o mesmo desenho do AplicacaoPlanoAoVivoForm (pedido dela):
+ * cartão com "CONFIRMAÇÃO n de 3", rótulo em cima de cada campo, opções em
+ * linhas inteiras e barra de navegação embaixo com ← → e o botão de enviar.
+ * Etapa 1 junta os dados; as duas perguntas vêm uma por tela.
+ *
+ * Não vira lead: o envio vai só para /api/hotseat-giulliano-puga, que grava na
+ * planilha. Por isso não reaproveita o AplicacaoForm (amarrado ao /tracker).
  */
 import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo-horizontal-preto.png';
-import { PERGUNTAS, TEXTOS, MAX_TEXTO } from '../data/hotseat-giulliano-puga.js';
+import { PERGUNTAS, TEXTOS, TOTAL_ETAPAS, MAX_TEXTO } from '../data/hotseat-giulliano-puga.js';
 
 // A foto do convidado entra sozinha quando o arquivo existir em
 // src/assets/hotseat/giulliano-puga.(jpg|jpeg|png|webp). Sem ele, a capa fica só com o texto.
@@ -21,8 +21,7 @@ const fotos = import.meta.glob('../assets/hotseat/giulliano-puga.{jpg,jpeg,png,w
 const foto = Object.values(fotos)[0]?.default;
 
 const TIPO_INPUT = { telefone: 'tel', email: 'email' };
-const textos = PERGUNTAS.filter((p) => p.tipo !== 'uma');
-const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
+const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((p) => p.etapa === i + 1));
 ---
 
 <main class="section hotseat">
@@ -49,62 +48,64 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
           <svg class="hotseat__icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
           {TEXTOS.quando}
         </p>
-        <button type="button" id="hs-comecar" class="btn-cta hotseat__cta hotseat__cta--capa">{TEXTOS.ctaCapa}</button>
+        <button type="button" id="hs-comecar" class="btn-cta hotseat__cta">{TEXTOS.ctaCapa}</button>
       </div>
     </div>
 
+    <form class="hotseat__form" id="hs-form" novalidate hidden>
+      <p class="hotseat__card-titulo" id="hs-titulo">{TEXTOS.formTitulo} <span id="hs-indicador">1 de {TOTAL_ETAPAS}</span></p>
 
-    <form class="hotseat__cartao" id="hs-form" novalidate hidden>
-      <div id="hs-campos" class="hotseat__campos">
-        <div class="hotseat__topo">
-          <button type="button" id="hs-voltar" class="hotseat__voltar" aria-label="Voltar">←</button>
-          <div>
-            <p class="hotseat__cartao-titulo">{TEXTOS.formTitulo}</p>
-            <p class="hotseat__cartao-quando">{TEXTOS.quando}</p>
-          </div>
-        </div>
-        <div class="hotseat__dados">
-          {textos.map((p) => (
-            <label class="hotseat__campo" data-campo={p.name}>
-              <input
-                name={p.name}
-                type={TIPO_INPUT[p.tipo] ?? 'text'}
-                maxlength={MAX_TEXTO}
-                placeholder={p.placeholder}
-                aria-label={p.rotulo}
-                autocomplete={p.autocomplete ?? 'off'}
-                autocapitalize={p.name === 'nome' ? 'words' : 'none'}
-              />
-              <small class="hotseat__campo-erro" hidden></small>
-            </label>
+      {etapas.map((perguntas, i) => (
+        <div class="hotseat__etapa" data-etapa={i + 1} hidden={i > 0}>
+          {perguntas.map((p) => (
+            p.tipo === 'uma' ? (
+              <fieldset class="hotseat__field" data-campo={p.name}>
+                <legend>{p.rotulo} *</legend>
+                <div class="hotseat__opcoes">
+                  {p.opcoes.map((o) => (
+                    <label class="hotseat__opcao">
+                      <input type="radio" name={p.name} value={o} />
+                      <span>{o}</span>
+                    </label>
+                  ))}
+                </div>
+                <small class="hotseat__field-erro" hidden></small>
+              </fieldset>
+            ) : (
+              <label class="hotseat__field" data-campo={p.name}>
+                <span>{p.rotulo} *</span>
+                <input
+                  name={p.name}
+                  type={TIPO_INPUT[p.tipo] ?? 'text'}
+                  maxlength={MAX_TEXTO}
+                  placeholder={p.placeholder}
+                  autocomplete={p.autocomplete ?? 'off'}
+                  autocapitalize={p.name === 'nome' ? 'words' : 'none'}
+                />
+                <small class="hotseat__field-erro" hidden></small>
+              </label>
+            )
           ))}
         </div>
-        {escolhas.map((p) => (
-          <fieldset class="hotseat__campo hotseat__grupo" data-campo={p.name}>
-            <legend>{p.rotulo}</legend>
-            <div class="hotseat__opcoes">
-              {p.opcoes.map((o) => (
-                <label class="hotseat__opcao">
-                  <input type="radio" name={p.name} value={o} />
-                  <span>{o}</span>
-                </label>
-              ))}
-            </div>
-            <small class="hotseat__campo-erro" hidden></small>
-          </fieldset>
-        ))}
-        <p id="hs-erro" class="hotseat__erro" role="alert" hidden></p>
-        <button type="submit" id="hs-enviar" class="btn-cta hotseat__cta">{TEXTOS.cta}</button>
-        <p class="hotseat__nota">{TEXTOS.privacidade}</p>
-      </div>
+      ))}
 
-      <div id="hs-obrigado" class="hotseat__obrigado" hidden>
+      <div class="hotseat__etapa hotseat__obrigado" data-etapa="fim" hidden>
         <span class="hotseat__check" aria-hidden="true">✓</span>
         <p class="hotseat__obrigado-titulo">{TEXTOS.obrigado.titulo}</p>
         <p class="hotseat__obrigado-texto">{TEXTOS.obrigado.texto}</p>
         <p class="hotseat__obrigado-texto" id="hs-obrigado-analise" hidden>{TEXTOS.obrigado.analise}</p>
       </div>
+
+      <p id="hs-erro" class="hotseat__erro" role="alert" hidden></p>
+
+      <div class="hotseat__nav" id="hs-nav">
+        <button type="button" id="hs-voltar" aria-label="Voltar">←</button>
+        <button type="button" id="hs-avancar" aria-label="Avançar">→</button>
+        <button type="submit" id="hs-enviar" class="btn-cta hotseat__submit" hidden>{TEXTOS.cta} →</button>
+      </div>
     </form>
+
+    <p class="hotseat__privacidade" id="hs-privacidade" hidden>{TEXTOS.privacidade}</p>
   </div>
 </main>
 
@@ -121,14 +122,15 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
   }
   .hotseat__inner { width: 100%; display: flex; flex-direction: column; gap: 0.6rem; max-width: 34rem; margin-inline: auto; }
   .hotseat__logo { height: 1.4rem; width: auto; align-self: center; }
+
+  /* ---- Capa ---- */
   .hotseat__capa { display: grid; gap: 0.7rem; align-items: start; }
-  .hotseat__capa[hidden], .hotseat__cartao[hidden] { display: none; }
+  .hotseat__capa[hidden], .hotseat__form[hidden], .hotseat__privacidade[hidden] { display: none; }
   /* Foto no alto da capa: a altura acompanha a tela para o botão não sair dela. */
   .hotseat__foto {
     width: 100%; height: clamp(8.5rem, 30dvh, 15rem); object-fit: cover; object-position: center 20%;
     border-radius: 1rem; border: 1px solid var(--hs-linha);
   }
-
   .hotseat__texto { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
   /* No celular o selo sai: o título já diz o que é e a altura é contada. */
   .hotseat__selo {
@@ -139,7 +141,6 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
   }
   .hotseat__titulo { margin: 0; font-size: 1.45rem; line-height: 1.12; font-weight: 700; text-wrap: balance; }
   .hotseat__sub { margin: 0.35rem 0 0; font-size: 0.9rem; line-height: 1.4; text-wrap: pretty; }
-
   .hotseat__numeros {
     list-style: none; margin: 0.6rem 0 0; padding: 0; width: 100%;
     display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem;
@@ -150,7 +151,6 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
   }
   .hotseat__numeros strong { font-size: 0.95rem; line-height: 1.25; font-weight: 700; }
   .hotseat__numeros span { font-size: 0.72rem; line-height: 1.3; color: var(--hs-suave); }
-
   .hotseat__quando {
     margin: 0.6rem 0 0; display: flex; align-items: center; gap: 0.4rem;
     font-size: 0.9rem; font-weight: 700; line-height: 1.3;
@@ -159,77 +159,94 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
     width: 1.05rem; height: 1.05rem; flex: none;
     fill: none; stroke: var(--hs-verde); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
   }
+  .hotseat__cta {
+    margin-top: 0.75rem; width: 100%; justify-content: center;
+    background: var(--hs-texto); color: #ffffff; padding: 0 1rem; height: 3rem;
+  }
 
-  .hotseat__cartao {
+  /* ---- Formulário: mesmo cartão da aplicação do plano ao vivo ---- */
+  .hotseat__form {
+    width: 100%; max-width: 32rem; margin-inline: auto; display: flex; flex-direction: column; gap: 1rem; text-align: left;
     background: var(--hs-cartao); border: 1px solid var(--hs-linha); border-radius: 1rem;
     box-shadow: 0 1px 2px rgba(30, 30, 30, 0.04), 0 8px 24px rgba(30, 30, 30, 0.06);
-    padding: 0.75rem; text-align: left; width: 100%; max-width: 30rem; margin-inline: auto;
+    overflow: hidden; padding: 0;
   }
-  .hotseat__topo { display: flex; align-items: center; gap: 0.5rem; }
-  .hotseat__voltar {
-    flex: none; width: 2.5rem; height: 2.5rem; border-radius: 0.65rem; cursor: pointer;
-    background: none; border: 1px solid var(--hs-linha); color: var(--hs-texto); font-size: 1.2rem; line-height: 1;
+  .hotseat__card-titulo {
+    margin: 0; padding: 1.1rem 1.25rem 0; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--hs-suave);
+    display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
   }
-  .hotseat__topo p { margin: 0; }
-  .hotseat__cartao-titulo { font-size: 1.1rem; font-weight: 700; line-height: 1.2; }
-  .hotseat__cartao-quando { font-size: 0.8rem; line-height: 1.3; color: var(--hs-suave); }
-  .hotseat__campos { display: flex; flex-direction: column; gap: 0.55rem; }
-  .hotseat__campos[hidden], .hotseat__obrigado[hidden] { display: none; }
-  .hotseat__dados { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .hotseat__etapa { display: flex; flex-direction: column; gap: 0.9rem; padding: 0 1.25rem; }
+  .hotseat__etapa[hidden], .hotseat__card-titulo[hidden], .hotseat__nav[hidden] { display: none; }
 
-  .hotseat__campo { display: flex; flex-direction: column; gap: 0.2rem; border: 0; margin: 0; padding: 0; min-width: 0; }
-  .hotseat__campo > legend { font-size: 0.85rem; font-weight: 700; line-height: 1.3; padding: 0; margin-bottom: 0.3rem; }
+  .hotseat__field { display: flex; flex-direction: column; gap: 0.4rem; border: 0; margin: 0; padding: 0; min-width: 0; }
+  .hotseat__field > span { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+  /* Pergunta sozinha na tela: vira o título da tela. */
+  .hotseat__field > legend { font-size: 1.15rem; font-weight: 700; line-height: 1.35; padding: 0; margin-bottom: 0.75rem; text-wrap: pretty; }
   /* 16px no campo: abaixo disso o iPhone dá zoom ao tocar. */
-  .hotseat__campo input:not([type="radio"]) {
-    width: 100%; min-width: 0; height: 2.75rem; padding: 0 0.75rem; border: 1px solid var(--hs-linha); border-radius: 0.65rem;
+  .hotseat__field input:not([type="radio"]) {
+    width: 100%; padding: 0.7rem 1.1rem; border: 1px solid var(--hs-linha); border-radius: 0.75rem;
     background: #ffffff; color: var(--hs-texto); font-family: inherit; font-size: 1rem;
   }
-  .hotseat__campo input::placeholder { color: #8a837c; }
-  .hotseat__campo input:not([type="radio"]):focus { outline: none; border-color: var(--hs-texto); }
-  .hotseat__campo[data-invalido] input:not([type="radio"]) { border-color: var(--hs-erro); }
+  .hotseat__field input::placeholder { color: #8a837c; }
+  .hotseat__field input:not([type="radio"]):focus { outline: none; border-color: var(--hs-texto); }
 
-  .hotseat__opcoes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .hotseat__opcoes { display: flex; flex-direction: column; gap: 0.5rem; }
   .hotseat__opcao {
-    display: flex; align-items: center; justify-content: center; text-align: center; cursor: pointer;
-    padding: 0 0.5rem; height: 2.75rem;
-    border: 1px solid var(--hs-linha); border-radius: 0.65rem;
-    font-size: 0.95rem; line-height: 1.2; background: #ffffff;
+    display: flex; align-items: center; gap: 0.75rem; cursor: pointer;
+    padding: 0.8rem 1rem; min-height: 48px;
+    border: 1px solid var(--hs-linha); border-radius: 0.75rem;
+    font-size: 1rem; background: #ffffff;
     transition: border-color 0.15s, background-color 0.15s;
   }
   .hotseat__opcao:hover { border-color: rgba(30, 30, 30, 0.35); }
-  /* O toque marca o cartão inteiro; a bolinha some sem sair do teclado. */
-  .hotseat__opcao input { position: absolute; opacity: 0; pointer-events: none; }
-  .hotseat__opcao:has(input:checked) { border-color: var(--hs-verde); background: var(--hs-verde-fundo); font-weight: 700; }
+  .hotseat__opcao input { width: 1.1rem; height: 1.1rem; margin: 0; flex: none; accent-color: var(--hs-verde); }
+  .hotseat__opcao:has(input:checked) { border-color: var(--hs-verde); background: var(--hs-verde-fundo); }
   .hotseat__opcao:has(input:focus-visible) { outline: 2px solid var(--hs-texto); outline-offset: 2px; }
 
-  .hotseat__campo-erro, .hotseat__erro { color: var(--hs-erro); font-size: 0.78rem; line-height: 1.25; margin: 0; }
+  .hotseat__erro { color: var(--hs-erro); font-size: 0.9rem; padding: 0 1.25rem; margin: 0; }
   .hotseat__erro[hidden] { display: none; }
-  .hotseat__cta {
-    width: 100%; justify-content: center;
-    background: var(--hs-texto); color: #ffffff; padding: 0 1rem; height: 3rem;
-  }
-  .hotseat__cta:disabled { opacity: 0.7; cursor: default; }
-  .hotseat__cta--capa { margin-top: 0.75rem; }
-  .hotseat__nota { margin: 0; font-size: 0.72rem; line-height: 1.2; color: var(--hs-suave); text-align: center; }
+  .hotseat__field-erro { color: var(--hs-erro); font-size: 0.85rem; }
 
-  .hotseat__obrigado { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 1.5rem 0.5rem; }
+  .hotseat__nav {
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--hs-linha); background: #faf8f5; padding: 0.6rem 1.25rem;
+  }
+  #hs-avancar[hidden], .hotseat__submit[hidden] { display: none; }
+  #hs-voltar, #hs-avancar {
+    background: none; border: none; cursor: pointer; color: var(--hs-texto);
+    font-size: 1.5rem; line-height: 1; min-width: 44px; min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 0.5rem;
+  }
+  #hs-avancar, .hotseat__submit { margin-left: auto; }
+  /* Uma linha só, mesmo em celular estreito. */
+  .hotseat__submit { background: var(--hs-texto); color: #ffffff; white-space: nowrap; padding: 0.9rem 1.1rem; letter-spacing: 0.06em; }
+  .hotseat__submit:disabled { opacity: 0.7; cursor: default; }
+  .hotseat__privacidade { margin: 0; color: var(--hs-suave); font-size: 0.8rem; text-align: center; }
+
+  .hotseat__obrigado { padding: 2rem 1.25rem; align-items: center; text-align: center; gap: 0; }
   .hotseat__obrigado p { margin: 0; }
   .hotseat__check {
     width: 3rem; height: 3rem; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
     background: var(--hs-verde-fundo); color: var(--hs-verde); font-size: 1.5rem; font-weight: 700;
   }
-  .hotseat__obrigado .hotseat__obrigado-titulo { margin-top: 0.9rem; font-size: 1.5rem; font-weight: 700; line-height: 1.15; }
-  .hotseat__obrigado .hotseat__obrigado-texto { margin-top: 0.6rem; font-size: 1rem; line-height: 1.5; text-wrap: pretty; }
+  .hotseat__obrigado .hotseat__obrigado-titulo { margin-top: 0.9rem; font-size: 1.6rem; font-weight: 700; line-height: 1.15; }
+  .hotseat__obrigado .hotseat__obrigado-texto { margin-top: 0.75rem; font-size: 1rem; line-height: 1.5; text-wrap: pretty; }
   .hotseat__obrigado-texto[hidden] { display: none; }
 
-  /* Celular baixo: sai o que é apoio e os campos encolhem, para o botão continuar na tela. */
+  /* Celular baixo: sai o que é apoio e os campos encolhem, para nada pedir rolagem. */
   @media (max-width: 899px) and (max-height: 650px) {
-    .hotseat__sub, .hotseat__numeros span, .hotseat__nota { display: none; }
-    .hotseat__campo input:not([type="radio"]), .hotseat__opcao { height: 2.5rem; }
+    .hotseat__sub, .hotseat__numeros span { display: none; }
     .hotseat__cta { height: 2.75rem; }
+    .hotseat__form { gap: 0.75rem; }
+    .hotseat__card-titulo { padding-top: 0.85rem; }
+    .hotseat__etapa { gap: 0.6rem; }
+    .hotseat__field { gap: 0.25rem; }
+    .hotseat__field input:not([type="radio"]) { padding-block: 0.55rem; }
+    .hotseat__nav { padding-block: 0.35rem; }
   }
 
-  /* Tela larga: apresentação à esquerda, formulário à direita. */
+  /* Tela larga: apresentação à esquerda, foto à direita. */
   @media (min-width: 900px) {
     .hotseat__inner { max-width: 66rem; gap: 1rem; }
     .hotseat__logo { height: 1.75rem; }
@@ -237,8 +254,6 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
     .hotseat__capa { max-width: 38rem; margin-inline: auto; }
     .hotseat__capa--foto { max-width: none; grid-template-columns: 1.15fr 1fr; gap: 4rem; align-items: center; }
     .hotseat__capa--foto .hotseat__foto { order: 2; height: min(34rem, 78dvh); }
-    .hotseat__cta--capa { margin-top: 1.25rem; width: auto; align-self: flex-start; padding-inline: 2.5rem; }
-    .hotseat__cartao-titulo { font-size: 1.25rem; }
     .hotseat__selo { display: inline-block; margin-bottom: 0.9rem; }
     .hotseat__titulo { font-size: 2.5rem; line-height: 1.08; }
     .hotseat__sub { margin-top: 0.75rem; font-size: 1.05rem; line-height: 1.5; }
@@ -247,47 +262,42 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
     .hotseat__numeros strong { font-size: 1.1rem; }
     .hotseat__numeros span { font-size: 0.8rem; }
     .hotseat__quando { margin-top: 1.1rem; font-size: 1rem; }
-    .hotseat__cartao { padding: 1.5rem; }
-    .hotseat__campos { gap: 0.9rem; }
-    .hotseat__dados, .hotseat__opcoes { gap: 0.5rem; }
-    .hotseat__campo > legend { font-size: 0.95rem; }
-    .hotseat__campo input:not([type="radio"]), .hotseat__opcao { height: 3rem; }
-    .hotseat__cta { height: 3.25rem; }
-    .hotseat__nota { font-size: 0.8rem; }
+    .hotseat__cta { margin-top: 1.25rem; width: auto; align-self: flex-start; padding-inline: 2.5rem; height: 3.25rem; }
+    .hotseat__card-titulo, .hotseat__nav { padding-inline: 1.75rem; }
+    .hotseat__etapa:not(.hotseat__obrigado) { padding-inline: 1.75rem; }
+    .hotseat__obrigado { padding: 2rem 2.25rem; }
   }
 </style>
 
 <script>
   import { telefoneValido, aplicarMascaraTelefone } from '../scripts/lead-validacao';
-  import { PERGUNTAS, emailValido } from '../data/hotseat-giulliano-puga.js';
+  import { PERGUNTAS, TOTAL_ETAPAS, emailValido } from '../data/hotseat-giulliano-puga.js';
 
   const ENDPOINT = '/api/hotseat-giulliano-puga';
-  const TELEFONE_ERRO = 'WhatsApp com DDD.';
+  const TELEFONE_ERRO = 'Digite um WhatsApp válido com DDD.';
   const ERRO_ENVIO = 'Não conseguimos enviar agora. Confira a internet e toque em confirmar de novo.';
 
-  type Pergunta = { name: string; tipo: string };
+  type Pergunta = { name: string; etapa: number; tipo: string };
 
   const form = document.getElementById('hs-form') as HTMLFormElement | null;
 
   if (form) {
-    const campos = document.getElementById('hs-campos') as HTMLElement;
-    const obrigado = document.getElementById('hs-obrigado') as HTMLElement;
-    const obrigadoAnalise = document.getElementById('hs-obrigado-analise') as HTMLElement;
+    const capa = document.getElementById('hs-capa') as HTMLElement;
+    const privacidade = document.getElementById('hs-privacidade') as HTMLElement;
+    const titulo = document.getElementById('hs-titulo') as HTMLElement;
+    const indicador = document.getElementById('hs-indicador') as HTMLElement;
+    const nav = document.getElementById('hs-nav') as HTMLElement;
+    const avancarBtn = document.getElementById('hs-avancar') as HTMLButtonElement;
     const enviarBtn = document.getElementById('hs-enviar') as HTMLButtonElement;
     const erroGeral = document.getElementById('hs-erro') as HTMLElement;
+    const obrigadoAnalise = document.getElementById('hs-obrigado-analise') as HTMLElement;
+    const etapaEls = form.querySelectorAll<HTMLElement>('.hotseat__etapa[data-etapa]');
     const textoEnviar = enviarBtn.textContent ?? '';
     const perguntas = PERGUNTAS as Pergunta[];
-    let enviando = false;
 
-    // Capa primeiro, formulário depois (cada um na sua tela).
-    const capa = document.getElementById('hs-capa') as HTMLElement;
-    const irPara = (tela: 'capa' | 'form') => {
-      capa.hidden = tela !== 'capa';
-      form.hidden = tela !== 'form';
-      window.scrollTo(0, 0);
-    };
-    document.getElementById('hs-comecar')?.addEventListener('click', () => irPara('form'));
-    document.getElementById('hs-voltar')?.addEventListener('click', () => irPara('capa'));
+    // 0 = capa; 1 a TOTAL_ETAPAS = formulário; 'fim' = agradecimento.
+    let etapaAtual: number | 'fim' = 0;
+    let enviando = false;
 
     const caixa = (name: string) => form.querySelector<HTMLElement>(`[data-campo="${name}"]`);
 
@@ -296,18 +306,17 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
       return form!.querySelector<HTMLInputElement>(`[name="${p.name}"]`)?.value.trim() ?? '';
     }
 
-    // Mensagens curtas: os campos ficam em duas colunas.
     function mensagemDeErro(p: Pergunta): string | null {
       const v = valor(p);
       if (p.tipo === 'uma') return v ? null : 'Escolha uma opção.';
       if (p.tipo === 'telefone') return telefoneValido(v) ? null : TELEFONE_ERRO;
-      if (p.tipo === 'email') return emailValido(v) ? null : 'E-mail inválido.';
-      return v.length < 2 ? 'Preencha aqui.' : null;
+      if (p.tipo === 'email') return emailValido(v) ? null : 'Digite um e-mail válido.';
+      return v.length < 2 ? 'Preencha este campo.' : null;
     }
 
     function mostrarErro(name: string, msg: string | null) {
       const c = caixa(name);
-      const err = c?.querySelector<HTMLElement>('.hotseat__campo-erro');
+      const err = c?.querySelector<HTMLElement>('.hotseat__field-erro');
       if (!c || !err) return;
       err.textContent = msg ?? '';
       err.hidden = !msg;
@@ -319,10 +328,62 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
 
     const focar = (name: string) => caixa(name)?.querySelector<HTMLElement>('input')?.focus();
 
+    // Valida os campos da etapa n; devolve o name do primeiro inválido (ou null).
+    function validarEtapa(n: number): string | null {
+      let primeiro: string | null = null;
+      for (const p of perguntas) {
+        if (p.etapa !== n) continue;
+        const msg = mensagemDeErro(p);
+        mostrarErro(p.name, msg);
+        if (msg && !primeiro) primeiro = p.name;
+      }
+      return primeiro;
+    }
+
+    function mostrarEtapa(n: number | 'fim') {
+      const noForm = typeof n === 'number' && n >= 1;
+      capa.hidden = n !== 0;
+      form!.hidden = n === 0;
+      privacidade.hidden = !noForm;
+      etapaEls.forEach((el) => { el.hidden = el.dataset.etapa !== String(n); });
+      titulo.hidden = !noForm;
+      nav.hidden = !noForm;
+      avancarBtn.hidden = !(noForm && (n as number) < TOTAL_ETAPAS);
+      enviarBtn.hidden = n !== TOTAL_ETAPAS;
+      if (noForm) indicador.textContent = `${n} de ${TOTAL_ETAPAS}`;
+      erroGeral.hidden = true;
+      etapaAtual = n;
+      window.scrollTo(0, 0);
+    }
+
+    function avancar() {
+      if (typeof etapaAtual !== 'number' || etapaAtual < 1 || etapaAtual >= TOTAL_ETAPAS) return;
+      const invalido = validarEtapa(etapaAtual);
+      if (invalido) { focar(invalido); return; }
+      mostrarEtapa(etapaAtual + 1);
+    }
+
+    document.getElementById('hs-comecar')?.addEventListener('click', () => mostrarEtapa(1));
+    avancarBtn.addEventListener('click', avancar);
+    // Na etapa 1 a seta volta para a capa.
+    document.getElementById('hs-voltar')?.addEventListener('click', () => {
+      if (typeof etapaAtual === 'number' && etapaAtual >= 1) mostrarEtapa(etapaAtual - 1);
+    });
+
     const telefoneEl = form.querySelector<HTMLInputElement>('input[name="telefone"]');
     if (telefoneEl) aplicarMascaraTelefone(telefoneEl);
 
-    // O erro some assim que o campo fica válido (erro novo só ao enviar).
+    // Uma pergunta por tela: tocar na opção já passa para a próxima. Na última
+    // tela quem envia é o botão.
+    for (const p of perguntas) {
+      if (p.tipo !== 'uma' || p.etapa >= TOTAL_ETAPAS) continue;
+      caixa(p.name)?.addEventListener('change', () => {
+        const etapa = p.etapa;
+        setTimeout(() => { if (etapaAtual === etapa) avancar(); }, 220);
+      });
+    }
+
+    // O erro some assim que o campo fica válido (erro novo só ao avançar/enviar).
     for (const p of perguntas) {
       caixa(p.name)?.addEventListener(p.tipo === 'uma' ? 'change' : 'input', () => {
         if (caixa(p.name)?.hasAttribute('data-invalido') && !mensagemDeErro(p)) mostrarErro(p.name, null);
@@ -339,15 +400,15 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      // Enter num campo antes da última etapa vale como →.
+      if (typeof etapaAtual !== 'number' || etapaAtual < 1) return;
+      if (etapaAtual < TOTAL_ETAPAS) { avancar(); return; }
       if (enviando) return;
 
-      let primeiro: string | null = null;
-      for (const p of perguntas) {
-        const msg = mensagemDeErro(p);
-        mostrarErro(p.name, msg);
-        if (msg && !primeiro) primeiro = p.name;
+      for (let n = 1; n <= TOTAL_ETAPAS; n++) {
+        const invalido = validarEtapa(n);
+        if (invalido) { if (n !== etapaAtual) { mostrarEtapa(n); validarEtapa(n); } focar(invalido); return; }
       }
-      if (primeiro) { focar(primeiro); return; }
 
       const respostas: Record<string, string> = {};
       for (const p of perguntas) respostas[p.name] = valor(p);
@@ -365,12 +426,12 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
         const j = await r.json().catch(() => ({}));
         if (r.ok && j.ok) {
           obrigadoAnalise.hidden = respostas.analise !== 'Sim, quero';
-          campos.hidden = true;
-          obrigado.hidden = false;
+          mostrarEtapa('fim');
           return;
         }
         const p = j.campo ? perguntas.find((x) => x.name === j.campo) : null;
         if (p) {
+          mostrarEtapa(p.etapa);
           mostrarErro(p.name, p.tipo === 'telefone' ? TELEFONE_ERRO : 'Confira esta resposta.');
           focar(p.name);
           return;
