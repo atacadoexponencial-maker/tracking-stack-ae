@@ -1,7 +1,8 @@
 ---
 /**
- * Hotseat especial com Giulliano Puga: apresentação + formulário numa tela só,
- * SEM rolagem (pedido dela em 11/11). Por isso tudo é compacto: os 4 campos
+ * Hotseat especial com Giulliano Puga: capa (foto, apresentação e botão) e
+ * depois o formulário, cada um numa tela SEM rolagem (pedidos dela em 11/11).
+ * Por isso tudo é compacto: os 4 campos
  * ficam em duas colunas, sem rótulo solto (o nome do campo vai no placeholder e
  * no aria-label), e as 2 perguntas são de um toque.
  *
@@ -14,6 +15,11 @@ import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo-horizontal-preto.png';
 import { PERGUNTAS, TEXTOS, MAX_TEXTO } from '../data/hotseat-giulliano-puga.js';
 
+// A foto do convidado entra sozinha quando o arquivo existir em
+// src/assets/hotseat/giulliano-puga.(jpg|jpeg|png|webp). Sem ele, a capa fica só com o texto.
+const fotos = import.meta.glob('../assets/hotseat/giulliano-puga.{jpg,jpeg,png,webp}', { eager: true });
+const foto = Object.values(fotos)[0]?.default;
+
 const TIPO_INPUT = { telefone: 'tel', email: 'email' };
 const textos = PERGUNTAS.filter((p) => p.tipo !== 'uma');
 const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
@@ -23,7 +29,10 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
   <div class="container hotseat__inner">
     <Image src={logo} alt="Atacado Exponencial" height={72} class="hotseat__logo" />
 
-    <div class="hotseat__grade">
+    <div class:list={['hotseat__capa', { 'hotseat__capa--foto': !!foto }]} id="hs-capa">
+      {foto && (
+        <Image src={foto} alt="Giulliano Puga" class="hotseat__foto" widths={[480, 960]} sizes="(min-width: 900px) 440px, 100vw" loading="eager" />
+      )}
       <div class="hotseat__texto">
         <span class="hotseat__selo">{TEXTOS.selo}</span>
         <h1 class="hotseat__titulo">{TEXTOS.titulo}</h1>
@@ -40,53 +49,62 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
           <svg class="hotseat__icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
           {TEXTOS.quando}
         </p>
+        <button type="button" id="hs-comecar" class="btn-cta hotseat__cta hotseat__cta--capa">{TEXTOS.ctaCapa}</button>
+      </div>
+    </div>
+
+
+    <form class="hotseat__cartao" id="hs-form" novalidate hidden>
+      <div id="hs-campos" class="hotseat__campos">
+        <div class="hotseat__topo">
+          <button type="button" id="hs-voltar" class="hotseat__voltar" aria-label="Voltar">←</button>
+          <div>
+            <p class="hotseat__cartao-titulo">{TEXTOS.formTitulo}</p>
+            <p class="hotseat__cartao-quando">{TEXTOS.quando}</p>
+          </div>
+        </div>
+        <div class="hotseat__dados">
+          {textos.map((p) => (
+            <label class="hotseat__campo" data-campo={p.name}>
+              <input
+                name={p.name}
+                type={TIPO_INPUT[p.tipo] ?? 'text'}
+                maxlength={MAX_TEXTO}
+                placeholder={p.placeholder}
+                aria-label={p.rotulo}
+                autocomplete={p.autocomplete ?? 'off'}
+                autocapitalize={p.name === 'nome' ? 'words' : 'none'}
+              />
+              <small class="hotseat__campo-erro" hidden></small>
+            </label>
+          ))}
+        </div>
+        {escolhas.map((p) => (
+          <fieldset class="hotseat__campo hotseat__grupo" data-campo={p.name}>
+            <legend>{p.rotulo}</legend>
+            <div class="hotseat__opcoes">
+              {p.opcoes.map((o) => (
+                <label class="hotseat__opcao">
+                  <input type="radio" name={p.name} value={o} />
+                  <span>{o}</span>
+                </label>
+              ))}
+            </div>
+            <small class="hotseat__campo-erro" hidden></small>
+          </fieldset>
+        ))}
+        <p id="hs-erro" class="hotseat__erro" role="alert" hidden></p>
+        <button type="submit" id="hs-enviar" class="btn-cta hotseat__cta">{TEXTOS.cta}</button>
+        <p class="hotseat__nota">{TEXTOS.privacidade}</p>
       </div>
 
-      <form class="hotseat__cartao" id="hs-form" novalidate>
-        <div id="hs-campos" class="hotseat__campos">
-          <div class="hotseat__dados">
-            {textos.map((p) => (
-              <label class="hotseat__campo" data-campo={p.name}>
-                <input
-                  name={p.name}
-                  type={TIPO_INPUT[p.tipo] ?? 'text'}
-                  maxlength={MAX_TEXTO}
-                  placeholder={p.placeholder}
-                  aria-label={p.rotulo}
-                  autocomplete={p.autocomplete ?? 'off'}
-                  autocapitalize={p.name === 'nome' ? 'words' : 'none'}
-                />
-                <small class="hotseat__campo-erro" hidden></small>
-              </label>
-            ))}
-          </div>
-          {escolhas.map((p) => (
-            <fieldset class="hotseat__campo hotseat__grupo" data-campo={p.name}>
-              <legend>{p.rotulo}</legend>
-              <div class="hotseat__opcoes">
-                {p.opcoes.map((o) => (
-                  <label class="hotseat__opcao">
-                    <input type="radio" name={p.name} value={o} />
-                    <span>{o}</span>
-                  </label>
-                ))}
-              </div>
-              <small class="hotseat__campo-erro" hidden></small>
-            </fieldset>
-          ))}
-          <p id="hs-erro" class="hotseat__erro" role="alert" hidden></p>
-          <button type="submit" id="hs-enviar" class="btn-cta hotseat__cta">{TEXTOS.cta}</button>
-          <p class="hotseat__nota">{TEXTOS.privacidade}</p>
-        </div>
-
-        <div id="hs-obrigado" class="hotseat__obrigado" hidden>
-          <span class="hotseat__check" aria-hidden="true">✓</span>
-          <p class="hotseat__obrigado-titulo">{TEXTOS.obrigado.titulo}</p>
-          <p class="hotseat__obrigado-texto">{TEXTOS.obrigado.texto}</p>
-          <p class="hotseat__obrigado-texto" id="hs-obrigado-analise" hidden>{TEXTOS.obrigado.analise}</p>
-        </div>
-      </form>
-    </div>
+      <div id="hs-obrigado" class="hotseat__obrigado" hidden>
+        <span class="hotseat__check" aria-hidden="true">✓</span>
+        <p class="hotseat__obrigado-titulo">{TEXTOS.obrigado.titulo}</p>
+        <p class="hotseat__obrigado-texto">{TEXTOS.obrigado.texto}</p>
+        <p class="hotseat__obrigado-texto" id="hs-obrigado-analise" hidden>{TEXTOS.obrigado.analise}</p>
+      </div>
+    </form>
   </div>
 </main>
 
@@ -103,7 +121,13 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
   }
   .hotseat__inner { width: 100%; display: flex; flex-direction: column; gap: 0.6rem; max-width: 34rem; margin-inline: auto; }
   .hotseat__logo { height: 1.4rem; width: auto; align-self: center; }
-  .hotseat__grade { display: grid; gap: 0.75rem; align-items: start; }
+  .hotseat__capa { display: grid; gap: 0.7rem; align-items: start; }
+  .hotseat__capa[hidden], .hotseat__cartao[hidden] { display: none; }
+  /* Foto no alto da capa: a altura acompanha a tela para o botão não sair dela. */
+  .hotseat__foto {
+    width: 100%; height: clamp(8.5rem, 30dvh, 15rem); object-fit: cover; object-position: center 20%;
+    border-radius: 1rem; border: 1px solid var(--hs-linha);
+  }
 
   .hotseat__texto { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
   /* No celular o selo sai: o título já diz o que é e a altura é contada. */
@@ -139,8 +163,16 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
   .hotseat__cartao {
     background: var(--hs-cartao); border: 1px solid var(--hs-linha); border-radius: 1rem;
     box-shadow: 0 1px 2px rgba(30, 30, 30, 0.04), 0 8px 24px rgba(30, 30, 30, 0.06);
-    padding: 0.75rem; text-align: left;
+    padding: 0.75rem; text-align: left; width: 100%; max-width: 30rem; margin-inline: auto;
   }
+  .hotseat__topo { display: flex; align-items: center; gap: 0.5rem; }
+  .hotseat__voltar {
+    flex: none; width: 2.5rem; height: 2.5rem; border-radius: 0.65rem; cursor: pointer;
+    background: none; border: 1px solid var(--hs-linha); color: var(--hs-texto); font-size: 1.2rem; line-height: 1;
+  }
+  .hotseat__topo p { margin: 0; }
+  .hotseat__cartao-titulo { font-size: 1.1rem; font-weight: 700; line-height: 1.2; }
+  .hotseat__cartao-quando { font-size: 0.8rem; line-height: 1.3; color: var(--hs-suave); }
   .hotseat__campos { display: flex; flex-direction: column; gap: 0.55rem; }
   .hotseat__campos[hidden], .hotseat__obrigado[hidden] { display: none; }
   .hotseat__dados { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
@@ -177,6 +209,7 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
     background: var(--hs-texto); color: #ffffff; padding: 0 1rem; height: 3rem;
   }
   .hotseat__cta:disabled { opacity: 0.7; cursor: default; }
+  .hotseat__cta--capa { margin-top: 0.75rem; }
   .hotseat__nota { margin: 0; font-size: 0.72rem; line-height: 1.2; color: var(--hs-suave); text-align: center; }
 
   .hotseat__obrigado { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 1.5rem 0.5rem; }
@@ -199,8 +232,13 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
   /* Tela larga: apresentação à esquerda, formulário à direita. */
   @media (min-width: 900px) {
     .hotseat__inner { max-width: 66rem; gap: 1rem; }
-    .hotseat__logo { height: 1.75rem; align-self: flex-start; }
-    .hotseat__grade { grid-template-columns: 1.1fr 1fr; gap: 4rem; align-items: center; }
+    .hotseat__logo { height: 1.75rem; }
+    .hotseat__inner:has(.hotseat__capa--foto:not([hidden])) .hotseat__logo { align-self: flex-start; }
+    .hotseat__capa { max-width: 38rem; margin-inline: auto; }
+    .hotseat__capa--foto { max-width: none; grid-template-columns: 1.15fr 1fr; gap: 4rem; align-items: center; }
+    .hotseat__capa--foto .hotseat__foto { order: 2; height: min(34rem, 78dvh); }
+    .hotseat__cta--capa { margin-top: 1.25rem; width: auto; align-self: flex-start; padding-inline: 2.5rem; }
+    .hotseat__cartao-titulo { font-size: 1.25rem; }
     .hotseat__selo { display: inline-block; margin-bottom: 0.9rem; }
     .hotseat__titulo { font-size: 2.5rem; line-height: 1.08; }
     .hotseat__sub { margin-top: 0.75rem; font-size: 1.05rem; line-height: 1.5; }
@@ -240,6 +278,16 @@ const escolhas = PERGUNTAS.filter((p) => p.tipo === 'uma');
     const textoEnviar = enviarBtn.textContent ?? '';
     const perguntas = PERGUNTAS as Pergunta[];
     let enviando = false;
+
+    // Capa primeiro, formulário depois (cada um na sua tela).
+    const capa = document.getElementById('hs-capa') as HTMLElement;
+    const irPara = (tela: 'capa' | 'form') => {
+      capa.hidden = tela !== 'capa';
+      form.hidden = tela !== 'form';
+      window.scrollTo(0, 0);
+    };
+    document.getElementById('hs-comecar')?.addEventListener('click', () => irPara('form'));
+    document.getElementById('hs-voltar')?.addEventListener('click', () => irPara('capa'));
 
     const caixa = (name: string) => form.querySelector<HTMLElement>(`[data-campo="${name}"]`);
 

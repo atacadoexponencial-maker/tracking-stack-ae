@@ -43,6 +43,8 @@ export const TEXTOS = {
     { valor: '700 revendedores', rotulo: 'ativos no Brasil' },
   ],
   quando: 'Segunda, 16/11 · 20h às 22h · Google Meet',
+  ctaCapa: 'Quero participar',
+  formTitulo: 'Confirme a sua presença',
   cta: 'Confirmar presença',
   privacidade: 'Suas respostas ficam só com a equipe.',
   obrigado: {
