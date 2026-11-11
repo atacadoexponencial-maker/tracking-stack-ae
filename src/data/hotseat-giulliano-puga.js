@@ -37,8 +37,8 @@ export const CABECALHO = ['Data/hora', ...PERGUNTAS.map((p) => p.coluna), 'Orige
 
 // Números do convidado: respostas que ele mesmo mandou (11/11).
 export const TEXTOS = {
-  selo: 'Hotseat especial',
-  titulo: 'Hotseat com Giulliano Puga, da Labellamafia',
+  selo: 'Exclusivo para mentorados',
+  titulo: 'Mentoria em Grupo com Giulliano Puga, da Labellamafia',
   subtitulo: 'Ele analisa marcas de atacado ao vivo com a gente. A sua pode ser uma delas.',
   numeros: [
     { valor: '+ de R$ 1 bilhão', rotulo: 'em vendas no mundo' },
