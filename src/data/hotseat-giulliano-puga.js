@@ -9,16 +9,16 @@
 // Sem prazo de encerramento (decisão dela em 11/11).
 
 export const PERGUNTAS = [
-  { name: 'nome', tipo: 'texto', rotulo: 'Seu nome', coluna: 'Nome', placeholder: 'Nome', autocomplete: 'name' },
-  { name: 'telefone', tipo: 'telefone', rotulo: 'WhatsApp', coluna: 'WhatsApp', placeholder: 'WhatsApp com DDD', autocomplete: 'tel' },
-  { name: 'email', tipo: 'email', rotulo: 'E-mail', coluna: 'E-mail', placeholder: 'voce@email.com', autocomplete: 'email' },
-  { name: 'instagram', tipo: 'texto', rotulo: 'Instagram da marca', coluna: 'Instagram da marca', placeholder: '@suamarca' },
+  { name: 'nome', tipo: 'texto', rotulo: 'Seu nome', coluna: 'Nome', placeholder: 'Seu nome', autocomplete: 'name' },
+  { name: 'telefone', tipo: 'telefone', rotulo: 'WhatsApp', coluna: 'WhatsApp', placeholder: 'WhatsApp', autocomplete: 'tel' },
+  { name: 'email', tipo: 'email', rotulo: 'E-mail', coluna: 'E-mail', placeholder: 'E-mail', autocomplete: 'email' },
+  { name: 'instagram', tipo: 'texto', rotulo: 'Instagram da marca', coluna: 'Instagram da marca', placeholder: '@ da sua marca' },
   {
     name: 'participa', tipo: 'uma', rotulo: 'Você se compromete a participar ao vivo?', coluna: 'Vai participar',
     opcoes: ['Sim, eu vou', 'Não consigo'],
   },
   {
-    name: 'analise', tipo: 'uma', rotulo: 'Quer que a sua marca concorra a uma análise do Giulliano Puga?', coluna: 'Quer análise',
+    name: 'analise', tipo: 'uma', rotulo: 'Quer concorrer à análise do Giulliano Puga?', coluna: 'Quer análise',
     opcoes: ['Sim, quero', 'Só vou assistir'],
   },
 ];
@@ -35,18 +35,15 @@ export const CABECALHO = ['Data/hora', ...PERGUNTAS.map((p) => p.coluna), 'Orige
 export const TEXTOS = {
   selo: 'Hotseat especial',
   titulo: 'Hotseat com Giulliano Puga, da Labellamafia',
-  subtitulo: 'Ele levou a Labellamafia a 46 países e analisa marcas de atacado ao vivo com a gente. A sua pode ser uma delas.',
+  subtitulo: 'Ele analisa marcas de atacado ao vivo com a gente. A sua pode ser uma delas.',
   numeros: [
     { valor: '+ de R$ 1 bilhão', rotulo: 'em vendas no mundo' },
-    { valor: '46 países', rotulo: 'operando ao mesmo tempo' },
+    { valor: '46 países', rotulo: 'ao mesmo tempo' },
     { valor: 'R$ 100 milhões', rotulo: 'no atacado, só no Brasil' },
-    { valor: '700 clientes', rotulo: 'ativos na carteira de atacado do Brasil' },
+    { valor: '700 revendedores', rotulo: 'ativos no Brasil' },
   ],
-  quando: 'Segunda, 16/11 · 20h às 22h',
-  onde: 'Google Meet · ao vivo',
-  formTitulo: 'Confirme a sua presença',
+  quando: 'Segunda, 16/11 · 20h às 22h · Google Meet',
   cta: 'Confirmar presença',
-  nota: 'Leva menos de 1 minuto.',
   privacidade: 'Suas respostas ficam só com a equipe.',
   obrigado: {
     titulo: 'Presença confirmada',
