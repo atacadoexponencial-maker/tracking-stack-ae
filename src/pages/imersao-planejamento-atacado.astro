@@ -372,13 +372,14 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
 
       <!-- 11. Garantia ---------------------------------------------------------- -->
       <section class="ipa-garantia">
-        <div class="ipa-largura">
-          <div class="ipa-garantia__cartao">
-            <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8 7.5 9.5 4.4-1.5 7.5-4.9 7.5-9.5V6L12 3Z" /><path d="m9 12 2.2 2.2L15.2 10" /></svg>
-            <div>
-              <h2 class="ipa-garantia__titulo">Participou e achou que não valeu?</h2>
-              <p class="ipa-garantia__texto">Você pede o reembolso até 2 dias depois do evento.</p>
-            </div>
+        <div class="ipa-largura ipa-garantia__grade">
+          <div class="ipa-garantia__selo" aria-hidden="true">
+            <svg class="ipa-icone" viewBox="0 0 24 24"><path d="M12 2.5 4 5.7v5.9c0 4.9 3.3 8.5 8 10 4.7-1.5 8-5.1 8-10V5.7l-8-3.2Z" /><path d="m8.6 12 2.4 2.4 4.4-4.6" /></svg>
+          </div>
+          <div class="ipa-garantia__texto">
+            <p class="ipa-garantia__rotulo">Garantia</p>
+            <h2 class="ipa-h2 ipa-garantia__titulo">Participou e achou que não valeu?</h2>
+            <p class="ipa-garantia__resposta">Você pede o reembolso até 2 dias depois do evento.</p>
           </div>
         </div>
       </section>
@@ -1079,35 +1080,58 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   }
 
   /* ---- 11. Garantia ------------------------------------------------------------ */
+  /* Faixa bege chapada, do mesmo peso do bloco de preço: a garantia é
+     argumento de venda, não nota de rodapé. */
   .ipa-garantia {
-    padding-block: 4.5rem 0;
-    background: var(--fundo);
+    padding-block: 4.5rem;
+    background: var(--bege);
+    color: var(--carvao);
   }
-  .ipa-garantia__cartao {
-    display: flex;
-    gap: 1.1rem;
-    align-items: flex-start;
-    background: #242424;
-    border: 1px solid var(--fio);
-    border-radius: 8px;
-    padding: 1.5rem 1.25rem;
+  .ipa-garantia__grade {
+    display: grid;
+    gap: 2rem;
+    align-items: center;
   }
-  .ipa-garantia__cartao .ipa-icone {
-    width: 2.25rem;
-    height: 2.25rem;
+  .ipa-garantia__selo {
+    width: 6.5rem;
+    height: 6.5rem;
+    border-radius: 999px;
+    background: var(--carvao);
     color: var(--bege);
-    stroke-width: 1.4;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 24px 40px -22px rgba(30, 30, 30, 0.7);
   }
-  .ipa-garantia__titulo {
-    font-size: clamp(1.2rem, 2.6vw, 1.6rem);
-    line-height: 1.15;
-    letter-spacing: -0.02em;
+  .ipa-garantia__selo .ipa-icone {
+    width: 3.4rem;
+    height: 3.4rem;
+    stroke-width: 1.3;
   }
   .ipa-garantia__texto {
-    margin-top: 0.4rem;
-    color: var(--branco-2);
-    font-size: 1.02rem;
-    line-height: 1.55;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.1rem;
+  }
+  .ipa-garantia__rotulo {
+    border: 1px solid rgba(30, 30, 30, 0.3);
+    border-radius: 4px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .ipa-garantia__titulo {
+    max-width: 16ch;
+  }
+  .ipa-garantia__resposta {
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    max-width: 26ch;
+    text-wrap: balance;
   }
 
   /* ---- 11. FAQ ----------------------------------------------------------------- */
@@ -1277,9 +1301,26 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
       gap: 4rem;
       align-items: start;
     }
-    .ipa-garantia__cartao {
-      padding: 2rem 2.25rem;
-      align-items: center;
+    .ipa-garantia {
+      padding-block: 6rem;
+    }
+    .ipa-garantia__grade {
+      grid-template-columns: auto 1fr;
+      gap: 4rem;
+    }
+    .ipa-garantia__selo {
+      width: 11rem;
+      height: 11rem;
+    }
+    .ipa-garantia__selo .ipa-icone {
+      width: 5.5rem;
+      height: 5.5rem;
+    }
+    .ipa-garantia__titulo {
+      max-width: 18ch;
+    }
+    .ipa-garantia__resposta {
+      max-width: none;
     }
     .ipa-faq__grade {
       grid-template-columns: 22rem 1fr;
