@@ -1,6 +1,8 @@
-// Detalhe das reuniões na Visão geral (spec-detalhe-reunioes.md, série S7):
-// a coorte de agendamento contra SQLite real (migrations da agenda e do
-// Calendly), o no-show calculado no servidor (/api/agenda/coorte) e o desenho
+// Detalhe das reuniões na Visão geral (spec-detalhe-reunioes.md, série S7, com
+// a régua da série S9, spec-funil-leads-novos.md: as reuniões que caem no
+// período, pela data da reunião) contra SQLite real (migrations da agenda e do
+// Calendly), comparecimento e no-show calculados no servidor
+// (/api/agenda/coorte) e o desenho
 // de public/dash/detalhe-reunioes.js com um contexto falso no lugar dos
 // ajudantes do index.html.
 import { test, beforeEach } from 'node:test';
@@ -25,10 +27,13 @@ function banco() {
       timestamp INTEGER NOT NULL, is_bot INTEGER DEFAULT 0, is_junk INTEGER NOT NULL DEFAULT 0, raw_email TEXT DEFAULT '',
       funnel TEXT DEFAULT '', material TEXT, origin TEXT);
     CREATE TABLE campaign_funnel_map (campaign_id TEXT PRIMARY KEY, funnel TEXT);
+    CREATE TABLE lead_dispatch (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT, resultado TEXT, task_id TEXT);
+    CREATE TABLE ad_spend (platform TEXT, date TEXT, campaign_id TEXT, campaign_name TEXT, spend_cents INTEGER);
+    CREATE TABLE sync_log (id INTEGER PRIMARY KEY AUTOINCREMENT, platform TEXT, status TEXT, run_at INTEGER);
     CREATE TABLE funis_relatorio (id INTEGER PRIMARY KEY, nome TEXT, tipo TEXT, posicao INTEGER, funil_tracking TEXT,
       trecho_campanha TEXT, opcoes_crm TEXT, origem_lead TEXT, situacao TEXT);
   `);
-  for (const f of ['0047_agenda.sql', '0059_agenda_tipos_teste.sql',
+  for (const f of ['0032_greenn_webhook.sql', '0047_agenda.sql', '0059_agenda_tipos_teste.sql',
     '0063_calendly_consultorias.sql', '0065_calendly_detalhes.sql', '0066_calendly_presenca.sql']) {
     b.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
   }
@@ -44,11 +49,11 @@ beforeEach(() => {
 });
 
 /** Reunião da agenda própria criada em `criada`, marcada para `dia` (horários de Brasília). */
-function reuniao({ situacao = 'marcada', criada = '2026-11-03T10:00:00', dia = '2026-11-12T15:00:00', funil = 'sessao-estrategica', nome } = {}) {
+function reuniao({ situacao = 'marcada', criada = '2026-11-03T10:00:00', dia = '2026-11-07T15:00:00', funil = 'sessao-estrategica', nome, email } = {}) {
   seq++;
   db.prepare(`INSERT INTO agenda_reunioes (id, tipo_id, inicio, fim, nome, email, funil, situacao, token_gestao, criado_em, atualizado_em)
               VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(`r${seq}`, em(dia), em(dia) + 2700, nome || `Lead ${seq}`, `l${seq}@x.com`, funil, situacao, `t${seq}`, em(criada), em(criada));
+    .run(`r${seq}`, em(dia), em(dia) + 2700, nome || `Lead ${seq}`, email || `l${seq}@x.com`, funil, situacao, `t${seq}`, em(criada), em(criada));
   return `r${seq}`;
 }
 
@@ -82,9 +87,9 @@ const CTX = {
 };
 
 /** { rótulo: { valor, anterior, delta, nota } } dos cards na tela. */
-function tela(resposta, fSel = '') {
+function tela(resposta, fSel = '', taxas) {
   const raiz = { innerHTML: '' };
-  DR.desenhar(raiz, resposta, fSel, CTX);
+  DR.desenhar(raiz, resposta, fSel, CTX, undefined, taxas);
   const cards = {};
   for (const [, c] of raiz.innerHTML.matchAll(/<card>(.*?)<\/card>/g)) {
     const [rotulo, valor, anterior, delta, nota] = c.split(' | ');
@@ -94,99 +99,187 @@ function tela(resposta, fSel = '') {
 }
 
 const SITUACOES = ['Realizadas', 'Faltaram', 'Canceladas', 'A acontecer', 'Sem presença marcada'];
+// Sábado de manhã, ainda dentro da semana 02–08/11: o que está marcado para
+// sábado à tarde e domingo ainda vai acontecer.
+const SABADO = '2026-11-07T08:00:00';
 
-test('CA-S7-01: os números da seção fecham com o total de criadas', async () => {
-  reuniao({ situacao: 'realizada', criada: '2026-11-02T00:44:00', dia: '2026-11-06T15:00:00' });
-  reuniao({ situacao: 'faltou', criada: '2026-11-02T13:47:00', dia: '2026-11-06T16:00:00' });
-  reuniao({ situacao: 'cancelada', criada: '2026-11-02T20:35:00', dia: '2026-11-06T15:00:00', funil: 'aplicacao-mentoria' });
-  for (let i = 0; i < 6; i++) reuniao({ criada: '2026-11-04T18:00:00', dia: `2026-11-1${i}T15:00:00` });
-  for (let i = 0; i < 2; i++) reuniao({ situacao: 'remarcada', criada: '2026-11-03T05:43:00', dia: `2026-11-1${i}T17:00:00` });
-  reuniao({ criada: '2026-10-30T10:00:00', dia: '2026-11-10T09:00:00' }); // criada antes da semana: fora
+test('CA-S9-14: a seção conta as reuniões pela data em que acontecem', async () => {
+  // Agendada no período anterior para um dia desta semana: entra.
+  reuniao({ nome: 'Antiga', situacao: 'realizada', criada: '2026-10-30T10:00:00', dia: '2026-11-04T09:00:00' });
+  // Agendada nesta semana para depois dela: não entra nos quadros de situação nem nas listas.
+  reuniao({ nome: 'Depois', criada: '2026-11-03T10:00:00', dia: '2026-11-12T15:00:00' });
 
-  const { cards } = tela(await coorte());
-  assert.equal(cards['Criadas'].valor, '11');
-  assert.equal(cards['Realizadas'].valor, '1');
+  const { listas, numeros } = await listasNaTela();
+  assert.match(numeros, /<card>Na agenda \| 1 \|/);
+  assert.match(numeros, /<card>Realizadas \| 1 \|/);
+  assert.match(numeros, /<card>A acontecer \| 0 \|/);
+  assert.match(numeros, /<card>Agendadas no período \| 1 \|/);
+  assert.ok(Object.values(listas).every((l) => !l.linhas.some((x) => x.includes('Depois'))));
+});
+
+test('CA-S9-16: os quadros de situação fecham com o total da agenda', async () => {
+  reuniao({ situacao: 'realizada', dia: '2026-11-03T15:00:00' });
+  reuniao({ situacao: 'realizada', dia: '2026-11-03T16:00:00' });
+  reuniao({ situacao: 'faltou', dia: '2026-11-03T17:00:00' });
+  reuniao({ situacao: 'cancelada', dia: '2026-11-04T15:00:00', funil: 'aplicacao-mentoria' });
+  reuniao({ dia: '2026-11-07T15:00:00' }); // ainda vai acontecer
+  reuniao({ dia: '2026-11-04T16:00:00' }); // passou e ninguém marcou
+
+  const { cards } = tela(await coorte(SABADO));
+  assert.equal(cards['Na agenda'].valor, '6');
+  assert.equal(cards['Realizadas'].valor, '2');
   assert.equal(cards['Faltaram'].valor, '1');
   assert.equal(cards['Canceladas'].valor, '1');
-  assert.equal(cards['A acontecer'].valor, '8');
-  assert.equal(cards['Sem presença marcada'].valor, '0');
+  assert.equal(cards['A acontecer'].valor, '1');
+  assert.equal(cards['Sem presença marcada'].valor, '1');
   const soma = SITUACOES.reduce((t, r) => t + Number(cards[r].valor), 0);
-  assert.equal(soma, Number(cards['Criadas'].valor));
+  assert.equal(soma, Number(cards['Na agenda'].valor));
 });
 
-test('CA-S7-02: no-show é faltou sobre realizada mais faltou', async () => {
-  reuniao({ situacao: 'realizada', dia: '2026-11-06T15:00:00' });
+test('CA-S9-17: comparecimento e no-show', async () => {
+  for (let i = 0; i < 3; i++) reuniao({ situacao: 'realizada', dia: `2026-11-0${3 + i}T15:00:00` });
   reuniao({ situacao: 'faltou', dia: '2026-11-06T16:00:00' });
-  reuniao({ situacao: 'cancelada', dia: '2026-11-06T17:00:00' });
-  for (let i = 0; i < 8; i++) reuniao({ dia: '2026-11-12T15:00:00' });
-  reuniao({ dia: '2026-11-07T10:00:00' }); // já passou, ninguém marcou
-  reuniao({ situacao: 'sem_info', dia: '2026-11-07T11:00:00' });
+  reuniao({ situacao: 'cancelada', dia: '2026-11-06T17:00:00' }); // fora da conta
+  reuniao({ situacao: 'sem_info', dia: '2026-11-07T11:00:00' }); // fora da conta
 
   const resposta = await coorte();
-  assert.equal(resposta.atual.total.no_show, 50);
+  assert.equal(resposta.atual.total.no_show, 25);
+  assert.equal(resposta.atual.total.comparecimento, 75);
   const { cards } = tela(resposta);
-  assert.equal(cards['Sem presença marcada'].valor, '2');
-  assert.equal(cards['A acontecer'].valor, '8');
-  assert.equal(cards['No-show'].valor, '50%');
-  assert.equal(cards['No-show'].nota, '1 de 2');
+  assert.equal(cards['Comparecimento'].valor, '75%');
+  assert.equal(cards['Comparecimento'].nota, '3 de 4');
+  assert.equal(cards['No-show'].valor, '25%');
+  assert.equal(cards['No-show'].nota, '1 de 4');
 });
 
-test('CA-S7-03: sem nenhuma presença marcada o no-show não vira 0%', async () => {
+test('CA-S9-18: sem presença marcada, comparecimento e no-show não viram 0%', async () => {
   reuniao({ situacao: 'cancelada', dia: '2026-11-06T15:00:00' });
-  reuniao({ dia: '2026-11-07T10:00:00' }); // passou sem presença
-  reuniao({ dia: '2026-11-12T15:00:00' }); // a acontecer
+  reuniao({ dia: '2026-11-04T10:00:00' }); // passou sem presença
+  reuniao({ dia: '2026-11-07T15:00:00' }); // a acontecer
 
-  const resposta = await coorte();
+  const resposta = await coorte(SABADO);
   assert.equal(resposta.atual.total.no_show, null);
+  assert.equal(resposta.atual.total.comparecimento, null);
   const { cards } = tela(resposta);
-  assert.equal(cards['No-show'].valor, '—');
-  assert.notEqual(cards['No-show'].valor, '0%');
+  for (const r of ['Comparecimento', 'No-show']) {
+    assert.equal(cards[r].valor, '—');
+    assert.equal(cards[r].nota, 'sem presença marcada');
+  }
 });
 
-test('CA-S7-09: filtro de funil restringe os números', async () => {
-  reuniao({ situacao: 'realizada', dia: '2026-11-06T15:00:00' });
-  reuniao({ situacao: 'faltou', dia: '2026-11-06T16:00:00' });
-  reuniao({ dia: '2026-11-12T15:00:00' });
+test('CA-S9-22: filtro de funil restringe quadros e listas', async () => {
+  reuniao({ nome: 'Ana', situacao: 'realizada', dia: '2026-11-06T15:00:00' });
   // Aplicação Mentoria é porta da SE (SUP-S7-07): conta em SE.
-  reuniao({ situacao: 'realizada', dia: '2026-11-06T18:00:00', funil: 'aplicacao-mentoria' });
-  reuniao({ situacao: 'cancelada', dia: '2026-11-06T15:00:00', funil: 'workshop' });
-  reuniao({ situacao: 'faltou', dia: '2026-11-06T17:00:00', funil: 'workshop' });
+  reuniao({ nome: 'Bia', situacao: 'faltou', dia: '2026-11-06T16:00:00', funil: 'aplicacao-mentoria' });
+  reuniao({ nome: 'Caio', situacao: 'faltou', dia: '2026-11-06T17:00:00', funil: 'aquisicao' });
 
-  const resposta = await coorte();
-  const se = tela(resposta, 'sessao-estrategica').cards;
-  assert.equal(se['Criadas'].valor, '4');
-  assert.equal(se['Realizadas'].valor, '2');
-  assert.equal(se['Faltaram'].valor, '1');
-  assert.equal(se['Canceladas'].valor, '0');
-  assert.equal(se['A acontecer'].valor, '1');
-  assert.equal(se['No-show'].valor, '33%');
-  const ws = tela(resposta, 'workshop').cards;
-  assert.equal(ws['Criadas'].valor, '2');
-  assert.equal(ws['Canceladas'].valor, '1');
-  assert.equal(ws['No-show'].valor, '100%');
-  // Sem filtro, as seis.
-  assert.equal(tela(resposta).cards['Criadas'].valor, '6');
+  const aq = await listasNaTela({ funil: 'aquisicao' });
+  assert.match(aq.numeros, /<card>Na agenda \| 1 \|/);
+  assert.match(aq.numeros, /<card>No-show \| 100% \|/);
+  assert.deepEqual(aq.listas['Faltaram'].linhas, ['Caio Aquisição sex., 06/11, 17:00']);
+  const se = tela(await coorte(), 'sessao-estrategica').cards;
+  assert.equal(se['Na agenda'].valor, '2');
+  assert.equal(se['Realizadas'].valor, '1');
+  assert.equal(se['No-show'].valor, '50%');
+  // Sem filtro, as três.
+  assert.equal(tela(await coorte()).cards['Na agenda'].valor, '3');
 });
 
-test('CA-S7-14: números comparados com o período anterior', async () => {
-  // Semana 02–08/11: 11 criadas, 1 realizada e 1 falta (no-show 50%).
+test('CA-S9-23: quadros comparados com o período anterior', async () => {
+  // Semana 02–08/11: 4 na agenda (1 realizada, 1 falta).
   reuniao({ situacao: 'realizada', dia: '2026-11-06T15:00:00' });
   reuniao({ situacao: 'faltou', dia: '2026-11-06T16:00:00' });
-  for (let i = 0; i < 9; i++) reuniao({ dia: '2026-11-12T15:00:00' });
-  // Anterior 26/10–01/11: 8 criadas, 3 realizadas e 1 falta (no-show 25%).
-  const antes = { criada: '2026-10-27T10:00:00' };
-  for (let i = 0; i < 3; i++) reuniao({ ...antes, situacao: 'realizada', dia: '2026-10-30T15:00:00' });
-  reuniao({ ...antes, situacao: 'faltou', dia: '2026-10-30T16:00:00' });
-  // A última foi agendada no período anterior e só acontece nesta semana: conta lá, não aqui.
-  for (let i = 0; i < 3; i++) reuniao({ ...antes, situacao: 'cancelada', dia: '2026-10-31T15:00:00' });
-  reuniao({ criada: '2026-10-31T10:00:00', situacao: 'cancelada', dia: '2026-11-04T15:00:00' });
+  for (let i = 0; i < 2; i++) reuniao({ situacao: 'cancelada', dia: '2026-11-05T15:00:00' });
+  // Anterior 26/10–01/11: 2 na agenda, as duas realizadas.
+  for (let i = 0; i < 2; i++) reuniao({ criada: '2026-10-27T10:00:00', situacao: 'realizada', dia: '2026-10-30T15:00:00' });
+  // Agendada na semana anterior para depois desta: não cai em nenhuma das duas agendas.
+  reuniao({ criada: '2026-10-31T10:00:00', dia: '2026-11-10T15:00:00' });
 
   const { cards } = tela(await coorte());
-  assert.deepEqual(cards['Criadas'], { valor: '11', anterior: '8', delta: '38', nota: '' });
-  assert.equal(cards['Realizadas'].anterior, '3');
+  assert.equal(cards['Na agenda'].valor, '4');
+  assert.equal(cards['Na agenda'].anterior, '2');
+  assert.equal(cards['Na agenda'].delta, '100');
+  assert.equal(cards['Realizadas'].anterior, '2');
   assert.equal(cards['No-show'].valor, '50%');
-  assert.equal(cards['No-show'].anterior, '25%');
-  assert.equal(cards['No-show'].delta, '100');
+  assert.equal(cards['No-show'].anterior, '0%');
+  assert.equal(cards['Agendadas no período'].valor, '4');
+  assert.equal(cards['Agendadas no período'].anterior, '3');
+});
+
+// ---------------------------------------------------------------------------
+// Agendadas no período, separadas em lead novo e lead antigo: o CRM simulado
+// devolve os cards criados no período (/api/agenda/taxas lê pelo `recorte`).
+// ---------------------------------------------------------------------------
+import { recorte as recorteDasTaxas } from '../functions/api/agenda/taxas.js';
+import { CU_FIELD } from '../functions/api/_clickup.js';
+
+function cardCrm(email, criado = '2026-11-03T09:00:00') {
+  seq++;
+  return {
+    id: `card${seq}`, name: `Lead ${seq}`, status: { status: 'qualificação' }, date_created: String(em(criado) * 1000),
+    custom_fields: [
+      { id: CU_FIELD.funil, value: 'opt-se', type_config: { options: [{ id: 'opt-se', name: 'SE', orderindex: 0 }] } },
+      { id: CU_FIELD.faturamento, value: 'De 50 a 100 mil' },
+      { id: CU_FIELD.email, value: email },
+    ],
+  };
+}
+
+/** A resposta de /api/agenda/taxas ({ atual, anterior }); `cards` null = CRM fora do ar. */
+async function taxas(cards, agora = '2026-11-09T08:00:00') {
+  db.prepare(`INSERT INTO funis_relatorio VALUES (1, 'SE', 'lead_mql', 1, 'sessao-estrategica', '', ?, 'qualquer', 'ativo')`)
+    .run(JSON.stringify([{ id: 'opt-se', nome: 'SE' }]));
+  env.CLICKUP_API_TOKEN = 't';
+  const fetchOriginal = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (!cards || !String(url).includes('/task?')) return new Response('fora do ar', { status: 500 });
+    const u = new URL(String(url));
+    const de = Number(u.searchParams.get('date_created_gt')), ate = Number(u.searchParams.get('date_created_lt'));
+    return Response.json({ tasks: cards.filter((c) => Number(c.date_created) > de && Number(c.date_created) < ate), last_page: true });
+  };
+  try {
+    const lado = (p) => recorteDasTaxas(env, p.de, p.ate, em(agora), ['sessao-estrategica']);
+    return { atual: await lado(SEMANA), anterior: await lado(ANTERIOR) };
+  } finally {
+    globalThis.fetch = fetchOriginal;
+  }
+}
+
+test('CA-S9-15: leads novos e antigos entram juntos', async () => {
+  reuniao({ email: 'novo@x.com', situacao: 'realizada', dia: '2026-11-05T15:00:00' });
+  reuniao({ email: 'antigo@x.com', situacao: 'realizada', dia: '2026-11-05T16:00:00' });
+  const cards = [cardCrm('novo@x.com'), cardCrm('antigo@x.com', '2026-01-28T15:00:00')];
+
+  const tx = await taxas(cards);
+  const c = tela(await coorte(), '', tx).cards;
+  assert.equal(c['Na agenda'].valor, '2');
+  assert.equal(c['Realizadas'].valor, '2');
+  assert.equal(c['Agendadas no período'].nota, '1 de lead novo · 1 de lead antigo');
+});
+
+test('CA-S9-19: Agendadas no período separa lead novo de lead antigo', async () => {
+  reuniao({ email: 'n1@x.com', dia: '2026-11-06T15:00:00' });
+  reuniao({ email: 'n2@x.com', dia: '2026-11-12T15:00:00' }); // agendou na semana, acontece depois
+  reuniao({ email: 'velho@x.com', dia: '2026-11-06T16:00:00' });
+  const cards = [cardCrm('n1@x.com'), cardCrm('N2@x.com'), cardCrm('velho@x.com', '2026-10-01T09:00:00')];
+
+  const tx = await taxas(cards);
+  assert.deepEqual(tx.atual.agendou_lead_novo, { total: 2, por_funil: { 'sessao-estrategica': 2 } });
+  const c = tela(await coorte(), '', tx).cards;
+  assert.equal(c['Agendadas no período'].valor, '3');
+  assert.equal(c['Agendadas no período'].nota, '2 de lead novo · 1 de lead antigo');
+});
+
+test('CA-S9-20: Agendadas no período aparece mesmo sem o CRM', async () => {
+  for (let i = 0; i < 3; i++) reuniao({ dia: '2026-11-06T15:00:00' });
+
+  const tx = await taxas(null);
+  assert.equal(tx.atual.crm_lido, false);
+  for (const semCrm of [tx, null]) {
+    const c = tela(await coorte(), '', semCrm).cards;
+    assert.equal(c['Agendadas no período'].valor, '3');
+    assert.equal(c['Agendadas no período'].nota, 'sem dados do CRM');
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -229,30 +322,50 @@ async function listasNaTela({ agora, funil = '' } = {}) {
   return { listas, html: raiz.innerHTML, numeros: html };
 }
 
-test('CA-S7-04: lista de quem ainda vai fazer mostra todas as futuras do período', async () => {
-  reuniao({ nome: 'Yago', criada: '2026-11-03T23:07:00', dia: '2026-11-16T17:00:00' });
-  reuniao({ nome: 'Fabiane', criada: '2026-11-04T18:07:00', dia: '2026-11-09T14:00:00' });
-  reuniao({ nome: 'Erica', criada: '2026-11-06T15:17:00', dia: '2026-11-10T15:00:00' });
-  reuniao({ nome: 'Antiga', criada: '2026-10-30T10:00:00', dia: '2026-11-10T09:00:00' }); // criada antes do período
+test('CA-S9-21: as listas trazem os nomes das reuniões que caem no período', async () => {
+  reuniao({ nome: 'Fabiane', dia: '2026-11-07T15:00:00' }); // ainda vai acontecer
+  reuniao({ nome: 'Patricia', situacao: 'faltou', dia: '2026-11-05T16:00:00' });
+  reuniao({ nome: 'Daniel', situacao: 'cancelada', dia: '2026-11-05T15:00:00', funil: 'workshop' });
+  reuniao({ nome: 'Ellen', dia: '2026-11-04T15:00:00' }); // passou e ninguém marcou
+  const id = reuniao({ nome: 'Caio', situacao: 'remarcada', dia: '2026-11-08T10:00:00' });
+  remarcou(id, 'qua., 04/11, 15:00 → dom., 08/11, 10:00', '2026-11-03T12:00:00');
 
-  const { listas } = await listasNaTela();
+  const { listas } = await listasNaTela({ agora: SABADO });
+  assert.deepEqual(listas['Ainda vão acontecer'].linhas, [
+    'Fabiane Sessão Estratégica sáb., 07/11, 15:00',
+    'Caio remarcada Sessão Estratégica dom., 08/11, 10:00',
+  ]);
+  assert.deepEqual(listas['Faltaram'].linhas, ['Patricia Sessão Estratégica qui., 05/11, 16:00']);
+  assert.deepEqual(listas['Cancelaram'].linhas, ['Daniel Workshop qui., 05/11, 15:00']);
+  assert.deepEqual(listas['Sem presença marcada'].linhas, ['Ellen Sessão Estratégica qua., 04/11, 15:00']);
+  assert.equal(listas['Reagendamentos'].qtd, 1);
+  assert.match(listas['Reagendamentos'].linhas[0], /^Caio Sessão Estratégica 1 remarcação · agora: a acontecer/);
+});
+
+test('CA-S7-04: lista de quem ainda vai fazer mostra todas as futuras do período', async () => {
+  reuniao({ nome: 'Yago', criada: '2026-11-03T23:07:00', dia: '2026-11-08T17:00:00' });
+  reuniao({ nome: 'Fabiane', criada: '2026-11-04T18:07:00', dia: '2026-11-07T14:00:00' });
+  reuniao({ nome: 'Erica', criada: '2026-11-06T15:17:00', dia: '2026-11-07T15:00:00' });
+  reuniao({ nome: 'Depois', criada: '2026-11-06T10:00:00', dia: '2026-11-10T09:00:00' }); // acontece depois do período
+
+  const { listas } = await listasNaTela({ agora: SABADO });
   const lista = listas['Ainda vão acontecer'];
   assert.equal(lista.qtd, 3);
   assert.deepEqual(lista.linhas, [
-    'Fabiane Sessão Estratégica seg., 09/11, 14:00',
-    'Erica Sessão Estratégica ter., 10/11, 15:00',
-    'Yago Sessão Estratégica seg., 16/11, 17:00',
+    'Fabiane Sessão Estratégica sáb., 07/11, 14:00',
+    'Erica Sessão Estratégica sáb., 07/11, 15:00',
+    'Yago Sessão Estratégica dom., 08/11, 17:00',
   ]);
-  assert.ok(!lista.linhas.some((l) => l.includes('Antiga')));
+  assert.ok(!lista.linhas.some((l) => l.includes('Depois')));
 });
 
 test('CA-S7-05: reunião remarcada para o futuro conta como a acontecer', async () => {
-  const id = reuniao({ nome: 'Caio', situacao: 'remarcada', criada: '2026-11-03T05:43:00', dia: '2026-11-12T15:00:00' });
-  remarcou(id, 'sex., 06/11, 15:00 → qui., 12/11, 15:00', '2026-11-05T10:00:00');
+  const id = reuniao({ nome: 'Caio', situacao: 'remarcada', criada: '2026-11-03T05:43:00', dia: '2026-11-07T15:00:00' });
+  remarcou(id, 'qui., 05/11, 15:00 → sáb., 07/11, 15:00', '2026-11-04T10:00:00');
 
-  const { listas, numeros } = await listasNaTela();
+  const { listas, numeros } = await listasNaTela({ agora: SABADO });
   assert.match(numeros, /<card>A acontecer \| 1 \|/);
-  assert.deepEqual(listas['Ainda vão acontecer'].linhas, ['Caio remarcada Sessão Estratégica qui., 12/11, 15:00']);
+  assert.deepEqual(listas['Ainda vão acontecer'].linhas, ['Caio remarcada Sessão Estratégica sáb., 07/11, 15:00']);
 });
 
 test('CA-S7-06: listas de faltaram e cancelaram com os nomes', async () => {
@@ -276,16 +389,16 @@ test('CA-S7-07: reunião que passou sem presença fica em lista própria', async
 });
 
 test('CA-S7-08: reagendamentos com o histórico das trocas', async () => {
-  const id = reuniao({ nome: 'Hugo', situacao: 'realizada', criada: '2026-11-04T22:16:00', dia: '2026-11-12T17:00:00' });
-  remarcou(id, 'sex., 06/11, 15:00 → ter., 10/11, 15:00', '2026-11-05T09:00:00');
-  remarcou(id, 'ter., 10/11, 15:00 → qui., 12/11, 17:00', '2026-11-07T11:00:00');
-  reuniao({ nome: 'Miqueias', criada: '2026-11-07T16:50:00', dia: '2026-11-13T17:00:00' }); // não remarcou
+  const id = reuniao({ nome: 'Hugo', situacao: 'realizada', criada: '2026-11-02T22:16:00', dia: '2026-11-06T17:00:00' });
+  remarcou(id, 'ter., 03/11, 15:00 → qui., 05/11, 15:00', '2026-11-03T09:00:00');
+  remarcou(id, 'qui., 05/11, 15:00 → sex., 06/11, 17:00', '2026-11-04T11:00:00');
+  reuniao({ nome: 'Miqueias', criada: '2026-11-04T16:50:00', dia: '2026-11-07T17:00:00' }); // não remarcou
 
-  const { listas, numeros } = await listasNaTela({ agora: '2026-11-13T08:00:00' });
+  const { listas, numeros } = await listasNaTela();
   const reag = listas['Reagendamentos'];
   assert.equal(reag.qtd, 1);
   assert.equal(reag.linhas[0],
-    'Hugo Sessão Estratégica 2 remarcações · agora: realizada sex., 06/11, 15:00 → ter., 10/11, 15:00 ter., 10/11, 15:00 → qui., 12/11, 17:00');
+    'Hugo Sessão Estratégica 2 remarcações · agora: realizada ter., 03/11, 15:00 → qui., 05/11, 15:00 qui., 05/11, 15:00 → sex., 06/11, 17:00');
   assert.match(numeros, /<card>Realizadas \| 1 \|/);
 });
 
@@ -301,12 +414,12 @@ test('CA-S7-10: só a equipe com a chave do dash vê os nomes', async () => {
   assert.equal((await detalhe()).status, 200);
 });
 
-test('CA-S7-11: período ou lista vazios avisam em vez de sumir', async () => {
-  // Período sem nenhuma reunião criada.
+test('CA-S9-24: período sem reunião avisa em vez de sumir', async () => {
+  // Período sem nenhuma reunião na agenda e nenhuma agendada.
   const vazio = await listasNaTela();
-  assert.match(vazio.html, /Nenhuma reunião criada no período\./);
+  assert.match(vazio.html, /Nenhuma reunião no período\./);
   assert.equal(Object.keys(vazio.listas).length, 0);
-  // Período em que ninguém faltou.
+  // Período em que ninguém faltou: a lista avisa (CA-S7-11).
   reuniao({ nome: 'Izabell', situacao: 'realizada', dia: '2026-11-06T15:00:00' });
   const { listas } = await listasNaTela();
   assert.equal(listas['Faltaram'].qtd, 0);
@@ -315,9 +428,9 @@ test('CA-S7-11: período ou lista vazios avisam em vez de sumir', async () => {
 
 test('CA-S7-13: listas começam fechadas, cada uma num drop próprio', async () => {
   reuniao({ nome: 'Patricia', situacao: 'faltou', dia: '2026-11-06T16:00:00' });
-  for (let i = 0; i < 8; i++) reuniao({ nome: `Futuro ${i}`, dia: '2026-11-12T15:00:00' });
+  for (let i = 0; i < 8; i++) reuniao({ nome: `Futuro ${i}`, dia: '2026-11-07T15:00:00' });
 
-  const { listas, html } = await listasNaTela();
+  const { listas, html } = await listasNaTela({ agora: SABADO });
   assert.deepEqual(Object.keys(listas), ['Ainda vão acontecer', 'Faltaram', 'Cancelaram', 'Sem presença marcada', 'Reagendamentos']);
   assert.equal(listas['Ainda vão acontecer'].qtd, 8);
   assert.equal(listas['Faltaram'].qtd, 1);
@@ -325,4 +438,4 @@ test('CA-S7-13: listas começam fechadas, cada uma num drop próprio', async () 
   assert.ok(Object.values(listas).every((l) => !l.aberta));
   assert.equal((html.match(/<details /g) || []).length, 5);
   assert.equal((html.match(/<\/details>/g) || []).length, 5);
-}); 
+});

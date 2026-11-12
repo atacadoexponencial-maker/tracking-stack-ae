@@ -1,14 +1,20 @@
 // Detalhe das reuniões na Visão geral (spec-detalhe-reunioes.md, série S7).
 //
-// Das reuniões criadas no período do filtro: os números (criadas, realizadas,
-// faltaram, canceladas, a acontecer, sem presença marcada, no-show) comparados
-// ao período anterior, e as listas de nomes fechadas em drop (Ainda vão
-// acontecer, Faltaram, Cancelaram, Sem presença marcada, Reagendamentos).
+// O que aconteceu na agenda no período do filtro (spec-funil-leads-novos.md,
+// série S9): das reuniões que CAEM no período, de leads novos e antigos, os
+// números (na agenda, realizadas, faltaram, canceladas, a acontecer, sem
+// presença marcada, comparecimento, no-show) comparados ao período anterior,
+// quantas foram agendadas no período (separadas em lead novo e lead antigo) e
+// as listas de nomes fechadas em drop (Ainda vão acontecer, Faltaram,
+// Cancelaram, Sem presença marcada, Reagendamentos).
 //
-// `desenhar(raiz, coorte, fSel, ctx, detalhe)`: os números com a resposta de
-// /api/agenda/coorte ({ atual, anterior }, cada um { total, por_funil } com o
-// `no_show` já calculado no servidor) e as listas com a de /api/agenda/detalhe
-// ({ listas }, já no funil do filtro; null = falhou). `prototipo(raiz, ctx)`:
+// `desenhar(raiz, coorte, fSel, ctx, detalhe, taxas)`: os números com a
+// resposta de /api/agenda/coorte ({ atual, anterior }, cada um { total,
+// por_funil, agendou } com `no_show` e `comparecimento` já calculados no
+// servidor), as listas com a de /api/agenda/detalhe ({ listas }, já no funil
+// do filtro; null = falhou) e a separação lead novo/antigo com a de
+// /api/agenda/taxas (undefined = ainda lendo o CRM; null = falhou).
+// `prototipo(raiz, ctx)`:
 // dados de exemplo, só com #visao?proto=1 (S7-01). ctx: { esc, fmtInt, fmtPct, tile }.
 (() => {
   'use strict';
@@ -31,7 +37,7 @@
     realizada: 'realizada', faltou: 'faltou', cancelada: 'cancelada', a_acontecer: 'a acontecer', sem_presenca: 'sem presença marcada',
   };
   const NUMEROS = [
-    ['criadas', 'Criadas'], ['realizada', 'Realizadas'], ['faltou', 'Faltaram'], ['cancelada', 'Canceladas'],
+    ['na_agenda', 'Na agenda'], ['realizada', 'Realizadas'], ['faltou', 'Faltaram'], ['cancelada', 'Canceladas'],
     ['a_acontecer', 'A acontecer'], ['sem_presenca', 'Sem presença marcada'],
   ];
 
@@ -42,8 +48,8 @@
   const r = (nome, funil, quando, extra = {}) => ({ nome, funil, inicio: u(quando), ...extra });
   const troca = (detalhe, em) => ({ detalhe, em: u(em) });
   const EXEMPLO = {
-    atual: { criadas: 11, realizada: 1, faltou: 1, cancelada: 1, a_acontecer: 8, sem_presenca: 0, fora_do_registro: 0, no_show: 50 },
-    anterior: { criadas: 8, realizada: 3, faltou: 1, cancelada: 0, a_acontecer: 0, sem_presenca: 4, fora_do_registro: 0, no_show: 25 },
+    atual: { na_agenda: 11, realizada: 1, faltou: 1, cancelada: 1, a_acontecer: 8, sem_presenca: 0, fora_do_registro: 0, no_show: 50, comparecimento: 50, agendou: 9, agendou_novo: 7 },
+    anterior: { na_agenda: 8, realizada: 3, faltou: 1, cancelada: 0, a_acontecer: 0, sem_presenca: 4, fora_do_registro: 0, no_show: 25, comparecimento: 75, agendou: 8, agendou_novo: 6 },
     listas: {
       a_acontecer: [
         r('Ana Paula', 'sessao-estrategica', '2026-11-09T14:00'),
@@ -75,12 +81,12 @@
     const d = JSON.parse(JSON.stringify(EXEMPLO));
     if (c === 'sem-presenca') {
       // Nenhuma presença marcada: as duas que já passaram ficam aguardando.
-      d.atual = { criadas: 11, realizada: 0, faltou: 0, cancelada: 1, a_acontecer: 8, sem_presenca: 2, fora_do_registro: 0, no_show: null };
+      d.atual = { na_agenda: 11, realizada: 0, faltou: 0, cancelada: 1, a_acontecer: 8, sem_presenca: 2, fora_do_registro: 0, no_show: null, comparecimento: null, agendou: 9, agendou_novo: 7 };
       d.listas.sem_presenca = [r('Igor Martins', 'sessao-estrategica', '2026-11-06T16:00'), r('Kátia Nunes', 'sessao-estrategica', '2026-11-06T15:00')];
       d.listas.faltou = [];
     }
     if (c === 'vazio') {
-      d.atual = { criadas: 0, realizada: 0, faltou: 0, cancelada: 0, a_acontecer: 0, sem_presenca: 0, fora_do_registro: 0, no_show: null };
+      d.atual = { na_agenda: 0, realizada: 0, faltou: 0, cancelada: 0, a_acontecer: 0, sem_presenca: 0, fora_do_registro: 0, no_show: null, comparecimento: null, agendou: 0, agendou_novo: 0 };
       Object.keys(d.listas).forEach((k) => { d.listas[k] = []; });
     }
     return d;
@@ -118,11 +124,28 @@
       cards.push({ chave: 'fora_do_registro', rotulo: 'Fora do registro', valor: fmtInt(d.atual.fora_do_registro), nota: 'Calendly antes de 19/10, sem presença' });
     }
     const ns = d.atual.no_show, nsAnt = ant.no_show;
+    const cp = d.atual.comparecimento, cpAnt = ant.comparecimento;
     const pct = (v) => (v === null || v === undefined ? null : fmtPct(v, 0));
+    const base = fmtInt(d.atual.realizada + d.atual.faltou);
+    const semPresenca = ns === null || ns === undefined;
+    cards.push({
+      chave: 'comparecimento', rotulo: 'Comparecimento', valor: pct(cp), anterior: pct(cpAnt) ?? '—',
+      delta: variacao(cp, cpAnt) ?? undefined,
+      nota: semPresenca ? 'sem presença marcada' : `${fmtInt(d.atual.realizada)} de ${base}`,
+    });
     cards.push({
       chave: 'no_show', rotulo: 'No-show', valor: pct(ns), anterior: pct(nsAnt) ?? '—',
       delta: variacao(ns, nsAnt) ?? undefined, invertido: true,
-      nota: ns === null || ns === undefined ? 'sem presença marcada' : `${fmtInt(d.atual.faltou)} de ${fmtInt(d.atual.realizada + d.atual.faltou)}`,
+      nota: semPresenca ? 'sem presença marcada' : `${fmtInt(d.atual.faltou)} de ${base}`,
+    });
+    // Agendadas no período (pela data em que agendou), separadas em lead novo
+    // (card criado no período) e lead antigo quando o CRM responde.
+    const ag = d.atual.agendou || 0, novo = d.atual.agendou_novo;
+    cards.push({
+      chave: 'agendou', rotulo: 'Agendadas no período', valor: fmtInt(ag), anterior: num(ant.agendou),
+      delta: variacao(ag, ant.agendou) ?? undefined,
+      nota: novo === undefined ? 'lendo o CRM…' : novo === null ? 'sem dados do CRM'
+        : `${fmtInt(novo)} de lead novo · ${fmtInt(Math.max(0, ag - novo))} de lead antigo`,
     });
     return cards;
   }
@@ -133,26 +156,35 @@
 
   // O recorte do filtro: total, ou o funil escolhido (zerado se não teve reunião).
   const ZERO = { agendadas: 0, realizada: 0, faltou: 0, cancelada: 0, a_acontecer: 0, sem_presenca: 0, fora_do_registro: 0, no_show: null };
-  function recorte(resumo, fSel) {
+  // `tx`: o lado de /api/agenda/taxas (undefined = ainda lendo; null = sem CRM).
+  function recorte(resumo, fSel, tx) {
     if (!resumo) return null;
     const r = fSel ? (resumo.por_funil || {})[fSel] || ZERO : resumo.total || ZERO;
-    return { ...r, criadas: r.agendadas };
+    const ag = resumo.agendou || { total: 0, por_funil: {} };
+    let agendou_novo;
+    if (tx !== undefined) {
+      const n = tx && tx.crm_lido ? tx.agendou_lead_novo : null;
+      agendou_novo = !n ? null : fSel ? (n.por_funil || {})[fSel] || 0 : n.total;
+    }
+    return { ...r, na_agenda: r.agendadas, agendou: fSel ? (ag.por_funil || {})[fSel] || 0 : ag.total, agendou_novo };
   }
 
   /** { atual, anterior } dos números da seção, já no recorte do filtro de funil. */
-  function montarNumeros(coorte, fSel) {
+  function montarNumeros(coorte, fSel, taxas) {
     if (!coorte) return null;
-    return { atual: recorte(coorte.atual, fSel), anterior: recorte(coorte.anterior, fSel) };
+    const lado = (k) => (taxas === undefined ? undefined : taxas ? taxas[k] || null : null);
+    return { atual: recorte(coorte.atual, fSel, lado('atual')), anterior: recorte(coorte.anterior, fSel, lado('anterior')) };
   }
 
-  const CAB = '<h2>Detalhe das reuniões <small>reuniões criadas no período · variação contra o período anterior</small></h2>';
+  const CAB = '<h2>Detalhe das reuniões <small>reuniões que caem no período, de leads novos e antigos · variação contra o período anterior</small></h2>';
+  const SEM_REUNIAO = '<p class="dr-vazio">Nenhuma reunião no período.</p>';
 
-  function desenhar(raiz, coorte, fSel, ctx, detalhe) {
+  function desenhar(raiz, coorte, fSel, ctx, detalhe, taxas) {
     if (!raiz) return;
-    const d = montarNumeros(coorte, fSel);
+    const d = montarNumeros(coorte, fSel, taxas);
     let corpo;
     if (!d || !d.atual) corpo = '<p class="dr-vazio">Não foi possível carregar as reuniões agora.</p>';
-    else if (!d.atual.criadas) corpo = '<p class="dr-vazio">Nenhuma reunião criada no período.</p>';
+    else if (!d.atual.na_agenda && !d.atual.agendou) corpo = SEM_REUNIAO;
     else {
       corpo = numeros(d, ctx) + (detalhe && detalhe.listas
         ? listas(detalhe.listas, ctx.esc)
@@ -201,9 +233,9 @@
       </label>
     </div>`;
     const cab = CAB;
-    const corpo = d.atual.criadas
+    const corpo = d.atual.na_agenda || d.atual.agendou
       ? numeros(d, ctx) + listas(d.listas, esc)
-      : '<p class="dr-vazio">Nenhuma reunião criada no período.</p>';
+      : SEM_REUNIAO;
     raiz.innerHTML = `<div class="bloco dr">${cab}${proto}${corpo}</div>`;
     raiz.querySelector('[data-dr-cenario]').addEventListener('change', (e) => {
       estado.cenario = e.target.value;

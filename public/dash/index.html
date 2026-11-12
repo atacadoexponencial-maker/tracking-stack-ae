@@ -2461,7 +2461,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/imersao.js?v=2026-11-10a"></script>
 <script src="/dash/cerebro.js?v=2026-11-10a"></script>
 <script src="/dash/visao-reuniao.js?v=2026-11-12a"></script>
-<script src="/dash/detalhe-reunioes.js?v=2026-11-09c"></script>
+<script src="/dash/detalhe-reunioes.js?v=2026-11-12a"></script>
 <script>
 (() => {
 'use strict';
@@ -3253,7 +3253,7 @@ R.visao = async () => {
     fetchJson(`/api/cpl?${q(p.antDe, p.antAte)}${mapaQ}&v=s4e`).catch(() => null),
     fetchJson(`/api/attribution?${q(p.de, p.ate)}`),
     fetchJson(`/api/attribution?${q(p.antDe, p.antAte)}`),
-    // Coorte de agendamento: sem cache, muda a cada presença marcada.
+    // Reuniões que caem no período (Detalhe das reuniões, S9): sem cache, muda a cada presença marcada.
     fetchJson(`/api/agenda/coorte?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&_=${Date.now()}`).catch(() => null),
     // Listas do Detalhe das reuniões (S7-03): nomes da mesma coorte, no funil do filtro.
     fetchJson(`/api/agenda/detalhe?from=${p.de}&to=${p.ate}&funil=${encodeURIComponent(fSel)}&_=${Date.now()}`).catch(() => null),
@@ -3264,15 +3264,18 @@ R.visao = async () => {
   };
   desenhar(undefined);
   contarNumeros($('#visao-reuniao'));
-  // Detalhe das reuniões (S7): números da coorte; com proto=1, o protótipo.
-  if (window.DetalheReunioes) {
+  // Detalhe das reuniões (S7/S9): números do período; com proto=1, o protótipo.
+  // A separação lead novo/antigo das agendadas chega com o CRM (taxas).
+  const desenharDetalhe = (taxas) => {
+    if (!window.DetalheReunioes) return;
     if (visaoProto) window.DetalheReunioes.prototipo($('#visao-detalhe-reunioes'), ctx);
-    else window.DetalheReunioes.desenhar($('#visao-detalhe-reunioes'), coorte, fSel, ctx, detalheReunioes);
-  }
+    else window.DetalheReunioes.desenhar($('#visao-detalhe-reunioes'), coorte, fSel, ctx, detalheReunioes, taxas);
+  };
+  desenharDetalhe(undefined);
   // `s4`: respostas antigas (sem `crm`) guardadas no cache de período fechado não servem.
   fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s9a`)
     .catch(() => null)
-    .then((t) => { if (minha === renderAtual && secao === 'visao') desenhar(t); });
+    .then((t) => { if (minha === renderAtual && secao === 'visao') { desenhar(t); if (!visaoProto) desenharDetalhe(t); } });
 };
 
 // Detalhado (S4-02): a Visão geral de antes da série S4, sem mudança de conta.

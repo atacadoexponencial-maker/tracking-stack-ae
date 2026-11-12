@@ -1,8 +1,8 @@
 // GET /api/agenda/detalhe?key=...&from=&to=[&funil=]
 //
 // Listas do Detalhe das reuniões na Visão geral (spec-detalhe-reunioes.md,
-// S7-03): das reuniões agendadas no período (a mesma coorte de
-// /api/agenda/coorte), quem ainda vai fazer, quem faltou, quem cancelou, quem
+// S7-03): das reuniões que caem no período (pela data da reunião, série S9; as
+// mesmas de /api/agenda/coorte), quem ainda vai fazer, quem faltou, quem cancelou, quem
 // passou sem presença marcada e quem remarcou. Só nome, funil e horário: nada
 // de telefone, e o e-mail só aparece quando não há nome (SUP-S7-03/04).
 //
@@ -19,6 +19,6 @@ export async function onRequestGet({ request, env }) {
   const ate = Number(p.get('to')) || agora;
   const de = Number(p.get('from')) || ate - 30 * 86400;
   const funil = (p.get('funil') || '').trim();
-  const listas = await listasDaCoorte(env.DB, de, ate, agora, funil);
+  const listas = await listasDaCoorte(env.DB, de, ate, agora, funil, { por: 'reuniao' });
   return json({ listas });
 }

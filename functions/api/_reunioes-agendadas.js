@@ -248,11 +248,16 @@ export function statusNaCoorte({ situacao, presenca, inicio, fim, origem }, agor
  * Cada reunião da coorte (agendadas entre `de` e `ate`, unix, inclusivo), com o
  * que o Detalhe das reuniões (S7) precisa: { origem, id, nome, email, inicio,
  * funil, status }. Agenda própria: id = id da reunião; Calendly: id = invitee_uri.
+ *
+ * `por: 'reuniao'` (spec-funil-leads-novos.md, S9): as mesmas reuniões, mas as
+ * que CAEM no período (pela data da reunião), em vez das agendadas nele. É o
+ * que o Detalhe das reuniões mostra: o que aconteceu na agenda no período.
  */
-export async function reunioesDaCoorte(DB, de, ate, agora) {
+export async function reunioesDaCoorte(DB, de, ate, agora, { por = 'agendamento' } = {}) {
+  const naData = por === 'reuniao';
   const { results: agenda } = await DB.prepare(`
     SELECT id, nome, COALESCE(funil, '') AS funil, email, criado_em, situacao, inicio, fim FROM agenda_reunioes
-     WHERE comercial = 1 AND is_teste = 0 AND criado_em >= ? AND criado_em <= ?
+     WHERE comercial = 1 AND is_teste = 0 AND ${naData ? 'inicio' : 'criado_em'} >= ? AND ${naData ? 'inicio' : 'criado_em'} <= ?
        AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)`,
   ).bind(de, ate).all();
   const naAgenda = new Set((agenda || []).map((r) => normalizar(r.email)));
@@ -260,7 +265,7 @@ export async function reunioesDaCoorte(DB, de, ate, agora) {
   try {
     const { results } = await DB.prepare(`
       SELECT invitee_uri, nome, email, agendou_em, presenca, inicio, COALESCE(fim, inicio + ?) AS fim FROM calendly_consultorias
-       WHERE situacao = 'ativa' AND marcada_pela_equipe = 0 AND agendou_em >= ? AND agendou_em <= ?`,
+       WHERE situacao = 'ativa' AND marcada_pela_equipe = 0 AND ${naData ? 'inicio' : 'agendou_em'} >= ? AND ${naData ? 'inicio' : 'agendou_em'} <= ?`,
     ).bind(DURACAO_CALENDLY, de, ate).all();
     calendly = (results || []).filter((c) => !naAgenda.has(normalizar(c.email)));
   } catch (e) {
@@ -281,8 +286,8 @@ export async function reunioesDaCoorte(DB, de, ate, agora) {
 }
 
 /** [{ funil, status }] das reuniões agendadas entre `de` e `ate` (unix, inclusivo). */
-export async function coorteDasAgendadas(DB, de, ate, agora) {
-  return (await reunioesDaCoorte(DB, de, ate, agora)).map((x) => ({ funil: x.funil, status: x.status }));
+export async function coorteDasAgendadas(DB, de, ate, agora, opcoes) {
+  return (await reunioesDaCoorte(DB, de, ate, agora, opcoes)).map((x) => ({ funil: x.funil, status: x.status }));
 }
 
 // ---------------------------------------------------------------------------
@@ -333,8 +338,8 @@ async function emailsRemarcadosNoCalendly(DB, emails) {
  * também com { situacao, trocas: [{ detalhe, em }] }. Nome vazio vira o e-mail
  * (SUP-S7-03). `funil` vazio = todos.
  */
-export async function listasDaCoorte(DB, de, ate, agora, funil = '') {
-  const todas = (await reunioesDaCoorte(DB, de, ate, agora))
+export async function listasDaCoorte(DB, de, ate, agora, funil = '', opcoes) {
+  const todas = (await reunioesDaCoorte(DB, de, ate, agora, opcoes))
     .filter((x) => !funil || x.funil === funil)
     .sort((a, b) => (a.inicio || 0) - (b.inicio || 0));
   const trocas = await trocasDaAgenda(DB, todas.filter((x) => x.origem === 'agenda').map((x) => x.id));
@@ -362,9 +367,15 @@ export function noShow({ realizada, faltou }) {
   return base > 0 ? (faltou / base) * 100 : null;
 }
 
-/** O resumo da coorte com `no_show` no total e em cada funil (Detalhe das reuniões, S7). */
+/**
+ * O resumo da coorte com `no_show` e `comparecimento` (o complemento, S9) no
+ * total e em cada funil (Detalhe das reuniões). Sem presença marcada: null.
+ */
 export function comNoShow(resumo) {
-  const com = (r) => ({ ...r, no_show: noShow(r) });
+  const com = (r) => {
+    const ns = noShow(r);
+    return { ...r, no_show: ns, comparecimento: ns === null ? null : 100 - ns };
+  };
   return { total: com(resumo.total), por_funil: Object.fromEntries(Object.entries(resumo.por_funil).map(([f, r]) => [f, com(r)])) };
 }
 

@@ -14,7 +14,7 @@
 import { montarFeedback } from '../feedback-marketing.js';
 import { resolverPeriodo } from '../_feedback-marketing-periodo.js';
 import { taxasPorFunil } from '../_agenda-funil.js';
-import { reunioesAgendadas, emailsComReuniao, reuniaoPorEmail, funisDasReunioes } from '../_reunioes-agendadas.js';
+import { reunioesAgendadas, emailsComReuniao, reuniaoPorEmail, funisDasReunioes, reunioesDaCoorte } from '../_reunioes-agendadas.js';
 import { CORTE_CALENDLY, DURACAO_CALENDLY } from '../_agenda-regras.js';
 import { ymdBrt } from '../_data-brt.js';
 import { respostaEmCache, respostaJson } from '../_cache.js';
@@ -35,6 +35,13 @@ export const CAMPOS_RC = ['rc', 'rc_nao_mql', ...SITUACOES_RC.map((s) => `rc_${s
 const rcZerada = () => Object.fromEntries(CAMPOS_RC.map((k) => [k, 0]));
 
 export async function lerCrm(env, de, ate, agora) {
+  const lido = await lerCrmComNovos(env, de, ate, agora);
+  return lido ? lido.porFunil : null;
+}
+
+// A leitura de `lerCrm` mais `emailsNovos`: o e-mail de cada card novo do
+// período, para separar as reuniões agendadas em lead novo e lead antigo.
+async function lerCrmComNovos(env, de, ate, agora) {
   try {
     const r = resolverPeriodo({ inicio: ymdBrt(de), fim: ymdBrt(Math.min(ate, agora)) }, agora);
     if (!r.ok) return null;
@@ -66,7 +73,8 @@ export async function lerCrm(env, de, ate, agora) {
     }
     // RC: um card novo por reunião criada, como no MQL → RA (o mesmo e-mail em
     // dois cards conta duas vezes).
-    const reunioes = await reuniaoPorEmail(env.DB, Object.values(porFunil).flatMap((x) => x.novos.map((n) => n.email)), de, agora);
+    const emailsNovos = new Set(Object.values(porFunil).flatMap((x) => x.novos.map((n) => n.email)).filter(Boolean));
+    const reunioes = await reuniaoPorEmail(env.DB, [...emailsNovos], de, agora);
     for (const x of Object.values(porFunil)) {
       for (const n of x.novos) {
         const situacao = n.email ? reunioes.get(n.email) : null;
@@ -77,7 +85,7 @@ export async function lerCrm(env, de, ate, agora) {
       }
       delete x.novos;
     }
-    return porFunil;
+    return { porFunil, emailsNovos };
   } catch (e) {
     console.error('agenda/taxas: CRM', e.message);
     return null;
@@ -170,9 +178,32 @@ async function calendlyOcorridas(DB, de, ate, agora) {
   }
 }
 
-async function recorte(env, de, ate, agora, funisComAgenda) {
-  const [crm, agenda] = await Promise.all([lerCrm(env, de, ate, agora), lerAgenda(env, de, ate, agora)]);
-  return { ...taxasPorFunil({ crm, agenda, funisComAgenda }), crm_lido: crm !== null, ...numerosDoCrm(crm) };
+/**
+ * Das reuniões agendadas no período (a seleção de `reunioesDaCoorte`), quantas
+ * são de lead novo: o e-mail é de um card criado no período (SUP-S9-12).
+ * { total, por_funil } pelo funil da reunião; erro na leitura: null.
+ */
+export async function agendadasDeLeadNovo(DB, de, ate, agora, emailsNovos) {
+  try {
+    const r = { total: 0, por_funil: {} };
+    for (const x of await reunioesDaCoorte(DB, de, ate, agora)) {
+      if (!emailsNovos.has(String(x.email || '').trim().toLowerCase())) continue;
+      const f = x.funil || 'sem-funil';
+      r.total += 1;
+      r.por_funil[f] = (r.por_funil[f] || 0) + 1;
+    }
+    return r;
+  } catch (e) {
+    console.error('agenda/taxas: agendadas de lead novo', e.message);
+    return null;
+  }
+}
+
+export async function recorte(env, de, ate, agora, funisComAgenda) {
+  const [lido, agenda] = await Promise.all([lerCrmComNovos(env, de, ate, agora), lerAgenda(env, de, ate, agora)]);
+  const crm = lido ? lido.porFunil : null;
+  const agendou_lead_novo = lido ? await agendadasDeLeadNovo(env.DB, de, ate, agora, lido.emailsNovos) : null;
+  return { ...taxasPorFunil({ crm, agenda, funisComAgenda }), crm_lido: crm !== null, ...numerosDoCrm(crm), agendou_lead_novo };
 }
 
 export async function onRequestGet(context) {
