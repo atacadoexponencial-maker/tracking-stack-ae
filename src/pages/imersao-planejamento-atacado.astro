@@ -1,8 +1,8 @@
 ---
 // Página de ingresso da Imersão Planejamento Atacado 2027 (evento de 12/12).
 //
-// Copy: "Imersão Planejamento Atacado 2027 - proposta de copy da página.md",
-// aprovada pela usuária em 09/11.
+// Copy: "Imersão Planejamento Atacado 2027 - copy da página (12-12).txt",
+// enviada pela usuária em 12/11 (substitui a de 09/11 e muda a ordem das seções).
 // Layout: referência https://workshop.orbyka.com/sprintlp (foto grande no topo,
 // faixa de cards de mentorados, bloco de preço em cor chapada, faixa de
 // depoimentos em cor). Cores e fonte: as do site (carvão, bege, cinza quente,
@@ -60,20 +60,20 @@ const marcas = [
   { img: igWillinha, arroba: 'barracadowillinha', nicho: 'moda feminina' },
 ];
 
-const decisoes = [
-  { titulo: 'Raio-X 2026', desc: 'Os números do seu atacado: de onde veio o faturamento deste ano.' },
-  { titulo: 'Meta 2027', desc: 'A meta em revendedoras novas e recompra, mês a mês.' },
-  { titulo: 'Entrada Previsível', desc: 'Como as revendedoras novas vão entrar em 2027.' },
-  { titulo: 'Recompra Escalável', desc: 'Como a sua base vai recomprar ao longo do ano.' },
+const plano = [
+  { titulo: 'Raio-X 2026', desc: 'De onde veio o seu faturamento este ano: quanto de revendedoras novas e quanto de recompra.' },
+  { titulo: 'A conta de dobrar', desc: 'A meta de 2027 dividida mês a mês, em revendedoras novas e recompra.' },
+  { titulo: 'Entrada Previsível', desc: 'Quantas revendedoras novas cada mês precisa e o que destrava a entrada delas na sua marca.' },
+  { titulo: 'Recompra Escalável', desc: 'Quanto a sua base precisa recomprar e o que fazer para ela comprar com mais frequência.' },
+  { titulo: 'Calendário 2027', desc: 'As campanhas e as datas fortes da sua marca distribuídas pelos quatro trimestres.' },
 ];
 
 const sinais = [
-  'a meta do ano for só um número de faturamento, sem a conta de quantas revendedoras novas e quanta recompra ela exige;',
-  'você não souber quantas revendedoras ativas tem hoje e quantas viraram inativas;',
-  'a recompra continuar sem dono, sem controle e sem sell-out;',
+  'a meta do ano for só um número de faturamento, sem a conta de onde ele vem;',
+  'você não souber quantas revendedoras ativas tem hoje e quantas pararam de comprar;',
+  'a recompra continuar sem dono e sem controle;',
   'o Instagram e o anúncio continuarem trazendo gente que não é revendedora;',
-  'janeiro começar sem campanha pronta no primeiro dia;',
-  'as datas fortes da sua marca não estiverem no calendário com antecedência.',
+  'janeiro começar sem campanha pronta no primeiro dia.',
 ];
 
 const agenda = [
@@ -84,9 +84,9 @@ const agenda = [
 ];
 
 const ofertaItens = [
-  'Um dia de conteúdo, das 9h30 às 17h30;',
-  'O plano de 2027 da sua marca: a meta de revendedoras novas e de recompra, mês a mês;',
-  'Os números de referência que o Felipe usa com as marcas que ele mentora.',
+  'Um dia ao vivo com o Felipe Santos, das 9h30 às 17h30;',
+  'O plano para dobrar o faturamento do seu atacado em 2027, mês a mês;',
+  'Os números de referência das marcas que o Felipe mentora.',
 ];
 
 const faqs = [
@@ -100,15 +100,19 @@ const faqs = [
   },
   {
     q: 'O que preciso levar?',
-    a: 'Os números do seu atacado em 2026. Na quinta, 03/12, o Felipe faz um encontro ao vivo e explica cada um.',
+    a: 'Os números do seu atacado em 2026. Na quinta antes da Imersão, o Felipe faz um encontro ao vivo e explica cada um.',
+  },
+  {
+    q: 'Por que fazer em dezembro?',
+    a: 'Janeiro é um bom mês de vendas, mas precisa de campanha pronta no primeiro dia. Quem planeja em janeiro começa o ano atrasado.',
   },
   {
     q: 'Vai ficar gravado?',
-    a: 'O ingresso dá acesso ao vivo. A Imersão em formato de aulas, com hotseat com o Felipe e a planilha do Planejamento 2027, é vendida à parte, por R$ 297, na hora da compra.',
+    a: 'O ingresso dá acesso ao vivo. A Imersão em formato de aulas, com hot seat com o Felipe e a planilha do Planejamento 2027, é vendida à parte, por R$ 297, na hora da compra.',
   },
   {
-    q: 'E se eu não gostar?',
-    a: 'Você pede o reembolso até 2 dias depois do evento.',
+    q: 'Vai ter oferta?',
+    a: 'Vai. À tarde o Felipe apresenta a Mentoria para quem quiser ajuda na execução do plano. O restante do dia é conteúdo.',
   },
 ];
 
@@ -142,7 +146,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
         <Image src={logo} alt="Atacado Exponencial" height={72} class="ipa-topo__logo" />
         <p class="ipa-topo__data">
           <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /></svg>
-          <span><span class="ipa-topo__dia">Sábado, </span>12/12</span><span class="ipa-topo__sep" aria-hidden="true">|</span><span>9h30 às 17h30</span><span class="ipa-topo__extra"><span class="ipa-topo__sep" aria-hidden="true">|</span>online e ao vivo</span>
+          <span>12/12<span class="ipa-topo__dia">, sábado</span></span><span class="ipa-topo__extra"><span class="ipa-topo__sep" aria-hidden="true">·</span>Ao vivo no Google Meet</span><span class="ipa-topo__sep" aria-hidden="true">·</span><span>9h30 às 17h30</span>
         </p>
       </div>
 
@@ -152,8 +156,8 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
           Com o Felipe Santos, mentor de marcas que somam mais de R$&nbsp;20&nbsp;milhões por ano.
           Você monta para o seu atacado o mesmo plano que essas marcas usam para crescer.
         </p>
-        <p class="ipa-hero__frase">No atacado, a venda começa na reposição.</p>
-        <a class="ipa-botao" href={HREF_COMPRA} data-checkout>
+        <!-- O botão do topo sempre leva à seção de preço, nunca direto ao checkout. -->
+        <a class="ipa-botao" href="#ingresso" data-ir-preco>
           <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
           <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
         </a>
@@ -187,7 +191,27 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     </header>
 
     <main>
-      <!-- 3. Marcas que aplicam o método ------------------------------------ -->
+      <!-- 3. Por que dobrar é possível --------------------------------------- -->
+      <section class="ipa-dobrar">
+        <div class="ipa-largura ipa-dobrar__grade">
+          <h2 class="ipa-h2">Dobrar o faturamento não pede dobrar tudo</h2>
+          <div class="ipa-dobrar__texto">
+            <p>
+              O faturamento do seu atacado sai de três números: quantas revendedoras ativas você
+              tem, quantas delas recompram no mês e o ticket de cada pedido.
+            </p>
+            <p class="ipa-dobrar__conta">Se cada um dos três subir 26%, o faturamento dobra.</p>
+            <p>
+              No sábado você faz essa conta com os números da sua marca e descobre qual dos três
+              está mais perto de subir.
+            </p>
+            <!-- Aqui entra o caso de uma marca mentorada que dobrou em um ano (antes e depois).
+                 O conteúdo ainda vai ser enviado pela usuária. -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Marcas que aplicam o método ------------------------------------ -->
       <section class="ipa-marcas" aria-labelledby="ipa-marcas-titulo">
         <ul class="ipa-marcas__faixa">
           {marcas.map((m) => (
@@ -210,42 +234,14 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
           ))}
         </ul>
         <h2 class="ipa-marcas__titulo" id="ipa-marcas-titulo">
-          Marcas de atacado que aplicam o Método Atacado Exponencial
+          Marcas de atacado que aplicam o método do Felipe
         </h2>
-      </section>
-
-      <!-- 4. O que você sai decidindo --------------------------------------- -->
-      <section class="ipa-claro ipa-decisoes">
-        <div class="ipa-decisoes__foto">
-          <Image
-            src={fotoNotebook}
-            alt="Felipe Santos trabalhando no notebook"
-            widths={[480, 800, 1100]}
-            sizes="(min-width: 880px) 38vw, 100vw"
-            loading="lazy"
-          />
-        </div>
-        <div class="ipa-decisoes__texto">
-          <h2 class="ipa-h2">O que você sai decidindo</h2>
-          <dl class="ipa-decisoes__lista">
-            {decisoes.map((d) => (
-              <div class="ipa-decisoes__linha">
-                <dt>{d.titulo}</dt>
-                <dd>{d.desc}</dd>
-              </div>
-            ))}
-          </dl>
-          <p class="ipa-decisoes__fecho">Tudo preenchido na planilha do Planejamento 2027, com os números da sua marca.</p>
-          <a class="ipa-botao ipa-botao--escuro" href={HREF_COMPRA} data-checkout>
-            <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
-          </a>
-        </div>
       </section>
 
       <!-- 5. Identificação --------------------------------------------------- -->
       <section class="ipa-claro ipa-sinais">
         <div class="ipa-largura ipa-sinais__grade">
-          <h2 class="ipa-h2 ipa-sinais__titulo">Seu atacado vai repetir 2026 em 2027 se:</h2>
+          <h2 class="ipa-h2 ipa-sinais__titulo">Seu atacado vai fechar 2027 faturando o mesmo se:</h2>
           <ul class="ipa-sinais__lista">
             {sinais.map((s) => (
               <li>
@@ -258,26 +254,32 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
         </div>
       </section>
 
-      <!-- 6. Quem conduz ------------------------------------------------------ -->
-      <section class="ipa-felipe">
-        <div class="ipa-largura ipa-felipe__grade">
-          <div class="ipa-felipe__texto">
-            <h2 class="ipa-felipe__nome">Felipe Santos</h2>
-            <p class="ipa-felipe__bio">
-              Há mais de sete anos no atacado. Mentor de marcas que faturam de R$&nbsp;200&nbsp;mil a sete
-              dígitos por mês. Criador da Equação Exponencial: Entrada Previsível de novos
-              revendedores + Recompra Escalável de revendedores ativos.
-            </p>
-          </div>
-          <div class="ipa-felipe__foto">
-            <Image
-              src={fotoMesa}
-              alt="Felipe Santos no escritório"
-              widths={[480, 800, 1100]}
-              sizes="(min-width: 880px) 40vw, 100vw"
-              loading="lazy"
-            />
-          </div>
+      <!-- 6. O plano que você monta no sábado --------------------------------------- -->
+      <section class="ipa-claro ipa-decisoes">
+        <div class="ipa-decisoes__foto">
+          <Image
+            src={fotoNotebook}
+            alt="Felipe Santos trabalhando no notebook"
+            widths={[480, 800, 1100]}
+            sizes="(min-width: 880px) 38vw, 100vw"
+            loading="lazy"
+          />
+        </div>
+        <div class="ipa-decisoes__texto">
+          <h2 class="ipa-h2">O plano que você monta no sábado</h2>
+          <dl class="ipa-decisoes__lista">
+            {plano.map((d) => (
+              <div class="ipa-decisoes__linha">
+                <dt>{d.titulo}</dt>
+                <dd>{d.desc}</dd>
+              </div>
+            ))}
+          </dl>
+          <p class="ipa-decisoes__fecho">Tudo preenchido na planilha do Planejamento 2027, com os números da sua marca.</p>
+          <p class="ipa-decisoes__frase">No atacado, a venda começa na reposição.</p>
+          <a class="ipa-botao ipa-botao--escuro" href={HREF_COMPRA} data-checkout>
+            <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+          </a>
         </div>
       </section>
 
@@ -345,21 +347,43 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
         />
       </div>
 
-      <!-- 10. Por que planejar agora? ----------------------------------------- -->
-      <section class="ipa-agora">
-        <div class="ipa-largura ipa-agora__grade">
-          <h2 class="ipa-h2 ipa-agora__titulo">Por que planejar agora?</h2>
-          <div class="ipa-agora__texto">
-            <p>Todo ano é desafiador para o atacado, e todo ano pede um bom planejamento.</p>
-            <p>
-              Janeiro é um bom mês de vendas, mas precisa de movimento desde o primeiro dia. Por isso
-              o plano de 2027 se faz agora, em dezembro.
+      <!-- 10. Quem conduz ------------------------------------------------------ -->
+      <section class="ipa-felipe">
+        <div class="ipa-largura ipa-felipe__grade">
+          <div class="ipa-felipe__texto">
+            <h2 class="ipa-felipe__nome">Felipe Santos</h2>
+            <p class="ipa-felipe__bio">
+              Há mais de sete anos no atacado. Mentor de mais de 100 marcas, de R$&nbsp;200&nbsp;mil a
+              sete dígitos por mês. Criador da Equação Exponencial: Entrada Previsível de novos
+              revendedores + Recompra Escalável de revendedores ativos.
             </p>
+          </div>
+          <div class="ipa-felipe__foto">
+            <Image
+              src={fotoMesa}
+              alt="Felipe Santos no escritório"
+              widths={[480, 800, 1100]}
+              sizes="(min-width: 880px) 40vw, 100vw"
+              loading="lazy"
+            />
           </div>
         </div>
       </section>
 
-      <!-- 11. Perguntas frequentes -------------------------------------------- -->
+      <!-- 11. Garantia ---------------------------------------------------------- -->
+      <section class="ipa-garantia">
+        <div class="ipa-largura">
+          <div class="ipa-garantia__cartao">
+            <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8 7.5 9.5 4.4-1.5 7.5-4.9 7.5-9.5V6L12 3Z" /><path d="m9 12 2.2 2.2L15.2 10" /></svg>
+            <div>
+              <h2 class="ipa-garantia__titulo">Participou e achou que não valeu?</h2>
+              <p class="ipa-garantia__texto">Você pede o reembolso até 2 dias depois do evento.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 12. Perguntas frequentes -------------------------------------------- -->
       <section class="ipa-faq">
         <div class="ipa-largura ipa-faq__grade">
           <h2 class="ipa-h2">Perguntas frequentes</h2>
@@ -378,10 +402,10 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
       </section>
     </main>
 
-    <!-- 12. Fechamento -------------------------------------------------------- -->
+    <!-- 13. Fechamento -------------------------------------------------------- -->
     <section class="ipa-fechamento">
       <div class="ipa-largura ipa-fechamento__corpo">
-        <h2 class="ipa-fechamento__titulo">Seu 2027 começa em 12/12</h2>
+        <h2 class="ipa-fechamento__titulo">{HEADLINE}</h2>
         <a class="ipa-botao" href={HREF_COMPRA} data-checkout>
           <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
           <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
@@ -485,6 +509,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     display: block;
   }
   .ipa[data-vendas='encerradas'] .ipa-preco-bloco,
+  .ipa[data-vendas='encerradas'] [data-ir-preco],
   .ipa[data-vendas='encerradas'] [data-checkout] {
     display: none;
   }
@@ -584,10 +609,6 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     color: var(--branco-2);
     font-size: 0.98rem;
     line-height: 1.55;
-  }
-  .ipa-hero__frase {
-    font-weight: 700;
-    font-size: 1.05rem;
   }
   .ipa-hero .ipa-botao {
     margin-top: 0.4rem;
@@ -779,9 +800,15 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     font-size: 0.98rem;
   }
   .ipa-decisoes__fecho {
-    font-weight: 700;
-    font-size: 1.1rem;
+    color: var(--bege-tinta);
+    font-size: 1rem;
     max-width: 30rem;
+  }
+  .ipa-decisoes__frase {
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
   }
 
   /* ---- 5. Identificação ------------------------------------------------------ */
@@ -1021,26 +1048,66 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     line-height: 0.98;
   }
 
-  /* ---- 10. Por que agora ------------------------------------------------------ */
-  .ipa-agora {
-    padding-block: 5rem;
+  /* ---- 3. Por que dobrar é possível ------------------------------------------- */
+  .ipa-dobrar {
+    padding-block: 4.5rem;
     background: var(--carvao);
+    border-top: 1px solid var(--fio);
   }
-  .ipa-agora__grade {
+  .ipa-dobrar__grade {
     display: grid;
-    gap: 1.5rem;
+    gap: 1.75rem;
   }
-  .ipa-agora__texto {
+  .ipa-dobrar__texto {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.25rem;
     color: var(--branco-2);
-    font-size: 1.1rem;
+    font-size: 1.08rem;
     line-height: 1.6;
     max-width: 34rem;
   }
-  .ipa-agora__texto p:last-child {
+  .ipa-dobrar__conta {
     color: #fff;
+    font-weight: 700;
+    font-size: clamp(1.45rem, 3.4vw, 2rem);
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    padding-block: 1.25rem;
+    border-block: 1px solid var(--fio);
+    text-wrap: balance;
+  }
+
+  /* ---- 11. Garantia ------------------------------------------------------------ */
+  .ipa-garantia {
+    padding-block: 4.5rem 0;
+    background: var(--fundo);
+  }
+  .ipa-garantia__cartao {
+    display: flex;
+    gap: 1.1rem;
+    align-items: flex-start;
+    background: #242424;
+    border: 1px solid var(--fio);
+    border-radius: 8px;
+    padding: 1.5rem 1.25rem;
+  }
+  .ipa-garantia__cartao .ipa-icone {
+    width: 2.25rem;
+    height: 2.25rem;
+    color: var(--bege);
+    stroke-width: 1.4;
+  }
+  .ipa-garantia__titulo {
+    font-size: clamp(1.2rem, 2.6vw, 1.6rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+  .ipa-garantia__texto {
+    margin-top: 0.4rem;
+    color: var(--branco-2);
+    font-size: 1.02rem;
+    line-height: 1.55;
   }
 
   /* ---- 11. FAQ ----------------------------------------------------------------- */
@@ -1205,10 +1272,14 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     .ipa-dia__cartao {
       padding: 5.5rem 2rem 2rem;
     }
-    .ipa-agora__grade {
+    .ipa-dobrar__grade {
       grid-template-columns: 1fr 1fr;
       gap: 4rem;
       align-items: start;
+    }
+    .ipa-garantia__cartao {
+      padding: 2rem 2.25rem;
+      align-items: center;
     }
     .ipa-faq__grade {
       grid-template-columns: 22rem 1fr;
