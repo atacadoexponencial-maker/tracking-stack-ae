@@ -65,18 +65,18 @@ export function dadosDeExemplo() {
   // Mentoria: 5 no dia do pitch e 6 nos 14 dias seguintes, mais vendida a
   // quem levou o bump.
   const mentoria = [
-    [1, '2026-12-05', 16, 40], [5, '2026-12-05', 16, 52], [9, '2026-12-05', 17, 5], [22, '2026-12-05', 17, 20], [30, '2026-12-05', 17, 41],
-    [13, '2026-12-07', 10, 0], [17, '2026-12-08', 15, 30], [40, '2026-12-09', 11, 15], [44, '2026-12-11', 14, 0], [25, '2026-12-14', 9, 45], [51, '2026-12-17', 16, 10],
+    [1, '2026-12-12', 16, 40], [5, '2026-12-12', 16, 52], [9, '2026-12-12', 17, 5], [22, '2026-12-12', 17, 20], [30, '2026-12-12', 17, 41],
+    [13, '2026-12-14', 10, 0], [17, '2026-12-15', 15, 30], [40, '2026-12-16', 11, 15], [44, '2026-12-18', 14, 0], [25, '2026-12-21', 9, 45], [51, '2026-12-24', 16, 10],
   ];
   for (const [p, dia, h, m] of mentoria) {
     vendas.push({ id: `m${p}`, produto: 'mentoria', valor: 9700, pago_em: em(dia, h, m), email: `pessoa${p}@exemplo.com`, situacao: 'paga' });
   }
 
-  // Meet do dia 05/12: 43 pessoas; parte sai antes da oferta das 16h.
+  // Meet do dia 12/12: 43 pessoas; parte sai antes da oferta das 16h.
   const meet = [];
   for (let p = 1; p <= 43; p++) {
-    const entrou = em('2026-12-05', 9, 25 + (p % 20));
-    const saiu = p <= 31 ? em('2026-12-05', 17, 30) : em('2026-12-05', 11 + (p % 4), 10 * (p % 5));
+    const entrou = em('2026-12-12', 9, 25 + (p % 20));
+    const saiu = p <= 31 ? em('2026-12-12', 17, 30) : em('2026-12-12', 11 + (p % 4), 10 * (p % 5));
     meet.push({ pessoa: `pessoa${p}`, entrou, saiu });
   }
 

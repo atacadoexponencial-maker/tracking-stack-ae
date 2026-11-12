@@ -1,5 +1,5 @@
 ---
-// Página de ingresso da Imersão Planejamento Atacado 2027 (evento de 05/12).
+// Página de ingresso da Imersão Planejamento Atacado 2027 (evento de 12/12).
 //
 // Copy: "Imersão Planejamento Atacado 2027 - proposta de copy da página.md",
 // aprovada pela usuária em 09/11.
@@ -96,7 +96,7 @@ const faqs = [
   },
   {
     q: 'Quanto tempo dura?',
-    a: 'Um sábado, 05/12, das 9h30 às 17h30, com pausa para o almoço.',
+    a: 'Um sábado, 12/12, das 9h30 às 17h30, com pausa para o almoço.',
   },
   {
     q: 'O que preciso levar?',
@@ -112,12 +112,12 @@ const faqs = [
   },
 ];
 
-const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um sábado';
+const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu atacado em 2027.';
 ---
 
 <BaseLayout
-  title="Imersão Planejamento Atacado 2027 | 05/12, ao vivo com Felipe Santos"
-  description="Um sábado, 05/12, das 9h30 às 17h30, online e ao vivo. Você traz os números de 2026 e sai com a meta de cada mês de 2027: quantas revendedoras novas trazer e quanto a sua base precisa recomprar."
+  title="Imersão Planejamento Atacado 2027 | 12/12, ao vivo com Felipe Santos"
+  description="Um sábado, 12/12, das 9h30 às 17h30, online e ao vivo. Você traz os números de 2026 e sai com a meta de cada mês de 2027: quantas revendedoras novas trazer e quanto a sua base precisa recomprar."
   showHeader={false}
 >
   <div class="ipa" data-vendas="abertas" data-checkout-param={CHECKOUT_PARAM}>
@@ -142,15 +142,15 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
         <Image src={logo} alt="Atacado Exponencial" height={72} class="ipa-topo__logo" />
         <p class="ipa-topo__data">
           <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /></svg>
-          <span><span class="ipa-topo__dia">Sábado, </span>05/12</span><span class="ipa-topo__sep" aria-hidden="true">|</span><span>9h30 às 17h30</span><span class="ipa-topo__extra"><span class="ipa-topo__sep" aria-hidden="true">|</span>online e ao vivo</span>
+          <span><span class="ipa-topo__dia">Sábado, </span>12/12</span><span class="ipa-topo__sep" aria-hidden="true">|</span><span>9h30 às 17h30</span><span class="ipa-topo__extra"><span class="ipa-topo__sep" aria-hidden="true">|</span>online e ao vivo</span>
         </p>
       </div>
 
       <div class="ipa-hero__corpo">
         <h1 class="ipa-hero__titulo">{HEADLINE}</h1>
         <p class="ipa-hero__sub">
-          Você traz os números de 2026 e sai com a meta de cada mês de 2027, ao vivo com o Felipe
-          Santos, mentor de marcas de R$&nbsp;200&nbsp;mil a sete dígitos por mês.
+          Com o Felipe Santos, mentor de marcas que somam mais de R$&nbsp;20&nbsp;milhões por ano.
+          Você monta para o seu atacado o mesmo plano que essas marcas usam para crescer.
         </p>
         <p class="ipa-hero__frase">No atacado, a venda começa na reposição.</p>
         <a class="ipa-botao" href={HREF_COMPRA} data-checkout>
@@ -287,7 +287,7 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
           <div class="ipa-dia__cabeca">
             <p class="ipa-pilula">
               <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /></svg>
-              Sábado, 05/12 | 9h30 às 17h30
+              Sábado, 12/12 | 9h30 às 17h30
             </p>
             <h2 class="ipa-h2">Como funciona o dia</h2>
           </div>
@@ -311,7 +311,7 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
       <section class="ipa-oferta" id="ingresso">
         <div class="ipa-oferta__cartao">
           <h2 class="ipa-oferta__titulo">Imersão Planejamento Atacado 2027</h2>
-          <p class="ipa-oferta__data">Sábado, 05/12 | Online e ao vivo</p>
+          <p class="ipa-oferta__data">Sábado, 12/12 | Online e ao vivo</p>
           <ul class="ipa-oferta__itens">
             {ofertaItens.map((item) => (
               <li>
@@ -381,7 +381,7 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
     <!-- 12. Fechamento -------------------------------------------------------- -->
     <section class="ipa-fechamento">
       <div class="ipa-largura ipa-fechamento__corpo">
-        <h2 class="ipa-fechamento__titulo">Seu 2027 começa em 05/12</h2>
+        <h2 class="ipa-fechamento__titulo">Seu 2027 começa em 12/12</h2>
         <a class="ipa-botao" href={HREF_COMPRA} data-checkout>
           <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
           <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
@@ -1274,10 +1274,10 @@ const HEADLINE = 'Monte o plano para 2027 ser o melhor ano do seu atacado em um 
       });
       const frase =
         textoProximo(estado.proximoValor, rotulo) ??
-        'Último lote. As vendas encerram no início do evento, 05/12 às 9h30.';
+        'Último lote. As vendas encerram no início do evento, 12/12 às 9h30.';
       todos('[data-proximo-frase]').forEach((el) => (el.textContent = frase));
       if (estado.ultimo) {
-        todos('[data-ate-linha]').forEach((el) => (el.textContent = '· vendas encerram 05/12 às 9h30'));
+        todos('[data-ate-linha]').forEach((el) => (el.textContent = '· vendas encerram 12/12 às 9h30'));
       }
     }
 

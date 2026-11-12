@@ -107,7 +107,7 @@ test('CA-S8-08: ingressos vendidos sobre a meta', () => {
 });
 
 test('CA-S8-09: pacing por dia corrido e por dia útil', () => {
-  const p = visao(ingressos(37), { agora: '2026-11-25T10:00:00' }).ingressos.pacing;
+  const p = visao(ingressos(37), { agora: '2026-12-02T10:00:00' }).ingressos.pacing;
   assert.equal(p.dias_corridos, 10);
   assert.equal(p.dias_uteis, 8);
   assert.equal(p.por_dia_corrido, 6.3);
@@ -127,12 +127,12 @@ test('CA-S8-10: pacing com a meta já batida', () => {
 });
 
 test('CA-S8-11: previsto do dia calculado pela meta', () => {
-  assert.equal(precoDoDia('2026-11-20'), 39);
+  assert.equal(precoDoDia('2026-11-27'), 39);
   assert.equal(previstoDoDia({ faltam: 63, dias: 10, preco: 39, metaBump: 10 }), 432.81);
   assert.equal(previstoDoDia({ faltam: 63, dias: 10, preco: 39, metaBump: null }), 245.7);
-  // Na Visão geral: hoje 25/11 (lote de R$ 45), 37 vendidos antes, 10 dias.
-  const r = visao(ingressos(37, { quando: '2026-11-20T10:00:00' }), { agora: '2026-11-25T10:00:00', metas: metasEfetivas({ meta_bump: 10 }) });
-  const hoje = r.ingressos.faturamento_dia.find((d) => d.dia === '2026-11-25');
+  // Na Visão geral: hoje 02/12 (lote de R$ 45), 37 vendidos antes, 10 dias.
+  const r = visao(ingressos(37, { quando: '2026-11-27T10:00:00' }), { agora: '2026-12-02T10:00:00', metas: metasEfetivas({ meta_bump: 10 }) });
+  const hoje = r.ingressos.faturamento_dia.find((d) => d.dia === '2026-12-02');
   assert.equal(hoje.previsto, previstoDoDia({ faltam: 63, dias: 10, preco: 45, metaBump: 10 }));
 });
 
@@ -146,10 +146,10 @@ test('CA-S8-12: cor do faturamento do dia', () => {
 test('CA-S8-13: vendas por lote', () => {
   const r = visao([
     venda({ quando: '2026-11-10T10:00:00' }),
-    venda({ quando: '2026-11-17T10:00:00' }),
-    venda({ quando: '2026-11-17T12:00:00' }),
-    venda({ quando: '2026-11-20T10:00:00' }),
-  ], { agora: '2026-11-20T15:00:00' });
+    venda({ quando: '2026-11-24T10:00:00' }),
+    venda({ quando: '2026-11-24T12:00:00' }),
+    venda({ quando: '2026-11-27T10:00:00' }),
+  ], { agora: '2026-11-27T15:00:00' });
   const lotes = r.ingressos.lotes;
   assert.equal(lotes.length, 7);
   assert.deepEqual(lotes.map((l) => l.vendidos), [1, 2, 1, 0, 0, 0, 0]);
@@ -240,8 +240,8 @@ test('CA-S8-21: Mentoria com bump x sem bump', () => {
   const vendas = [];
   for (let i = 0; i < 100; i++) vendas.push(venda({ pessoa: `c${i}` }));
   for (let i = 0; i < 20; i++) vendas.push(venda({ produto: 'bump', valor: 297, pessoa: `c${i}` }));
-  for (let i = 0; i < 6; i++) vendas.push(venda({ produto: 'mentoria', valor: 10000, quando: '2026-12-05T17:00:00', pessoa: `c${i}` }));
-  for (let i = 20; i < 32; i++) vendas.push(venda({ produto: 'mentoria', valor: 10000, quando: '2026-12-05T17:00:00', pessoa: `c${i}` }));
+  for (let i = 0; i < 6; i++) vendas.push(venda({ produto: 'mentoria', valor: 10000, quando: '2026-12-12T17:00:00', pessoa: `c${i}` }));
+  for (let i = 20; i < 32; i++) vendas.push(venda({ produto: 'mentoria', valor: 10000, quando: '2026-12-12T17:00:00', pessoa: `c${i}` }));
   const m = visao(vendas).bump.mentoria;
   assert.equal(m.com_bump.conversao, 30);
   assert.equal(m.sem_bump.conversao, 15);
@@ -252,15 +252,15 @@ test('CA-S8-21: Mentoria com bump x sem bump', () => {
 
 test('CA-S8-22: comparecimento pelo Meet', () => {
   const meet = [];
-  for (let i = 0; i < 74; i++) meet.push({ pessoa: `m${i}`, entrou: em('2026-12-05T09:30:00'), saiu: em('2026-12-05T12:00:00') });
-  meet.push({ pessoa: 'm0', entrou: em('2026-12-05T14:00:00'), saiu: em('2026-12-05T17:00:00') }); // voltou: conta uma vez
-  const r = visao(ingressos(100), { agora: '2026-12-06T10:00:00', extra: { meet } });
+  for (let i = 0; i < 74; i++) meet.push({ pessoa: `m${i}`, entrou: em('2026-12-12T09:30:00'), saiu: em('2026-12-12T12:00:00') });
+  meet.push({ pessoa: 'm0', entrou: em('2026-12-12T14:00:00'), saiu: em('2026-12-12T17:00:00') }); // voltou: conta uma vez
+  const r = visao(ingressos(100), { agora: '2026-12-13T10:00:00', extra: { meet } });
   assert.equal(r.evento.comparecimento.valor, 74);
   assert.match(r.evento.comparecimento.referencia, /70% a 80%/);
 });
 
 test('CA-S8-23: pico ao vivo no horário da oferta', () => {
-  const h = (hm) => em(`2026-12-05T${hm}:00`);
+  const h = (hm) => em(`2026-12-12T${hm}:00`);
   const meet = [
     { pessoa: 'A', entrou: h('09:30'), saiu: h('17:30') },
     { pessoa: 'B', entrou: h('15:00'), saiu: h('16:10') },
@@ -269,7 +269,7 @@ test('CA-S8-23: pico ao vivo no horário da oferta', () => {
     { pessoa: 'E', entrou: h('16:40'), saiu: h('17:00') }, // depois da janela de 30 min
     { pessoa: 'F', entrou: h('15:00'), saiu: h('15:59') }, // saiu antes da oferta
   ];
-  const r = visao(ingressos(10), { agora: '2026-12-06T10:00:00', metas: metasEfetivas({ horario_oferta: '16:00' }), extra: { meet } });
+  const r = visao(ingressos(10), { agora: '2026-12-13T10:00:00', metas: metasEfetivas({ horario_oferta: '16:00' }), extra: { meet } });
   assert.equal(r.evento.pico.valor, 3);
 });
 
@@ -278,18 +278,18 @@ test('CA-S8-24: bloco do evento antes da data', () => {
   assert.equal(r.evento.disponivel, false);
   const html = tela(r);
   const bloco = html.slice(html.indexOf('data-im-bloco="evento"'), html.indexOf('data-im-bloco="resultado"'));
-  assert.match(bloco, /Disponível a partir de 05\/12/);
+  assert.match(bloco, /Disponível a partir de 12\/12/);
   assert.doesNotMatch(bloco, /data-im-card/);
 });
 
 test('CA-S8-26: conversão na Mentoria no dia x 14 dias seguintes', () => {
   const vendas = [];
   for (let i = 0; i < 100; i++) vendas.push(venda({ pessoa: `q${i}` }));
-  for (let i = 0; i < 9; i++) vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-05T17:00:00', pessoa: `q${i}` }));
-  for (let i = 9; i < 20; i++) vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-12T10:00:00', pessoa: `q${i}` }));
-  for (let i = 20; i < 22; i++) vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-22T10:00:00', pessoa: `q${i}` }));
-  vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-05T17:00:00', pessoa: 'estranho' })); // não comprou ingresso
-  const r = visao(vendas, { agora: '2026-12-23T10:00:00' }).resultado;
+  for (let i = 0; i < 9; i++) vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-12T17:00:00', pessoa: `q${i}` }));
+  for (let i = 9; i < 20; i++) vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-19T10:00:00', pessoa: `q${i}` }));
+  for (let i = 20; i < 22; i++) vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-29T10:00:00', pessoa: `q${i}` }));
+  vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-12T17:00:00', pessoa: 'estranho' })); // não comprou ingresso
+  const r = visao(vendas, { agora: '2026-12-30T10:00:00' }).resultado;
   assert.equal(r.dia_x_seguintes.no_dia.conversao, 9);
   assert.equal(r.dia_x_seguintes.seguintes.conversao, 11);
   assert.equal(r.conversao_mentoria.valor, 22);
@@ -299,8 +299,8 @@ test('CA-S8-27: faturamento total, ticket médio e ROAS', () => {
   const vendas = [];
   for (let i = 0; i < 100; i++) vendas.push(venda({ pessoa: `f${i}`, valor: 45 }));
   for (let i = 0; i < 20; i++) vendas.push(venda({ produto: 'bump', valor: 297, pessoa: `f${i}` }));
-  for (let i = 0; i < 6; i++) vendas.push(venda({ produto: 'mentoria', valor: 10000, quando: '2026-12-05T17:00:00', pessoa: `f${i}` }));
-  const r = visao(vendas, { agora: '2026-12-06T10:00:00', extra: { trafego: { investimento: 6000, impressoes: 300000, cliques: 3000 } } }).resultado;
+  for (let i = 0; i < 6; i++) vendas.push(venda({ produto: 'mentoria', valor: 10000, quando: '2026-12-12T17:00:00', pessoa: `f${i}` }));
+  const r = visao(vendas, { agora: '2026-12-13T10:00:00', extra: { trafego: { investimento: 6000, impressoes: 300000, cliques: 3000 } } }).resultado;
   assert.equal(r.faturamento.total, 70440);
   assert.equal(r.ticket_medio, 704.4);
   assert.equal(r.roas, 11.74);
@@ -372,14 +372,14 @@ test('CA-S8-07: valor inválido é recusado com motivo', async () => {
 import { projetar, ritmoAtual } from '../functions/api/_imersao.js';
 import { onRequestGet as simulacaoGet } from '../functions/api/imersao/simulacao.js';
 
-/** Banco real com 37 ingressos: 25 em 12/11 e 4 em cada um de 22, 23 e 24/11 (ritmo 4/dia). */
+/** Banco real com 37 ingressos: 25 em 12/11 e 4 em cada um de 29/11, 30/11 e 01/12 (ritmo 4/dia). */
 function cenario37() {
   const ins = db.prepare("INSERT INTO imersao_vendas (id, produto, valor_centavos, pago_em, email) VALUES (?, 'ingresso', 3500, ?, ?)");
   let n = 0;
   for (let i = 0; i < 25; i++) ins.run(`s${++n}`, em('2026-11-12T10:00:00'), `s${n}@x.com`);
-  for (const d of ['22', '23', '24']) for (let i = 0; i < 4; i++) ins.run(`s${++n}`, em(`2026-11-${d}T10:00:00`), `s${n}@x.com`);
+  for (const d of ['11-29', '11-30', '12-01']) for (let i = 0; i < 4; i++) ins.run(`s${++n}`, em(`2026-${d}T10:00:00`), `s${n}@x.com`);
 }
-async function getSimulacao(ajuste, agora = '2026-11-25T10:00:00') {
+async function getSimulacao(ajuste, agora = '2026-12-02T10:00:00') {
   const real = Date.now;
   Date.now = () => em(agora) * 1000;
   try {
@@ -412,8 +412,8 @@ test('CA-S8-29: ajuste de ritmo', async () => {
   const s = await getSimulacao(60);
   assert.equal(s.projetado_fim, 101);
   assert.equal(s.bate_meta, true);
-  assert.equal(s.bate_em, '2026-12-04');
-  assert.match(IM.desenharSimulacao(s, CTX), /Bate a meta em 04\/12/);
+  assert.equal(s.bate_em, '2026-12-11');
+  assert.match(IM.desenharSimulacao(s, CTX), /Bate a meta em 11\/12/);
   // Nada gravado: outra pessoa (sem ajuste) continua vendo o ritmo atual.
   assert.equal((await getSimulacao()).projetado_fim, 77);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM imersao_metas').get().n, 0);
@@ -422,8 +422,8 @@ test('CA-S8-29: ajuste de ritmo', async () => {
 test('CA-S8-30: faturamento projetado com o preço de cada lote', () => {
   assert.equal(ritmoAtual([], em('2026-11-25T10:00:00')), 0);
   const p = projetar({
-    vendidos: 37, ritmo: 4, agora: em('2026-11-24T08:00:00'), conversaoBump: 10, realizado: 2000,
-    dias: ['2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27', '2026-11-28'],
+    vendidos: 37, ritmo: 4, agora: em('2026-12-01T08:00:00'), conversaoBump: 10, realizado: 2000,
+    dias: ['2026-12-01', '2026-12-02', '2026-12-03', '2026-12-04', '2026-12-05'],
   });
   assert.deepEqual(p.linhas.map((l) => l.preco), [45, 45, 49, 49, 49]);
   assert.equal(r2(p.faturamento.ingressos_projetados + p.faturamento.bump_projetado), 1542);
@@ -457,9 +457,9 @@ test('CA-S8-33: venda por dia no Resumo', () => {
   assert.match(linha, /6,25%/);
   assert.match(linha, /im-cor--forte[^>]*>120%/);
 
-  // Na conta de verdade: 10/11 sem nada vendido antes → meta do dia = 100 ÷ 25 dias = 4.
-  const v = visao(ingressos(5, { quando: '2026-11-10T10:00:00', valor: 48 }), { agora: '2026-11-11T12:00:00', extra: { visitas_por_dia: { '2026-11-10': 80 } } });
-  const d = v.resumo.venda_por_dia.find((x) => x.dia === '2026-11-10');
+  // Na conta de verdade: 17/11 sem nada vendido antes → meta do dia = 100 ÷ 25 dias = 4.
+  const v = visao(ingressos(5, { quando: '2026-11-17T10:00:00', valor: 48 }), { agora: '2026-11-18T12:00:00', extra: { visitas_por_dia: { '2026-11-17': 80 } } });
+  const d = v.resumo.venda_por_dia.find((x) => x.dia === '2026-11-17');
   assert.equal(d.meta_ingressos, 4);
   assert.equal(d.previsto, 116); // 4 × R$ 29 (lote 01), sem meta de bump
   assert.equal(d.conversao, 6.25);
@@ -497,13 +497,13 @@ test('CA-S8-35: cards de estado do Resumo', () => {
   const c = r.resumo.cards;
   assert.deepEqual(c.vendidos, { valor: 40, meta: 100, pct: 40 });
   assert.equal(c.faturamento_ate_agora, 3936);
-  assert.equal(c.por_dia.valor, 4); // 60 em 15 dias (20/11 a 04/12)
+  assert.equal(c.por_dia.valor, 2.7); // 60 em 22 dias (20/11 a 11/12)
   assert.deepEqual(c.cac, { valor: 52, teto: 46.67, falta_meta: false, alerta: true });
   assert.deepEqual(c.bump, { conversao: 20, meta: 25 });
   const html = tela(r, { aba: 'resumo' });
   assert.match(cardDe(html, 'Vendidos x meta'), /40 de 100/);
   assert.match(cardDe(html, 'Faturamento até agora'), /R\$\s?3\.936,00/);
-  assert.match(cardDe(html, 'Precisa vender por dia'), /4\/dia/);
+  assert.match(cardDe(html, 'Precisa vender por dia'), /2,7\/dia/);
   assert.match(html, /etiqueta im-alerta" data-im-card="CAC x CPA teto"/);
   assert.match(cardDe(html, 'CAC x CPA teto'), /R\$\s?52,00[\s\S]*teto R\$\s?46,67/);
   assert.match(cardDe(html, 'Bump x meta'), /20,0%[\s\S]*meta 25%/);

@@ -20,12 +20,12 @@ test('preço riscado é R$ 97', () => {
 
 // Cada virada às 23:59 do dia da tabela: 23:58:59 ainda no lote, 23:59 no seguinte.
 const viradas = [
-  ['2026-11-15', 'Lote 01', 'R$ 29', 'Lote 02', 'R$ 35'],
-  ['2026-11-18', 'Lote 02', 'R$ 35', 'Lote 03', 'R$ 39'],
-  ['2026-11-22', 'Lote 03', 'R$ 39', 'Lote 04', 'R$ 45'],
-  ['2026-11-25', 'Lote 04', 'R$ 45', 'Lote 05', 'R$ 49'],
-  ['2026-11-29', 'Lote 05', 'R$ 49', 'Lote 06', 'R$ 55'],
-  ['2026-12-02', 'Lote 06', 'R$ 55', 'Lote 07', 'R$ 59'],
+  ['2026-11-22', 'Lote 01', 'R$ 29', 'Lote 02', 'R$ 35'],
+  ['2026-11-25', 'Lote 02', 'R$ 35', 'Lote 03', 'R$ 39'],
+  ['2026-11-29', 'Lote 03', 'R$ 39', 'Lote 04', 'R$ 45'],
+  ['2026-12-02', 'Lote 04', 'R$ 45', 'Lote 05', 'R$ 49'],
+  ['2026-12-06', 'Lote 05', 'R$ 49', 'Lote 06', 'R$ 55'],
+  ['2026-12-09', 'Lote 06', 'R$ 55', 'Lote 07', 'R$ 59'],
 ];
 for (const [dia, antes, valorAntes, depois, valorDepois] of viradas) {
   test(`${dia} 23:58:59 é ${antes} (${valorAntes}); 23:59 já é ${depois} (${valorDepois})`, () => {
@@ -46,8 +46,8 @@ test('hoje (09/11) está no Lote 01 a R$ 29', () => {
   assert.equal(r.valor, 'R$ 29');
 });
 
-test('lote 07 vale até 05/12 9h29:59 e é o último (sem próximo preço)', () => {
-  const r = vigente('2026-12-05T09:29:59');
+test('lote 07 vale até 12/12 9h29:59 e é o último (sem próximo preço)', () => {
+  const r = vigente('2026-12-12T09:29:59');
   assert.equal(r.rotulo, 'Lote 07');
   assert.equal(r.valor, 'R$ 59');
   assert.equal(r.ultimo, true);
@@ -55,9 +55,9 @@ test('lote 07 vale até 05/12 9h29:59 e é o último (sem próximo preço)', () 
   assert.equal(textoProximo(r.proximoValor, r.rotulo), null);
 });
 
-test('05/12 às 9h30, início do evento, as vendas encerram', () => {
-  assert.deepEqual(vigente('2026-12-05T09:30:00'), { estado: 'encerrado' });
-  assert.deepEqual(vigente('2026-12-06T12:00:00'), { estado: 'encerrado' });
+test('12/12 às 9h30, início do evento, as vendas encerram', () => {
+  assert.deepEqual(vigente('2026-12-12T09:30:00'), { estado: 'encerrado' });
+  assert.deepEqual(vigente('2026-12-13T12:00:00'), { estado: 'encerrado' });
 });
 
 test('texto do próximo lote no preço', () => {

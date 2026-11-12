@@ -150,7 +150,7 @@
   }
 
   // ── Bloco 4 ────────────────────────────────────────────────────────────
-  const indisponivel = '<p class="im-indisponivel">Disponível a partir de 05/12.</p>';
+  const indisponivel = '<p class="im-indisponivel">Disponível a partir de 12/12.</p>';
 
   function blocoEvento(ctx, e) {
     const f = fmt(ctx);
@@ -158,7 +158,7 @@
       card(ctx, { rotulo: 'Comparecimento', valor: f.pct(e.comparecimento.valor), nota: vazio(e.comparecimento.presentes) ? 'pelo Meet' : `${f.int(e.comparecimento.presentes)} pessoas no Meet`, ref: e.comparecimento.referencia }),
       card(ctx, { rotulo: 'Pessoas ao vivo no pitch', valor: f.int(e.pico.valor), faltaMeta: e.pico.falta_meta, nota: e.pico.horario ? `pico entre ${e.pico.horario} e 30 min depois` : 'grave o horário da oferta', ref: e.pico.referencia }),
     ].join('')}</div>`;
-    return `<div class="bloco im-bloco" data-im-bloco="evento"><h2>Evento <small>sábado 05/12 · 9h30 às 17h30 · Google Meet</small></h2>${corpo}</div>`;
+    return `<div class="bloco im-bloco" data-im-bloco="evento"><h2>Evento <small>sábado 12/12 · 9h30 às 17h30 · Google Meet</small></h2>${corpo}</div>`;
   }
 
   // ── Bloco 5 ────────────────────────────────────────────────────────────
@@ -173,8 +173,8 @@
     ].join('');
     const dx = r.dia_x_seguintes;
     const cards = [
-      card(ctx, { rotulo: 'Mentoria no dia do pitch', valor: f.pct(dx.no_dia.conversao), nota: `${f.int(dx.no_dia.mentorias)} vendas em 05/12` }),
-      card(ctx, { rotulo: 'Mentoria nos 14 dias seguintes', valor: f.pct(dx.seguintes.conversao), nota: `${f.int(dx.seguintes.mentorias)} vendas de 06/12 a 19/12`, ref: dx.referencia }),
+      card(ctx, { rotulo: 'Mentoria no dia do pitch', valor: f.pct(dx.no_dia.conversao), nota: `${f.int(dx.no_dia.mentorias)} vendas em 12/12` }),
+      card(ctx, { rotulo: 'Mentoria nos 14 dias seguintes', valor: f.pct(dx.seguintes.conversao), nota: `${f.int(dx.seguintes.mentorias)} vendas de 13/12 a 26/12`, ref: dx.referencia }),
       card(ctx, { rotulo: 'Faturamento total', valor: f.brl(r.faturamento.total), nota: `ingressos ${f.brl(r.faturamento.ingressos)} · bump ${f.brl(r.faturamento.bump)} · Mentoria ${f.brl(r.faturamento.mentoria)}` }),
       card(ctx, { rotulo: 'ROAS', valor: f.num(r.roas, 2), nota: 'faturamento ÷ investimento em anúncios' }),
     ].join('');
@@ -191,7 +191,7 @@
     { id: 'pct_trafego', rotulo: '% de ingressos esperado do tráfego pago', tipo: 'text', modo: 'decimal', padrao: '75' },
     { id: 'meta_bump', rotulo: 'Meta de conversão do bump (%)', tipo: 'text', modo: 'decimal' },
     { id: 'meta_mentoria', rotulo: 'Meta de conversão na Mentoria (%)', tipo: 'text', modo: 'decimal' },
-    { id: 'horario_oferta', rotulo: 'Horário da oferta no dia 05/12', tipo: 'text', modo: 'text', dica: 'HH:MM' },
+    { id: 'horario_oferta', rotulo: 'Horário da oferta no dia 12/12', tipo: 'text', modo: 'text', dica: 'HH:MM' },
   ];
 
   function formMetas(ctx, m) {
@@ -291,7 +291,7 @@
       </tr>`).join('');
 
     return `<div class="bloco im-bloco" data-im-bloco="resumo">
-      <h2>Estado do lançamento <small>meta: ${f.int(c.vendidos.meta)} ingressos até 05/12</small></h2>
+      <h2>Estado do lançamento <small>meta: ${f.int(c.vendidos.meta)} ingressos até 12/12</small></h2>
       <div class="grid-etiquetas">${cards}</div>
       ${projecao}
       <h3 class="im-h3">Alertas</h3>${alertas}
@@ -330,7 +330,7 @@
     ].join('');
     const linhas = s.linhas.map((l) => `<tr${l.dia === s.bate_em ? ' class="im-linha-meta"' : ''}><td>${dia(l.dia)}</td><td class="num">${f.brl(l.preco)}</td><td class="num">${f.num(l.ingressos)}</td><td class="num">${f.num(l.acumulado)}</td></tr>`).join('');
     return `<div class="grid-etiquetas">${cards}</div>
-      <h3 class="im-h3">Dia a dia <small>até sexta 04/12 · o sábado 05/12 só tem a manhã</small></h3>
+      <h3 class="im-h3">Dia a dia <small>até sexta 11/12 · o sábado 12/12 só tem a manhã</small></h3>
       <div class="tabela-wrap im-rolagem"><table><thead><tr><th>Dia</th><th class="num">Lote</th><th class="num">Ingressos</th><th class="num">Acumulado</th></tr></thead><tbody>${linhas || '<tr><td colspan="4" class="mini">Venda encerrada.</td></tr>'}</tbody></table></div>`;
   }
 

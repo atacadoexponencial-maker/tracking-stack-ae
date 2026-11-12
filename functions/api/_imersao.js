@@ -16,13 +16,13 @@ export const META_INGRESSOS = 100;
 export const PRECO_BUMP = 297;
 export const PCT_TRAFEGO_PADRAO = 75;
 export const PRIMEIRO_DIA = '2026-11-09';
-export const DIA_EVENTO = '2026-12-05';
-// Último dia de venda que conta no pacing (SUP-S8-12): o sábado 05/12 só tem
-// a manhã e só conta quando hoje já é 05/12.
-export const ULTIMO_DIA_CHEIO = '2026-12-04';
-export const FIM_VENDA = Date.parse('2026-12-05T09:30:00-03:00') / 1000;
+export const DIA_EVENTO = '2026-12-12';
+// Último dia de venda que conta no pacing (SUP-S8-12): o sábado 12/12 só tem
+// a manhã e só conta quando hoje já é 12/12.
+export const ULTIMO_DIA_CHEIO = '2026-12-11';
+export const FIM_VENDA = Date.parse('2026-12-12T09:30:00-03:00') / 1000;
 // "Dias seguintes" da venda da Mentoria: 14 dias depois do pitch.
-export const ULTIMO_DIA_POS = '2026-12-19';
+export const ULTIMO_DIA_POS = '2026-12-26';
 // Janela do pico ao vivo depois do horário da oferta (SUP-S8-09).
 export const JANELA_PICO_S = 30 * 60;
 // Até aqui (fração da meta) o CAC acima do teto acende alerta (SUP-S8-07).
@@ -71,7 +71,7 @@ const diaUtil = (ymd) => { const s = new Date(`${ymd}T12:00:00Z`).getUTCDay(); r
 
 /**
  * Dias de venda pela frente, contando hoje (SUP-S8-02 e SUP-S8-12): de hoje
- * até sexta 04/12; no próprio 05/12 antes das 9h30, só esse dia (corrido).
+ * até sexta 11/12; no próprio 12/12 antes das 9h30, só esse dia (corrido).
  */
 export function diasDeVenda(agora) {
   if (agora >= FIM_VENDA) return { lista: [], corridos: 0, uteis: 0, encerrada: true };
