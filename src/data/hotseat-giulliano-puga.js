@@ -8,15 +8,13 @@
 // A ordem do array é a ordem das colunas na planilha (depois de Data/hora).
 // Sem prazo de encerramento (decisão dela em 11/11).
 
-// Etapa 1 junta os dados; depois, uma pergunta por tela (mesmo desenho da
-// aplicação do plano ao vivo, pedido dela em 11/11).
+// Uma pergunta por tela (mesmo desenho da aplicação do plano ao vivo, pedido
+// dela em 11/11). Em 12/11 ela tirou nome, WhatsApp e e-mail: é só para
+// mentorados, o @ da marca já identifica quem respondeu.
 export const TOTAL_ETAPAS = 3;
 
 export const PERGUNTAS = [
-  { name: 'nome', etapa: 1, tipo: 'texto', rotulo: 'Seu nome', coluna: 'Nome', placeholder: 'Nome', autocomplete: 'name' },
-  { name: 'telefone', etapa: 1, tipo: 'telefone', rotulo: 'WhatsApp', coluna: 'WhatsApp', placeholder: 'WhatsApp com DDD', autocomplete: 'tel' },
-  { name: 'email', etapa: 1, tipo: 'email', rotulo: 'E-mail', coluna: 'E-mail', placeholder: 'voce@email.com', autocomplete: 'email' },
-  { name: 'instagram', etapa: 1, tipo: 'texto', rotulo: 'Instagram da marca', coluna: 'Instagram da marca', placeholder: '@suamarca' },
+  { name: 'instagram', etapa: 1, tipo: 'texto', rotulo: 'Qual é o @ do Instagram da sua marca?', coluna: 'Instagram da marca', placeholder: '@suamarca' },
   {
     name: 'participa', etapa: 2, tipo: 'uma', rotulo: 'Você se compromete a participar ao vivo na segunda, 16/11, das 20h às 22h?', coluna: 'Vai participar',
     opcoes: ['Sim, eu vou', 'Não consigo'],
@@ -29,9 +27,6 @@ export const PERGUNTAS = [
 
 // Limite de tamanho por resposta de texto (o servidor recusa acima disso).
 export const MAX_TEXTO = 120;
-
-const EMAIL = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
-export const emailValido = (v) => EMAIL.test(String(v ?? '').trim());
 
 export const CABECALHO = ['Data/hora', ...PERGUNTAS.map((p) => p.coluna), 'Origem'];
 
@@ -54,13 +49,12 @@ export const TEXTOS = {
   obrigado: {
     titulo: 'Presença confirmada',
     texto: 'Anota aí: segunda, 16/11, das 20h às 22h, no Google Meet.',
-    analise: 'Se a sua marca for escolhida para a análise, a equipe avisa pelo WhatsApp.',
+    analise: 'Se a sua marca for escolhida para a análise, a equipe avisa você.',
   },
 };
 
 /**
- * Confere as respostas (mesmas listas da página). O formato do telefone é
- * conferido à parte pela regra única do servidor (functions/_telefone.js).
+ * Confere as respostas (mesmas listas da página).
  * Devolve { ok: true, valores } ou { ok: false, campo } com o primeiro inválido.
  */
 export function validarResposta(respostas) {
@@ -70,7 +64,7 @@ export function validarResposta(respostas) {
     const v = String(r[p.name] ?? '').trim();
     if (p.tipo === 'uma') {
       if (!p.opcoes.includes(v)) return { ok: false, campo: p.name };
-    } else if (v.length < 2 || v.length > MAX_TEXTO || (p.tipo === 'email' && !emailValido(v))) {
+    } else if (v.length < 2 || v.length > MAX_TEXTO) {
       return { ok: false, campo: p.name };
     }
     valores[p.name] = v;

@@ -92,18 +92,23 @@ async function chamar(env, subject, url, opcoes, fetchImpl) {
 
 /**
  * Acrescenta `linha` no fim da aba. Se a primeira linha estiver vazia, grava
- * `cabecalho` nela antes. RAW: o Google guarda tudo como texto, então resposta
+ * `cabecalho` nela antes. Com `atualizarCabecalho`, a primeira linha também é
+ * regravada quando está diferente de `cabecalho` (colunas que mudaram; as
+ * células que sobram à direita ficam vazias). RAW: o Google guarda tudo como texto, então resposta
  * começando com "=" nunca vira fórmula.
  */
-export async function acrescentarLinha(env, { subject, planilha, aba, cabecalho, linha }, fetchImpl = fetch) {
+export async function acrescentarLinha(env, { subject, planilha, aba, cabecalho, linha, atualizarCabecalho = false }, fetchImpl = fetch) {
   const base = `${SHEETS}/${encodeURIComponent(planilha)}/values`;
   const faixa = (r) => encodeURIComponent(`'${aba}'!${r}`);
 
   const topo = await chamar(env, subject, `${base}/${faixa('1:1')}`, { method: 'GET' }, fetchImpl);
-  if (!topo.values || !topo.values.length || !topo.values[0].length) {
+  const atual = topo.values?.[0] ?? [];
+  const diferente = atualizarCabecalho && (atual.length !== cabecalho.length || cabecalho.some((c, i) => c !== atual[i]));
+  if (!atual.length || diferente) {
+    const novo = [...cabecalho, ...Array(Math.max(0, atual.length - cabecalho.length)).fill('')];
     await chamar(env, subject, `${base}/${faixa('A1')}?valueInputOption=RAW`, {
       method: 'PUT',
-      body: JSON.stringify({ values: [cabecalho] }),
+      body: JSON.stringify({ values: [novo] }),
     }, fetchImpl);
   }
 

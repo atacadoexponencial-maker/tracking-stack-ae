@@ -6,7 +6,7 @@
  * O formulário tem o mesmo desenho do AplicacaoPlanoAoVivoForm (pedido dela):
  * cartão com "CONFIRMAÇÃO n de 3", rótulo em cima de cada campo, opções em
  * linhas inteiras e barra de navegação embaixo com ← → e o botão de enviar.
- * Etapa 1 junta os dados; as duas perguntas vêm uma por tela.
+ * Uma pergunta por tela: o @ da marca e as duas confirmações.
  *
  * Não vira lead: o envio vai só para /api/hotseat-giulliano-puga, que grava na
  * planilha. Por isso não reaproveita o AplicacaoForm (amarrado ao /tracker).
@@ -20,7 +20,6 @@ import { PERGUNTAS, TEXTOS, TOTAL_ETAPAS, MAX_TEXTO } from '../data/hotseat-giul
 const fotos = import.meta.glob('../assets/hotseat/giulliano-puga.{jpg,jpeg,png,webp}', { eager: true });
 const foto = Object.values(fotos)[0]?.default;
 
-const TIPO_INPUT = { telefone: 'tel', email: 'email' };
 const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((p) => p.etapa === i + 1));
 ---
 
@@ -76,11 +75,11 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
                 <span>{p.rotulo} *</span>
                 <input
                   name={p.name}
-                  type={TIPO_INPUT[p.tipo] ?? 'text'}
+                  type="text"
                   maxlength={MAX_TEXTO}
                   placeholder={p.placeholder}
-                  autocomplete={p.autocomplete ?? 'off'}
-                  autocapitalize={p.name === 'nome' ? 'words' : 'none'}
+                  autocomplete="off"
+                  autocapitalize="none"
                 />
                 <small class="hotseat__field-erro" hidden></small>
               </label>
@@ -180,8 +179,8 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
   .hotseat__etapa[hidden], .hotseat__card-titulo[hidden], .hotseat__nav[hidden] { display: none; }
 
   .hotseat__field { display: flex; flex-direction: column; gap: 0.4rem; border: 0; margin: 0; padding: 0; min-width: 0; }
-  .hotseat__field > span { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
   /* Pergunta sozinha na tela: vira o título da tela. */
+  .hotseat__field > span { font-size: 1.15rem; font-weight: 700; line-height: 1.35; margin-bottom: 0.35rem; text-wrap: pretty; }
   .hotseat__field > legend { font-size: 1.15rem; font-weight: 700; line-height: 1.35; padding: 0; margin-bottom: 0.75rem; text-wrap: pretty; }
   /* 16px no campo: abaixo disso o iPhone dá zoom ao tocar. */
   .hotseat__field input:not([type="radio"]) {
@@ -278,11 +277,9 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
 </style>
 
 <script>
-  import { telefoneValido, aplicarMascaraTelefone } from '../scripts/lead-validacao';
-  import { PERGUNTAS, TOTAL_ETAPAS, emailValido } from '../data/hotseat-giulliano-puga.js';
+  import { PERGUNTAS, TOTAL_ETAPAS } from '../data/hotseat-giulliano-puga.js';
 
   const ENDPOINT = '/api/hotseat-giulliano-puga';
-  const TELEFONE_ERRO = 'Digite um WhatsApp válido com DDD.';
   const ERRO_ENVIO = 'Não conseguimos enviar agora. Confira a internet e toque em confirmar de novo.';
 
   type Pergunta = { name: string; etapa: number; tipo: string };
@@ -317,8 +314,6 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
     function mensagemDeErro(p: Pergunta): string | null {
       const v = valor(p);
       if (p.tipo === 'uma') return v ? null : 'Escolha uma opção.';
-      if (p.tipo === 'telefone') return telefoneValido(v) ? null : TELEFONE_ERRO;
-      if (p.tipo === 'email') return emailValido(v) ? null : 'Digite um e-mail válido.';
       return v.length < 2 ? 'Preencha este campo.' : null;
     }
 
@@ -377,9 +372,6 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
     document.getElementById('hs-voltar')?.addEventListener('click', () => {
       if (typeof etapaAtual === 'number' && etapaAtual >= 1) mostrarEtapa(etapaAtual - 1);
     });
-
-    const telefoneEl = form.querySelector<HTMLInputElement>('input[name="telefone"]');
-    if (telefoneEl) aplicarMascaraTelefone(telefoneEl);
 
     // Uma pergunta por tela: tocar na opção já passa para a próxima. Na última
     // tela quem envia é o botão.
@@ -440,7 +432,7 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
         const p = j.campo ? perguntas.find((x) => x.name === j.campo) : null;
         if (p) {
           mostrarEtapa(p.etapa);
-          mostrarErro(p.name, p.tipo === 'telefone' ? TELEFONE_ERRO : 'Confira esta resposta.');
+          mostrarErro(p.name, 'Confira esta resposta.');
           focar(p.name);
           return;
         }

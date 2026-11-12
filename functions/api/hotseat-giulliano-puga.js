@@ -8,7 +8,6 @@
 // vira linha. Mesmo molde de functions/api/aplicacao-plano-ao-vivo.js.
 
 import { detectBot, detectBotPorIp } from '../_bots.js';
-import { padronizarTelefone } from '../_telefone.js';
 import { acrescentarLinha } from './_google-planilha.js';
 import { validarResposta, PERGUNTAS, CABECALHO } from '../../src/data/hotseat-giulliano-puga.js';
 
@@ -44,18 +43,16 @@ export async function processarResposta({ request, env, agoraMs = Date.now(), gr
   const v = validarResposta(corpo?.respostas);
   if (!v.ok) return json({ ok: false, campo: v.campo }, 400);
 
-  const tel = padronizarTelefone(v.valores.telefone);
-  if (tel.situacao === 'impossivel' || tel.situacao === 'ausente') return json({ ok: false, campo: 'telefone' }, 400);
-
   const origem = String(corpo?.origem || '').slice(0, 500);
   const linha = [
     dataHoraBrasilia(agoraMs),
-    ...PERGUNTAS.map((p) => (p.name === 'telefone' ? tel.digitos : v.valores[p.name])),
+    ...PERGUNTAS.map((p) => v.valores[p.name]),
     origem,
   ];
 
   try {
-    await gravar(env, { subject: CONTA, planilha: PLANILHA, aba: ABA, cabecalho: CABECALHO, linha });
+    // atualizarCabecalho: as colunas mudaram em 12/11 (saíram nome, WhatsApp e e-mail).
+    await gravar(env, { subject: CONTA, planilha: PLANILHA, aba: ABA, cabecalho: CABECALHO, linha, atualizarCabecalho: true });
   } catch (e) {
     console.error('[hotseat-giulliano-puga] falha ao gravar na planilha:', e?.codigo || '', e?.status || '', e?.message || e);
     return json({ ok: false, erro: 'planilha' }, 502);
