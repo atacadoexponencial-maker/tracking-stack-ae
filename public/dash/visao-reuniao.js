@@ -1,23 +1,25 @@
 // Visão geral da reunião semanal (spec-visao-geral-reuniao-semanal.md, série S4).
 //
-// Desenho em funil (ajuste de 26/10): Leads novos → MQL (SE) → SQL → Reunião
-// agendada → Reunião realizada, com o número e a variação à esquerda, o custo
-// da etapa à direita e as taxas de passagem entre as faixas. Ao lado, o
+// Desenho em funil (ajuste de 26/10): Leads novos → MQL (SE) → SQL → RC → RC
+// realizada, com o número e a variação à esquerda, o custo da etapa à direita
+// e as taxas de passagem entre as faixas. RC = reunião criada por lead novo
+// (spec-funil-leads-novos.md, série S9): o funil inteiro é a coorte dos leads
+// novos do período; lead antigo que agenda só aparece no Detalhe das reuniões.
+// Ao lado, o
 // investimento, os leads e o CPL de todos os canais e os níveis de
 // qualificação da SE. Embaixo, a tabela com o mesmo funil para cada funil.
 //
 // Sem conta nova: as mesmas da Visão geral antiga (aba Detalhado) — soma dos
 // funnelCounts de /api/leads, investimento do Meta (/api/attribution) ou do
-// funil (/api/cpl), leads novos, reuniões, custos de reunião e entradas nos
-// grupos do /api/cpl, MQLs, SQLs, taxas e qualificação do /api/agenda/taxas,
-// reunião realizada, custo por RR e RA → RR da coorte de agendamento
-// (/api/agenda/coorte: das reuniões agendadas no período, o que já aconteceu).
+// funil (/api/cpl), leads novos e entradas nos grupos do /api/cpl, MQLs, SQLs,
+// RC (com o que aconteceu com cada reunião), taxas e qualificação do
+// /api/agenda/taxas.
 // Quais funis têm MQL (SE e Aquisição, que pedem faturamento) vem do backend
 // (`mql_funis`); a soma deles também (`mql`, `qualificacao`).
 //
 // O index.html chama `VisaoReuniao.montarNumeros(respostas, ctx)` e depois
 // `VisaoReuniao.desenhar(raiz, dados, ctx)`. respostas: { leadsA, leadsB,
-// cplA, cplB, atrA, atrB, coorte, taxas, fSel, quando } (taxas: undefined = ainda
+// cplA, cplB, atrA, atrB, taxas, fSel, quando } (taxas: undefined = ainda
 // lendo o CRM; null = falhou). ctx: { esc, fmtInt, fmtNum, fmtPct, money,
 // tile, tabela, comparar, delta, deltaChip }.
 (() => {
@@ -38,8 +40,6 @@
     const leadsResp = lado === 'a' ? r.leadsA : r.leadsB;
     const cpl = lado === 'a' ? r.cplA : r.cplB;
     const atr = lado === 'a' ? r.atrA : r.atrB;
-    // Coorte de agendamento (ajuste de 26/10): reuniões de quem agendou no período.
-    const coorte = r.coorte ? r.coorte[lado === 'a' ? 'atual' : 'anterior'] : null;
     const tx = r.taxas ? r.taxas[lado === 'a' ? 'atual' : 'anterior'] : null;
     const linha = (fn) => ((cpl && cpl.por_funil) || []).find((x) => x.funnel === fn);
     const gastoDe = (fn) => { const l = linha(fn); return l && l.spend > 0 ? l.spend : null; };
@@ -51,9 +51,6 @@
       .reduce((t, c) => t + Number(c.count || 0), 0);
     const gasto = f ? gastoDe(f) : (atr && atr.meta_spend > 0 ? atr.meta_spend : null);
     const novos = !cpl ? null : f ? ((linha(f) || {}).leads_novos || 0) : (cpl.total_leads_novos || 0);
-    const reun = !cpl || !cpl.reunioes ? null
-      : f ? (cpl.reunioes.por_funil[f] || { agendadas: 0, realizadas: 0, custo_agendada: null, custo_realizada: null })
-        : cpl.reunioes.total;
 
     const mf = (tx && tx.mql_funis) || MQL_FUNIS_PADRAO;
     const mqlAplica = !f || mf.includes(f);
@@ -65,10 +62,10 @@
     const mqls = crmMql ? crmMql.mqls : null;
     const gastoMql = f ? gasto : mf.reduce((t, fn) => t + (gastoDe(fn) || 0), 0) || null;
     const sqls = crmF ? crmF.sqls || 0 : null;
-    const ag = tx ? (f ? (tx.por_funil || {})[f] : tx.total) : null;
-    const zeroCoorte = { realizada: 0, faltou: 0, sem_presenca: 0, a_acontecer: 0 };
-    const co = coorte ? (f ? coorte.por_funil[f] || zeroCoorte : coorte.total) : null;
-    const gastoReunioes = reun && reun.spend > 0 ? reun.spend : null;
+    // RC: reuniões criadas pelos leads novos do período (cards novos do CRM).
+    const rc = crmF ? (k) => crmF[k] || 0 : null;
+    // No total, o custo usa o investimento dos funis que agendam reunião (SUP-S9-09).
+    const gastoRc = f ? gasto : (cpl && cpl.reunioes && cpl.reunioes.total.spend > 0 ? cpl.reunioes.total.spend : null);
     const grupos = f && cpl && cpl.entradas_grupos && f in cpl.entradas_grupos ? cpl.entradas_grupos[f] : null;
 
     return {
@@ -76,15 +73,15 @@
       novos, cpl_novos: div(gasto, novos),
       mqls, custo_mql: div(gastoMql, mqls),
       sqls, custo_sql: div(gasto, sqls),
-      agendadas: reun ? reun.agendadas : null, custo_agendada: reun ? reun.custo_agendada : null,
-      // Realizadas, custo por RR e RA → RR pela coorte: só reuniões de quem agendou no período.
-      realizadas: co ? co.realizada : null, custo_realizada: co ? div(gastoReunioes, co.realizada) : null,
-      a_acontecer: co ? co.a_acontecer : null,
-      fora_do_registro: co ? co.fora_do_registro || 0 : null,
-      // MQL → RA olha os MQLs da base de MQL, como o quadro; RA → RR, todas as reuniões.
+      rc: rc ? rc('rc') : null, custo_rc: rc ? div(gastoRc, rc('rc')) : null,
+      rc_nao_mql: rc ? rc('rc_nao_mql') : null,
+      realizadas: rc ? rc('rc_realizada') : null, custo_realizada: rc ? div(gastoRc, rc('rc_realizada')) : null,
+      a_acontecer: rc ? rc('rc_a_acontecer') : null,
+      fora_do_registro: rc ? rc('rc_fora_do_registro') : null,
+      // MQL → RC olha os MQLs da base de MQL, como o quadro; RC → RR, as RC que já passaram.
       lead_mql: crmMql ? par(crmMql.mqls, crmMql.leads_novos) : null,
       mql_ra: crmMql ? par(crmMql.mqls_com_reuniao || 0, crmMql.mqls) : null,
-      ra_rr: co ? par(co.realizada, co.realizada + co.faltou + co.sem_presenca) : null,
+      ra_rr: rc ? par(rc('rc_realizada'), rc('rc_realizada') + rc('rc_faltou') + rc('rc_sem_presenca')) : null,
       grupos, mql_aplica: mqlAplica,
     };
   }
@@ -142,15 +139,17 @@
       { rotulo: 'Leads novos', k: 'novos', custo: 'cpl_novos', rotCusto: 'CPL lead novo', nota: 'card novo no CRM' },
       { rotulo: 'MQL', sub: BASE_MQL, k: 'mqls', custo: 'custo_mql', rotCusto: 'por MQL', crm: true, so_se: true },
       { rotulo: 'SQL', k: 'sqls', custo: 'custo_sql', rotCusto: 'por SQL', crm: true },
-      { rotulo: 'Reunião agendada', k: 'agendadas', custo: 'custo_agendada', rotCusto: 'por reunião agendada', nota: 'pela data em que agendou' },
-      { rotulo: 'Reunião realizada', k: 'realizadas', custo: 'custo_realizada', rotCusto: 'por reunião realizada', nota: 'de quem agendou no período', aAcontecer: true },
+      { rotulo: 'RC', sub: 'reunião criada por lead novo', k: 'rc', custo: 'custo_rc', rotCusto: 'por RC', crm: true, naoMql: true },
+      { rotulo: 'RC realizada', k: 'realizadas', custo: 'custo_realizada', rotCusto: 'por RC realizada', nota: 'das reuniões criadas por lead novo', crm: true, aAcontecer: true },
     ];
     // Passagem depois de cada etapa (índice da etapa de cima).
-    const PASSAGENS = { 0: ['lead_mql', 'Lead → MQL', BASE_MQL], 2: ['mql_ra', 'MQL → RA', 'MQLs que agendaram'], 3: ['ra_rr', 'RA → RR', 'que já passaram'] };
+    const PASSAGENS = { 0: ['lead_mql', 'Lead → MQL', BASE_MQL], 2: ['mql_ra', 'MQL → RC', 'MQLs que agendaram'], 3: ['ra_rr', 'RC → RR', 'que já passaram'] };
     const LARGURAS = [100, 88, 76, 64, 52];
     const etapa = (e, i) => {
       let nota = e.nota || '';
       if (e.aAcontecer && a.a_acontecer) nota += ` · ${fmtInt(a.a_acontecer)} ainda ${a.a_acontecer === 1 ? 'vai' : 'vão'} acontecer`;
+      // Observação automática (SUP-S9-04): RC de lead novo que não é MQL.
+      if (e.naoMql && a.rc_nao_mql) nota = `${fmtInt(a.rc_nao_mql)} de lead não MQL`;
       let num = vazio(a[e.k]) ? '<span class="semdado">—</span>' : fmtInt(a[e.k]);
       let custo = vazio(a[e.custo]) ? '<span class="semdado">—</span>' : money(a[e.custo]);
       if (e.so_se && !a.mql_aplica) { num = '<span class="semdado">—</span>'; custo = num; nota = SO_SE; }
@@ -170,7 +169,7 @@
     // ficam coladas, sem nada entre elas — pedido de 26/10).
     const { tile, comparar } = ctx;
     const taxa = ([k, rotulo, explica]) => {
-      const semCrm = k !== 'ra_rr' && d.crm_lido !== true;
+      const semCrm = d.crm_lido !== true;
       const soSe = k !== 'ra_rr' && !a.mql_aplica;
       const t = a[k], v = pctDe(t), vb = pctDe(b[k]);
       const vazioTaxa = soSe || semCrm || v === null;
@@ -246,7 +245,7 @@
     };
     const taxa = (r, k) => {
       const v = pctDe(r.a[k]);
-      if ((k !== 'ra_rr' && crmLido !== true) || v === null) return traco;
+      if (crmLido !== true || v === null) return traco;
       return `${fmtPct(v, 0)}<br>${variacao(v, pctDe(r.b[k]), { ...vr, pp: true })}`;
     };
     const COLS = [
@@ -257,17 +256,17 @@
       { titulo: 'Leads novos', campo: 'novos', render: (r) => cel(r, 'novos', fmtInt) },
       { titulo: 'MQL', campo: 'mqls', render: (r) => cel(r, 'mqls', fmtInt, { crm: true }) },
       { titulo: 'SQL', campo: 'sqls', render: (r) => cel(r, 'sqls', fmtInt, { crm: true }) },
-      { titulo: 'Reunião agendada', campo: 'agendadas', render: (r) => cel(r, 'agendadas', fmtInt) },
-      { titulo: 'Reunião realizada', campo: 'realizadas', render: (r) => cel(r, 'realizadas', fmtInt) },
+      { titulo: 'RC', campo: 'rc', render: (r) => cel(r, 'rc', fmtInt, { crm: true }) },
+      { titulo: 'RC realizada', campo: 'realizadas', render: (r) => cel(r, 'realizadas', fmtInt, { crm: true }) },
       { titulo: 'CPL', campo: 'cpl', render: (r) => cel(r, 'cpl', money, { invertido: true }) },
       { titulo: 'CPL lead novo', campo: 'cpl_novos', render: (r) => cel(r, 'cpl_novos', money, { invertido: true }) },
       { titulo: 'Custo por MQL', campo: 'custo_mql', render: (r) => cel(r, 'custo_mql', money, { invertido: true, crm: true }) },
       { titulo: 'Custo por SQL', campo: 'custo_sql', render: (r) => cel(r, 'custo_sql', money, { invertido: true, crm: true }) },
-      { titulo: 'Custo por RA', campo: 'custo_agendada', render: (r) => cel(r, 'custo_agendada', money, { invertido: true }) },
-      { titulo: 'Custo por RR', campo: 'custo_realizada', render: (r) => cel(r, 'custo_realizada', money, { invertido: true }) },
+      { titulo: 'Custo por RC', campo: 'custo_rc', render: (r) => cel(r, 'custo_rc', money, { invertido: true, crm: true }) },
+      { titulo: 'Custo por RR', campo: 'custo_realizada', render: (r) => cel(r, 'custo_realizada', money, { invertido: true, crm: true }) },
       { titulo: 'Lead → MQL', campo: 'lead_mql', render: (r) => taxa(r, 'lead_mql') },
-      { titulo: 'MQL → RA', campo: 'mql_ra', render: (r) => taxa(r, 'mql_ra') },
-      { titulo: 'RA → RR', campo: 'ra_rr', render: (r) => taxa(r, 'ra_rr') },
+      { titulo: 'MQL → RC', campo: 'mql_ra', render: (r) => taxa(r, 'mql_ra') },
+      { titulo: 'RC → RR', campo: 'ra_rr', render: (r) => taxa(r, 'ra_rr') },
       { titulo: 'Entraram nos grupos', campo: 'grupos', render: (r) => cel(r, 'grupos', fmtInt, { vazio: '' }) },
     ].map((c, i) => (i ? { ...c, num: true } : c));
     // Valores do período no nível de cima da linha, para a ordenação por coluna.

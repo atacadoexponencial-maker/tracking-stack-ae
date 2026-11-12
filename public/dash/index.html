@@ -2460,7 +2460,7 @@ mark.em-campo-ruim { background: rgba(210,74,63,0.14); color: var(--queda); bord
 <script src="/dash/arvore.js?v=2026-10-29a"></script>
 <script src="/dash/imersao.js?v=2026-11-10a"></script>
 <script src="/dash/cerebro.js?v=2026-11-10a"></script>
-<script src="/dash/visao-reuniao.js?v=2026-10-26o"></script>
+<script src="/dash/visao-reuniao.js?v=2026-11-12a"></script>
 <script src="/dash/detalhe-reunioes.js?v=2026-11-09c"></script>
 <script>
 (() => {
@@ -3270,7 +3270,7 @@ R.visao = async () => {
     else window.DetalheReunioes.desenhar($('#visao-detalhe-reunioes'), coorte, fSel, ctx, detalheReunioes);
   }
   // `s4`: respostas antigas (sem `crm`) guardadas no cache de período fechado não servem.
-  fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s4e`)
+  fetchJson(`/api/agenda/taxas?from=${p.de}&to=${p.ate}&antFrom=${p.antDe}&antTo=${p.antAte}&v=s9a`)
     .catch(() => null)
     .then((t) => { if (minha === renderAtual && secao === 'visao') desenhar(t); });
 };

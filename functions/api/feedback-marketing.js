@@ -173,7 +173,10 @@ export async function montarFeedback(env, periodo, avisosDoPeriodo, { emailsMql 
       const cards = leads ? leads.blocos.get(f.id) : null;
       bloco = montarBlocoLead({ funil: f, investimento: inv, cards });
       if (emailsMql && cards) {
-        bloco.emails_mql = cards.filter(ehMql).map((c) => String(lerCampo(c, { id: CU_FIELD.email }) || '').trim().toLowerCase());
+        const emailDe = (c) => String(lerCampo(c, { id: CU_FIELD.email }) || '').trim().toLowerCase();
+        bloco.emails_mql = cards.filter(ehMql).map(emailDe);
+        // Todos os cards novos, MQL ou não: base da RC (spec-funil-leads-novos.md, S9).
+        bloco.emails_novos = cards.map((c) => ({ email: emailDe(c), mql: ehMql(c) }));
       }
       if (contarSql && cards) bloco.sqls = cards.filter(ehSql).length;
       if (contarFaixas && cards) {

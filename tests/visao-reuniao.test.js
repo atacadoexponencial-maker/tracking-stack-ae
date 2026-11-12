@@ -182,8 +182,12 @@ const taxasCom = (atual, anterior) => ({
 });
 // { agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca }
 const co = (agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca, fora_do_registro = 0) => ({ agendadas, realizada, faltou, cancelada, a_acontecer, sem_presenca, fora_do_registro });
-const CRM_A = { 'sessao-estrategica': { leads_novos: 5, mqls: 3, sqls: 2, mqls_com_reuniao: 2 }, workshop: { leads_novos: 2, mqls: 1, sqls: 0, mqls_com_reuniao: 0 } };
-const CRM_B = { 'sessao-estrategica': { leads_novos: 4, mqls: 2, sqls: 1, mqls_com_reuniao: 1 }, workshop: { leads_novos: 2, mqls: 0, sqls: 0, mqls_com_reuniao: 0 } };
+// RC (série S9): { rc, rc_nao_mql, rc_realizada, rc_faltou, rc_sem_presenca, rc_a_acontecer, rc_fora_do_registro }
+const rcDe = (rc, realizada = 0, faltou = 0, sem_presenca = 0, a_acontecer = 0, nao_mql = 0, fora = 0) => ({
+  rc, rc_nao_mql: nao_mql, rc_realizada: realizada, rc_faltou: faltou, rc_sem_presenca: sem_presenca, rc_a_acontecer: a_acontecer, rc_fora_do_registro: fora,
+});
+const CRM_A = { 'sessao-estrategica': { leads_novos: 5, mqls: 3, sqls: 2, mqls_com_reuniao: 2, ...rcDe(4, 2, 1, 0, 1) }, workshop: { leads_novos: 2, mqls: 1, sqls: 0, mqls_com_reuniao: 0, ...rcDe(1, 1) } };
+const CRM_B = { 'sessao-estrategica': { leads_novos: 4, mqls: 2, sqls: 1, mqls_com_reuniao: 1, ...rcDe(3, 1, 1, 1) }, workshop: { leads_novos: 2, mqls: 0, sqls: 0, mqls_com_reuniao: 0, ...rcDe(1, 1) } };
 const RESPOSTAS = {
   leadsA: { funnelCounts: [{ funnel: 'sessao-estrategica', count: 6 }, { funnel: 'workshop', count: 4 }] },
   leadsB: { funnelCounts: [{ funnel: 'sessao-estrategica', count: 5 }, { funnel: 'workshop', count: 3 }] },
@@ -212,23 +216,25 @@ const RESPOSTAS = {
     anterior: { total: co(4, 2, 1, 0, 0, 1), por_funil: { 'sessao-estrategica': co(3, 1, 1, 0, 0, 1), workshop: co(1, 1, 0, 0, 0, 0) } },
   },
   taxas: taxasCom(
-    { crm_total: { leads_novos: 7, mqls: 4, sqls: 2 }, crm: CRM_A, mql: { leads_novos: 5, mqls: 3, mqls_com_reuniao: 2 }, total: { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 },
+    { crm_total: { leads_novos: 7, mqls: 4, sqls: 2, ...rcDe(5, 3, 1, 0, 1) }, crm: CRM_A, mql: { leads_novos: 5, mqls: 3, mqls_com_reuniao: 2 }, total: { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 },
       por_funil: { 'sessao-estrategica': { mqls: 3, mqls_com_reuniao: 2, ocorridas: 4, realizadas: 3 } },
       qualificacao: { abaixo: 2, acima: 3, nao_informado: 0, total: 5 } },
-    { crm_total: { leads_novos: 6, mqls: 2, sqls: 1 }, crm: CRM_B, mql: { leads_novos: 4, mqls: 2, mqls_com_reuniao: 1 }, total: { mqls: 2, mqls_com_reuniao: 1, ocorridas: 2, realizadas: 1 },
+    { crm_total: { leads_novos: 6, mqls: 2, sqls: 1, ...rcDe(4, 2, 1, 1) }, crm: CRM_B, mql: { leads_novos: 4, mqls: 2, mqls_com_reuniao: 1 }, total: { mqls: 2, mqls_com_reuniao: 1, ocorridas: 2, realizadas: 1 },
       por_funil: { 'sessao-estrategica': { mqls: 2, mqls_com_reuniao: 1, ocorridas: 2, realizadas: 1 } },
       qualificacao: { abaixo: 2, acima: 2, nao_informado: 0, total: 4 } },
   ),
   fSel: '', quando: 'nos últimos 7 dias',
 };
-const ETAPAS = ['Leads novos', 'MQL', 'SQL', 'Reunião agendada', 'Reunião realizada'];
+const ETAPAS = ['Leads novos', 'MQL', 'SQL', 'RC', 'RC realizada'];
 
-test('CA-S4-01: a Visão geral mostra a manchete, o funil da reunião e a lateral, sem os blocos antigos', () => {
+test('CA-S9-01: o funil mostra RC e RC realizada no lugar de Reunião agendada e realizada', () => {
   const { html } = telaCom(RESPOSTAS);
   assert.ok(html.indexOf('class="manchete"') < html.indexOf('vr-funil'), 'manchete antes do funil');
   assert.deepEqual(etapas(html).map((e) => e.rotulo), ETAPAS);
   assert.deepEqual(lateral(html).map((q) => q.rotulo), ['Investimento em ads', 'Leads', 'CPL']);
-  assert.deepEqual(passagens(html).map((p) => p.rotulo), ['Lead → MQL', 'MQL → RA', 'RA → RR'], 'taxas logo abaixo do funil');
+  assert.match(html, /<b>RC<\/b><small>reunião criada por lead novo<\/small>/, 'legenda da RC');
+  assert.ok(!html.includes('Reunião agendada'), 'não existe faixa Reunião agendada');
+  assert.deepEqual(passagens(html).map((p) => p.rotulo), ['Lead → MQL', 'MQL → RC', 'RC → RR'], 'taxas logo abaixo do funil');
   assert.ok(html.indexOf('vr-funil') < html.indexOf('vr-taxas'));
   for (const fora of ['Conversão geral', 'Visitantes', 'Receita', 'ROAS', 'Leads por dia', 'Conversão por LP', 'Metas', 'Agenda: do lead']) {
     assert.ok(!html.includes(fora), `não mostra ${fora}`);
@@ -259,32 +265,38 @@ test('CA-S4-06: filtro de funil vale para todos os quadros', () => {
   assert.equal(linhasFunil(se.tabela).length, 1);
 });
 
-test('CA-S4-07: CRM fora do ar não derruba a tela', () => {
+test('CA-S9-11: CRM fora do ar não derruba a tela', () => {
   for (const taxas of [null, { atual: { crm_lido: false, crm: null }, anterior: null }]) {
     const { html } = telaCom({ ...RESPOSTAS, taxas });
     const e = Object.fromEntries(etapas(html).map((x) => [x.rotulo, x]));
     assert.equal(e.MQL.num, '—');
     assert.equal(e.MQL.nota, 'sem dados do CRM');
     assert.equal(e.SQL.nota, 'sem dados do CRM');
-    for (const r of ['Leads novos', 'Reunião agendada', 'Reunião realizada']) assert.notEqual(e[r].num, '—', `${r} tem número`);
+    for (const r of ['RC', 'RC realizada']) {
+      assert.equal(e[r].num, '—');
+      assert.equal(e[r].nota, 'sem dados do CRM');
+    }
+    assert.notEqual(e['Leads novos'].num, '—', 'Leads novos tem número');
     assert.ok(lateral(html).every((q) => q.valor !== '—'), 'investimento, leads e CPL aparecem');
   }
 });
 
-test('CA-S4-08: três taxas de passagem dos leads novos', () => {
+test('CA-S9-08: taxas MQL → RC e RC → RR', () => {
+  // 12 MQLs novos, 6 com reunião; 1 lead novo não MQL com reunião; das 7 RC:
+  // 3 realizadas, 2 faltas e 2 ainda por acontecer.
   const atual = {
-    crm_total: { leads_novos: 50, mqls: 13, sqls: 0 },
+    crm_total: { leads_novos: 50, mqls: 13, sqls: 0, ...rcDe(7, 3, 2, 0, 2, 1) },
     crm: { 'sessao-estrategica': { leads_novos: 40, mqls: 12, sqls: 0 }, workshop: { leads_novos: 10, mqls: 1, sqls: 0 } },
     mql: { leads_novos: 40, mqls: 12, mqls_com_reuniao: 6 },
     total: { mqls: 13, mqls_com_reuniao: 7 }, por_funil: {},
   };
-  const coorte = { atual: { total: co(6, 3, 2, 1, 0, 0), por_funil: {} }, anterior: { total: co(6, 3, 2, 1, 0, 0), por_funil: {} } };
-  const p = passagens(telaCom({ ...RESPOSTAS, coorte, taxas: taxasCom(atual, atual) }).html);
+  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, atual) }).html);
   assert.deepEqual(p.map((x) => [x.rotulo, x.valor, x.detalhe.split(' · ')[0]]), [
     ['Lead → MQL', '30%', '12 de 40'],
-    ['MQL → RA', '50%', '6 de 12'],
-    ['RA → RR', '60%', '3 de 5'],
+    ['MQL → RC', '50%', '6 de 12'],
+    ['RC → RR', '60%', '3 de 5'],
   ]);
+  assert.match(p[2].detalhe, /2 a acontecer/);
 });
 
 test('CA-S4-09: RA → RR conta as reuniões do Calendly', async () => {
@@ -299,7 +311,9 @@ test('CA-S4-09: RA → RR conta as reuniões do Calendly', async () => {
   calendly.run('inv-a', 'ev-a', 'a@x.com', em('2026-10-10T11:00:00'), em('2026-10-21T16:00:00'), 'realizada'); // agendou antes: fora
   const resumo = resumirCoorte(await coorteDasAgendadas(env.DB, P.de, P.ate, AGORA));
   assert.deepEqual(resumo.total, co(4, 2, 1, 0, 1, 0));
-  const p = passagens(telaCom({ ...RESPOSTAS, coorte: { atual: resumo, anterior: null } }).html);
+  // Na tela (série S9), RC → RR usa as mesmas situações, agora das RC.
+  const atual = { ...RESPOSTAS.taxas.atual, crm_total: { leads_novos: 7, mqls: 4, sqls: 2, ...rcDe(4, 2, 1, 0, 1) } };
+  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, null) }).html);
   assert.equal(p[2].valor, '67%');
   assert.equal(p[2].detalhe, '2 de 3 · que já passaram · 1 a acontecer');
 });
@@ -426,22 +440,21 @@ test('ajuste 26/10: MQL e Lead → MQL olham só Sessão Estratégica + Aquisiç
   assert.equal(primeiro(etapas(aq)[1].num), '1', 'aquisição tem MQL');
 });
 
-test('ajuste 26/10: MQL → RA usa a base de MQL, RA → RR a coorte de agendamento', () => {
-  const atual = { ...RESPOSTAS.taxas.atual, mql: { leads_novos: 26, mqls: 16, mqls_com_reuniao: 10 } };
-  const coorte = { atual: { total: co(11, 1, 2, 1, 7, 0), por_funil: {} }, anterior: null };
-  const p = passagens(telaCom({ ...RESPOSTAS, coorte, taxas: taxasCom(atual, null) }).html);
+test('ajuste 26/10: MQL → RC usa a base de MQL, RC → RR as reuniões criadas por lead novo', () => {
+  const atual = { ...RESPOSTAS.taxas.atual, mql: { leads_novos: 26, mqls: 16, mqls_com_reuniao: 10 }, crm_total: { leads_novos: 30, mqls: 16, sqls: 0, ...rcDe(11, 1, 2, 0, 7) } };
+  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, null) }).html);
   assert.equal(p[1].detalhe.split(' · ')[0], '10 de 16');
-  assert.equal(p[2].detalhe.split(' · ')[0], '1 de 3', 'coorte: das agendadas no período, as que já passaram');
+  assert.equal(p[2].detalhe.split(' · ')[0], '1 de 3', 'das RC, as que já passaram');
 });
 
-test('ajuste 26/10: custo de cada etapa do funil', () => {
+test('CA-S9-09: custo por RC e por RC realizada, com o custo de cada etapa do funil', () => {
   const e = etapas(telaCom(RESPOSTAS).html);
   assert.deepEqual(e.map((x) => [x.custoRotulo, x.custo.split(' ').slice(0, 2).join(' ')]), [
     ['CPL lead novo', 'R$ 57.14'], // 400 ÷ 7
     ['por MQL', 'R$ 100.00'], // investimento da SE (300) ÷ 3 MQLs
     ['por SQL', 'R$ 200.00'], // 400 ÷ 2
-    ['por reunião agendada', 'R$ 60.00'],
-    ['por reunião realizada', 'R$ 100.00'],
+    ['por RC', 'R$ 60.00'], // R$ 300 dos funis que agendam ÷ 5 RC
+    ['por RC realizada', 'R$ 100.00'], // R$ 300 ÷ 3 realizadas
   ]);
 });
 
@@ -455,14 +468,14 @@ test('ajuste 26/10: faixas de faturamento com o comparativo da semana anterior',
 test('ajuste 26/10: tabela por funil com o funil completo e o investimento', () => {
   const { tabela } = telaCom(RESPOSTAS);
   assert.deepEqual(colunas(tabela), ['Funil', 'Investimento', 'Leads', 'Leads novos', 'MQL', 'SQL',
-    'Reunião agendada', 'Reunião realizada', 'CPL', 'CPL lead novo', 'Custo por MQL', 'Custo por SQL', 'Custo por RA', 'Custo por RR',
-    'Lead → MQL', 'MQL → RA', 'RA → RR', 'Entraram nos grupos']);
+    'RC', 'RC realizada', 'CPL', 'CPL lead novo', 'Custo por MQL', 'Custo por SQL', 'Custo por RC', 'Custo por RR',
+    'Lead → MQL', 'MQL → RC', 'RC → RR', 'Entraram nos grupos']);
   const [se, wo] = linhasComColunas(tabela);
   assert.equal(se.Funil, 'sessao-estrategica');
   assert.equal(se.Investimento.split(' ').slice(0, 2).join(' '), 'R$ 300.00');
   assert.equal(primeiro(se.MQL), '3');
   assert.equal(wo.MQL, '—', 'workshop não tem MQL');
-  assert.equal(wo['MQL → RA'], '—', 'workshop não agenda reunião');
+  assert.equal(wo['MQL → RC'], '—', 'workshop não tem MQL');
 });
 
 test('ajuste 26/10: consultoria do Calendly de antes de 19/10 sem presença fica fora do RA → RR', async () => {
@@ -475,6 +488,109 @@ test('ajuste 26/10: consultoria do Calendly de antes de 19/10 sem presença fica
   calendly.run('inv-3', 'ev-3', 'c@x.com', em('2026-10-15T10:00:00'), em('2026-10-21T14:00:00'), null); // depois do corte, sem marcar
   const resumo = resumirCoorte(await coorteDasAgendadas(env.DB, ANT.de, ANT.ate, AGORA));
   assert.deepEqual(resumo.total, co(3, 1, 0, 0, 0, 1, 1));
-  const p = passagens(telaCom({ ...RESPOSTAS, coorte: { atual: resumo, anterior: null } }).html);
+  const atual = { ...RESPOSTAS.taxas.atual, crm_total: { leads_novos: 7, mqls: 4, sqls: 2, ...rcDe(3, 1, 0, 1, 0, 0, 1) } };
+  const p = passagens(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, null) }).html);
   assert.equal(p[2].detalhe, '1 de 2 · que já passaram · 1 do Calendly antes de 19/10 fora da conta');
+});
+
+// ---------------------------------------------------------------------------
+// Série S9 (spec-funil-leads-novos.md): o funil é a coorte dos leads novos.
+// RC = card novo do período cujo e-mail tem reunião agendada desde o início
+// do período. Banco real + CRM simulado, e a tela com a resposta do servidor.
+// ---------------------------------------------------------------------------
+const emailDe = (c) => c.custom_fields.find((f) => f.id === CU_FIELD.email).value;
+// Reunião da agenda própria do e-mail: `criada` = quando agendou.
+function reuniaoDe(email, { situacao = 'marcada', criada = '2026-10-21T10:00:00', inicio = '2026-10-23T14:00:00' } = {}) {
+  seq++;
+  db.prepare(`INSERT INTO agenda_reunioes (id, tipo_id, inicio, fim, nome, email, funil, situacao, token_gestao, criado_em, atualizado_em)
+              VALUES (?, 1, ?, ?, 'X', ?, 'sessao-estrategica', ?, ?, ?, ?)`)
+    .run(`r${seq}`, em(inicio), em(inicio) + 2700, email, situacao, `t${seq}`, em(criada), em(criada));
+}
+// A tela com os números do CRM que o servidor devolveu (sem filtro de funil).
+function telaDoCrm(r) {
+  const atual = { ...RESPOSTAS.taxas.atual, crm: r.crm, crm_total: r.crm_total, mql: r.mql };
+  return Object.fromEntries(etapas(telaCom({ ...RESPOSTAS, taxas: taxasCom(atual, null) }).html).map((e) => [e.rotulo, e]));
+}
+
+test('CA-S9-02: lead antigo que agenda não entra no funil', async () => {
+  const novo = card(), antigo = card({ criado: '2026-10-01T10:00:00' });
+  reuniaoDe(emailDe(novo));
+  reuniaoDe(emailDe(antigo));
+  const r = await crmDaSe([novo, antigo]);
+  assert.equal(r.crm_total.rc, 1);
+  assert.equal(primeiro(telaDoCrm(r).RC.num), '1');
+});
+
+test('CA-S9-03: lead novo que não é MQL e agenda conta na RC, com observação', async () => {
+  const cards = [card(), card(), card({ faturamento: 'R$ 10.000' })];
+  for (const c of cards) reuniaoDe(emailDe(c));
+  const r = await crmDaSe(cards);
+  assert.equal(r.crm_total.rc, 3);
+  assert.equal(r.crm_total.rc_nao_mql, 1);
+  const rc = telaDoCrm(r).RC;
+  assert.equal(primeiro(rc.num), '3');
+  assert.equal(rc.nota, '1 de lead não MQL');
+});
+
+test('CA-S9-04: sem lead não MQL, a observação não aparece', async () => {
+  const cards = [card(), card()];
+  for (const c of cards) reuniaoDe(emailDe(c));
+  const r = await crmDaSe(cards);
+  const rc = telaDoCrm(r).RC;
+  assert.equal(primeiro(rc.num), '2');
+  assert.ok(!rc.nota.includes('não MQL'), 'sem observação de lead não MQL');
+});
+
+test('CA-S9-05: lead novo que agenda depois do fim do período conta na RC do período em que chegou', async () => {
+  const c = card({ criado: '2026-10-25T20:00:00' });
+  reuniaoDe(emailDe(c), { criada: '2026-10-27T10:00:00', inicio: '2026-10-29T14:00:00' });
+  const r = await crmDaSe([c]);
+  assert.equal(r.crm_total.rc, 1);
+  assert.equal(primeiro(telaDoCrm(r).RC.num), '1');
+});
+
+test('CA-S9-06: reunião cancelada não conta como RC', async () => {
+  const c = card();
+  reuniaoDe(emailDe(c), { situacao: 'cancelada' });
+  const r = await crmDaSe([c]);
+  assert.equal(r.crm_total.rc, 0);
+  assert.equal(primeiro(telaDoCrm(r).RC.num), '0');
+});
+
+test('CA-S9-07: RC realizada conta só as reuniões dos leads novos', async () => {
+  const fez = card(), faltou = card(), antigo = card({ criado: '2026-10-01T10:00:00' });
+  reuniaoDe(emailDe(fez), { situacao: 'realizada', inicio: '2026-10-22T14:00:00' });
+  // A falta veio pelo Calendly, com a presença marcada no dash.
+  db.prepare(`INSERT INTO calendly_consultorias (invitee_uri, event_uri, email, agendou_em, inicio, situacao, presenca, atualizado_em)
+              VALUES ('inv-f', 'ev-f', ?, ?, ?, 'ativa', 'faltou', 0)`)
+    .run(emailDe(faltou), em('2026-10-21T10:00:00'), em('2026-10-23T16:00:00'));
+  reuniaoDe(emailDe(antigo), { situacao: 'realizada', inicio: '2026-10-22T15:00:00' });
+  const r = await crmDaSe([fez, faltou, antigo]);
+  assert.equal(r.crm_total.rc, 2);
+  assert.equal(r.crm_total.rc_realizada, 1);
+  assert.equal(r.crm_total.rc_faltou, 1);
+  assert.equal(primeiro(telaDoCrm(r)['RC realizada'].num), '1');
+});
+
+test('CA-S9-10: filtro de funil vale para RC e RC realizada', () => {
+  // RESPOSTAS: 4 RC na Sessão Estratégica e 1 no workshop.
+  const wo = Object.fromEntries(etapas(telaCom({ ...RESPOSTAS, fSel: 'workshop' }).html).map((e) => [e.rotulo, e]));
+  assert.equal(primeiro(wo.RC.num), '1');
+  assert.equal(primeiro(wo['RC realizada'].num), '1');
+  const { tabela } = telaCom(RESPOSTAS);
+  const [se, w] = linhasComColunas(tabela);
+  assert.equal(primeiro(se.RC), '4');
+  assert.equal(primeiro(w.RC), '1');
+  for (const col of ['RC', 'RC realizada', 'Custo por RC', 'Custo por RR', 'MQL → RC', 'RC → RR']) {
+    assert.ok(colunas(tabela).includes(col), `coluna ${col}`);
+  }
+  assert.equal(primeiro(se['RC realizada']), '2');
+  assert.equal(se['Custo por RC'].split(' ').slice(0, 2).join(' '), 'R$ 75.00'); // R$ 300 ÷ 4
+  assert.equal(primeiro(se['RC → RR']), '67%'); // 2 realizadas de 3 que já passaram
+});
+
+test('CA-S9-12: números do funil comparados com o período anterior', () => {
+  const lado = (rc) => ({ ...RESPOSTAS.taxas.atual, crm_total: { leads_novos: 7, mqls: 4, sqls: 2, ...rcDe(rc, 1) } });
+  const e = Object.fromEntries(etapas(telaCom({ ...RESPOSTAS, taxas: taxasCom(lado(4), lado(2)) }).html).map((x) => [x.rotulo, x]));
+  assert.equal(e.RC.num, '4 ▲ 100%');
 });

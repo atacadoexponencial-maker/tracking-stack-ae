@@ -14,7 +14,7 @@
 import { montarFeedback } from '../feedback-marketing.js';
 import { resolverPeriodo } from '../_feedback-marketing-periodo.js';
 import { taxasPorFunil } from '../_agenda-funil.js';
-import { reunioesAgendadas, emailsComReuniao, funisDasReunioes } from '../_reunioes-agendadas.js';
+import { reunioesAgendadas, emailsComReuniao, reuniaoPorEmail, funisDasReunioes } from '../_reunioes-agendadas.js';
 import { CORTE_CALENDLY, DURACAO_CALENDLY } from '../_agenda-regras.js';
 import { ymdBrt } from '../_data-brt.js';
 import { respostaEmCache, respostaJson } from '../_cache.js';
@@ -26,7 +26,14 @@ const autorizado = (url, env) => !!env.DASH_KEY && url.searchParams.get('key') =
  * { funil_tracking: { leads_novos, mqls, sqls, mqls_com_reuniao } } a partir dos
  * blocos do relatório. sqls: cards com o campo "🏆 SQL" (série S4). mqls_com_reuniao: cards MQL do período cujo e-mail tem
  * reunião agendada desde `de` (MQL → RA por coorte, spec-reunioes-calendly.md).
+ * RC (spec-funil-leads-novos.md, S9): cards NOVOS do período, MQL ou não, cujo
+ * e-mail tem reunião agendada desde `de`; `rc_nao_mql` os que não são MQL e
+ * `rc_<situação>` o que aconteceu com a reunião até `agora`.
  */
+export const SITUACOES_RC = ['realizada', 'faltou', 'sem_presenca', 'a_acontecer', 'fora_do_registro'];
+export const CAMPOS_RC = ['rc', 'rc_nao_mql', ...SITUACOES_RC.map((s) => `rc_${s}`)];
+const rcZerada = () => Object.fromEntries(CAMPOS_RC.map((k) => [k, 0]));
+
 export async function lerCrm(env, de, ate, agora) {
   try {
     const r = resolverPeriodo({ inicio: ymdBrt(de), fim: ymdBrt(Math.min(ate, agora)) }, agora);
@@ -43,18 +50,32 @@ export async function lerCrm(env, de, ate, agora) {
       }
       const f = funis.find((x) => x.nome === b.nome && x.posicao === b.posicao);
       const chave = (f && f.funil_tracking) || b.nome;
-      porFunil[chave] = porFunil[chave] || { leads_novos: 0, mqls: 0, sqls: 0, mqls_com_reuniao: 0, emails: [], faixas: { abaixo: 0, acima: 0, nao_informado: 0 } };
+      porFunil[chave] = porFunil[chave] || { leads_novos: 0, mqls: 0, sqls: 0, mqls_com_reuniao: 0, ...rcZerada(), emails: [], novos: [], faixas: { abaixo: 0, acima: 0, nao_informado: 0 } };
       for (const k of Object.keys(porFunil[chave].faixas)) porFunil[chave].faixas[k] += (b.faixas && b.faixas[k]) || 0;
       porFunil[chave].leads_novos += m.novos_leads;
       porFunil[chave].mqls += m.mqls;
       porFunil[chave].sqls += b.sqls || 0;
       porFunil[chave].emails.push(...(b.emails_mql || []));
+      porFunil[chave].novos.push(...(b.emails_novos || []));
     }
     // Um card por MQL: o mesmo e-mail em dois cards conta duas vezes, como no denominador.
     const com = await emailsComReuniao(env.DB, Object.values(porFunil).flatMap((x) => x.emails), de);
     for (const x of Object.values(porFunil)) {
       x.mqls_com_reuniao = x.emails.filter((e) => e && com.has(e)).length;
       delete x.emails;
+    }
+    // RC: um card novo por reunião criada, como no MQL → RA (o mesmo e-mail em
+    // dois cards conta duas vezes).
+    const reunioes = await reuniaoPorEmail(env.DB, Object.values(porFunil).flatMap((x) => x.novos.map((n) => n.email)), de, agora);
+    for (const x of Object.values(porFunil)) {
+      for (const n of x.novos) {
+        const situacao = n.email ? reunioes.get(n.email) : null;
+        if (!situacao) continue;
+        x.rc += 1;
+        if (!n.mql) x.rc_nao_mql += 1;
+        x[`rc_${situacao}`] += 1;
+      }
+      delete x.novos;
     }
     return porFunil;
   } catch (e) {
@@ -114,12 +135,13 @@ const comTotal = (fx) => ({ ...fx, total: fx.abaixo + fx.acima + fx.nao_informad
 export function numerosDoCrm(crm) {
   if (!crm) return { crm: null, crm_total: null, mql: null, qualificacao: null, mql_funis: MQL_FUNIS };
   const porFunil = {};
-  const total = { leads_novos: 0, mqls: 0, sqls: 0 };
+  const total = { leads_novos: 0, mqls: 0, sqls: 0, ...rcZerada() };
   const mql = { leads_novos: 0, mqls: 0, mqls_com_reuniao: 0 };
   const fx = { ...SEM_FAIXA };
   for (const [f, x] of Object.entries(crm)) {
     porFunil[f] = {
       leads_novos: x.leads_novos, mqls: x.mqls, sqls: x.sqls || 0, mqls_com_reuniao: x.mqls_com_reuniao || 0,
+      ...Object.fromEntries(CAMPOS_RC.map((k) => [k, x[k] || 0])),
       faixas: comTotal({ ...SEM_FAIXA, ...(x.faixas || {}) }),
     };
     for (const k of Object.keys(total)) total[k] += porFunil[f][k];

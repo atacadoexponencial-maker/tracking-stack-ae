@@ -110,6 +110,50 @@ export async function emailsComReuniao(DB, emails, desde) {
   return com;
 }
 
+// Lead com mais de uma reunião conta uma vez, pela situação mais avançada
+// (SUP-S9-06): realizada, a acontecer, sem presença, faltou.
+const ORDEM_RC = ['realizada', 'a_acontecer', 'sem_presenca', 'faltou', 'fora_do_registro'];
+
+/**
+ * Map(e-mail → situação) da reunião de cada e-mail agendada a partir de `desde`
+ * (sem limite no fim), com a mesma seleção de `emailsComReuniao`. É a base da
+ * RC, a reunião criada por lead novo (spec-funil-leads-novos.md, S9). Situação
+ * como em `statusNaCoorte`, vista de `agora`. Calendly com erro conta só a
+ * agenda própria.
+ */
+export async function reuniaoPorEmail(DB, emails, desde, agora) {
+  const procurados = new Set((emails || []).map(normalizar).filter(Boolean));
+  const por = new Map();
+  if (!procurados.size) return por;
+  const guardar = (email, status) => {
+    const e = normalizar(email);
+    if (!procurados.has(e)) return;
+    const atual = por.get(e);
+    if (!atual || ORDEM_RC.indexOf(status) < ORDEM_RC.indexOf(atual)) por.set(e, status);
+  };
+  const { results: agenda } = await DB.prepare(`
+    SELECT email, situacao, inicio, fim FROM agenda_reunioes
+     WHERE comercial = 1 AND is_teste = 0 AND situacao != 'cancelada' AND criado_em >= ?
+       AND tipo_id NOT IN (SELECT id FROM agenda_tipos WHERE teste = 1)`,
+  ).bind(desde).all();
+  for (const r of agenda || []) guardar(r.email, statusNaCoorte(r, agora));
+  try {
+    const lista = [...procurados];
+    for (let i = 0; i < lista.length; i += LOTE) {
+      const lote = lista.slice(i, i + LOTE);
+      const { results } = await DB.prepare(`
+        SELECT email, presenca, inicio, COALESCE(fim, inicio + ?) AS fim FROM calendly_consultorias
+         WHERE situacao = 'ativa' AND marcada_pela_equipe = 0 AND agendou_em >= ?
+           AND email IN (${lote.map(() => '?').join(', ')})`,
+      ).bind(DURACAO_CALENDLY, desde, ...lote).all();
+      for (const c of results || []) guardar(c.email, statusNaCoorte({ ...c, origem: 'calendly' }, agora));
+    }
+  } catch (e) {
+    console.error('reuniões por e-mail: Calendly', e.message);
+  }
+  return por;
+}
+
 /**
  * Funil de cada reunião pelo lead do mesmo e-mail. `itens` = [{ email, quando,
  * funil }] (`funil` = o gravado, usado só quando não há lead). Sem a busca dos
