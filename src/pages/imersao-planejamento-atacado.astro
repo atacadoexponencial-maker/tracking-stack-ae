@@ -216,7 +216,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
         <ul class="ipa-marcas__faixa">
           {marcas.map((m) => (
             <li class="ipa-marca">
-              <a href={`https://www.instagram.com/${m.arroba}/`} target="_blank" rel="noopener" class="ipa-marca__link">
+              <button type="button" class="ipa-marca__link" data-ampliar aria-label={`Ampliar o perfil @${m.arroba}`}>
                 <Image
                   src={m.img}
                   alt={`Perfil @${m.arroba} no Instagram`}
@@ -229,7 +229,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
                   <span class="ipa-marca__nicho">{m.nicho}</span>
                   <span class="ipa-marca__arroba">@{m.arroba}</span>
                 </span>
-              </a>
+              </button>
             </li>
           ))}
         </ul>
@@ -251,6 +251,9 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
             ))}
           </ul>
           <p class="ipa-sinais__fecho">Se isso soa familiar, a Imersão é para você.</p>
+          <a class="ipa-botao ipa-botao--escuro ipa-sinais__botao" href={HREF_COMPRA} data-checkout>
+            <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+          </a>
         </div>
       </section>
 
@@ -417,8 +420,28 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
           <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
           <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
         </a>
+        <div class="ipa-progresso ipa-preco-bloco">
+          <div class="ipa-progresso__trilho" aria-hidden="true">
+            <span class="ipa-progresso__cheio" data-progresso-fill></span>
+          </div>
+          <p class="ipa-progresso__texto">
+            <strong data-lote>{LOTE_INICIAL.rotulo}</strong> de <s>{VALOR_CHEIO_IMERSAO}</s> por
+            <strong data-preco>{LOTE_INICIAL.valor}</strong>
+            <span class="ipa-progresso__prazo" data-ate-linha>· vale até <span data-ate>{LOTE_INICIAL.ate}</span></span>
+            <span class="ipa-progresso__prox" data-proximo-curto>· próximo lote: {PROXIMO_INICIAL}</span>
+          </p>
+        </div>
       </div>
     </section>
+
+    <!-- Print do perfil ampliado. Decisão da usuária em 12/11: o card não leva
+         mais ao Instagram (tirava a pessoa da página); o toque só amplia. -->
+    <dialog class="ipa-zoom" aria-label="Perfil ampliado">
+      <img class="ipa-zoom__img" alt="" />
+      <button type="button" class="ipa-zoom__fechar" aria-label="Fechar">
+        <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+      </button>
+    </dialog>
   </div>
 </BaseLayout>
 
@@ -673,6 +696,11 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   .ipa-progresso__texto strong {
     color: #fff;
   }
+  /* O preço é o argumento da primeira tela: maior que o resto da linha. */
+  .ipa-hero .ipa-progresso__texto [data-preco] {
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+  }
   .ipa-progresso--claro .ipa-progresso__trilho {
     background: rgba(30, 30, 30, 0.14);
   }
@@ -731,6 +759,12 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   .ipa-marca__link {
     position: relative;
     display: block;
+    width: 100%;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: zoom-in;
     aspect-ratio: 422 / 600;
     border-radius: 10px;
     overflow: hidden;
@@ -770,6 +804,53 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     color: #fff;
     letter-spacing: -0.01em;
     overflow-wrap: anywhere;
+  }
+  /* Print ampliado */
+  .ipa-zoom {
+    margin: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+  }
+  .ipa-zoom::backdrop {
+    background: rgba(23, 23, 23, 0.88);
+  }
+  .ipa-zoom__img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: min(92vw, 30rem);
+    max-height: 86svh;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.9);
+    cursor: zoom-out;
+  }
+  .ipa-zoom__fechar {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: var(--carvao);
+    color: var(--bege);
+    cursor: pointer;
+  }
+  .ipa-zoom__fechar .ipa-icone {
+    width: 1.2rem;
+    height: 1.2rem;
+    stroke-width: 2.2;
+  }
+  .ipa-zoom__fechar:focus-visible {
+    outline: 2px solid var(--bege);
+    outline-offset: 3px;
   }
   .ipa-marcas__titulo {
     max-width: 76rem;
@@ -875,6 +956,9 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     font-size: clamp(1.25rem, 3vw, 1.75rem);
     font-weight: 700;
     letter-spacing: -0.02em;
+  }
+  .ipa-sinais__botao {
+    justify-self: start;
   }
 
   /* ---- 6. Felipe ------------------------------------------------------------- */
@@ -1239,6 +1323,10 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     text-align: center;
     gap: 2rem;
   }
+  .ipa-fechamento .ipa-progresso {
+    margin-top: -0.75rem;
+    text-align: center;
+  }
   .ipa-fechamento__titulo {
     max-width: 22ch;
     font-size: clamp(1.5rem, 4.2vw, 2.4rem);
@@ -1246,6 +1334,18 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     letter-spacing: -0.035em;
     text-transform: uppercase;
     text-wrap: balance;
+  }
+
+  /* ---- Celular de tela curta (ex.: navegador de dentro do Instagram): a foto
+     encolhe e o texto sobe, para o botão e o preço caberem na primeira tela. */
+  @media (max-width: 879px) and (max-height: 700px) {
+    .ipa-hero__foto,
+    .ipa-hero__veu {
+      height: max(42svh, 17rem);
+    }
+    .ipa-hero__corpo {
+      padding-top: clamp(6rem, 16svh, 12rem);
+    }
   }
 
   /* ---- Celular estreito: botão ocupa a largura --------------------------------- */
@@ -1268,13 +1368,16 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   }
 
   /* ---- Aviso de cookies menor SÓ nesta página (decisão da usuária, 12/11):
-     no celular ele cobria o botão e o preço do topo. O componente é do site
-     inteiro e não foi tocado. ------------------------------------------------ */
+     no celular ele cobria o botão e o preço do topo, então fica compacto e no
+     alto da tela. O componente é do site inteiro e não foi tocado. ------------------------------------------------ */
   @media (max-width: 767px) {
     :global(body:has(.ipa) .aviso-cookies) {
       left: 8px;
       right: 8px;
-      bottom: calc(8px + env(safe-area-inset-bottom));
+      /* No alto, sobre a faixa do logo: embaixo ele cobria o botão do topo em
+         celular de tela curta (navegador de dentro do Instagram). */
+      top: calc(8px + env(safe-area-inset-top));
+      bottom: auto;
       gap: 0.6rem;
       padding: 0.45rem 0.5rem 0.45rem 0.7rem;
       border-radius: 0.5rem;
@@ -1349,7 +1452,8 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
       position: sticky;
       top: 2rem;
     }
-    .ipa-sinais__fecho {
+    .ipa-sinais__fecho,
+    .ipa-sinais__botao {
       grid-column: 1 / -1;
     }
     .ipa-felipe__grade {
@@ -1510,4 +1614,23 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   }
 
   if (wrapper) ligarCheckout(wrapper);
+
+  // Prints das marcas: o toque amplia a foto (não sai da página).
+  const zoom = document.querySelector('.ipa-zoom') as HTMLDialogElement | null;
+  const zoomImg = zoom?.querySelector('.ipa-zoom__img') as HTMLImageElement | null;
+  if (zoom && zoomImg && typeof zoom.showModal === 'function') {
+    document.querySelectorAll('[data-ampliar]').forEach((card) => {
+      card.addEventListener('click', () => {
+        const img = card.querySelector('img');
+        if (!img) return;
+        // Maior versão que o site gerou do print (a última do srcset).
+        const maior = (img.getAttribute('srcset') || '').split(',').pop()?.trim().split(' ')[0];
+        zoomImg.src = maior || img.currentSrc || img.src;
+        zoomImg.alt = img.alt;
+        zoom.showModal();
+      });
+    });
+    // Toque na foto, no fundo ou no X fecha; o Esc já fecha sozinho.
+    zoom.addEventListener('click', () => zoom.close());
+  }
 </script>
