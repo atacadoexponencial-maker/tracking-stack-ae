@@ -437,7 +437,8 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     <!-- Print do perfil ampliado. Decisão da usuária em 12/11: o card não leva
          mais ao Instagram (tirava a pessoa da página); o toque só amplia. -->
     <dialog class="ipa-zoom" aria-label="Perfil ampliado">
-      <img class="ipa-zoom__img" alt="" />
+      {/* Nasce com o primeiro print (só carrega se o diálogo abrir); o script troca pelo print tocado. */}
+      <img class="ipa-zoom__img" src={igDiamandi.src} alt="" loading="lazy" />
       <button type="button" class="ipa-zoom__fechar" aria-label="Fechar">
         <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
       </button>
