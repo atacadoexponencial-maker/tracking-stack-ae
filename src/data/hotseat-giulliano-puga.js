@@ -8,19 +8,19 @@
 // A ordem do array é a ordem das colunas na planilha (depois de Data/hora).
 // Sem prazo de encerramento (decisão dela em 11/11).
 
-// Uma pergunta por tela (mesmo desenho da aplicação do plano ao vivo, pedido
-// dela em 11/11). Em 12/11 ela tirou nome, WhatsApp e e-mail: é só para
-// mentorados, o @ da marca já identifica quem respondeu.
-export const TOTAL_ETAPAS = 3;
+// Mesmo desenho da aplicação do plano ao vivo (pedido dela em 11/11). Em 12/11
+// ela tirou nome, WhatsApp e e-mail (é só para mentorados, o @ da marca já
+// identifica quem respondeu) e pediu as três perguntas numa tela só.
+export const TOTAL_ETAPAS = 1;
 
 export const PERGUNTAS = [
   { name: 'instagram', etapa: 1, tipo: 'texto', rotulo: 'Qual é o @ do Instagram da sua marca?', coluna: 'Instagram da marca', placeholder: '@suamarca' },
   {
-    name: 'participa', etapa: 2, tipo: 'uma', rotulo: 'Você se compromete a participar ao vivo na segunda, 16/11, das 20h às 22h?', coluna: 'Vai participar',
+    name: 'participa', etapa: 1, tipo: 'uma', rotulo: 'Você se compromete a participar ao vivo na segunda, 16/11, das 20h às 22h?', coluna: 'Vai participar',
     opcoes: ['Sim, eu vou', 'Não consigo'],
   },
   {
-    name: 'analise', etapa: 3, tipo: 'uma', rotulo: 'Quer que a sua marca concorra a uma análise do Giulliano Puga?', coluna: 'Quer análise',
+    name: 'analise', etapa: 1, tipo: 'uma', rotulo: 'Quer que a sua marca concorra a uma análise do Giulliano Puga?', coluna: 'Quer análise',
     opcoes: ['Sim, quero', 'Só vou assistir'],
   },
 ];

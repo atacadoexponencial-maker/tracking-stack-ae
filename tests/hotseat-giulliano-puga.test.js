@@ -23,8 +23,8 @@ function pedido(corpo, ua = UA) {
 
 test('3 perguntas na ordem pedida e cabeçalho com data e origem', () => {
   assert.deepEqual(PERGUNTAS.map((p) => p.name), ['instagram', 'participa', 'analise']);
-  assert.deepEqual(PERGUNTAS.map((p) => p.etapa), [1, 2, 3]);
-  assert.equal(TOTAL_ETAPAS, 3);
+  assert.deepEqual(PERGUNTAS.map((p) => p.etapa), [1, 1, 1]);
+  assert.equal(TOTAL_ETAPAS, 1);
   assert.deepEqual(CABECALHO, ['Data/hora', 'Instagram da marca', 'Vai participar', 'Quer análise', 'Origem']);
 });
 
