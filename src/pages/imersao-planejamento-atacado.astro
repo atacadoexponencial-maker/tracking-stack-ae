@@ -18,7 +18,7 @@ import { Image } from 'astro:assets';
 import logo from '../assets/brand/logo.png';
 import fotoQuadro from '../assets/imersao/felipe-quadro.jpg';
 import fotoNotebook from '../assets/imersao/felipe-notebook.jpg';
-import fotoMesa from '../assets/imersao/felipe-mesa.jpg';
+import fotoRetrato from '../assets/imersao/felipe-retrato.jpg';
 import { LOTES_IMERSAO, VALOR_CHEIO_IMERSAO } from '../data/lotes-imersao.js';
 import { textoProximo } from '../data/lotes-workshop.js';
 import { DEPOIMENTOS_HOME } from '../data/depoimentos.js';
@@ -27,6 +27,7 @@ import igLazarf from '../assets/marcas-imersao/ig-lazarf.jpg';
 import igUp from '../assets/marcas-imersao/ig-upsemijoia.jpg';
 import igValentt from '../assets/marcas-imersao/ig-valentt.jpg';
 import igWillinha from '../assets/marcas-imersao/ig-willinha.jpg';
+import igUzzy from '../assets/marcas-imersao/ig-uzzy.jpg';
 
 // ---------------------------------------------------------------------------
 // Destino de compra: PONTO ÚNICO de configuração.
@@ -58,6 +59,8 @@ const marcas = [
   { img: igUp, arroba: 'up_semijoia', nicho: 'semijoias' },
   { img: igValentt, arroba: 'valenttmodaa', nicho: 'vestuário' },
   { img: igWillinha, arroba: 'barracadowillinha', nicho: 'moda feminina' },
+  // Print capturado em 13/11.
+  { img: igUzzy, arroba: 'uzzytshirt.atacado', nicho: 't-shirts femininas' },
 ];
 
 const plano = [
@@ -116,7 +119,7 @@ const faqs = [
   },
 ];
 
-const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu atacado em 2027.';
+const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu atacado em 2027';
 ---
 
 <BaseLayout
@@ -146,14 +149,17 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
         <Image src={logo} alt="Atacado Exponencial" height={72} class="ipa-topo__logo" />
         <p class="ipa-topo__data">
           <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /></svg>
-          <span>12/12<span class="ipa-topo__dia">, sábado</span></span><span class="ipa-topo__extra"><span class="ipa-topo__sep" aria-hidden="true">·</span>Ao vivo no Google Meet</span><span class="ipa-topo__sep" aria-hidden="true">·</span><span>9h30 às 17h30</span>
+          <span>12/12, sábado</span><span class="ipa-topo__sep" aria-hidden="true">·</span><span>Ao vivo no Google Meet</span><span class="ipa-topo__sep" aria-hidden="true">·</span><span>9h30 às 17h30</span>
         </p>
       </div>
 
       <div class="ipa-hero__corpo">
+        <!-- No celular a linha de tags não cabe ao lado do logo: sai da faixa do
+             topo e vem inteira aqui, acima do título (mesmo texto do computador). -->
+        <p class="ipa-hero__tags">12/12, sábado · Ao vivo no Google Meet · 9h30 às 17h30</p>
         <h1 class="ipa-hero__titulo">{HEADLINE}</h1>
         <p class="ipa-hero__sub">
-          Com o Felipe Santos, mentor de marcas que somam mais de R$&nbsp;20&nbsp;milhões por ano.
+          Com o Felipe Santos, mentor de marcas que somam mais de R$&nbsp;600&nbsp;milhões por ano.
           Você monta para o seu atacado o mesmo plano que essas marcas usam para crescer.
         </p>
         <!-- O botão do topo sempre leva à seção de preço, nunca direto ao checkout. -->
@@ -367,8 +373,8 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
           </div>
           <div class="ipa-felipe__foto">
             <Image
-              src={fotoMesa}
-              alt="Felipe Santos no escritório"
+              src={fotoRetrato}
+              alt="Retrato de Felipe Santos ajeitando os óculos"
               widths={[480, 800, 1100]}
               sizes="(min-width: 880px) 40vw, 100vw"
               loading="lazy"
@@ -482,7 +488,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     stroke-linejoin: round;
   }
   .ipa-h2 {
-    font-size: clamp(1.9rem, 4.4vw, 3.4rem);
+    font-size: clamp(1.7rem, 4.4vw, 3.4rem);
     line-height: 0.98;
     letter-spacing: -0.03em;
     text-transform: uppercase;
@@ -622,16 +628,19 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     color: rgba(255, 255, 255, 0.4);
     margin-inline: 0.1rem;
   }
-  .ipa-topo__extra {
-    display: none;
+  .ipa-hero__tags {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--bege);
+    margin-bottom: -0.35rem;
   }
-  .ipa-topo__extra .ipa-topo__sep {
-    margin-inline-end: 0.45rem;
-  }
-  @media (max-width: 400px) {
-    .ipa-topo__dia {
+  @media (max-width: 719px) {
+    .ipa-topo__data {
       display: none;
     }
+  }
+  @media (max-width: 400px) {
     .ipa-topo__logo {
       height: 1.35rem;
     }
@@ -649,7 +658,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   }
   .ipa-hero__titulo {
     max-width: 19ch;
-    font-size: clamp(2.1rem, 8.6vw, 3.6rem);
+    font-size: clamp(1.9rem, 7.7vw, 3.6rem);
     line-height: 1;
     letter-spacing: -0.035em;
     text-transform: uppercase;
@@ -997,7 +1006,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     width: 100%;
     aspect-ratio: 4 / 5;
     object-fit: cover;
-    object-position: 40% 30%;
+    object-position: 50% 12%;
     border-radius: 10px;
     display: block;
   }
@@ -1393,8 +1402,8 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
 
   /* ---- Tablet em diante ----------------------------------------------------------- */
   @media (min-width: 720px) {
-    .ipa-topo__extra {
-      display: inline;
+    .ipa-hero__tags {
+      display: none;
     }
     .ipa-destaque {
       grid-template-columns: repeat(3, auto);
@@ -1505,8 +1514,10 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   }
 
   @media (min-width: 1200px) {
+    /* "safe": centraliza só quando os cards cabem; se passarem da tela, a
+       faixa começa na esquerda e rola (sem cortar o primeiro card). */
     .ipa-marcas__faixa {
-      justify-content: center;
+      justify-content: safe center;
     }
   }
 
