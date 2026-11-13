@@ -45,7 +45,9 @@ export async function onRequest(context) {
     // esta linha impede que a visita vire sessão.
     && !url.pathname.startsWith('/aplicacao-plano-ao-vivo')
     // Hotseat com Giulliano Puga (16/11/2026): marketing interno, mesma regra.
-    && !url.pathname.startsWith('/hotseat-giulliano-puga');
+    && !url.pathname.startsWith('/hotseat-giulliano-puga')
+    // Inscrição do grupo gratuito na mesma mentoria: mesma regra.
+    && !url.pathname.startsWith('/mentoria-giulliano-puga');
 
   if (!isPageRequest) {
     return next();

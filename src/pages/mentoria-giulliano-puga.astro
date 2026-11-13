@@ -1,0 +1,19 @@
+---
+/**
+ * Mentoria em Grupo com Giulliano Puga (segunda, 16/11/2026, 20h às 22h):
+ * inscrição do grupo gratuito, de onde saem duas marcas para participar.
+ * Mesma página dos mentorados (/hotseat-giulliano-puga) com outros textos e
+ * com nome, WhatsApp e e-mail. Sem medição nenhuma (SemRastreioLayout +
+ * exclusão em functions/_middleware.js): a resposta vai só para a planilha.
+ */
+import SemRastreioLayout from '../layouts/SemRastreioLayout.astro';
+import HotseatGiullianoPugaForm from '../components/HotseatGiullianoPugaForm.astro';
+import * as dados from '../data/mentoria-giulliano-puga.js';
+---
+
+<SemRastreioLayout
+  title="Mentoria em Grupo com Giulliano Puga | Atacado Exponencial"
+  description="Duas marcas do grupo gratuito vão participar da Mentoria em Grupo com Giulliano Puga, da Labellamafia. Segunda, 16/11, das 20h às 22h. Inscreva a sua."
+>
+  <HotseatGiullianoPugaForm dados={dados} />
+</SemRastreioLayout>

@@ -94,14 +94,26 @@ async function chamar(env, subject, url, opcoes, fetchImpl) {
  * Acrescenta `linha` no fim da aba. Se a primeira linha estiver vazia, grava
  * `cabecalho` nela antes. Com `atualizarCabecalho`, a primeira linha também é
  * regravada quando está diferente de `cabecalho` (colunas que mudaram; as
- * células que sobram à direita ficam vazias). RAW: o Google guarda tudo como texto, então resposta
+ * células que sobram à direita ficam vazias). Com `criarAba`, a aba é criada
+ * quando ainda não existe na planilha. RAW: o Google guarda tudo como texto, então resposta
  * começando com "=" nunca vira fórmula.
  */
-export async function acrescentarLinha(env, { subject, planilha, aba, cabecalho, linha, atualizarCabecalho = false }, fetchImpl = fetch) {
+export async function acrescentarLinha(env, { subject, planilha, aba, cabecalho, linha, atualizarCabecalho = false, criarAba = false }, fetchImpl = fetch) {
   const base = `${SHEETS}/${encodeURIComponent(planilha)}/values`;
   const faixa = (r) => encodeURIComponent(`'${aba}'!${r}`);
 
-  const topo = await chamar(env, subject, `${base}/${faixa('1:1')}`, { method: 'GET' }, fetchImpl);
+  let topo;
+  try {
+    topo = await chamar(env, subject, `${base}/${faixa('1:1')}`, { method: 'GET' }, fetchImpl);
+  } catch (e) {
+    // Aba que não existe: o Google responde 400 ("Unable to parse range").
+    if (!criarAba || e.status !== 400) throw e;
+    await chamar(env, subject, `${SHEETS}/${encodeURIComponent(planilha)}:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: aba } } }] }),
+    }, fetchImpl);
+    topo = {};
+  }
   const atual = topo.values?.[0] ?? [];
   const diferente = atualizarCabecalho && (atual.length !== cabecalho.length || cabecalho.some((c, i) => c !== atual[i]));
   if (!atual.length || diferente) {

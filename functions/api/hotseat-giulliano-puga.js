@@ -8,11 +8,12 @@
 // vira linha. Mesmo molde de functions/api/aplicacao-plano-ao-vivo.js.
 
 import { detectBot, detectBotPorIp } from '../_bots.js';
+import { padronizarTelefone } from '../_telefone.js';
 import { acrescentarLinha } from './_google-planilha.js';
 import { validarResposta, PERGUNTAS, CABECALHO } from '../../src/data/hotseat-giulliano-puga.js';
 
 // Criada em 11/11/2026 (dona: felipe@seteads.com; marcelle@seteads.com edita).
-const PLANILHA = '16GJ63r2QjOzMWFMQlfd-du-vbNbjqDZbcdDbz7osoig';
+export const PLANILHA = '16GJ63r2QjOzMWFMQlfd-du-vbNbjqDZbcdDbz7osoig';
 const ABA = 'Página1';
 const CONTA = 'marcelle@seteads.com';
 const MAX_CORPO = 5000;
@@ -30,7 +31,19 @@ function dataHoraBrasilia(ms) {
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}:${p.second}`;
 }
 
-export async function processarResposta({ request, env, agoraMs = Date.now(), gravar = acrescentarLinha }) {
+const MENTORADOS = {
+  nome: 'hotseat-giulliano-puga', validar: validarResposta, perguntas: PERGUNTAS, cabecalho: CABECALHO,
+  // atualizarCabecalho: as colunas mudaram em 12/11 (saíram nome, WhatsApp e e-mail).
+  planilha: PLANILHA, aba: ABA, opcoes: { atualizarCabecalho: true },
+};
+
+export const processarResposta = (contexto) => processarCom(MENTORADOS, contexto);
+
+/**
+ * Processamento comum às duas páginas da mentoria (mentorados e grupo gratuito,
+ * em mentoria-giulliano-puga.js). `cfg` diz as perguntas e onde gravar.
+ */
+export async function processarCom(cfg, { request, env, agoraMs = Date.now(), gravar = acrescentarLinha }) {
   const ua = request.headers.get('user-agent') || '';
   const ip = request.headers.get('cf-connecting-ip') || '';
   if (detectBot(ua).isBot || detectBotPorIp(ip).isBot) return json({ ok: true });
@@ -40,21 +53,28 @@ export async function processarResposta({ request, env, agoraMs = Date.now(), gr
   let corpo;
   try { corpo = JSON.parse(texto); } catch { return json({ ok: false, erro: 'json' }, 400); }
 
-  const v = validarResposta(corpo?.respostas);
+  const v = cfg.validar(corpo?.respostas);
   if (!v.ok) return json({ ok: false, campo: v.campo }, 400);
+
+  // Telefone: mesma regra única do servidor usada no /tracker.
+  for (const p of cfg.perguntas) {
+    if (p.tipo !== 'telefone') continue;
+    const tel = padronizarTelefone(v.valores[p.name]);
+    if (tel.situacao === 'impossivel' || tel.situacao === 'ausente') return json({ ok: false, campo: p.name }, 400);
+    v.valores[p.name] = tel.digitos;
+  }
 
   const origem = String(corpo?.origem || '').slice(0, 500);
   const linha = [
     dataHoraBrasilia(agoraMs),
-    ...PERGUNTAS.map((p) => v.valores[p.name]),
+    ...cfg.perguntas.map((p) => v.valores[p.name]),
     origem,
   ];
 
   try {
-    // atualizarCabecalho: as colunas mudaram em 12/11 (saíram nome, WhatsApp e e-mail).
-    await gravar(env, { subject: CONTA, planilha: PLANILHA, aba: ABA, cabecalho: CABECALHO, linha, atualizarCabecalho: true });
+    await gravar(env, { subject: CONTA, planilha: cfg.planilha, aba: cfg.aba, cabecalho: cfg.cabecalho, linha, ...cfg.opcoes });
   } catch (e) {
-    console.error('[hotseat-giulliano-puga] falha ao gravar na planilha:', e?.codigo || '', e?.status || '', e?.message || e);
+    console.error(`[${cfg.nome}] falha ao gravar na planilha:`, e?.codigo || '', e?.status || '', e?.message || e);
     return json({ ok: false, erro: 'planilha' }, 502);
   }
 

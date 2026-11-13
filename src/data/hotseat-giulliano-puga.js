@@ -12,6 +12,7 @@
 // ela tirou nome, WhatsApp e e-mail (é só para mentorados, o @ da marca já
 // identifica quem respondeu) e pediu as três perguntas numa tela só.
 export const TOTAL_ETAPAS = 1;
+export const ENDPOINT = '/api/hotseat-giulliano-puga';
 
 export const PERGUNTAS = [
   { name: 'instagram', etapa: 1, tipo: 'texto', rotulo: 'Qual é o @ do Instagram da sua marca?', coluna: 'Instagram da marca', placeholder: '@suamarca' },
@@ -28,7 +29,11 @@ export const PERGUNTAS = [
 // Limite de tamanho por resposta de texto (o servidor recusa acima disso).
 export const MAX_TEXTO = 120;
 
-export const CABECALHO = ['Data/hora', ...PERGUNTAS.map((p) => p.coluna), 'Origem'];
+const EMAIL = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
+export const emailValido = (v) => EMAIL.test(String(v ?? '').trim());
+
+export const cabecalhoDe = (perguntas) => ['Data/hora', ...perguntas.map((p) => p.coluna), 'Origem'];
+export const CABECALHO = cabecalhoDe(PERGUNTAS);
 
 // Números do convidado: respostas que ele mesmo mandou (11/11).
 export const TEXTOS = {
@@ -54,20 +59,24 @@ export const TEXTOS = {
 };
 
 /**
- * Confere as respostas (mesmas listas da página).
+ * Confere as respostas pela lista de perguntas da página (a dos mentorados ou
+ * a do grupo gratuito, em mentoria-giulliano-puga.js). O formato do telefone é
+ * conferido à parte pela regra única do servidor (functions/_telefone.js).
  * Devolve { ok: true, valores } ou { ok: false, campo } com o primeiro inválido.
  */
-export function validarResposta(respostas) {
+export function validar(perguntas, respostas) {
   const r = respostas && typeof respostas === 'object' ? respostas : {};
   const valores = {};
-  for (const p of PERGUNTAS) {
+  for (const p of perguntas) {
     const v = String(r[p.name] ?? '').trim();
     if (p.tipo === 'uma') {
       if (!p.opcoes.includes(v)) return { ok: false, campo: p.name };
-    } else if (v.length < 2 || v.length > MAX_TEXTO) {
+    } else if (v.length < 2 || v.length > MAX_TEXTO || (p.tipo === 'email' && !emailValido(v))) {
       return { ok: false, campo: p.name };
     }
     valores[p.name] = v;
   }
   return { ok: true, valores };
 }
+
+export const validarResposta = (respostas) => validar(PERGUNTAS, respostas);
