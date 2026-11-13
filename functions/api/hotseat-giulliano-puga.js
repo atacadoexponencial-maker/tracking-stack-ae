@@ -13,7 +13,7 @@ import { acrescentarLinha } from './_google-planilha.js';
 import { validarResposta, PERGUNTAS, CABECALHO } from '../../src/data/hotseat-giulliano-puga.js';
 
 // Criada em 11/11/2026 (dona: felipe@seteads.com; marcelle@seteads.com edita).
-export const PLANILHA = '16GJ63r2QjOzMWFMQlfd-du-vbNbjqDZbcdDbz7osoig';
+const PLANILHA ='16GJ63r2QjOzMWFMQlfd-du-vbNbjqDZbcdDbz7osoig';
 const ABA = 'Página1';
 const CONTA = 'marcelle@seteads.com';
 const MAX_CORPO = 5000;

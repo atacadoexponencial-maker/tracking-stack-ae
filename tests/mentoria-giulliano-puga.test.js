@@ -48,9 +48,8 @@ test('grupo gratuito: POST válido grava na aba própria, com telefone padroniza
   const r = await processarResposta({ request: pedido({ respostas: RESPOSTAS, origem: 'utm_source=grupo' }), env: {}, agoraMs: AGORA, gravar: async (_env, a) => chamadas.push(a) });
   assert.equal(r.status, 200);
   assert.equal(chamadas.length, 1);
-  assert.equal(chamadas[0].aba, 'Grupo gratuito');
-  assert.equal(chamadas[0].criarAba, true);
-  assert.equal(chamadas[0].atualizarCabecalho, true);
+  assert.equal(chamadas[0].planilha, '1a6l4mQIMlzi95TCX7NYcZjIXeJDGujAW9SLAflvfXEo');
+  assert.equal(chamadas[0].aba, 'Inscrições');
   assert.deepEqual(chamadas[0].cabecalho, CABECALHO);
   assert.deepEqual(chamadas[0].linha, [
     '13/11/2026 09:00:00', 'Maria Silva', '5511987654321', 'maria@marcax.com.br', '@marcax', 'R$ 30 a 70 mil', 'Sim, eu vou', 'utm_source=grupo',
