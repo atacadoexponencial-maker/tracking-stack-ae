@@ -143,7 +143,8 @@ test('CA-S10-28: produto de fora é ignorado e fica registrado', async () => {
   assert.equal(vendas().length, 0);
   const [a] = avisos();
   assert.equal(a.resultado, 'ignorado');
-  assert.equal(a.motivo, 'produto de fora');
+  assert.match(a.motivo, /^produto de fora/);
+  assert.doesNotMatch(a.motivo, /exemplo\.com|5511987654321|Maria/i); // o registro não guarda dado da pessoa
   assert.equal(a.objeto_id, 'ord_m');
 });
 

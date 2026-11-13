@@ -90,6 +90,19 @@ export function vendasDoPedido(pedido, agora) {
   return vendas;
 }
 
+/**
+ * Retrato do formato de um aviso que não virou venda, para conferir no registro
+ * o que a Zouti mandou: só nomes de campos e códigos de produto, nunca dado da
+ * pessoa.
+ */
+function formatoDoAviso(aviso, pedido) {
+  const chaves = (o) => (o && typeof o === 'object' ? Object.keys(o).slice(0, 30).join(',') : typeof o);
+  const itens = Array.isArray(pedido?.items) ? pedido.items : null;
+  const produtos = itens ? itens.map((i) => `${i?.product_id ?? '?'}x${i?.quantity ?? '?'}`).join(',') : 'sem items';
+  const camposItem = itens && itens[0] ? chaves(itens[0]) : '';
+  return ` | campos: ${chaves(aviso)} | itens: ${produtos} | campos do item: ${camposItem}`.slice(0, 900);
+}
+
 async function gravarVendas(db, vendas) {
   for (const v of vendas) {
     await db.prepare(
@@ -161,7 +174,7 @@ export async function processarAviso({ env, corpo, cab, agora = Math.floor(Date.
   if (tipo === 'ORDER_PAID') {
     if (!pedidoId) return ignorar('', 'pedido sem identificador');
     const vendas = vendasDoPedido({ ...pedido, id: pedidoId }, agora);
-    if (!vendas.length) return ignorar(pedidoId, 'produto de fora');
+    if (!vendas.length) return ignorar(pedidoId, `produto de fora${formatoDoAviso(aviso, pedido)}`);
     const n = await gravarVendas(db, vendas);
     await registrar(db, cab, pedidoId, 'gravado', null, n, agora);
     return { status: 200, corpo: { ok: true, resultado: 'gravado', vendas: n } };
