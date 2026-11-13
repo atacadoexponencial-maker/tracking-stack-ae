@@ -65,7 +65,10 @@ const unix = (iso) => {
 export function vendasDoPedido(pedido, agora) {
   const itens = Array.isArray(pedido?.items) ? pedido.items : [];
   const utm = pedido?.utm_data || {};
-  const pagoEm = unix(pedido?.paid_at) ?? unix(pedido?.created_at) ?? agora;
+  // O aviso de teste da Zouti (13/11) não trouxe `paid_at` na raiz do pedido:
+  // no pedido pago, `updated_at` é o momento em que ele virou pago (SUP-S10-21).
+  const pagoEm = unix(pedido?.paid_at) ?? unix(pedido?.payment?.paid_at) ?? unix(pedido?.updated_at)
+    ?? unix(pedido?.created_at) ?? agora;
   const vendas = [];
   for (const item of itens) {
     const produto = PRODUTOS_ZOUTI[item?.product_id];

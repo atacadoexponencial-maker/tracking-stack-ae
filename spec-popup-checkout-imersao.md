@@ -435,10 +435,11 @@ a falar só de ingresso, bump e evento.
 | SUP-S10-14 | Como a Zouti já avisa o Meta do início de checkout e da compra, a página deixa de enviar o próprio início de checkout ao Meta, para não contar duas vezes. | aberta | — |
 | SUP-S10-15 | "Conta como lead" vale para o Meta e para o CRM; no dash fica separado, fora do total e do CPL, e aparece na aba Imersão 2027. | confirmada | Marcelle, 13/11. |
 | SUP-S10-16 | Sem a Mentoria, o comparecimento ao evento e o pico de pessoas no horário da oferta continuam na aba, e o campo "horário da oferta" continua nas Metas. | aberta | — |
-| SUP-S10-17 | A assinatura do aviso é feita sobre o corpo do aviso com o segredo; a documentação tem o trecho do formato cortado, então o site aceita também a forma em que o horário do cabeçalho entra junto do corpo. Sem conferir a validade do horário. | aberta | — |
+| SUP-S10-17 | A assinatura do aviso é feita sobre o corpo do aviso com o segredo; a documentação tem o trecho do formato cortado, então o site aceita também a forma em que o horário do cabeçalho entra junto do corpo. Sem conferir a validade do horário. | confirmada | Confirmada pelo aviso de teste da Zouti em 13/11: o site aceitou a assinatura com o segredo gravado. |
 | SUP-S10-18 | No aviso, o valor de cada item é o total daquele item; com mais de uma unidade, cada ingresso vale o total dividido pela quantidade e conta como um ingresso vendido. | aberta | — |
 | SUP-S10-19 | O endereço do webhook é https://atacadoexponencial.com/api/webhooks/zouti e o segredo fica guardado no servidor (nunca no site). | confirmada | Marcelle, 13/11. |
-| SUP-S10-20 | A documentação descreve o pedido, mas não o envelope do aviso: o site aceita o pedido na raiz do corpo ou dentro de um campo de dados, e usa o tipo do evento do cabeçalho (se faltar, tenta o do corpo). A conferir com o botão Testar Webhook da Zouti. | aberta | — |
+| SUP-S10-20 | A documentação descreve o pedido, mas não o envelope do aviso: o site aceita o pedido na raiz do corpo ou dentro de um campo de dados, e usa o tipo do evento do cabeçalho (se faltar, tenta o do corpo). A conferir com o botão Testar Webhook da Zouti. | confirmada | Confirmada pelo aviso de teste da Zouti em 13/11: o pedido vem na raiz do corpo e o tipo do evento vem no cabeçalho. |
+| SUP-S10-21 | O aviso de pedido pago não traz a data do pagamento num campo próprio na raiz (visto no aviso de teste de 13/11): o site usa a data do pagamento se ela vier, senão a data da última atualização do pedido, que no pedido pago é o momento do pagamento. | aberta | — |
 | SUP-S10-07 | Cadastros de teste (e-mails @seteads.com e @teste.com) seguem a regra que já existe no site: não vão ao Meta nem ao Google. | aberta | — |
 
 ## Perguntas em aberto

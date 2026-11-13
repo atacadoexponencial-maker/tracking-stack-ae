@@ -33,10 +33,11 @@ A usuária cadastra o endereço no painel da Zouti, dispara o teste de lá e, co
 | SUP-S10-11 | Chargeback (pedido contestado) tira a venda dos números, como o reembolso. | confirmada | Marcelle, 13/11. |
 | SUP-S10-12 | O bump não tem campo próprio no aviso: ele chega como mais um item do mesmo pedido, e é reconhecido pelo produto do item. | aberta | — |
 | SUP-S10-13 | A venda conta pelo aviso de pedido pago; o valor de cada produto é o do item, não o total do pedido. | confirmada | Marcelle, 13/11. |
-| SUP-S10-17 | A assinatura do aviso é feita sobre o corpo do aviso com o segredo; a documentação tem o trecho do formato cortado, então o site aceita também a forma em que o horário do cabeçalho entra junto do corpo. Sem conferir a validade do horário. | aberta | — |
+| SUP-S10-17 | A assinatura do aviso é feita sobre o corpo do aviso com o segredo; a documentação tem o trecho do formato cortado, então o site aceita também a forma em que o horário do cabeçalho entra junto do corpo. Sem conferir a validade do horário. | confirmada | Confirmada pelo aviso de teste da Zouti em 13/11: o site aceitou a assinatura com o segredo gravado. |
 | SUP-S10-18 | No aviso, o valor de cada item é o total daquele item; com mais de uma unidade, cada ingresso vale o total dividido pela quantidade e conta como um ingresso vendido. | aberta | — |
 | SUP-S10-19 | O endereço do webhook é https://atacadoexponencial.com/api/webhooks/zouti e o segredo fica guardado no servidor (nunca no site). | confirmada | Marcelle, 13/11. |
-| SUP-S10-20 | A documentação descreve o pedido, mas não o envelope do aviso: o site aceita o pedido na raiz do corpo ou dentro de um campo de dados, e usa o tipo do evento do cabeçalho (se faltar, tenta o do corpo). A conferir com o botão Testar Webhook da Zouti. | aberta | — |
+| SUP-S10-20 | A documentação descreve o pedido, mas não o envelope do aviso: o site aceita o pedido na raiz do corpo ou dentro de um campo de dados, e usa o tipo do evento do cabeçalho (se faltar, tenta o do corpo). A conferir com o botão Testar Webhook da Zouti. | confirmada | Confirmada pelo aviso de teste da Zouti em 13/11: o pedido vem na raiz do corpo e o tipo do evento vem no cabeçalho. |
+| SUP-S10-21 | O aviso de pedido pago não traz a data do pagamento num campo próprio na raiz (visto no aviso de teste de 13/11): o site usa a data do pagamento se ela vier, senão a data da última atualização do pedido, que no pedido pago é o momento do pagamento. | aberta | — |
 
 ## Perguntas em aberto
 
@@ -129,6 +130,4 @@ Reuso: `d1` de `tests/_fluxos-banco.js` (banco de teste), `montarResposta` de `f
 |---|---|---|---|---|
 | SUPOSICAO_ABERTA | SUP-S10-09 | Só se confirma com um aviso de teste da Zouti, que exige o webhook no ar | Marcelle | 13/11/2026 |
 | SUPOSICAO_ABERTA | SUP-S10-12 | Só se confirma com um aviso de teste da Zouti, que exige o webhook no ar | Marcelle | 13/11/2026 |
-| SUPOSICAO_ABERTA | SUP-S10-17 | Só se confirma com um aviso de teste da Zouti, que exige o webhook no ar | Marcelle | 13/11/2026 |
 | SUPOSICAO_ABERTA | SUP-S10-18 | Só se confirma com um aviso de teste da Zouti, que exige o webhook no ar | Marcelle | 13/11/2026 |
-| SUPOSICAO_ABERTA | SUP-S10-20 | Só se confirma com um aviso de teste da Zouti, que exige o webhook no ar | Marcelle | 13/11/2026 |
