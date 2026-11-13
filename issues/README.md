@@ -13,3 +13,4 @@ As issues até a 410 foram criadas antes das séries e seguem numeradas soltas n
 | S7 | docs/specs-arquivadas/spec-detalhe-reunioes.md | issues/concluidas_S7 |
 | S8 | spec-imersao-2027.md | issues/concluidas_S8 |
 | S9 | spec-funil-leads-novos.md | issues/concluidas_S9 |
+| S10 | spec-popup-checkout-imersao.md | issues/concluidas_S10 |
