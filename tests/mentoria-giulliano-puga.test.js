@@ -9,6 +9,7 @@ const RESPOSTAS = {
   telefone: '(11) 98765-4321',
   email: 'maria@marcax.com.br',
   instagram: '@marcax',
+  faturamento: 'R$ 30 a 70 mil',
   participa: 'Sim, eu vou',
 };
 
@@ -23,12 +24,14 @@ function pedido(corpo, ua = UA) {
   });
 }
 
-test('grupo gratuito: dados de contato, @ da marca e uma confirmação, tudo numa tela', () => {
-  assert.deepEqual(PERGUNTAS.map((p) => p.name), ['nome', 'telefone', 'email', 'instagram', 'participa']);
-  assert.equal(TOTAL_ETAPAS, 1);
-  assert.ok(PERGUNTAS.every((p) => p.etapa === 1));
-  assert.deepEqual(CABECALHO, ['Data/hora', 'Nome', 'WhatsApp', 'E-mail', 'Instagram da marca', 'Vai participar', 'Origem']);
-  assert.equal(TEXTOS.selo, '2 vagas para o grupo gratuito');
+test('inscrição aberta: contato na primeira tela, faturamento e confirmação na segunda', () => {
+  assert.deepEqual(PERGUNTAS.map((p) => p.name), ['nome', 'telefone', 'email', 'instagram', 'faturamento', 'participa']);
+  assert.equal(TOTAL_ETAPAS, 2);
+  assert.deepEqual(PERGUNTAS.map((p) => p.etapa), [1, 1, 1, 1, 2, 2]);
+  assert.equal(PERGUNTAS.find((p) => p.name === 'faturamento').opcoes.length, 5);
+  assert.deepEqual(CABECALHO, ['Data/hora', 'Nome', 'WhatsApp', 'E-mail', 'Instagram da marca', 'Faturamento', 'Vai participar', 'Origem']);
+  // O link também vai para os stories: nada de "grupo gratuito" na página.
+  assert.equal(/grupo gratuito/i.test(JSON.stringify(TEXTOS) + JSON.stringify(PERGUNTAS)), false);
   assert.equal(TEXTOS.obrigado.analise, undefined);
 });
 
@@ -36,6 +39,7 @@ test('grupo gratuito: recusa e-mail torto, opção inventada e campo vazio', () 
   assert.equal(validarResposta(RESPOSTAS).ok, true);
   assert.deepEqual(validarResposta({ ...RESPOSTAS, email: 'maria@' }), { ok: false, campo: 'email' });
   assert.deepEqual(validarResposta({ ...RESPOSTAS, participa: 'Talvez' }), { ok: false, campo: 'participa' });
+  assert.deepEqual(validarResposta({ ...RESPOSTAS, faturamento: 'Muito' }), { ok: false, campo: 'faturamento' });
   assert.deepEqual(validarResposta({ ...RESPOSTAS, nome: ' ' }), { ok: false, campo: 'nome' });
 });
 
@@ -46,10 +50,10 @@ test('grupo gratuito: POST válido grava na aba própria, com telefone padroniza
   assert.equal(chamadas.length, 1);
   assert.equal(chamadas[0].aba, 'Grupo gratuito');
   assert.equal(chamadas[0].criarAba, true);
-  assert.equal(chamadas[0].atualizarCabecalho, undefined);
+  assert.equal(chamadas[0].atualizarCabecalho, true);
   assert.deepEqual(chamadas[0].cabecalho, CABECALHO);
   assert.deepEqual(chamadas[0].linha, [
-    '13/11/2026 09:00:00', 'Maria Silva', '5511987654321', 'maria@marcax.com.br', '@marcax', 'Sim, eu vou', 'utm_source=grupo',
+    '13/11/2026 09:00:00', 'Maria Silva', '5511987654321', 'maria@marcax.com.br', '@marcax', 'R$ 30 a 70 mil', 'Sim, eu vou', 'utm_source=grupo',
   ]);
 });
 

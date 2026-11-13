@@ -73,7 +73,7 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
             p.tipo === 'uma' ? (
               <fieldset class="hotseat__field" data-campo={p.name}>
                 <legend>{p.rotulo} *</legend>
-                <div class="hotseat__opcoes">
+                <div class:list={['hotseat__opcoes', { 'hotseat__opcoes--lista': p.opcoes.length > 2 }]}>
                   {p.opcoes.map((o) => (
                     <label class="hotseat__opcao">
                       <input type="radio" name={p.name} value={o} />
@@ -211,6 +211,9 @@ const etapas = Array.from({ length: TOTAL_ETAPAS }, (_, i) => PERGUNTAS.filter((
     font-size: 0.875rem; line-height: 1.2; background: #ffffff;
     transition: border-color 0.15s, background-color 0.15s;
   }
+  /* Mais de duas opções (faixas de faturamento): uma por linha, mais baixas. */
+  .hotseat__opcoes--lista { grid-template-columns: 1fr; gap: 0.35rem; }
+  .hotseat__opcoes--lista .hotseat__opcao { min-height: 40px; padding-block: 0.35rem; }
   .hotseat__opcao:hover { border-color: rgba(30, 30, 30, 0.35); }
   .hotseat__opcao input { width: 1rem; height: 1rem; margin: 0; flex: none; accent-color: var(--hs-verde); }
   .hotseat__opcao:has(input:checked) { border-color: var(--hs-verde); background: var(--hs-verde-fundo); }
