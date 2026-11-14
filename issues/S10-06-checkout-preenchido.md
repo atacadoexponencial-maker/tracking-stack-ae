@@ -25,3 +25,7 @@ Nenhuma.
 | ID | Pergunta | Status | Resposta |
 |---|---|---|---|
 | PER-S10-12 | Como a Zouti recebe os dados do comprador para abrir o checkout preenchido, sem que eles apareçam no endereço do link? A usuária pediu o preenchimento na aprovação (13/11). A documentação não mostra o caminho; falta a resposta do suporte da Zouti. Sem um caminho assim, o critério CA-S10-36 não tem como ser entregue. | aberta | — |
+
+## Achado de 14/11/2026
+
+Lido o código público do checkout (pay.zouti.com.br): do endereço ele só lê `product_offer_id`. Não existe parâmetro de nome, e-mail ou telefone, então o preenchimento pelo link não funciona, com ou sem dado pessoal na URL. A sessão de compra nasce no navegador da pessoa, dentro do site da Zouti, por uma API interna sem documentação; o nosso servidor não tem como criar essa sessão e entregá-la ao navegador. Continua dependendo de a Zouti oferecer um caminho oficial (PER-S10-12).

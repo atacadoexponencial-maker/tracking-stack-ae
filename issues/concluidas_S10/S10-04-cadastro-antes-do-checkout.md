@@ -119,3 +119,9 @@ Planilha: "Imersão Planejamento Atacado 2027 (cadastros antes do checkout)", cr
 - [x] Link do checkout da Zouti com UTMs e sem dado pessoal
 - [x] Página sem envio próprio de início de checkout
 - [x] Testes dos 13 critérios automáticos passando
+
+## Testes manuais
+
+| Critério | Conferido por | Dia |
+|---|---|---|
+| CA-S10-14 | Marcelle | 14/11/2026 |

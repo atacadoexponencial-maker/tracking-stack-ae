@@ -60,3 +60,9 @@ Confirmar com campo vazio ou inválido mostra a mensagem em vermelho logo abaixo
 
 - [x] Janela desenhada com a skill de design (impeccable), no visual da página
 - [x] Conferida na prévia local em 390 px e 1280 px, com erro e com sugestão de e-mail
+
+## Testes manuais
+
+| Critério | Conferido por | Dia |
+|---|---|---|
+| CA-S10-09 | Marcelle | 14/11/2026 |
