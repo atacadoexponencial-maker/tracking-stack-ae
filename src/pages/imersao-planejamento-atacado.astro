@@ -10,8 +10,7 @@
 // Decisão da usuária em 09/11, depois da primeira versão (parecida demais com a
 // página da Black, que converteu mal).
 //
-// Base técnica: /workshop-black-exponencial-2026 (lotes por data, botão de
-// compra com `sf_trk` da Greenn).
+// Base técnica: /workshop-black-exponencial-2026 (lotes por data).
 import BaseLayout from '../layouts/BaseLayout.astro';
 import VideoTestimonials from '../components/sections/VideoTestimonials.astro';
 import { Image } from 'astro:assets';
@@ -32,18 +31,16 @@ import igUzzy from '../assets/marcas-imersao/ig-uzzy.jpg';
 // ---------------------------------------------------------------------------
 // Destino de compra: PONTO ÚNICO de configuração.
 //
-// O checkout ainda não existe (09/11). Enquanto CHECKOUT_URL for null, todo
-// botão de compra leva a `#ingresso` (a seção de preço) e o rastreamento ignora
-// o clique. Quando o link da Greenn existir, é trocar null pela URL AQUI e mais
-// nada. Restrições da URL (o `sf_trk` é concatenado no fim): sem `#`, sem
-// terminar em `?` ou `&`.
+// Checkout da Zouti (série S10, 14/11). Os botões de compra, menos o do topo,
+// abrem antes a janela de cadastro (nome, e-mail e WhatsApp); a regra do que
+// acontece em cada toque fica em src/scripts/cadastro-imersao.js. Sem JS, o
+// botão leva direto ao checkout: a venda vem antes do cadastro.
+//
+// A página não envia início de checkout ao Meta nem identificador de compra:
+// o pixel e a CAPI da Zouti já fazem isso (decisão da usuária em 14/11).
 // ---------------------------------------------------------------------------
-const CHECKOUT_URL: string | null = null;
-const HREF_COMPRA = CHECKOUT_URL ?? '#ingresso';
-
-// Parâmetro de rastreio da Greenn, confirmado com venda real na Black
-// (2026-08-12). Ver o comentário completo em workshop-black-exponencial-2026.
-const CHECKOUT_PARAM = 'sf_trk';
+const CHECKOUT_URL = 'https://pay.zouti.com.br/checkout?product_offer_id=prod_offer_iflx36w3lb48e111fap57z';
+const HREF_COMPRA = CHECKOUT_URL;
 
 // O HTML nasce no lote 01: o site é estático e quem decide o lote vigente é o
 // <script> no fim, no acesso do visitante. Sem JS, a página mostra o lote 01.
@@ -127,7 +124,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   description="Um sábado, 12/12, das 9h30 às 17h30, online e ao vivo. Você traz os números de 2026 e sai com a meta de cada mês de 2027: quantas revendedoras novas trazer e quanto a sua base precisa recomprar."
   showHeader={false}
 >
-  <div class="ipa" data-vendas="abertas" data-checkout-param={CHECKOUT_PARAM}>
+  <div class="ipa" data-vendas="abertas" data-checkout-url={CHECKOUT_URL}>
     <div class="ipa-encerrado" hidden>
       <p>As vendas da Imersão Planejamento Atacado 2027 estão encerradas.</p>
     </div>
@@ -448,6 +445,39 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
       <button type="button" class="ipa-zoom__fechar" aria-label="Fechar">
         <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
       </button>
+    </dialog>
+
+    <!-- Janela de cadastro antes do checkout (série S10). Abre nos botões de
+         compra, menos o do topo. -->
+    <dialog class="ipa-cadastro" aria-label="Cadastro para garantir o ingresso">
+      <div class="ipa-cadastro__folha">
+        <button type="button" class="ipa-cadastro__fechar" data-cadastro-fechar aria-label="Fechar">
+          <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+        <form class="ipa-cadastro__form" novalidate>
+          <div class="ipa-cadastro__campo">
+            <label for="ipa-cadastro-nome">Nome</label>
+            <input id="ipa-cadastro-nome" name="nome" type="text" autocomplete="name" enterkeyhint="next" aria-describedby="ipa-cadastro-erro-nome" />
+            <p class="ipa-cadastro__erro" id="ipa-cadastro-erro-nome" data-erro="nome" hidden></p>
+          </div>
+          <div class="ipa-cadastro__campo">
+            <label for="ipa-cadastro-email">E-mail</label>
+            <input id="ipa-cadastro-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" enterkeyhint="next" aria-describedby="ipa-cadastro-erro-email" />
+            <p class="ipa-cadastro__erro" id="ipa-cadastro-erro-email" data-erro="email" hidden></p>
+          </div>
+          <div class="ipa-cadastro__campo">
+            <label for="ipa-cadastro-telefone">WhatsApp com DDD</label>
+            <input id="ipa-cadastro-telefone" name="telefone" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="go" aria-describedby="ipa-cadastro-erro-telefone" />
+            <p class="ipa-cadastro__erro" id="ipa-cadastro-erro-telefone" data-erro="telefone" hidden></p>
+          </div>
+          <div class="ipa-cadastro__pe">
+            <button type="submit" class="ipa-botao ipa-botao--escuro ipa-cadastro__enviar">
+              <span data-cadastro-rotulo>Garantir ingresso</span>
+              <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
+            </button>
+          </div>
+        </form>
+      </div>
     </dialog>
   </div>
 </BaseLayout>
@@ -861,6 +891,136 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   .ipa-zoom__fechar:focus-visible {
     outline: 2px solid var(--bege);
     outline-offset: 3px;
+  }
+  /* ---- Janela de cadastro: folha bege, como o cartão de preço ---------------- */
+  .ipa-cadastro {
+    --erro: #9c2318;
+    width: min(100vw - 1.5rem, 27rem);
+    max-width: none;
+    max-height: calc(var(--ipa-altura, 100dvh) - 1.5rem);
+    margin: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: var(--bege);
+    color: var(--carvao);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.9);
+  }
+  .ipa-cadastro::backdrop {
+    background: rgba(23, 23, 23, 0.82);
+  }
+  .ipa-cadastro[open] {
+    animation: ipa-cadastro-sobe 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes ipa-cadastro-sobe {
+    from {
+      opacity: 0;
+      transform: translateY(1.25rem);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ipa-cadastro[open] {
+      animation: none;
+    }
+  }
+  /* Celular: a janela encosta no alto, para o teclado não cobrir os campos. */
+  @media (max-width: 719px) {
+    .ipa-cadastro {
+      margin-top: 0.75rem;
+      margin-bottom: auto;
+    }
+  }
+  .ipa-cadastro ::selection {
+    background: var(--carvao);
+    color: var(--bege);
+  }
+  .ipa-cadastro__folha {
+    position: relative;
+  }
+  .ipa-cadastro__fechar {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--carvao);
+    cursor: pointer;
+  }
+  .ipa-cadastro__fechar .ipa-icone {
+    width: 1.15rem;
+    height: 1.15rem;
+    stroke-width: 2.2;
+  }
+  .ipa-cadastro__form {
+    display: grid;
+    gap: 0.85rem;
+    /* Só o formulário e o botão (pedido da usuária em 14/11); o alto guarda o lugar do X. */
+    padding: 2.9rem 1.5rem 0;
+  }
+  .ipa-cadastro__campo {
+    display: grid;
+    gap: 0.3rem;
+  }
+  .ipa-cadastro__campo label {
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .ipa-cadastro__campo input {
+    width: 100%;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid rgba(30, 30, 30, 0.32);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--carvao);
+    caret-color: var(--carvao);
+    font: inherit;
+    /* 16px: abaixo disso o iPhone dá zoom na página ao tocar no campo. */
+    font-size: 1rem;
+  }
+  .ipa-cadastro__campo input:focus-visible,
+  .ipa-cadastro__fechar:focus-visible,
+  .ipa-cadastro .ipa-botao:focus-visible {
+    outline: 2px solid var(--carvao);
+    outline-offset: 2px;
+  }
+  .ipa-cadastro__campo input[aria-invalid='true'] {
+    border-color: var(--erro);
+    box-shadow: inset 0 0 0 1px var(--erro);
+  }
+  .ipa-cadastro__erro {
+    color: var(--erro);
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  /* O botão acompanha a rolagem da janela: com o teclado aberto ele continua à vista. */
+  .ipa-cadastro__pe {
+    position: sticky;
+    bottom: 0;
+    margin-inline: -1.5rem;
+    padding: 0.4rem 1.5rem 1.4rem;
+    background: linear-gradient(to bottom, rgba(245, 240, 235, 0), var(--bege) 0.6rem);
+  }
+  .ipa-cadastro__enviar {
+    width: 100%;
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .ipa-cadastro__enviar[disabled] {
+    opacity: 0.75;
+    cursor: progress;
+    transform: none;
+  }
+  :global(html:has(.ipa-cadastro[open])) {
+    overflow: hidden;
   }
   .ipa-marcas__titulo {
     max-width: 76rem;
@@ -1539,7 +1699,8 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
   // corrige quando a resposta chega. Se a rede falhar, segue o aparelho.
   import { LOTES_IMERSAO } from '../data/lotes-imersao.js';
   import { loteVigente, textoProximo, fracaoDecorrida } from '../data/lotes-workshop.js';
-  import { ligarCheckout } from '../scripts/checkout-venda';
+  import { criarCadastro } from '../scripts/cadastro-imersao.js';
+  import { telefoneValido, aplicarMascaraTelefone, aplicarSugestaoEmail } from '../scripts/lead-validacao';
 
   const wrapper = document.querySelector('.ipa') as HTMLElement | null;
 
@@ -1625,7 +1786,117 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
     /* o HTML inicial (lote 01) já é legível e vendável */
   }
 
-  if (wrapper) ligarCheckout(wrapper);
+  // Cadastro antes do checkout (série S10). As regras ficam em
+  // ../scripts/cadastro-imersao.js; aqui só se abre a janela, se leem os campos
+  // e se mostra o erro. Se algo aqui falhar, o botão segue o próprio endereço.
+  try {
+    const janela = document.querySelector('.ipa-cadastro') as HTMLDialogElement | null;
+    const form = janela?.querySelector('form') as HTMLFormElement | null;
+    const checkoutUrl = wrapper?.dataset.checkoutUrl;
+    if (wrapper && janela && form && checkoutUrl && typeof janela.showModal === 'function') {
+      const campo = (nome: string) => form.elements.namedItem(nome) as HTMLInputElement;
+      const enviarBtn = form.querySelector('[type="submit"]') as HTMLButtonElement;
+      const rotulo = form.querySelector('[data-cadastro-rotulo]') as HTMLElement;
+      const ROTULO = rotulo.textContent || '';
+
+      const cadastro = criarCadastro({
+        checkoutUrl,
+        busca: location.search,
+        armazenamento: {
+          getItem: (k: string) => sessionStorage.getItem(k),
+          setItem: (k: string, v: string) => sessionStorage.setItem(k, v),
+        },
+        telefoneValido,
+        enviar: (dados: object) =>
+          fetch('/api/imersao-cadastro', {
+            method: 'POST',
+            // keepalive: a gravação termina mesmo com a aba já indo ao checkout.
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados),
+          }),
+        navegar: (url: string) => {
+          window.location.href = url;
+        },
+      });
+
+      aplicarMascaraTelefone(campo('telefone'));
+      aplicarSugestaoEmail(campo('email'));
+
+      const limparErros = () => {
+        form.querySelectorAll('[data-erro]').forEach((el) => ((el as HTMLElement).hidden = true));
+        form.querySelectorAll('input').forEach((el) => el.removeAttribute('aria-invalid'));
+      };
+      const mostrarErro = (nome: string, mensagem: string) => {
+        const erro = form.querySelector(`[data-erro="${nome}"]`) as HTMLElement | null;
+        if (erro) {
+          erro.textContent = mensagem;
+          erro.hidden = false;
+        }
+        campo(nome).setAttribute('aria-invalid', 'true');
+        campo(nome).focus();
+      };
+
+      // Altura que sobra com o teclado aberto: a janela nunca passa dela.
+      const medir = () => {
+        const altura = window.visualViewport?.height;
+        if (altura) janela.style.setProperty('--ipa-altura', `${altura}px`);
+      };
+      window.visualViewport?.addEventListener('resize', medir);
+
+      document.addEventListener('click', (evento) => {
+        const alvo = evento.target as Element | null;
+        const botao = alvo?.closest?.('[data-checkout]');
+        if (!botao || wrapper.dataset.vendas === 'encerradas') return;
+        evento.preventDefault();
+        if (cadastro.aoComprar() !== 'janela') return;
+        limparErros();
+        medir();
+        janela.showModal();
+      });
+
+      // Fecha no X e no toque fora; o Esc já fecha sozinho.
+      janela.querySelector('[data-cadastro-fechar]')?.addEventListener('click', () => janela.close());
+      janela.addEventListener('click', (evento) => {
+        if (evento.target === janela) janela.close();
+      });
+      form.addEventListener('input', (evento) => {
+        const el = evento.target as HTMLInputElement;
+        if (el.getAttribute('aria-invalid')) {
+          el.removeAttribute('aria-invalid');
+          const erro = form.querySelector(`[data-erro="${el.name}"]`) as HTMLElement | null;
+          if (erro) erro.hidden = true;
+        }
+      });
+
+      form.addEventListener('submit', async (evento) => {
+        evento.preventDefault();
+        limparErros();
+        enviarBtn.disabled = true;
+        rotulo.textContent = 'Abrindo o pagamento…';
+        const r = (await cadastro.confirmar({
+          nome: campo('nome').value,
+          email: campo('email').value,
+          telefone: campo('telefone').value,
+        })) as { ok: boolean; campo?: string; mensagem?: string };
+        if (!r.ok) {
+          enviarBtn.disabled = false;
+          rotulo.textContent = ROTULO;
+          if (r.campo) mostrarErro(r.campo, r.mensagem || '');
+        }
+      });
+
+      // Voltou do checkout pelo botão de voltar: a janela não fica travada.
+      window.addEventListener('pageshow', (evento) => {
+        if (!evento.persisted) return;
+        enviarBtn.disabled = false;
+        rotulo.textContent = ROTULO;
+        if (janela.open) janela.close();
+      });
+    }
+  } catch (e) {
+    console.error('[cadastro] janela indisponível', e);
+  }
 
   // Prints das marcas: o toque amplia a foto (não sai da página).
   const zoom = document.querySelector('.ipa-zoom') as HTMLDialogElement | null;

@@ -37,7 +37,7 @@ A usuária cadastra o endereço no painel da Zouti, dispara o teste de lá e, co
 | SUP-S10-18 | No aviso, o valor de cada item é o total daquele item; com mais de uma unidade, cada ingresso vale o total dividido pela quantidade e conta como um ingresso vendido. | aberta | — |
 | SUP-S10-19 | O endereço do webhook é https://atacadoexponencial.com/api/webhooks/zouti e o segredo fica guardado no servidor (nunca no site). | confirmada | Marcelle, 13/11. |
 | SUP-S10-20 | A documentação descreve o pedido, mas não o envelope do aviso: o site aceita o pedido na raiz do corpo ou dentro de um campo de dados, e usa o tipo do evento do cabeçalho (se faltar, tenta o do corpo). A conferir com o botão Testar Webhook da Zouti. | confirmada | Confirmada pelo aviso de teste da Zouti em 13/11: o pedido vem na raiz do corpo e o tipo do evento vem no cabeçalho. |
-| SUP-S10-21 | O aviso de pedido pago não traz a data do pagamento num campo próprio na raiz (visto no aviso de teste de 13/11): o site usa a data do pagamento se ela vier, senão a data da última atualização do pedido, que no pedido pago é o momento do pagamento. | aberta | — |
+| SUP-S10-21 | O aviso de pedido pago não traz a data do pagamento num campo próprio na raiz (visto no aviso de teste de 13/11): o site usa a data do pagamento se ela vier, senão a data da última atualização do pedido, que no pedido pago é o momento do pagamento. | confirmada | Marcelle, 14/11/2026 |
 
 ## Perguntas em aberto
 

@@ -420,26 +420,28 @@ a falar só de ingresso, bump e evento.
 
 | ID | Suposição | Status | Resolução |
 |---|---|---|---|
-| SUP-S10-01 | "Mesma visita" quer dizer a mesma aba do navegador: se a pessoa fechar a aba e voltar outro dia, a janela aparece de novo. | aberta | — |
+| SUP-S10-01 | "Mesma visita" quer dizer a mesma aba do navegador: se a pessoa fechar a aba e voltar outro dia, a janela aparece de novo. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-02 | O card novo entra na primeira etapa da lista do CRM, como os leads dos outros funis, sem etapa própria. | aberta | — |
-| SUP-S10-03 | Depois do cadastro a pessoa vai sempre ao checkout, nunca a página de obrigado, agenda ou grupo. | aberta | — |
-| SUP-S10-04 | A planilha é nova, criada na conta marcelle@seteads.com, separada das outras. | aberta | — |
-| SUP-S10-05 | O checkout da Zouti aceita receber as UTMs no endereço e não quebra com elas. Sem documentação da Zouti; a conferir com um clique de verdade. | aberta | — |
-| SUP-S10-06 | O WhatsApp é aceito com ou sem o nono dígito e sem exigir +55, como nos outros formulários do site. | aberta | — |
+| SUP-S10-03 | Depois do cadastro a pessoa vai sempre ao checkout, nunca a página de obrigado, agenda ou grupo. | confirmada | Marcelle, 14/11/2026 |
+| SUP-S10-04 | A planilha é nova, criada na conta marcelle@seteads.com, separada das outras. | confirmada | Marcelle, 14/11/2026 |
+| SUP-S10-05 | O checkout da Zouti aceita receber as UTMs no endereço e não quebra com elas. Sem documentação da Zouti; a conferir com um clique de verdade. | confirmada | Conferido em 14/11/2026: o checkout abriu normalmente com as cinco UTMs no endereço. Se a Zouti as repassa no pedido é a SUP-S10-09. |
+| SUP-S10-06 | O WhatsApp é aceito com ou sem o nono dígito e sem exigir +55, como nos outros formulários do site. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-08 | A Zouti consegue avisar um endereço externo a cada compra, cancelamento e reembolso, e assina cada aviso com um segredo. | confirmada | Documentação da Zouti enviada pela Marcelle em 13/11 (ajuda.zouti.com.br, "Como configurar Webhook"): eventos de pedido pago, estornado, cancelado e em chargeback, assinatura no cabeçalho. |
 | SUP-S10-09 | O aviso de pedido da Zouti tem um bloco de UTMs (confirmado na documentação). O que a documentação não diz é se o checkout lê as UTMs do endereço; se não ler, a origem da venda vem do cadastro do pop-up, cruzando por e-mail ou telefone. | aberta | — |
 | SUP-S10-11 | Chargeback (pedido contestado) tira a venda dos números, como o reembolso. | confirmada | Marcelle, 13/11. |
 | SUP-S10-12 | O bump não tem campo próprio no aviso: ele chega como mais um item do mesmo pedido, e é reconhecido pelo produto do item. | aberta | — |
 | SUP-S10-13 | A venda conta pelo aviso de pedido pago; o valor de cada produto é o do item, não o total do pedido. | confirmada | Marcelle, 13/11. |
 | SUP-S10-10 | A venda é ligada ao cadastro do pop-up por e-mail ou telefone, como a aba Imersão 2027 já faz entre ingresso e Mentoria. | aberta | — |
-| SUP-S10-14 | Como a Zouti já avisa o Meta do início de checkout e da compra, a página deixa de enviar o próprio início de checkout ao Meta, para não contar duas vezes. | aberta | — |
+| SUP-S10-14 | Como a Zouti já avisa o Meta do início de checkout e da compra, a página deixa de enviar o próprio início de checkout ao Meta, para não contar duas vezes. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-15 | "Conta como lead" vale para o Meta e para o CRM; no dash fica separado, fora do total e do CPL, e aparece na aba Imersão 2027. | confirmada | Marcelle, 13/11. |
 | SUP-S10-16 | Sem a Mentoria, o comparecimento ao evento e o pico de pessoas no horário da oferta continuam na aba, e o campo "horário da oferta" continua nas Metas. | aberta | — |
 | SUP-S10-17 | A assinatura do aviso é feita sobre o corpo do aviso com o segredo; a documentação tem o trecho do formato cortado, então o site aceita também a forma em que o horário do cabeçalho entra junto do corpo. Sem conferir a validade do horário. | confirmada | Confirmada pelo aviso de teste da Zouti em 13/11: o site aceitou a assinatura com o segredo gravado. |
 | SUP-S10-18 | No aviso, o valor de cada item é o total daquele item; com mais de uma unidade, cada ingresso vale o total dividido pela quantidade e conta como um ingresso vendido. | aberta | — |
 | SUP-S10-19 | O endereço do webhook é https://atacadoexponencial.com/api/webhooks/zouti e o segredo fica guardado no servidor (nunca no site). | confirmada | Marcelle, 13/11. |
 | SUP-S10-20 | A documentação descreve o pedido, mas não o envelope do aviso: o site aceita o pedido na raiz do corpo ou dentro de um campo de dados, e usa o tipo do evento do cabeçalho (se faltar, tenta o do corpo). A conferir com o botão Testar Webhook da Zouti. | confirmada | Confirmada pelo aviso de teste da Zouti em 13/11: o pedido vem na raiz do corpo e o tipo do evento vem no cabeçalho. |
-| SUP-S10-21 | O aviso de pedido pago não traz a data do pagamento num campo próprio na raiz (visto no aviso de teste de 13/11): o site usa a data do pagamento se ela vier, senão a data da última atualização do pedido, que no pedido pago é o momento do pagamento. | aberta | — |
+| SUP-S10-21 | O aviso de pedido pago não traz a data do pagamento num campo próprio na raiz (visto no aviso de teste de 13/11): o site usa a data do pagamento se ela vier, senão a data da última atualização do pedido, que no pedido pago é o momento do pagamento. | confirmada | Marcelle, 14/11/2026 |
+| SUP-S10-22 | A janela é simples, só o formulário e o botão (sem título, lote ou preço): campos "Nome", "E-mail" e "WhatsApp com DDD"; botão "Garantir ingresso"; erros "Digite o seu nome.", "Digite um e-mail válido, como nome@exemplo.com." e "Digite o WhatsApp com DDD. Número de fora do Brasil começa com +.". | confirmada | Marcelle, 14/11/2026: "O pop deve ser bem simples, apenas o form e o botão garantir ingresso". |
+| SUP-S10-23 | As UTMs da chegada ficam guardadas na aba: se a pessoa recarregar a página ou voltar do checkout sem elas no endereço, as da chegada continuam valendo para a planilha e para o link do checkout. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-07 | Cadastros de teste (e-mails @seteads.com e @teste.com) seguem a regra que já existe no site: não vão ao Meta nem ao Google. | aberta | — |
 
 ## Perguntas em aberto
