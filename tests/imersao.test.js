@@ -237,20 +237,6 @@ test('CA-S8-20: conversão do bump por dia', () => {
   assert.equal(dia['2026-11-11'].conversao, null);
 });
 
-test('CA-S8-21: Mentoria com bump x sem bump', () => {
-  const vendas = [];
-  for (let i = 0; i < 100; i++) vendas.push(venda({ pessoa: `c${i}` }));
-  for (let i = 0; i < 20; i++) vendas.push(venda({ produto: 'bump', valor: 297, pessoa: `c${i}` }));
-  for (let i = 0; i < 6; i++) vendas.push(venda({ produto: 'mentoria', valor: 10000, quando: '2026-12-12T17:00:00', pessoa: `c${i}` }));
-  for (let i = 20; i < 32; i++) vendas.push(venda({ produto: 'mentoria', valor: 10000, quando: '2026-12-12T17:00:00', pessoa: `c${i}` }));
-  const m = visao(vendas).bump.mentoria;
-  assert.equal(m.com_bump.conversao, 30);
-  assert.equal(m.sem_bump.conversao, 15);
-  assert.equal(m.diferenca_pct, 100);
-  assert.match(m.referencia, /30% a 100%/);
-  assert.match(cardDe(tela(visao(vendas, { exemplo: true })), 'Diferença'), /\+100%[\s\S]*referência<\/b> quem compra o bump/);
-});
-
 test('CA-S8-22: comparecimento pelo Meet', () => {
   const meet = [];
   for (let i = 0; i < 74; i++) meet.push({ pessoa: `m${i}`, entrou: em('2026-12-12T09:30:00'), saiu: em('2026-12-12T12:00:00') });
@@ -283,28 +269,53 @@ test('CA-S8-24: bloco do evento antes da data', () => {
   assert.doesNotMatch(bloco, /data-im-card/);
 });
 
-test('CA-S8-26: conversão na Mentoria no dia x 14 dias seguintes', () => {
-  const vendas = [];
-  for (let i = 0; i < 100; i++) vendas.push(venda({ pessoa: `q${i}` }));
-  for (let i = 0; i < 9; i++) vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-12T17:00:00', pessoa: `q${i}` }));
-  for (let i = 9; i < 20; i++) vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-19T10:00:00', pessoa: `q${i}` }));
-  for (let i = 20; i < 22; i++) vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-29T10:00:00', pessoa: `q${i}` }));
-  vendas.push(venda({ produto: 'mentoria', valor: 9700, quando: '2026-12-12T17:00:00', pessoa: 'estranho' })); // não comprou ingresso
-  const r = visao(vendas, { agora: '2026-12-30T10:00:00' }).resultado;
-  assert.equal(r.dia_x_seguintes.no_dia.conversao, 9);
-  assert.equal(r.dia_x_seguintes.seguintes.conversao, 11);
-  assert.equal(r.conversao_mentoria.valor, 22);
-});
-
-test('CA-S8-27: faturamento total, ticket médio e ROAS', () => {
+// CA-S8-21 e CA-S8-26 (Mentoria na aba) saíram com a S10-03; o CA-S8-27 virou
+// o CA-S10-34, sem a Mentoria.
+test('CA-S10-34: faturamento, ticket médio e ROAS contam só ingresso e bump', () => {
   const vendas = [];
   for (let i = 0; i < 100; i++) vendas.push(venda({ pessoa: `f${i}`, valor: 45 }));
   for (let i = 0; i < 20; i++) vendas.push(venda({ produto: 'bump', valor: 297, pessoa: `f${i}` }));
+  // Venda de Mentoria que por acaso exista no banco não entra na conta.
   for (let i = 0; i < 6; i++) vendas.push(venda({ produto: 'mentoria', valor: 10000, quando: '2026-12-12T17:00:00', pessoa: `f${i}` }));
-  const r = visao(vendas, { agora: '2026-12-13T10:00:00', extra: { trafego: { investimento: 6000, impressoes: 300000, cliques: 3000 } } }).resultado;
-  assert.equal(r.faturamento.total, 70440);
-  assert.equal(r.ticket_medio, 704.4);
-  assert.equal(r.roas, 11.74);
+  const v = visao(vendas, { agora: '2026-12-13T10:00:00', extra: { trafego: { investimento: 6000, impressoes: 300000, cliques: 3000 } } });
+  const r = v.resultado;
+  assert.equal(r.faturamento.total, 10440);
+  assert.equal(r.ticket_medio, 104.4);
+  assert.equal(r.roas, 1.74);
+  const html = tela(v, { aba: 'evento' });
+  assert.ok(cardDe(html, 'Faturamento total').includes('10.440,00'));
+  assert.ok(cardDe(html, 'Ticket médio').includes('104,40'));
+  assert.ok(cardDe(html, 'ROAS').includes('1,74'));
+});
+
+test('CA-S10-33: a aba não mostra mais números de Mentoria', async () => {
+  const semMentoria = (r, origem) => {
+    for (const aba of ['resumo', 'ingressos', 'trafego', 'bump', 'evento', 'metas']) {
+      assert.doesNotMatch(tela(r, { aba }), /mentoria/i, `${origem}: subaba ${aba}`);
+    }
+    assert.doesNotMatch(JSON.stringify(r), /mentoria/i, `${origem}: resposta`);
+  };
+  // Dados de exemplo.
+  const exemplo = await getImersao();
+  assert.equal(exemplo.exemplo, true);
+  semMentoria(exemplo, 'exemplo');
+  // Dados reais, depois do evento, com uma venda de Mentoria e meta antiga no banco.
+  db.prepare("INSERT INTO imersao_vendas (id, produto, valor_centavos, pago_em, email) VALUES ('z1', 'ingresso', 2900, ?, 'a@x.com')").run(em('2026-11-10T10:00:00'));
+  db.prepare("INSERT INTO imersao_vendas (id, produto, valor_centavos, pago_em, email) VALUES ('m1', 'mentoria', 970000, ?, 'a@x.com')").run(em('2026-11-11T10:00:00'));
+  db.prepare("INSERT INTO imersao_metas (campo, valor, alterada_em) VALUES ('meta_mentoria', '20', 1)").run();
+  const real = await getImersao();
+  assert.equal(real.exemplo, false);
+  semMentoria(real, 'real');
+  semMentoria(visao([venda({ pessoa: 'a' })], { agora: '2026-12-13T10:00:00' }), 'depois do evento');
+  // A meta de Mentoria não é mais aceita nem gravada.
+  await postMetas({ meta_mentoria: '20', meta_bump: '25' });
+  assert.deepEqual(db.prepare("SELECT valor FROM imersao_metas WHERE campo = 'meta_mentoria'").all().map((l) => l.valor), ['20']);
+  assert.equal(db.prepare("SELECT valor FROM imersao_metas WHERE campo = 'meta_bump'").get().valor, '25');
+  // O que fica no bloco do evento (SUP-S10-16).
+  const evento = tela(visao([venda({ pessoa: 'a' })], { agora: '2026-12-13T10:00:00' }), { aba: 'evento' });
+  cardDe(evento, 'Comparecimento');
+  cardDe(evento, 'Pessoas ao vivo no pitch');
+  assert.match(tela(real, { aba: 'metas' }), /horario_oferta/);
 });
 
 test('CA-S8-31: dados de exemplo coerentes', () => {
@@ -324,7 +335,6 @@ test('CA-S8-31: dados de exemplo coerentes', () => {
   const vendidos = r.ingressos.vendidos.valor;
   assert.ok(vendidos <= d.inicios_checkout && d.inicios_checkout <= d.visualizacoes
     && d.visualizacoes <= d.trafego.cliques && d.trafego.cliques <= d.trafego.impressoes);
-  assert.ok(r.resultado.conversao_mentoria.mentorias <= vendidos);
   assert.ok(r.bump.total.bumps <= vendidos);
 });
 
@@ -353,19 +363,19 @@ test('CA-S8-07: valor inválido é recusado com motivo', async () => {
   const neg = await postMetas({ verba_ingresso: '-10', meta_bump: '20' });
   assert.equal(neg.status, 400);
   assert.equal(neg.dados.erros.verba_ingresso, 'a verba não pode ser negativa');
-  const pct = await postMetas({ meta_mentoria: '120' });
+  const pct = await postMetas({ pct_trafego: '120' });
   assert.equal(pct.status, 400);
-  assert.equal(pct.dados.erros.meta_mentoria, 'a porcentagem vai de 0 a 100');
+  assert.equal(pct.dados.erros.pct_trafego, 'a porcentagem vai de 0 a 100');
   assert.deepEqual(metasNoBanco(), {}); // nem o meta_bump válido do mesmo envio foi gravado
 
   // A tela mostra o motivo junto do campo.
   const r = await getImersao();
   IM._definir({ aba: 'metas', ordem: 'vendas', resposta: r });
   const raiz = { innerHTML: '' };
-  const form = { elements: Object.fromEntries(['verba_ingresso', 'pct_trafego', 'meta_bump', 'meta_mentoria', 'horario_oferta'].map((c) => [c, { value: '' }])) };
-  form.elements.meta_mentoria.value = '120';
+  const form = { elements: Object.fromEntries(['verba_ingresso', 'pct_trafego', 'meta_bump', 'horario_oferta'].map((c) => [c, { value: '' }])) };
+  form.elements.pct_trafego.value = '120';
   await IM.salvarMetas(raiz, form, { ...CTX, postJson: async (_p, corpo) => { const x = await postMetas(corpo); return { ok: x.status === 200, ...x }; } });
-  assert.match(raiz.innerHTML, /data-im-erro="meta_mentoria">a porcentagem vai de 0 a 100/);
+  assert.match(raiz.innerHTML, /data-im-erro="pct_trafego">a porcentagem vai de 0 a 100/);
   IM._definir({ erros: null, digitado: null, msgMetas: null });
 });
 

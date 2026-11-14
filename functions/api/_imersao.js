@@ -21,8 +21,6 @@ export const DIA_EVENTO = '2026-12-12';
 // a manhã e só conta quando hoje já é 12/12.
 export const ULTIMO_DIA_CHEIO = '2026-12-11';
 export const FIM_VENDA = Date.parse('2026-12-12T09:30:00-03:00') / 1000;
-// "Dias seguintes" da venda da Mentoria: 14 dias depois do pitch.
-export const ULTIMO_DIA_POS = '2026-12-26';
 // Janela do pico ao vivo depois do horário da oferta (SUP-S8-09).
 export const JANELA_PICO_S = 30 * 60;
 // Até aqui (fração da meta) o CAC acima do teto acende alerta (SUP-S8-07).
@@ -37,14 +35,11 @@ export const REFERENCIAS = {
   connect: '75% a 94%',
   page_checkout: '~15%',
   checkout_compra: '~40%',
-  mentoria_bump: 'quem compra o bump costuma converter 30% a 100% mais',
   comparecimento: '70% a 80% (indicador secundário)',
   pico: 'costuma cair ao longo do dia',
-  conversao_mentoria: '15% a 30% (indicador primário)',
-  dia_pitch: '9% no dia + 11% nos 14 dias seguintes',
 };
 
-export const CAMPOS_META = ['verba_ingresso', 'pct_trafego', 'meta_bump', 'meta_mentoria', 'horario_oferta'];
+export const CAMPOS_META = ['verba_ingresso', 'pct_trafego', 'meta_bump', 'horario_oferta'];
 
 const r1 = (n) => Math.round(n * 10) / 10;
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -135,7 +130,6 @@ function conjuntoDe(vendas) {
   for (const v of vendas) for (const c of chavesDaPessoa(v)) s.add(c);
   return s;
 }
-const pertence = (v, conjunto) => chavesDaPessoa(v).some((c) => conjunto.has(c));
 
 /**
  * Cadastros da janela antes do checkout (S10-05). A mesma pessoa (mesmo e-mail
@@ -227,7 +221,7 @@ export function metasDasLinhas(linhas) {
   return m;
 }
 
-const CAMPOS_PCT = ['pct_trafego', 'meta_bump', 'meta_mentoria'];
+const CAMPOS_PCT = ['pct_trafego', 'meta_bump'];
 export const ERRO_NUMERO = 'digite um número';
 export const ERRO_NEGATIVO = 'a verba não pode ser negativa';
 export const ERRO_PCT = 'a porcentagem vai de 0 a 100';
@@ -381,27 +375,15 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
 
   // ── Bloco 3: order bump ──
   const bumpDia = faturamentoDia.map((d) => ({ dia: d.dia, ingressos: d.ingressos, bumps: d.bumps, conversao: pct(d.bumps, d.ingressos) }));
-  const compradoresIngresso = conjuntoDe(ingressos);
-  const compradoresBump = conjuntoDe(bumps);
-  const mentorias = pagas.filter((v) => v.produto === 'mentoria' && pertence(v, compradoresIngresso));
-  const mentoriasComBump = mentorias.filter((v) => pertence(v, compradoresBump)).length;
   const qtdBump = bumps.length;
-  const soIngresso = Math.max(0, vendidos - qtdBump);
-  const convCom = pct(mentoriasComBump, qtdBump);
-  const convSem = pct(mentorias.length - mentoriasComBump, soIngresso);
   const bump = {
     por_dia: bumpDia,
     total: { ingressos: vendidos, bumps: qtdBump, conversao: pct(qtdBump, vendidos) },
     meta: vazio(metas.meta_bump) ? null : Number(metas.meta_bump),
-    mentoria: {
-      com_bump: { compradores: qtdBump, mentorias: mentoriasComBump, conversao: convCom },
-      sem_bump: { compradores: soIngresso, mentorias: mentorias.length - mentoriasComBump, conversao: convSem },
-      diferenca_pct: convCom !== null && convSem ? r1((convCom / convSem - 1) * 100) : null,
-      referencia: REFERENCIAS.mentoria_bump,
-    },
   };
 
-  // ── Blocos 4 e 5: evento e depois do evento ──
+  // ── Blocos 4 e 5: evento e resultado (só ingresso e bump: a Mentoria saiu
+  // da aba em 14/11/2026, S10-03) ──
   const disponivel = exemplo || hoje >= DIA_EVENTO;
   const oferta = instanteDoHorario(metas.horario_oferta);
   const meet = dados.meet || null;
@@ -413,35 +395,24 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
     pico: { valor: pico, falta_meta: oferta === null, horario: metas.horario_oferta || null, referencia: REFERENCIAS.pico },
   };
 
-  const noDia = mentorias.filter((v) => ymdBrt(v.pago_em) === DIA_EVENTO).length;
-  const seguintes = mentorias.filter((v) => { const d = ymdBrt(v.pago_em); return d > DIA_EVENTO && d <= ULTIMO_DIA_POS; }).length;
   const soma = (lista) => lista.reduce((s, v) => s + (Number(v.valor) || 0), 0);
-  const fatIngressos = soma(ingressos), fatBump = soma(bumps), fatMentoria = soma(mentorias);
-  const faturamento = r2(fatIngressos + fatBump + fatMentoria);
+  const fatIngressos = soma(ingressos), fatBump = soma(bumps);
+  const faturamento = r2(fatIngressos + fatBump);
   const ticket = vendidos > 0 ? r2(faturamento / vendidos) : null;
-  const conversaoMentoria = pct(mentorias.length, vendidos);
   const resultado = {
     disponivel,
     destaque: {
       pessoas_ao_vivo: pico,
       ticket_medio: ticket,
-      conversao_mentoria: conversaoMentoria,
-      meta_mentoria: vazio(metas.meta_mentoria) ? null : Number(metas.meta_mentoria),
     },
-    conversao_mentoria: { valor: conversaoMentoria, mentorias: mentorias.length, referencia: REFERENCIAS.conversao_mentoria },
-    dia_x_seguintes: {
-      no_dia: { mentorias: noDia, conversao: pct(noDia, vendidos) },
-      seguintes: { mentorias: seguintes, conversao: pct(seguintes, vendidos) },
-      referencia: REFERENCIAS.dia_pitch,
-    },
-    faturamento: { total: faturamento, ingressos: r2(fatIngressos), bump: r2(fatBump), mentoria: r2(fatMentoria) },
+    faturamento: { total: faturamento, ingressos: r2(fatIngressos), bump: r2(fatBump) },
     ticket_medio: ticket,
     roas: inv ? r2(faturamento / inv) : null,
   };
 
   const resumo = montarResumo({
     dados, agora, hoje, exemplo, faturamentoDia, pacing, trafego, bump,
-    vendidos, faturamentoAteAgora: r2(fatIngressos + fatBump),
+    vendidos, faturamentoAteAgora: faturamento,
   });
 
   return {

@@ -27,3 +27,47 @@ A usuária abre a aba Imersão 2027 e não encontra nada de Mentoria em nenhuma 
 ## Perguntas em aberto
 
 Nenhuma.
+
+## Cenários
+
+### Happy Path
+1. A usuária abre a aba Imersão 2027. Na subaba Bump, fica a conversão do bump e a tabela por dia, sem a comparação de Mentoria com e sem bump.
+2. Na subaba Evento e resultado, o bloco do evento mostra o comparecimento e as pessoas ao vivo no pitch, e o bloco Resultado mostra faturamento total, ticket médio e ROAS, só com ingresso e bump.
+3. Nas Metas, o campo da meta de Mentoria não existe mais; o horário da oferta continua.
+
+### Edge Cases
+- Venda de Mentoria que exista no banco: não entra em nenhum número da aba.
+- Meta de Mentoria gravada antes da mudança: fica no banco, sem aparecer; envio novo com esse campo é ignorado.
+- Antes de 12/12: os blocos do evento e do resultado seguem avisando que ficam disponíveis a partir de 12/12.
+
+### Cenário de Erro
+- Nenhum novo: a aba continua respondendo com a mensagem de erro que já tinha quando a leitura falha.
+
+## Prova
+
+| Critério | Prova | Onde | O que confere |
+|---|---|---|---|
+| CA-S10-33 | automática | `tests/imersao.test.js` | com dados de exemplo e com dados reais, nenhuma subaba nem a resposta da aba trazem Mentoria; comparecimento, pico e horário da oferta continuam |
+| CA-S10-34 | automática | `tests/imersao.test.js` | 100 ingressos a R$ 45 e 20 bumps a R$ 297 com R$ 6.000 investidos dão R$ 10.440, R$ 104,40 e 1,74, mesmo com venda de Mentoria no banco |
+| CA-S10-35 | manual | roteiro abaixo | a aba sem buraco onde a Mentoria ficava |
+
+### Roteiro manual — CA-S10-35
+1. Abrir o dash, aba Imersão 2027, e olhar o Resumo.
+2. Abrir as subabas Bump e Evento e resultado.
+3. Não deve sobrar espaço vazio, título sem conteúdo nem card quebrado onde a Mentoria ficava.
+
+## Arquivos
+
+- **Modificar:** `functions/api/_imersao.js` — tira os números, a meta e as referências de Mentoria; faturamento, ticket e ROAS só com ingresso e bump
+- **Modificar:** `functions/api/_imersao-exemplo.js` — dados de exemplo sem Mentoria
+- **Modificar:** `public/dash/imersao.js` — tira os cards e o campo de meta de Mentoria; o bloco do resultado passa a ter três cards
+- **Modificar:** `public/dash/index.html` — versão nova do script da aba
+- **Modificar:** `tests/imersao.test.js` — testes dos dois critérios automáticos; os testes de Mentoria da S8 (CA-S8-21 e CA-S8-26) saem com o comportamento, e o CA-S8-27 vira o CA-S10-34
+
+## Checklist
+
+- [x] Números, meta e referências de Mentoria fora das regras
+- [x] Dados de exemplo sem Mentoria
+- [x] Cards e campo de meta de Mentoria fora da tela
+- [x] Faturamento, ticket médio e ROAS só com ingresso e bump
+- [x] Testes dos dois critérios automáticos passando

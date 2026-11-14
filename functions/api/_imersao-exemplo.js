@@ -2,7 +2,7 @@
 //
 // Usados enquanto a Zouti não registrar nenhum ingresso pago. Fictícios mas
 // coerentes entre si (CA-S8-31): compras ≤ inícios de checkout ≤ visualizações
-// ≤ cliques ≤ impressões, mentorias ≤ compradores. "Hoje" é fixo em 26/11 14h,
+// ≤ cliques ≤ impressões, bumps ≤ compradores. "Hoje" é fixo em 26/11 14h,
 // no meio da venda; o evento e o pós-evento vêm preenchidos mesmo assim, para
 // a usuária ver o desenho dos blocos 4 e 5.
 import { LOTES_IMERSAO } from '../../src/data/lotes-imersao.js';
@@ -14,7 +14,6 @@ export const METAS_EXEMPLO = {
   verba_ingresso: 3500,
   pct_trafego: 75,
   meta_bump: 25,
-  meta_mentoria: 20,
   horario_oferta: '16:00',
 };
 
@@ -61,16 +60,6 @@ export function dadosDeExemplo() {
   });
   // Uma compra cancelada, para mostrar que não entra nos números.
   vendas.push({ id: 'i-cancelada', produto: 'ingresso', valor: 39, pago_em: em('2026-11-20', 11), email: 'cancelou@exemplo.com', situacao: 'cancelada' });
-
-  // Mentoria: 5 no dia do pitch e 6 nos 14 dias seguintes, mais vendida a
-  // quem levou o bump.
-  const mentoria = [
-    [1, '2026-12-12', 16, 40], [5, '2026-12-12', 16, 52], [9, '2026-12-12', 17, 5], [22, '2026-12-12', 17, 20], [30, '2026-12-12', 17, 41],
-    [13, '2026-12-14', 10, 0], [17, '2026-12-15', 15, 30], [40, '2026-12-16', 11, 15], [44, '2026-12-18', 14, 0], [25, '2026-12-21', 9, 45], [51, '2026-12-24', 16, 10],
-  ];
-  for (const [p, dia, h, m] of mentoria) {
-    vendas.push({ id: `m${p}`, produto: 'mentoria', valor: 9700, pago_em: em(dia, h, m), email: `pessoa${p}@exemplo.com`, situacao: 'paga' });
-  }
 
   // Meet do dia 12/12: 43 pessoas; parte sai antes da oferta das 16h.
   const meet = [];

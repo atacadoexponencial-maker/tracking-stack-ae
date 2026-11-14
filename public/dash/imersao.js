@@ -12,7 +12,7 @@
     { id: 'ingressos', rotulo: 'Ingressos' },
     { id: 'trafego', rotulo: 'Tráfego e página' },
     { id: 'bump', rotulo: 'Bump' },
-    { id: 'evento', rotulo: 'Evento e pós' },
+    { id: 'evento', rotulo: 'Evento e resultado' },
     { id: 'simulacao', rotulo: 'Simulação' },
     { id: 'metas', rotulo: 'Metas' },
   ];
@@ -139,14 +139,9 @@
   // ── Bloco 3 ────────────────────────────────────────────────────────────
   function blocoBump(ctx, b) {
     const f = fmt(ctx);
-    const m = b.mentoria;
     const linhas = b.por_dia.slice().reverse().map((d) => `<tr><td>${dia(d.dia)}</td><td class="num">${f.int(d.ingressos)}</td><td class="num">${f.int(d.bumps)}</td><td class="num">${f.pct(d.conversao) ?? '—'}</td></tr>`).join('');
-    const dif = vazio(m.diferenca_pct) ? null : `${m.diferenca_pct > 0 ? '+' : ''}${f.num(m.diferenca_pct, 0)}%`;
     const cards = [
       card(ctx, { rotulo: 'Conversão do bump', valor: f.pct(b.total.conversao), nota: `${f.int(b.total.bumps)} de ${f.int(b.total.ingressos)} · meta ${vazio(b.meta) ? 'a definir' : f.pct(b.meta, 0)}`, faltaMeta: false }),
-      card(ctx, { rotulo: 'Mentoria · com bump', valor: f.pct(m.com_bump.conversao), nota: `${f.int(m.com_bump.mentorias)} de ${f.int(m.com_bump.compradores)}` }),
-      card(ctx, { rotulo: 'Mentoria · sem bump', valor: f.pct(m.sem_bump.conversao), nota: `${f.int(m.sem_bump.mentorias)} de ${f.int(m.sem_bump.compradores)}` }),
-      card(ctx, { rotulo: 'Diferença', valor: dif, ref: m.referencia }),
     ].join('');
     return `<div class="bloco im-bloco" data-im-bloco="bump">
       <h2>Order bump <small>aulas da Imersão · R$ 297</small></h2>
@@ -171,24 +166,15 @@
   // ── Bloco 5 ────────────────────────────────────────────────────────────
   function blocoResultado(ctx, r) {
     const f = fmt(ctx);
-    if (!r.disponivel) return `<div class="bloco im-bloco" data-im-bloco="resultado"><h2>Venda depois do evento</h2>${indisponivel}</div>`;
-    const d = r.destaque;
+    if (!r.disponivel) return `<div class="bloco im-bloco" data-im-bloco="resultado"><h2>Resultado <small>ingresso + bump</small></h2>${indisponivel}</div>`;
     const herois = [
-      card(ctx, { rotulo: 'Pessoas ao vivo', valor: f.int(d.pessoas_ao_vivo), grande: true, nota: 'no momento da oferta' }),
-      card(ctx, { rotulo: 'Ticket médio', valor: f.brl(d.ticket_medio), grande: true, nota: 'faturamento ÷ compradores' }),
-      card(ctx, { rotulo: 'Conversão na Mentoria', valor: f.pct(d.conversao_mentoria), grande: true, nota: `meta ${vazio(d.meta_mentoria) ? 'a definir' : f.pct(d.meta_mentoria, 0)}`, ref: r.conversao_mentoria.referencia }),
-    ].join('');
-    const dx = r.dia_x_seguintes;
-    const cards = [
-      card(ctx, { rotulo: 'Mentoria no dia do pitch', valor: f.pct(dx.no_dia.conversao), nota: `${f.int(dx.no_dia.mentorias)} vendas em 12/12` }),
-      card(ctx, { rotulo: 'Mentoria nos 14 dias seguintes', valor: f.pct(dx.seguintes.conversao), nota: `${f.int(dx.seguintes.mentorias)} vendas de 13/12 a 26/12`, ref: dx.referencia }),
-      card(ctx, { rotulo: 'Faturamento total', valor: f.brl(r.faturamento.total), nota: `ingressos ${f.brl(r.faturamento.ingressos)} · bump ${f.brl(r.faturamento.bump)} · Mentoria ${f.brl(r.faturamento.mentoria)}` }),
-      card(ctx, { rotulo: 'ROAS', valor: f.num(r.roas, 2), nota: 'faturamento ÷ investimento em anúncios' }),
+      card(ctx, { rotulo: 'Faturamento total', valor: f.brl(r.faturamento.total), grande: true, nota: `ingressos ${f.brl(r.faturamento.ingressos)} · bump ${f.brl(r.faturamento.bump)}` }),
+      card(ctx, { rotulo: 'Ticket médio', valor: f.brl(r.ticket_medio), grande: true, nota: 'faturamento ÷ compradores' }),
+      card(ctx, { rotulo: 'ROAS', valor: f.num(r.roas, 2), grande: true, nota: 'faturamento ÷ investimento em anúncios' }),
     ].join('');
     return `<div class="bloco im-bloco" data-im-bloco="resultado">
-      <h2>Venda depois do evento <small>resultado</small></h2>
+      <h2>Resultado <small>ingresso + bump</small></h2>
       <div class="grid-heroi im-herois">${herois}</div>
-      <div class="grid-etiquetas">${cards}</div>
     </div>`;
   }
 
@@ -197,7 +183,6 @@
     { id: 'verba_ingresso', rotulo: 'Verba de anúncios de ingresso (R$)', tipo: 'text', modo: 'decimal' },
     { id: 'pct_trafego', rotulo: '% de ingressos esperado do tráfego pago', tipo: 'text', modo: 'decimal', padrao: '75' },
     { id: 'meta_bump', rotulo: 'Meta de conversão do bump (%)', tipo: 'text', modo: 'decimal' },
-    { id: 'meta_mentoria', rotulo: 'Meta de conversão na Mentoria (%)', tipo: 'text', modo: 'decimal' },
     { id: 'horario_oferta', rotulo: 'Horário da oferta no dia 12/12', tipo: 'text', modo: 'text', dica: 'HH:MM' },
   ];
 
