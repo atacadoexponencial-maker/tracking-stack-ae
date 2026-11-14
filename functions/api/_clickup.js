@@ -55,6 +55,10 @@ export const CU_FUNIL_ISCAS = 'b1d0bc63-3d66-41f0-ad31-4a74d7b541ed'; // ISCAS (
 // WO PAGO — usado pela ponte da Greenn (workshop pago). Opção que já existia na
 // lista; não foi criada por nós.
 export const CU_FUNIL_WO_PAGO = '420877c7-44de-4d46-a934-718889443f49';
+// IMERSÃO — comprador da Imersão Planejamento Atacado 2027 (série S10). Opção
+// criada em 14/11/2026 a pedido da usuária. Não é lead: fica fora do relatório
+// de marketing (ver atribuirCards em _feedback-marketing-crm.js).
+export const CU_FUNIL_IMERSAO = '6eac4a69-ae8b-4439-b226-6239942f8265';
 
 // Mesma normalização do n8n: dígitos, sem zeros à esquerda, prefixa 55, com '+'.
 // Telefone no formato do campo do ClickUp (+DDI...), a partir da regra única

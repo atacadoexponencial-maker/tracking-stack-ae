@@ -1,7 +1,7 @@
-# Spec: Pop-up de cadastro e webhook de compras da Imersão
+| confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 |# Spec: Pop-up de cadastro e webhook de compras da Imersão
 
 > série: S10
-> estado: aprovada em 13/11/2026; revisão de 14/11/2026 (cadastro só na planilha, compra no CRM) aguardando aprovação
+> estado: aprovada em 13/11/2026; revisão de 14/11/2026 (cadastro só na planilha, compra no CRM) aprovada em 14/11/2026
 
 ## Visão Geral
 
@@ -483,7 +483,7 @@ os critérios 15, 16 e 17 (cadastro virava card), 19 (cadastro fora do total, tr
 | ID | Suposição | Status | Resolução |
 |---|---|---|---|
 | SUP-S10-01 | "Mesma visita" quer dizer a mesma aba do navegador: se a pessoa fechar a aba e voltar outro dia, a janela aparece de novo. | confirmada | Marcelle, 14/11/2026 |
-| SUP-S10-02 | O card do comprador entra na primeira etapa da lista do CRM, como os leads dos outros funis, sem etapa própria. | aberta | — |
+| SUP-S10-02 | O card do comprador entra na primeira etapa da lista do CRM, como os leads dos outros funis, sem etapa própria. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-03 | Depois do cadastro a pessoa vai sempre ao checkout, nunca a página de obrigado, agenda ou grupo. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-04 | A planilha é nova, criada na conta marcelle@seteads.com, separada das outras. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-05 | O checkout da Zouti aceita receber as UTMs no endereço e não quebra com elas. Sem documentação da Zouti; a conferir com um clique de verdade. | confirmada | Conferido em 14/11/2026: o checkout abriu normalmente com as cinco UTMs no endereço. Se a Zouti as repassa no pedido é a SUP-S10-09. |
@@ -504,10 +504,10 @@ os critérios 15, 16 e 17 (cadastro virava card), 19 (cadastro fora do total, tr
 | SUP-S10-21 | O aviso de pedido pago não traz a data do pagamento num campo próprio na raiz (visto no aviso de teste de 13/11): o site usa a data do pagamento se ela vier, senão a data da última atualização do pedido, que no pedido pago é o momento do pagamento. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-22 | A janela é simples, só o formulário e o botão (sem título, lote ou preço): campos "Nome", "E-mail" e "WhatsApp com DDD"; botão "Garantir ingresso"; erros "Digite o seu nome.", "Digite um e-mail válido, como nome@exemplo.com." e "Digite o WhatsApp com DDD. Número de fora do Brasil começa com +.". | confirmada | Marcelle, 14/11/2026: "O pop deve ser bem simples, apenas o form e o botão garantir ingresso". |
 | SUP-S10-23 | As UTMs da chegada ficam guardadas na aba: se a pessoa recarregar a página ou voltar do checkout sem elas no endereço, as da chegada continuam valendo para a planilha e para o link do checkout. | confirmada | Marcelle, 14/11/2026 |
-| SUP-S10-24 | Um pedido vira um card (ou um comentário) só, mesmo com ingresso e bump: o card diz os dois produtos e o valor de cada um. | aberta | — |
-| SUP-S10-25 | A pessoa "já tem card" quando existe no CRM um card com o mesmo telefone ou o mesmo e-mail, em qualquer funil e em qualquer etapa. | aberta | — |
-| SUP-S10-26 | O nome do comprador vai para a planilha e para o CRM, mas não é guardado no banco do site (que continua só com e-mail e telefone da venda). | aberta | — |
-| SUP-S10-27 | A cópia do cadastro que o site guarda para a aba Imersão 2027 tem data, e-mail, telefone e UTMs (sem o nome), e a mesma pessoa que se cadastra duas vezes conta uma vez só. | aberta | — |
+| SUP-S10-24 | Um pedido vira um card (ou um comentário) só, mesmo com ingresso e bump: o card diz os dois produtos e o valor de cada um. | confirmada | Marcelle, 14/11/2026 |
+| SUP-S10-25 | A pessoa "já tem card" quando existe no CRM um card com o mesmo telefone ou o mesmo e-mail, em qualquer funil e em qualquer etapa. | confirmada | Marcelle, 14/11/2026 |
+| SUP-S10-26 | O nome do comprador vai para a planilha e para o CRM, mas não é guardado no banco do site (que continua só com e-mail e telefone da venda). | confirmada | Marcelle, 14/11/2026 |
+| SUP-S10-27 | A cópia do cadastro que o site guarda para a aba Imersão 2027 tem data, e-mail, telefone e UTMs (sem o nome), e a mesma pessoa que se cadastra duas vezes conta uma vez só. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-07 | Cadastros de teste (e-mails @seteads.com e @teste.com) seguem a regra que já existe no site: não vão ao Meta nem ao Google. | invalidada | Sem efeito desde 14/11/2026: o site não envia mais nada ao Meta nem ao Google por causa do cadastro. |
 
 ## Perguntas em aberto

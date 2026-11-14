@@ -17,9 +17,10 @@ import { LOTES_IMERSAO } from '../../src/data/lotes-imersao.js';
 import { loteVigente } from '../../src/data/lotes-workshop.js';
 
 // Criada em 14/11/2026 pela VPS, na conta marcelle@seteads.com.
-const PLANILHA = '1extoy7Pqg4woEV_xUqm6KRR6aj9HLTy2-rVQQX_qGD8';
+// A aba Compras do mesmo arquivo é gravada por _imersao-compra.js.
+export const PLANILHA = '1extoy7Pqg4woEV_xUqm6KRR6aj9HLTy2-rVQQX_qGD8';
 const ABA = 'Cadastros';
-const CONTA = 'marcelle@seteads.com';
+export const CONTA = 'marcelle@seteads.com';
 const MAX_CORPO = 5000;
 
 const UTMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];

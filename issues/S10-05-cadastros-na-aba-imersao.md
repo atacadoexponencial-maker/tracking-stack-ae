@@ -1,4 +1,4 @@
-# S10-05: Cadastros da janela na aba Imersão 2027
+| confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 |# S10-05: Cadastros da janela na aba Imersão 2027
 
 **Tipo:** Implementação
 **Página:** Dash, aba Imersão 2027, e janela de cadastro da página do ingresso
@@ -22,7 +22,7 @@ A usuária abre a aba Imersão 2027 e vê o número de cadastros da janela e a p
 | ID | Suposição | Status | Resolução |
 |---|---|---|---|
 | SUP-S10-10 | Na aba Imersão 2027, o cadastro conta como "comprou" quando existe venda paga de ingresso com o mesmo e-mail ou o mesmo telefone. | aberta | — |
-| SUP-S10-27 | A cópia do cadastro que o site guarda para a aba Imersão 2027 tem data, e-mail, telefone e UTMs (sem o nome), e a mesma pessoa que se cadastra duas vezes conta uma vez só. | aberta | — |
+| SUP-S10-27 | A cópia do cadastro que o site guarda para a aba Imersão 2027 tem data, e-mail, telefone e UTMs (sem o nome), e a mesma pessoa que se cadastra duas vezes conta uma vez só. | confirmada | Marcelle, 14/11/2026 |
 
 ## Perguntas em aberto
 

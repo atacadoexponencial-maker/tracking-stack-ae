@@ -12,7 +12,7 @@
 //
 // Prefixo "_": o Cloudflare Pages não transforma o arquivo em rota.
 
-import { CU_FIELD, CU_DEFAULT_LIST, clickupFetch } from './_clickup.js';
+import { CU_FIELD, CU_DEFAULT_LIST, CU_FUNIL_IMERSAO, clickupFetch } from './_clickup.js';
 import { canalDeLead } from './_canal.js';
 import { lerOpcoesCrmGravadas } from './_funis-relatorio.js';
 import { clausulasBotIpSql } from '../_bots.js';
@@ -141,6 +141,9 @@ export function atribuirCards({ cards = [], funisAtivos = [], limites, taskIdsEx
     if (excluidos.has(id)) continue;
 
     const opcao = opcaoFunilDoCard(card);
+    // Comprador da Imersão (card criado pelo webhook da Zouti) nunca é lead: não
+    // entra em bloco nem em "sem funil" (decisão da usuária, série S10).
+    if (opcao && opcao.id === CU_FUNIL_IMERSAO) continue;
     // Funil arquivado continua dono dos leads da opção dele, para o histórico não
     // virar "sem funil"; se um funil ativo usa a mesma opção, o ativo vence.
     const todosDonos = opcao ? funis.filter((f) => f.idsOpcoes.has(opcao.id)) : [];

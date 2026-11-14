@@ -12,6 +12,7 @@
 //   - só 2xx é sucesso; 10 falhas seguidas desligam o webhook e não há reenvio
 //     manual. Por isso todo aviso assinado que o site não usa responde 200.
 import { timingSafeEqual } from '../webhook/_utils.js';
+import { efeitosDaCompra, efeitosDaMudanca } from './_imersao-compra.js';
 
 // Produto da Zouti → produto da aba Imersão 2027 (informados pela usuária em
 // 13/11). A Mentoria Atacado Exponencial fica de fora por decisão dela.
@@ -146,12 +147,16 @@ async function registrar(db, cab, objetoId, resultado, motivo, vendas, agora) {
 /**
  * Processa um aviso da Zouti.
  * `cab` = { assinatura, tipo, eventoId, entregaId, objetoId } (cabeçalhos).
- * Devolve { status, corpo } para o endereço responder.
+ * Devolve { status, corpo, depois } para o endereço responder. `depois` (quando
+ * existe) é o que roda fora do banco: planilha, CRM e lista de e-mail
+ * (./_imersao-compra.js). Nunca falha, e só existe na primeira vez que o site
+ * grava aquele aviso daquele pedido: aviso repetido não repete linha, card nem
+ * comentário.
  *   401: assinatura ausente ou errada, ou segredo não configurado. Nada gravado.
  *   200: aviso aceito (gravado ou ignorado).
  *   Falha do banco sobe como exceção: o endereço responde 500 e a Zouti reenvia.
  */
-export async function processarAviso({ env, corpo, cab, agora = Math.floor(Date.now() / 1000) }) {
+export async function processarAviso({ env, corpo, cab, agora = Math.floor(Date.now() / 1000), gravarLinha }) {
   if (!(await assinaturaConfere(env.ZOUTI_WEBHOOK_SECRET, cab.assinatura, corpo))) {
     return { status: 401, corpo: { erro: 'assinatura inválida' } };
   }
@@ -173,22 +178,38 @@ export async function processarAviso({ env, corpo, cab, agora = Math.floor(Date.
   const pedidoId = pedido?.id || cab.objetoId || '';
   // O tipo vem no cabeçalho `x-zouti-event-type`; se faltar, tenta o corpo (SUP-S10-20).
   const tipo = cab.tipo || aviso?.event_type || aviso?.event || '';
+  cab = { ...cab, tipo };
+  const jaFeito = async () => !!(pedidoId && await db.prepare(
+    "SELECT 1 AS ok FROM imersao_avisos WHERE objeto_id = ? AND tipo = ? AND resultado = 'gravado' LIMIT 1",
+  ).bind(pedidoId, tipo).first());
+  const planilha = gravarLinha ? { gravar: gravarLinha } : {};
 
   if (tipo === 'ORDER_PAID') {
     if (!pedidoId) return ignorar('', 'pedido sem identificador');
     const vendas = vendasDoPedido({ ...pedido, id: pedidoId }, agora);
     if (!vendas.length) return ignorar(pedidoId, `produto de fora${formatoDoAviso(aviso, pedido)}`);
+    const repetido = await jaFeito();
     const n = await gravarVendas(db, vendas);
     await registrar(db, cab, pedidoId, 'gravado', null, n, agora);
-    return { status: 200, corpo: { ok: true, resultado: 'gravado', vendas: n } };
+    const depois = repetido ? null : efeitosDaCompra({ env, pedido, pedidoId, vendas, ...planilha });
+    return { status: 200, corpo: { ok: true, resultado: 'gravado', vendas: n }, depois };
   }
 
   const situacao = SITUACAO_POR_TIPO[tipo];
   if (situacao) {
+    const repetido = await jaFeito();
     const n = pedidoId ? await mudarSituacao(db, pedidoId, situacao) : 0;
     if (!n) return ignorar(pedidoId, 'pedido desconhecido');
     await registrar(db, cab, pedidoId, 'gravado', null, n, agora);
-    return { status: 200, corpo: { ok: true, resultado: 'gravado', vendas: n } };
+    let depois = null;
+    if (!repetido) {
+      const prefixo = `${pedidoId}:`;
+      const r = await db.prepare(
+        'SELECT produto, valor_centavos, email, telefone FROM imersao_vendas WHERE substr(id, 1, ?) = ? ORDER BY id',
+      ).bind(prefixo.length, prefixo).all();
+      depois = efeitosDaMudanca({ env, pedido, pedidoId, tipo, situacao, vendas: r.results || [], agora, ...planilha });
+    }
+    return { status: 200, corpo: { ok: true, resultado: 'gravado', vendas: n }, depois };
   }
 
   return ignorar(pedidoId, 'tipo não usado');

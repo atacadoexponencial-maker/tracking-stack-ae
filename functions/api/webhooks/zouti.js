@@ -10,7 +10,7 @@ import { processarAviso } from '../_imersao-zouti.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   const corpo = await request.text();
   const h = request.headers;
   try {
@@ -25,6 +25,12 @@ export async function onRequestPost({ request, env }) {
         objetoId: h.get('x-zouti-object-id') || '',
       },
     });
+    // Planilha, CRM e lista de e-mail rodam depois da resposta: a Zouti não
+    // espera por eles e nenhuma falha ali vira erro para ela.
+    if (r.depois) {
+      if (typeof waitUntil === 'function') waitUntil(r.depois);
+      else await r.depois;
+    }
     return json(r.corpo, r.status);
   } catch (e) {
     // Falha do banco: 500 para a Zouti tentar de novo (ela reenvia por até 4 dias).
