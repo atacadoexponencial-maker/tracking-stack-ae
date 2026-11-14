@@ -213,3 +213,44 @@ test('CA-S10-32: a página não manda início de checkout próprio ao Meta', () 
   assert.doesNotMatch(PAGINA, /checkout-venda|ligarCheckout|fbq\(/);
   assert.doesNotMatch(readFileSync(new URL('../src/scripts/cadastro-imersao.js', import.meta.url), 'utf8'), /InitiateCheckout|fbq|\/tracker/);
 });
+
+// ---- S10-05: o cadastro fica só na planilha (e na contagem da aba) ----------
+
+test('CA-S10-37: cadastro fica só na planilha, sem CRM, lista de e-mail nem Meta', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { bancoDosFluxos, d1 } = await import('./_fluxos-banco.js');
+  const db = bancoDosFluxos();
+  db.exec(readFileSync(new URL('../migrations/0072_imersao_cadastros.sql', import.meta.url), 'utf8'));
+  assert.ok(db instanceof DatabaseSync);
+  // Credenciais de tudo presentes: se o cadastro tentasse CRM, lista ou Meta, a chamada sairia.
+  const env = { DB: d1(db), CLICKUP_API_TOKEN: 't', META_ACCESS_TOKEN: 't', META_PIXEL_ID: '1', GHL_API_KEY: 't', POSTMARK_TOKEN: 't' };
+  const chamadas = [];
+  const fetchReal = globalThis.fetch;
+  globalThis.fetch = async (url) => { chamadas.push(String(url)); return Response.json({}); };
+  const linhas = [];
+  try {
+    const res = await processarCadastro({
+      request: pedido({ ...VALIDO, utms: { utm_source: 'facebookads' } }),
+      env, agoraMs: AGORA, gravar: async (_e, o) => { linhas.push(o); },
+    });
+    assert.equal(res.status, 200);
+  } finally {
+    globalThis.fetch = fetchReal;
+  }
+  // A linha existe na planilha.
+  assert.equal(linhas.length, 1);
+  assert.equal(linhas[0].aba, 'Cadastros');
+  assert.equal(linhas[0].linha[2], 'maria@exemplo.com');
+  // Nenhuma chamada para fora (CRM, Meta, serviço de e-mail).
+  assert.deepEqual(chamadas, []);
+  // Nenhum contato na lista de e-mail, nenhum lead nem envio registrado.
+  const conta = (tabela) => db.prepare(`SELECT COUNT(*) AS n FROM ${tabela}`).get().n;
+  for (const tabela of ['email_contatos', 'email_contatos_entradas', 'event_log', 'lead_dispatch']) assert.equal(conta(tabela), 0, tabela);
+  // A cópia para a aba Imersão 2027 não guarda o nome.
+  const copia = db.prepare('SELECT * FROM imersao_cadastros').all();
+  assert.equal(copia.length, 1);
+  assert.equal(copia[0].email, 'maria@exemplo.com');
+  assert.equal(copia[0].telefone, '5511987654321');
+  assert.equal(copia[0].utm_source, 'facebookads');
+  assert.doesNotMatch(JSON.stringify(copia[0]), /Maria/);
+});

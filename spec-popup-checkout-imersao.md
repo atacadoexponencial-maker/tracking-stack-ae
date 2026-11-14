@@ -1,4 +1,4 @@
-| confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 |# Spec: Pop-up de cadastro e webhook de compras da Imersão
+# Spec: Pop-up de cadastro e webhook de compras da Imersão
 
 > série: S10
 > estado: aprovada em 13/11/2026; revisão de 14/11/2026 (cadastro só na planilha, compra no CRM) aprovada em 14/11/2026
@@ -493,10 +493,10 @@ os critérios 15, 16 e 17 (cadastro virava card), 19 (cadastro fora do total, tr
 | SUP-S10-11 | Chargeback (pedido contestado) tira a venda dos números, como o reembolso. | confirmada | Marcelle, 13/11. |
 | SUP-S10-12 | O bump não tem campo próprio no aviso: ele chega como mais um item do mesmo pedido, e é reconhecido pelo produto do item. | aberta | — |
 | SUP-S10-13 | A venda conta pelo aviso de pedido pago; o valor de cada produto é o do item, não o total do pedido. | confirmada | Marcelle, 13/11. |
-| SUP-S10-10 | Na aba Imersão 2027, o cadastro conta como "comprou" quando existe venda paga de ingresso com o mesmo e-mail ou o mesmo telefone. | aberta | — |
+| SUP-S10-10 | Na aba Imersão 2027, o cadastro conta como "comprou" quando existe venda paga de ingresso com o mesmo e-mail ou o mesmo telefone. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-14 | Como a Zouti já avisa o Meta do início de checkout e da compra, a página deixa de enviar o próprio início de checkout ao Meta, para não contar duas vezes. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-15 | "Conta como lead" vale para o Meta e para o CRM; no dash fica separado, fora do total e do CPL, e aparece na aba Imersão 2027. | invalidada | Marcelle, 14/11/2026: o cadastro não vai ao Meta nem ao CRM; quem vai ao CRM é o comprador. |
-| SUP-S10-16 | Sem a Mentoria, o comparecimento ao evento e o pico de pessoas no horário da oferta continuam na aba, e o campo "horário da oferta" continua nas Metas. | aberta | — |
+| SUP-S10-16 | Sem a Mentoria, o comparecimento ao evento e o pico de pessoas no horário da oferta continuam na aba, e o campo "horário da oferta" continua nas Metas. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-17 | A assinatura do aviso é feita sobre o corpo do aviso com o segredo; a documentação tem o trecho do formato cortado, então o site aceita também a forma em que o horário do cabeçalho entra junto do corpo. Sem conferir a validade do horário. | confirmada | Confirmada pelo aviso de teste da Zouti em 13/11: o site aceitou a assinatura com o segredo gravado. |
 | SUP-S10-18 | No aviso, o valor de cada item é o total daquele item; com mais de uma unidade, cada ingresso vale o total dividido pela quantidade e conta como um ingresso vendido. | aberta | — |
 | SUP-S10-19 | O endereço do webhook é https://atacadoexponencial.com/api/webhooks/zouti e o segredo fica guardado no servidor (nunca no site). | confirmada | Marcelle, 13/11. |
@@ -508,6 +508,8 @@ os critérios 15, 16 e 17 (cadastro virava card), 19 (cadastro fora do total, tr
 | SUP-S10-25 | A pessoa "já tem card" quando existe no CRM um card com o mesmo telefone ou o mesmo e-mail, em qualquer funil e em qualquer etapa. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-26 | O nome do comprador vai para a planilha e para o CRM, mas não é guardado no banco do site (que continua só com e-mail e telefone da venda). | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-27 | A cópia do cadastro que o site guarda para a aba Imersão 2027 tem data, e-mail, telefone e UTMs (sem o nome), e a mesma pessoa que se cadastra duas vezes conta uma vez só. | confirmada | Marcelle, 14/11/2026 |
+| SUP-S10-28 | Enquanto não houver ingresso pago de verdade, a aba Imersão 2027 é toda de exemplo, e os cadastros mostrados também são de exemplo. | confirmada | Marcelle, 14/11/2026 |
+| SUP-S10-29 | Os cadastros aparecem em um card "Cadastros na janela" na subaba Tráfego e página, com o total de pessoas e quantas compraram; os cards Page to checkout e Checkout to compra não mudam. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-07 | Cadastros de teste (e-mails @seteads.com e @teste.com) seguem a regra que já existe no site: não vão ao Meta nem ao Google. | invalidada | Sem efeito desde 14/11/2026: o site não envia mais nada ao Meta nem ao Google por causa do cadastro. |
 
 ## Perguntas em aberto

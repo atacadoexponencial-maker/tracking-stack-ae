@@ -34,6 +34,7 @@ beforeEach(() => {
   seq = 0;
   db = new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../migrations/0070_imersao.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0072_imersao_cadastros.sql', import.meta.url), 'utf8'));
   env = { DASH_KEY: 'k', DB: d1(db) };
 });
 
@@ -559,4 +560,26 @@ test('CA-S8-38: cada subaba mostra o seu bloco', () => {
   const rotulos = [...resumo.matchAll(/data-im-aba="([a-z]+)"/g)].map((m) => m[1]);
   assert.deepEqual(rotulos, ['resumo', 'ingressos', 'trafego', 'bump', 'evento', 'simulacao', 'metas']);
   assert.match(tela(r, { aba: 'visao' }), /data-im-conteudo="resumo"/);
+});
+
+// ── S10-05: cadastros da janela antes do checkout ─────────────────────────
+test('CA-S10-18: cadastros aparecem na aba Imersão 2027', async () => {
+  db.prepare("INSERT INTO imersao_vendas (id, produto, valor_centavos, pago_em, email, telefone) VALUES ('z1', 'ingresso', 2900, ?, 'outro@x.com', '5511987654321')").run(em('2026-11-14T10:00:00'));
+  const cad = db.prepare('INSERT INTO imersao_cadastros (criado_em, email, telefone) VALUES (?, ?, ?)');
+  cad.run(em('2026-11-14T09:00:00'), 'ana@x.com', '5511987654321'); // comprou (mesmo telefone, e-mail diferente)
+  cad.run(em('2026-11-14T09:10:00'), 'bia@x.com', '5521911112222');
+  cad.run(em('2026-11-14T09:20:00'), 'carla@x.com', '5531933334444');
+  cad.run(em('2026-11-14T09:30:00'), 'bia@x.com', '5521955556666'); // a Bia de novo: conta uma vez
+  const r = await getImersao();
+  assert.equal(r.exemplo, false);
+  assert.deepEqual(r.trafego.cadastros, { total: 3, compraram: 1, conversao: 33.33 });
+  const card = cardDe(tela(r, { aba: 'trafego' }), 'Cadastros na janela');
+  assert.match(card, /class="valor">3</);
+  assert.ok(card.includes('1 comprou o ingresso (33,3%)'));
+  // Sem venda real a aba é toda de exemplo, cadastros inclusive (SUP-S10-28).
+  db.exec('DELETE FROM imersao_vendas');
+  const ex = await getImersao();
+  assert.equal(ex.exemplo, true);
+  assert.equal(ex.trafego.cadastros.total, 140);
+  assert.equal(ex.trafego.cadastros.compraram, ex.ingressos.vendidos.valor);
 });

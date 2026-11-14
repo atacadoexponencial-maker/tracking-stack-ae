@@ -137,6 +137,38 @@ function conjuntoDe(vendas) {
 }
 const pertence = (v, conjunto) => chavesDaPessoa(v).some((c) => conjunto.has(c));
 
+/**
+ * Cadastros da janela antes do checkout (S10-05). A mesma pessoa (mesmo e-mail
+ * ou mesmo telefone) conta uma vez (SUP-S10-27); "comprou" = existe ingresso
+ * pago com o mesmo e-mail ou telefone (SUP-S10-10).
+ */
+export function contarCadastros(cadastros, ingressosPagos) {
+  const grupoDaChave = new Map();
+  const pai = [];
+  const raiz = (i) => { while (pai[i] !== i) i = pai[i]; return i; };
+  for (const c of cadastros || []) {
+    const chaves = chavesDaPessoa(c);
+    if (!chaves.length) continue;
+    let g = null;
+    for (const ch of chaves) {
+      if (!grupoDaChave.has(ch)) continue;
+      const r = raiz(grupoDaChave.get(ch));
+      if (g === null) g = r; else if (r !== g) pai[r] = g;
+    }
+    if (g === null) { g = pai.length; pai.push(g); }
+    for (const ch of chaves) grupoDaChave.set(ch, g);
+  }
+  const compradores = conjuntoDe(ingressosPagos || []);
+  const pessoas = new Set();
+  const compraram = new Set();
+  for (const [ch, g] of grupoDaChave) {
+    const r = raiz(g);
+    pessoas.add(r);
+    if (compradores.has(ch)) compraram.add(r);
+  }
+  return { total: pessoas.size, compraram: compraram.size, conversao: pct(compraram.size, pessoas.size) };
+}
+
 // ── Cores, picos ───────────────────────────────────────────────────────────
 
 /** Cor do faturamento do dia: 20% ou mais acima = forte; acima ou igual = claro; abaixo = vermelho. */
@@ -252,7 +284,8 @@ const instanteDoHorario = (hhmm) => {
 /**
  * Os 5 blocos da Visão geral.
  * dados = { vendas[], trafego{investimento,impressoes,cliques}|null,
- *           visualizacoes|null, inicios_checkout|null, anuncios[], meet[]|null }
+ *           visualizacoes|null, inicios_checkout|null, anuncios[], meet[]|null,
+ *           cadastros[] (janela antes do checkout: email, telefone) }
  */
 export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
   const pagas = (dados.vendas || []).filter((v) => (v.situacao || 'paga') === 'paga');
@@ -343,6 +376,7 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
     page_checkout: taxa(vis !== null && ini !== null ? pct(ini, vis) : null, REFERENCIAS.page_checkout),
     checkout_compra: taxa(ini !== null ? pct(vendidos, ini) : null, REFERENCIAS.checkout_compra),
     ranking: { por_vendas: porVendas, por_custo: porCusto },
+    cadastros: contarCadastros(dados.cadastros, ingressos),
   };
 
   // ── Bloco 3: order bump ──

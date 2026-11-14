@@ -1,4 +1,4 @@
-| confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 || confirmada | Marcelle, 14/11/2026 |# S10-07: Compra vai para o CRM, a planilha e a lista de e-mail
+# S10-07: Compra vai para o CRM, a planilha e a lista de e-mail
 
 **Tipo:** Implementação
 **Página:** Webhook de compras da Zouti

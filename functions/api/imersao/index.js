@@ -21,6 +21,11 @@ export async function carregarDados(env, agoraReal = Math.floor(Date.now() / 100
                            utm_source, utm_medium, utm_campaign, utm_content, situacao
                       FROM imersao_vendas`).all(),
   ]);
+  // Cadastros da janela antes do checkout (S10-05). Sem a tabela, a aba segue
+  // funcionando com zero cadastros.
+  const cadastros = await env.DB.prepare('SELECT email, telefone FROM imersao_cadastros').all()
+    .then((r) => r.results || [])
+    .catch((e) => { console.error('[imersao] falha ao ler os cadastros:', e?.message || e); return []; });
   const salvas = metasDasLinhas(linhasMetas.results);
   const lista = vendas.results || [];
   const temIngresso = lista.some((v) => v.produto === 'ingresso' && v.situacao === 'paga');
@@ -39,6 +44,7 @@ export async function carregarDados(env, agoraReal = Math.floor(Date.now() / 100
       inicios_checkout: null,
       anuncios: [],
       meet: null,
+      cadastros,
     },
   };
 }

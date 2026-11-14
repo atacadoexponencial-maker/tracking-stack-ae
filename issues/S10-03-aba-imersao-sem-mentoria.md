@@ -22,7 +22,7 @@ A usuária abre a aba Imersão 2027 e não encontra nada de Mentoria em nenhuma 
 
 | ID | Suposição | Status | Resolução |
 |---|---|---|---|
-| SUP-S10-16 | Sem a Mentoria, o comparecimento ao evento e o pico de pessoas no horário da oferta continuam na aba, e o campo "horário da oferta" continua nas Metas. | aberta | — |
+| SUP-S10-16 | Sem a Mentoria, o comparecimento ao evento e o pico de pessoas no horário da oferta continuam na aba, e o campo "horário da oferta" continua nas Metas. | confirmada | Marcelle, 14/11/2026 |
 
 ## Perguntas em aberto
 

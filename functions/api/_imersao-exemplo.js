@@ -80,7 +80,12 @@ export function dadosDeExemplo() {
     meet.push({ pessoa: `pessoa${p}`, entrou, saiu });
   }
 
+  // Cadastros da janela antes do checkout: um por início de checkout (140);
+  // os primeiros são de quem comprou o ingresso, o resto não comprou.
+  const cadastros = Array.from({ length: 140 }, (_, i) => ({ email: i < n ? `pessoa${i + 1}@exemplo.com` : `cadastro${i + 1}@exemplo.com` }));
+
   return {
+    cadastros,
     vendas,
     trafego: { investimento: ANUNCIOS.reduce((s, a) => s + a.investimento, 0), impressoes: 112000, cliques: 1150 },
     visualizacoes: VISITAS_DIA.reduce((a, b) => a + b, 0),

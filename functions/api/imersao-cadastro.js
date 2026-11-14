@@ -2,6 +2,9 @@
 // Imersão Planejamento Atacado 2027 (spec-popup-checkout-imersao.md, série S10,
 // issue S10-04).
 //
+// O cadastro fica só na planilha e na contagem da aba Imersão 2027: não vai
+// ao CRM, à lista de e-mail nem ao Meta (decisão de 14/11/2026).
+//
 // Confere nome, e-mail e WhatsApp e acrescenta uma linha na planilha, com as
 // UTMs da visita e o lote e o preço daquele momento (quem decide o lote é o
 // servidor, pela hora dele). A página não espera esta resposta para levar a
@@ -62,6 +65,17 @@ export async function processarCadastro({ request, env, agoraMs = Date.now(), gr
     aberto ? lote.rotulo : '',
     aberto ? lote.valor : '',
   ];
+
+  // Cópia sem o nome para a aba Imersão 2027 contar cadastros e compradores
+  // (S10-05). Falha aqui não impede a linha da planilha.
+  try {
+    await env.DB.prepare(
+      `INSERT INTO imersao_cadastros (criado_em, email, telefone, utm_source, utm_medium, utm_campaign, utm_content, utm_term)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(Math.floor(agoraMs / 1000), email, tel.digitos, ...UTMS.map((k) => texto(corpo?.utms?.[k], 200))).run();
+  } catch (e) {
+    console.error('[imersao-cadastro] falha ao guardar a cópia no banco:', e?.message || e);
+  }
 
   try {
     await gravar(env, { subject: CONTA, planilha: PLANILHA, aba: ABA, cabecalho: CABECALHO, linha, criarAba: true });

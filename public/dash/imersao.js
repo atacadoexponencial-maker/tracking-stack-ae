@@ -117,6 +117,13 @@
       card(ctx, { rotulo: 'Connect rate', valor: f.pct(t.connect.valor), ref: t.connect.referencia }),
       card(ctx, { rotulo: 'Page to checkout', valor: f.pct(t.page_checkout.valor), ref: t.page_checkout.referencia }),
       card(ctx, { rotulo: 'Checkout to compra', valor: f.pct(t.checkout_compra.valor), ref: t.checkout_compra.referencia }),
+      card(ctx, {
+        rotulo: 'Cadastros na janela',
+        valor: f.int(t.cadastros.total),
+        nota: t.cadastros.total > 0
+          ? `${f.int(t.cadastros.compraram)} ${t.cadastros.compraram === 1 ? 'comprou' : 'compraram'} o ingresso (${f.pct(t.cadastros.conversao)})`
+          : 'ninguém preencheu a janela antes do checkout ainda',
+      }),
     ].join('');
     const botoes = [['vendas', 'por vendas'], ['custo', 'por custo por venda']]
       .map(([id, rot]) => `<button type="button" data-im-ordem="${id}" aria-pressed="${estado.ordem === id}">${rot}</button>`).join('');
