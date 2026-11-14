@@ -1,7 +1,7 @@
 # Spec: Pop-up de cadastro e webhook de compras da Imersão
 
 > série: S10
-> estado: aprovada em 13/11/2026
+> estado: aprovada em 13/11/2026; revisão de 14/11/2026 (cadastro só na planilha, compra no CRM) aguardando aprovação
 
 ## Visão Geral
 
@@ -163,19 +163,21 @@ não os exponha no endereço do link (ver PER-S10-12).
 
 ### Aviso ao Meta
 
-**Descrição:** o cadastro confirmado conta como lead no Meta. Início de checkout e compra
-ficam por conta da Zouti.
+**Descrição:** decisão da usuária em 14/11: o site não envia nada ao Meta, nem no cadastro
+nem na compra. Início de checkout e compra ficam por conta da Zouti (pixel e CAPI dela).
 
 **Comportamentos:**
-- Confirmar um cadastro: o Meta recebe um lead daquela pessoa.
+- Confirmar um cadastro: o cadastro fica só na planilha (e na contagem da aba Imersão 2027).
+  Não vira card no CRM, não entra em lista de e-mail e não gera evento no Meta.
 
 **Critérios de aceite:**
 
-#### CA-S10-31 — Cadastro confirmado vira lead no Meta · prova: automática
+#### CA-S10-37 — Cadastro fica só na planilha · prova: automática
 
-- **Dado** um cadastro confirmado que não é de teste
+- **Dado** um cadastro confirmado na janela
 - **Quando** a gravação termina
-- **Então** o Meta recebe um evento de lead com os dados protegidos da pessoa, uma vez só
+- **Então** a linha existe na planilha, e não existe card novo no CRM, comentário em card,
+  contato novo na lista de e-mail nem evento enviado ao Meta por causa desse cadastro
 
 #### CA-S10-32 — A página não manda início de checkout em dobro · prova: automática
 
@@ -215,46 +217,104 @@ ficam por conta da Zouti.
 - **Quando** a usuária faz um cadastro pelo celular vindo de um link com UTMs
 - **Então** ela encontra a linha na planilha com os dados e as UTMs daquele link
 
-### Card no CRM
+### Planilha de compras
 
-**Descrição:** cada cadastro vira card no CRM, com o funil IMERSÃO.
+**Descrição:** as compras vão para a mesma planilha dos cadastros, em uma aba separada,
+"Compras" (decisão da usuária em 14/11).
+
+**Componentes:**
+- Colunas: data e hora do pagamento (Brasília), produto (Ingresso ou Bump), valor, nome,
+  e-mail, WhatsApp, origem, mídia, campanha, conteúdo, termo, código do pedido e situação.
 
 **Comportamentos:**
-- Confirmar um cadastro de pessoa que não está no CRM: nasce um card novo.
-- Confirmar um cadastro de pessoa que já tem card (mesmo telefone ou e-mail): o card
-  existente recebe um comentário; não nasce um segundo card.
+- Receber um aviso de compra paga: entra uma linha por produto comprado.
+- Receber um aviso de reembolso, cancelamento ou chargeback: entra uma linha nova com a
+  situação; a linha da compra não é apagada.
 
 **Critérios de aceite:**
 
-#### CA-S10-15 — Cadastro novo vira card com funil IMERSÃO · prova: automática
+#### CA-S10-38 — Compra paga vira linha na aba Compras · prova: automática
 
-- **Dado** um cadastro confirmado de alguém que não está no CRM
-- **Quando** a gravação termina
-- **Então** existe um card com nome, e-mail, WhatsApp e UTMs, com o campo Funil em IMERSÃO
+- **Dado** um aviso válido de pedido pago com o ingresso e o bump
+- **Quando** o site processa o aviso
+- **Então** a aba Compras ganha duas linhas, uma do Ingresso e uma do Bump, cada uma com data
+  e hora de Brasília, valor do produto, nome, e-mail, WhatsApp, as UTMs do pedido, o código
+  do pedido e a situação "Paga"
 
-#### CA-S10-16 — Quem já tem card não ganha um segundo · prova: automática
+#### CA-S10-39 — Reembolso, cancelamento e chargeback viram linha nova · prova: automática
 
-- **Dado** um cadastro confirmado de alguém que já tem card no CRM
-- **Quando** a gravação termina
-- **Então** o card existente recebe um comentário dizendo que a pessoa se cadastrou para a
-  Imersão, e nenhum card novo é criado
+- **Dado** uma compra já registrada na aba Compras
+- **Quando** chega o aviso de reembolso, de cancelamento ou de chargeback daquele pedido
+- **Então** a aba ganha uma linha nova daquele pedido com a situação "Reembolsada" ou
+  "Cancelada", e a linha da compra continua lá
 
-#### CA-S10-17 — Card de verdade aparece no CRM · prova: manual
+#### CA-S10-40 — Falha na planilha, no CRM ou na lista não derruba o aviso · prova: automática
 
-- **Dado** a página no ar
-- **Quando** a usuária faz um cadastro com um contato que não está no CRM
-- **Então** ela encontra o card no CRM com o funil IMERSÃO
+- **Dado** a planilha, o CRM ou a lista de e-mail fora do ar
+- **Quando** chega um aviso válido de pedido pago
+- **Então** a venda é gravada para a aba Imersão 2027 e o site responde à Zouti que recebeu
+  (a Zouti desliga o webhook depois de 10 falhas seguidas)
+
+### Card no CRM
+
+**Descrição:** decisão da usuária em 14/11: quem compra vira card no CRM, com o funil
+IMERSÃO e os dados que a Zouti enviar. Quem só preenche a janela não vai ao CRM.
+
+**Comportamentos:**
+- Receber a compra de uma pessoa que não está no CRM: nasce um card novo, do funil IMERSÃO.
+- Receber a compra de uma pessoa que já tem card (mesmo telefone ou e-mail): o card
+  existente recebe um comentário; não nasce um segundo card.
+- Receber o reembolso, o cancelamento ou o chargeback de uma compra: o card recebe um
+  comentário avisando. A etapa do card não muda.
+- Receber o mesmo aviso duas vezes: nada é repetido no CRM.
+
+**Critérios de aceite:**
+
+#### CA-S10-41 — Compra de quem não está no CRM vira card com funil IMERSÃO · prova: automática
+
+- **Dado** um aviso válido de pedido pago de alguém que não está no CRM
+- **Quando** o site processa o aviso
+- **Então** existe um card com nome, e-mail, WhatsApp e as UTMs do pedido, com o campo Funil
+  em IMERSÃO, dizendo o que a pessoa comprou (ingresso, bump ou os dois) e quanto pagou
+
+#### CA-S10-42 — Comprador que já tem card não ganha um segundo · prova: automática
+
+- **Dado** um aviso válido de pedido pago de alguém que já tem card no CRM
+- **Quando** o site processa o aviso
+- **Então** o card existente recebe um comentário dizendo que a pessoa comprou a Imersão (o
+  que comprou e quanto pagou), e nenhum card novo é criado
+
+#### CA-S10-43 — Aviso repetido não repete card nem comentário · prova: automática
+
+- **Dado** uma compra que já virou card ou comentário no CRM
+- **Quando** o mesmo aviso de pedido pago chega de novo
+- **Então** continua existindo um card e um comentário só daquela compra, e a aba Compras
+  não ganha linha repetida
+
+#### CA-S10-44 — Reembolso, cancelamento e chargeback viram comentário no card · prova: automática
+
+- **Dado** uma compra que já virou card ou comentário no CRM
+- **Quando** chega o aviso de reembolso, de cancelamento ou de chargeback daquele pedido
+- **Então** o card recebe um comentário dizendo o que aconteceu, e a etapa do card não muda
+
+#### CA-S10-47 — Compra de verdade aparece no CRM e na planilha · prova: manual
+
+- **Dado** o webhook no ar
+- **Quando** a usuária faz (ou recebe) uma compra de verdade do ingresso
+- **Então** ela encontra o card no CRM com o funil IMERSÃO (ou o comentário, se a pessoa já
+  tinha card) e a linha na aba Compras da planilha
 
 ### Números do dash
 
-**Descrição:** os cadastros do pop-up ficam separados dos leads dos outros funis e
-aparecem na aba Imersão 2027, junto das vendas.
+**Descrição:** a aba Imersão 2027 mostra quantas pessoas se cadastraram na janela e quantas
+delas compraram (decisão da usuária em 14/11: o site guarda uma cópia do cadastro só para
+essa conta). Os cards do funil IMERSÃO ficam fora dos números dos outros funis.
 
 **Comportamentos:**
 - Abrir a aba Imersão 2027: a usuária vê quantas pessoas se cadastraram no pop-up e quantas
   delas compraram.
 - Olhar o total de leads, o CPL e o funil de leads novos nas outras telas do dash: os
-  cadastros da Imersão não entram.
+  compradores da Imersão não entram.
 
 **Critérios de aceite:**
 
@@ -264,35 +324,30 @@ aparecem na aba Imersão 2027, junto das vendas.
 - **Quando** a usuária abre a aba Imersão 2027
 - **Então** a aba mostra três cadastros e um comprador entre eles (33,3%)
 
-#### CA-S10-19 — Cadastro da Imersão não entra no total nem no CPL · prova: automática
+#### CA-S10-46 — Comprador da Imersão não entra no total nem no CPL · prova: automática
 
-- **Dado** um período com dez leads de outros funis e três cadastros da Imersão
+- **Dado** um período com dez leads de outros funis e três cards novos do funil IMERSÃO
 - **Quando** a usuária olha o total de leads, o CPL e o funil de leads novos nas outras telas do dash
 - **Então** as contas usam dez leads, não treze
 
-### Mensagens automáticas
+### Lista de e-mail
 
-**Descrição:** a usuária escolheu que quem se cadastra receba WhatsApp e e-mail. O
-conteúdo e o momento ainda não foram definidos (ver perguntas em aberto).
+**Descrição:** decisão da usuária em 14/11: quem compra entra na lista de e-mail com a marca
+da Imersão. O e-mail em si fica para depois ("depois ajustamos o e-mail"). Quem só preenche
+a janela não entra na lista e não recebe mensagem nossa.
 
 **Comportamentos:**
-- Confirmar um cadastro: a pessoa entra na lista de e-mail com a marca do funil Imersão.
-- Confirmar um cadastro: a pessoa segue para o envio de WhatsApp definido para a Imersão.
+- Receber uma compra paga: o comprador entra na lista de e-mail marcado com Imersão, sem
+  disparar nenhum envio automático.
 
 **Critérios de aceite:**
 
-#### CA-S10-20 — Cadastro entra na lista de e-mail com a marca da Imersão · prova: automática
+#### CA-S10-45 — Comprador entra na lista de e-mail com a marca da Imersão · prova: automática
 
-- **Dado** um cadastro confirmado
-- **Quando** a gravação termina
-- **Então** o contato existe na lista de e-mail marcado com o funil Imersão
-
-#### CA-S10-21 — Quem se cadastra não recebe mensagem de outro funil · prova: automática
-
-- **Dado** um cadastro confirmado da Imersão
-- **Quando** as mensagens automáticas rodam
-- **Então** a pessoa não recebe o WhatsApp nem o e-mail da consultoria, do workshop gratuito
-  ou das lives
+- **Dado** um aviso válido de pedido pago
+- **Quando** o site processa o aviso
+- **Então** o contato existe na lista de e-mail marcado com Imersão, e nenhum WhatsApp ou
+  e-mail da consultoria, do workshop gratuito ou das lives é disparado para ele
 
 ### Webhook de compras da Zouti
 
@@ -410,18 +465,25 @@ a falar só de ingresso, bump e evento.
 - Buscar na Zouti as vendas antigas, feitas antes de o webhook estar ligado.
 - Trazer para o dash os inícios de checkout e os carrinhos abandonados da Zouti (a Zouti tem aviso de carrinho abandonado, fica para depois), o investimento do Meta e a presença no Meet (seguem como etapas futuras da série S8).
 - Preencher o checkout da Zouti colocando nome, e-mail ou telefone no endereço do link.
-- Marcar no card ou na planilha se a pessoa comprou.
+- Enviar qualquer evento ao Meta pelo nosso site (cadastro ou compra): fica só o que a Zouti envia.
+- Mandar WhatsApp ou e-mail nosso a quem se cadastra ou compra: o e-mail do comprador fica para depois.
+- Marcar na aba Cadastros da planilha se a pessoa comprou.
 - Mudar o que o botão do topo faz.
 - Mudar textos, ordem ou visual das seções da página, fora a janela nova.
-- O conteúdo das mensagens de WhatsApp e de e-mail enquanto a pergunta sobre elas (PER-S10-02
-  e PER-S10-03) não for respondida: até lá só valem os critérios CA-S10-20 e CA-S10-21.
+
+## Critérios retirados na revisão de 14/11/2026
+
+A usuária mudou a decisão em 14/11: o cadastro da janela fica só na planilha, e o CRM, a
+lista de e-mail e os avisos passam a acontecer na compra. Saíram, sem reaproveitar o código:
+os critérios 15, 16 e 17 (cadastro virava card), 19 (cadastro fora do total, trocado pelo 46),
+20 e 21 (cadastro entrava na lista e nas mensagens) e 31 (cadastro virava lead no Meta).
 
 ## Suposições
 
 | ID | Suposição | Status | Resolução |
 |---|---|---|---|
 | SUP-S10-01 | "Mesma visita" quer dizer a mesma aba do navegador: se a pessoa fechar a aba e voltar outro dia, a janela aparece de novo. | confirmada | Marcelle, 14/11/2026 |
-| SUP-S10-02 | O card novo entra na primeira etapa da lista do CRM, como os leads dos outros funis, sem etapa própria. | aberta | — |
+| SUP-S10-02 | O card do comprador entra na primeira etapa da lista do CRM, como os leads dos outros funis, sem etapa própria. | aberta | — |
 | SUP-S10-03 | Depois do cadastro a pessoa vai sempre ao checkout, nunca a página de obrigado, agenda ou grupo. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-04 | A planilha é nova, criada na conta marcelle@seteads.com, separada das outras. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-05 | O checkout da Zouti aceita receber as UTMs no endereço e não quebra com elas. Sem documentação da Zouti; a conferir com um clique de verdade. | confirmada | Conferido em 14/11/2026: o checkout abriu normalmente com as cinco UTMs no endereço. Se a Zouti as repassa no pedido é a SUP-S10-09. |
@@ -431,9 +493,9 @@ a falar só de ingresso, bump e evento.
 | SUP-S10-11 | Chargeback (pedido contestado) tira a venda dos números, como o reembolso. | confirmada | Marcelle, 13/11. |
 | SUP-S10-12 | O bump não tem campo próprio no aviso: ele chega como mais um item do mesmo pedido, e é reconhecido pelo produto do item. | aberta | — |
 | SUP-S10-13 | A venda conta pelo aviso de pedido pago; o valor de cada produto é o do item, não o total do pedido. | confirmada | Marcelle, 13/11. |
-| SUP-S10-10 | A venda é ligada ao cadastro do pop-up por e-mail ou telefone, como a aba Imersão 2027 já faz entre ingresso e Mentoria. | aberta | — |
+| SUP-S10-10 | Na aba Imersão 2027, o cadastro conta como "comprou" quando existe venda paga de ingresso com o mesmo e-mail ou o mesmo telefone. | aberta | — |
 | SUP-S10-14 | Como a Zouti já avisa o Meta do início de checkout e da compra, a página deixa de enviar o próprio início de checkout ao Meta, para não contar duas vezes. | confirmada | Marcelle, 14/11/2026 |
-| SUP-S10-15 | "Conta como lead" vale para o Meta e para o CRM; no dash fica separado, fora do total e do CPL, e aparece na aba Imersão 2027. | confirmada | Marcelle, 13/11. |
+| SUP-S10-15 | "Conta como lead" vale para o Meta e para o CRM; no dash fica separado, fora do total e do CPL, e aparece na aba Imersão 2027. | invalidada | Marcelle, 14/11/2026: o cadastro não vai ao Meta nem ao CRM; quem vai ao CRM é o comprador. |
 | SUP-S10-16 | Sem a Mentoria, o comparecimento ao evento e o pico de pessoas no horário da oferta continuam na aba, e o campo "horário da oferta" continua nas Metas. | aberta | — |
 | SUP-S10-17 | A assinatura do aviso é feita sobre o corpo do aviso com o segredo; a documentação tem o trecho do formato cortado, então o site aceita também a forma em que o horário do cabeçalho entra junto do corpo. Sem conferir a validade do horário. | confirmada | Confirmada pelo aviso de teste da Zouti em 13/11: o site aceitou a assinatura com o segredo gravado. |
 | SUP-S10-18 | No aviso, o valor de cada item é o total daquele item; com mais de uma unidade, cada ingresso vale o total dividido pela quantidade e conta como um ingresso vendido. | aberta | — |
@@ -442,15 +504,19 @@ a falar só de ingresso, bump e evento.
 | SUP-S10-21 | O aviso de pedido pago não traz a data do pagamento num campo próprio na raiz (visto no aviso de teste de 13/11): o site usa a data do pagamento se ela vier, senão a data da última atualização do pedido, que no pedido pago é o momento do pagamento. | confirmada | Marcelle, 14/11/2026 |
 | SUP-S10-22 | A janela é simples, só o formulário e o botão (sem título, lote ou preço): campos "Nome", "E-mail" e "WhatsApp com DDD"; botão "Garantir ingresso"; erros "Digite o seu nome.", "Digite um e-mail válido, como nome@exemplo.com." e "Digite o WhatsApp com DDD. Número de fora do Brasil começa com +.". | confirmada | Marcelle, 14/11/2026: "O pop deve ser bem simples, apenas o form e o botão garantir ingresso". |
 | SUP-S10-23 | As UTMs da chegada ficam guardadas na aba: se a pessoa recarregar a página ou voltar do checkout sem elas no endereço, as da chegada continuam valendo para a planilha e para o link do checkout. | confirmada | Marcelle, 14/11/2026 |
-| SUP-S10-07 | Cadastros de teste (e-mails @seteads.com e @teste.com) seguem a regra que já existe no site: não vão ao Meta nem ao Google. | aberta | — |
+| SUP-S10-24 | Um pedido vira um card (ou um comentário) só, mesmo com ingresso e bump: o card diz os dois produtos e o valor de cada um. | aberta | — |
+| SUP-S10-25 | A pessoa "já tem card" quando existe no CRM um card com o mesmo telefone ou o mesmo e-mail, em qualquer funil e em qualquer etapa. | aberta | — |
+| SUP-S10-26 | O nome do comprador vai para a planilha e para o CRM, mas não é guardado no banco do site (que continua só com e-mail e telefone da venda). | aberta | — |
+| SUP-S10-27 | A cópia do cadastro que o site guarda para a aba Imersão 2027 tem data, e-mail, telefone e UTMs (sem o nome), e a mesma pessoa que se cadastra duas vezes conta uma vez só. | aberta | — |
+| SUP-S10-07 | Cadastros de teste (e-mails @seteads.com e @teste.com) seguem a regra que já existe no site: não vão ao Meta nem ao Google. | invalidada | Sem efeito desde 14/11/2026: o site não envia mais nada ao Meta nem ao Google por causa do cadastro. |
 
 ## Perguntas em aberto
 
 | ID | Pergunta | Status | Resposta |
 |---|---|---|---|
 | PER-S10-01 | O que o Meta recebe quando alguém confirma o cadastro? | respondida | Marcelle, 13/11: conta como lead no Meta. No CRM entra como lead do funil IMERSÃO. Os eventos de checkout e de compra quem envia ao Meta é a Zouti (pixel e CAPI configurados nela). |
-| PER-S10-02 | Qual mensagem de WhatsApp sai para quem se cadastra, por qual número e quando (na hora, ou só para quem não comprar depois de um tempo)? | aberta | — |
-| PER-S10-03 | Qual e-mail sai para quem se cadastra e quando? Ou por enquanto a pessoa só entra na lista, sem envio? | aberta | — |
+| PER-S10-02 | Qual mensagem de WhatsApp sai para quem se cadastra, por qual número e quando (na hora, ou só para quem não comprar depois de um tempo)? | respondida | Marcelle, 14/11/2026: não sai WhatsApp nosso; o cadastro fica só na planilha. |
+| PER-S10-03 | Qual e-mail sai para quem se cadastra e quando? Ou por enquanto a pessoa só entra na lista, sem envio? | respondida | Marcelle, 14/11/2026: o comprador entra na lista; "depois ajustamos o email". Quem só se cadastra não entra. |
 | PER-S10-09 | Como é o aviso de compra da Zouti (campos e eventos)? | respondida | Marcelle, 13/11: enviou a documentação (https://ajuda.zouti.com.br/pt-br/articles/9740997-como-configurar-webhook). |
 | PER-S10-10 | Quais são os produtos do ingresso, do bump e da Mentoria na Zouti? | respondida | Marcelle, 13/11: ingresso prod_fe4nfgx9xgwjxmgife1sw5 (Imersão Planejamento Atacado 2027); bump prod_e52fldo7j7aqksthgah5n1 (Imersão em Formatos de Aulas). A Mentoria Atacado Exponencial (prod_bhq9jo4938vgpv2787rf6m) não entra. |
 | PER-S10-12 | Como a Zouti recebe os dados do comprador para abrir o checkout preenchido, sem que eles apareçam no endereço do link? A usuária pediu o preenchimento na aprovação (13/11). A documentação não mostra o caminho; falta a resposta do suporte da Zouti. Sem um caminho assim, o critério CA-S10-36 não tem como ser entregue. | aberta | — |
@@ -460,3 +526,4 @@ a falar só de ingresso, bump e evento.
 | PER-S10-06 | Qual opção do campo Funil no CRM. | respondida | Marcelle, 13/11: opção nova IMERSÃO. |
 | PER-S10-07 | O cadastro conta como lead no dash. | respondida | Marcelle, 13/11: separado dos outros funis, fora do total e do CPL; os dados entram na aba Imersão 2027. |
 | PER-S10-08 | A pessoa recebe mensagem automática. | respondida | Marcelle, 13/11: WhatsApp e e-mail (conteúdo em PER-S10-02 e PER-S10-03). |
+| PER-S10-13 | O que muda com a decisão de 14/11. | respondida | Marcelle, 14/11/2026: "quem preenche o pop vai apenas para a planilha. Quem preenche e paga vai para o CRM tbm com o que a Zouti enviar. Não quero mais enviar ao meta como lead". Comprador que já tem card recebe comentário; reembolso vira comentário; a aba Imersão 2027 mostra cadastros e compradores; comprador entra na lista de e-mail. |
