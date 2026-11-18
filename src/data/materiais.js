@@ -69,6 +69,19 @@ export const MATERIAIS = [
     ],
     destino: 'https://drive.google.com/file/d/1ejrBm3n-2CA7SyPaLKal9kBaRaPb-Owa/view',
   },
+  {
+    slug: 'checklist-workshop',
+    titulo: 'Plano de Ação: checklist do seu atacado',
+    subtitulo:
+      'O que conferir na entrada de revendedoras novas e na recompra antes de decidir por onde o seu plano começa.',
+    itens: [
+      'Seus números: o ponto de partida do plano',
+      'Pilar 1: entrada previsível de novos revendedores, do anúncio ao comercial',
+      'Pilar 2: recompra escalável de revendedores ativos',
+      'Como fechar o seu plano: por onde começar, quem cuida e até quando',
+    ],
+    destino: 'https://drive.google.com/file/d/1ltL0lVSCVtzoaWOpYEd7HDktT7BVHRD7/view',
+  },
 ];
 
 export function materialPorSlug(slug) {
