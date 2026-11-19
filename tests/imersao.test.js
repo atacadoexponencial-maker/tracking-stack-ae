@@ -228,13 +228,13 @@ test('CA-S8-19: ranking de criativos', () => {
 
 test('CA-S8-20: conversão do bump por dia', () => {
   const vendas = [];
-  for (let i = 0; i < 8; i++) vendas.push(venda({ quando: '2026-11-10T10:00:00', pessoa: `d${i}` }));
-  vendas.push(venda({ produto: 'bump', valor: 297, quando: '2026-11-10T10:00:00', pessoa: 'd0' }));
-  vendas.push(venda({ produto: 'bump', valor: 297, quando: '2026-11-10T10:00:00', pessoa: 'd1' }));
-  const r = visao(vendas, { agora: '2026-11-11T12:00:00' });
+  for (let i = 0; i < 8; i++) vendas.push(venda({ quando: '2026-11-17T10:00:00', pessoa: `d${i}` }));
+  vendas.push(venda({ produto: 'bump', valor: 297, quando: '2026-11-17T10:00:00', pessoa: 'd0' }));
+  vendas.push(venda({ produto: 'bump', valor: 297, quando: '2026-11-17T10:00:00', pessoa: 'd1' }));
+  const r = visao(vendas, { agora: '2026-11-18T12:00:00' });
   const dia = Object.fromEntries(r.bump.por_dia.map((d) => [d.dia, d]));
-  assert.equal(dia['2026-11-10'].conversao, 25);
-  assert.equal(dia['2026-11-11'].conversao, null);
+  assert.equal(dia['2026-11-17'].conversao, 25);
+  assert.equal(dia['2026-11-18'].conversao, null);
 });
 
 test('CA-S8-22: comparecimento pelo Meet', () => {

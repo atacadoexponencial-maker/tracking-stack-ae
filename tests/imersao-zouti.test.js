@@ -28,7 +28,7 @@ beforeEach(() => {
 
 const item = (produto, centavos, quantidade = 1) => ({ product_id: produto, name: 'x', quantity: quantidade, amount: centavos, amount_in_brl: centavos / 100, type: 'DIGITAL' });
 
-function pedido({ id = 'ord_1', itens = [item(INGRESSO, 2900)], pagoEm = '2026-11-13T15:00:00.000Z', utm = {}, status = 'PAID' } = {}) {
+function pedido({ id = 'ord_1', itens = [item(INGRESSO, 2900)], pagoEm = '2026-11-17T15:00:00.000Z', utm = {}, status = 'PAID' } = {}) {
   return {
     id, status, paid_at: pagoEm, created_at: pagoEm,
     amount_total: itens.reduce((s, i) => s + i.amount, 0),
@@ -58,7 +58,7 @@ async function enviar(tipo, objeto, { assinatura, entregaId } = {}) {
 /** O que a aba Imersão 2027 mostra, com "hoje" fixo em 14/11/2026 ao meio-dia. */
 async function aba() {
   const real = Date.now;
-  Date.now = () => Date.parse('2026-11-14T12:00:00-03:00');
+  Date.now = () => Date.parse('2026-11-18T12:00:00-03:00');
   try {
     return await montarResposta(env);
   } finally {
@@ -77,7 +77,7 @@ test('CA-S10-22: compra paga do ingresso entra nas vendas da aba', async () => {
   assert.equal(a.exemplo, false);
   assert.equal(a.ingressos.vendidos.valor, 1);
   assert.equal(a.resultado.faturamento.ingressos, 29);
-  const dia = a.resumo.venda_por_dia.find((d) => d.dia === '2026-11-13');
+  const dia = a.resumo.venda_por_dia.find((d) => d.dia === '2026-11-17');
   assert.equal(dia.ingressos, 1);
   const [v] = vendas();
   assert.equal(v.email, 'maria@exemplo.com');

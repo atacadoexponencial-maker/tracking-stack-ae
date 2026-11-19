@@ -15,7 +15,10 @@ import { variantesTelefone } from '../_telefone.js';
 export const META_INGRESSOS = 100;
 export const PRECO_BUMP = 297;
 export const PCT_TRAFEGO_PADRAO = 75;
-export const PRIMEIRO_DIA = '2026-11-09';
+// Primeiro dia de venda que conta no dash: dia em que as campanhas de vendas
+// da Imersão começaram a veicular no Meta (16/11, conferido em 19/11). A página
+// e o lote 01 existem desde 09/11, mas sem anúncio e sem checkout ligado.
+export const PRIMEIRO_DIA = '2026-11-16';
 export const DIA_EVENTO = '2026-12-12';
 // Último dia de venda que conta no pacing (SUP-S8-12): o sábado 12/12 só tem
 // a manhã e só conta quando hoje já é 12/12.
