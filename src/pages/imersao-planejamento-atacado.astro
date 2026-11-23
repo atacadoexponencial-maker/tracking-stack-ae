@@ -47,7 +47,6 @@ const HREF_COMPRA = CHECKOUT_URL;
 const LOTE_INICIAL = LOTES_IMERSAO[0];
 const PROXIMO_INICIAL = LOTES_IMERSAO[1].valor;
 const TEXTO_PROXIMO_INICIAL = textoProximo(PROXIMO_INICIAL, LOTE_INICIAL.rotulo);
-const LOTE_BOTAO_INICIAL = LOTE_INICIAL.rotulo.toLowerCase();
 
 // Prints do perfil no Instagram (capturados em 09/11). Nicho lido na bio.
 const marcas = [
@@ -161,7 +160,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
         </p>
         <!-- O botão do topo sempre leva à seção de preço, nunca direto ao checkout. -->
         <a class="ipa-botao" href="#ingresso" data-ir-preco>
-          <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+          <span>Garantir meu ingresso</span>
           <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
         </a>
         <div class="ipa-progresso ipa-preco-bloco">
@@ -179,8 +178,6 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
           <p class="ipa-progresso__texto">
             <strong data-lote>{LOTE_INICIAL.rotulo}</strong> de <s>{VALOR_CHEIO_IMERSAO}</s> por
             <strong data-preco>{LOTE_INICIAL.valor}</strong>
-            <span class="ipa-progresso__prazo" data-ate-linha>· vale até <span data-ate>{LOTE_INICIAL.ate}</span></span>
-            <span class="ipa-progresso__prox" data-proximo-curto>· próximo lote: {PROXIMO_INICIAL}</span>
           </p>
         </div>
       </div>
@@ -255,7 +252,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
           </ul>
           <p class="ipa-sinais__fecho">Se isso soa familiar, a Imersão é para você.</p>
           <a class="ipa-botao ipa-botao--escuro ipa-sinais__botao" href={HREF_COMPRA} data-checkout>
-            <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+            <span>Garantir meu ingresso</span>
           </a>
         </div>
       </section>
@@ -284,7 +281,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
           <p class="ipa-decisoes__fecho">Tudo preenchido na planilha do Planejamento 2027, com os números da sua marca.</p>
           <p class="ipa-decisoes__frase">No atacado, a venda começa na reposição.</p>
           <a class="ipa-botao ipa-botao--escuro" href={HREF_COMPRA} data-checkout>
-            <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+            <span>Garantir meu ingresso</span>
           </a>
         </div>
       </section>
@@ -333,7 +330,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
             <strong class="ipa-oferta__valor" data-preco>{LOTE_INICIAL.valor}</strong>
           </div>
           <a class="ipa-botao ipa-botao--escuro ipa-oferta__botao" href={HREF_COMPRA} data-checkout>
-            <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+            <span>Garantir meu ingresso</span>
           </a>
           <p class="ipa-oferta__garantia">
             <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 4 5.7v5.9c0 4.9 3.3 8.5 8 10 4.7-1.5 8-5.1 8-10V5.7l-8-3.2Z" /><path d="m8.6 12 2.4 2.4 4.4-4.6" /></svg>
@@ -390,7 +387,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
             <h2 class="ipa-h2 ipa-h2--frase ipa-garantia__titulo">Participou e achou que não valeu?</h2>
             <p class="ipa-garantia__resposta">Você pede o reembolso até 2 dias depois do evento.</p>
             <a class="ipa-botao ipa-botao--escuro" href={HREF_COMPRA} data-checkout>
-              <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+              <span>Garantir meu ingresso</span>
             </a>
           </div>
         </div>
@@ -420,7 +417,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
       <div class="ipa-largura ipa-fechamento__corpo">
         <h2 class="ipa-fechamento__titulo">{HEADLINE}</h2>
         <a class="ipa-botao" href={HREF_COMPRA} data-checkout>
-          <span>Garantir meu ingresso | <span data-lote-botao>{LOTE_BOTAO_INICIAL}</span></span>
+          <span>Garantir meu ingresso</span>
           <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
         </a>
         <div class="ipa-progresso ipa-preco-bloco">
@@ -472,7 +469,7 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
           </div>
           <div class="ipa-cadastro__pe">
             <button type="submit" class="ipa-botao ipa-botao--escuro ipa-cadastro__enviar">
-              <span data-cadastro-rotulo>Garantir ingresso</span>
+              <span data-cadastro-rotulo>Garantir meu ingresso</span>
               <svg class="ipa-icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a3.5 3.5 0 0 0 0 7V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a3.5 3.5 0 0 0 0-7Z" /><path d="M14 5v14" stroke-dasharray="2 2.2" /></svg>
             </button>
           </div>
@@ -1721,7 +1718,6 @@ const HEADLINE = 'Monte em um sábado o plano para dobrar o faturamento do seu a
 
       todos('[data-lote]').forEach((el) => (el.textContent = rotulo));
       todos('[data-preco]').forEach((el) => (el.textContent = estado.valor as string));
-      todos('[data-lote-botao]').forEach((el) => (el.textContent = rotulo.toLowerCase()));
       todos('[data-ate]').forEach((el) => (el.textContent = lote.ate));
 
       // Último lote: nunca anuncia um preço que não existe.
