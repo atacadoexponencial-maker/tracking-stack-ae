@@ -13,6 +13,7 @@ html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:var(--body);font-weight:400;line-height:1.6;-webkit-font-smoothing:antialiased;font-size:16px}
 a{color:inherit;text-decoration:none}
 img{max-width:100%;display:block}
+[hidden]{display:none!important}
 .wrap{max-width:1280px;margin-inline:auto;padding-inline:var(--gutter)}
 h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05;letter-spacing:-.02em}
 p{margin:0}
@@ -35,23 +36,23 @@ p{margin:0}
 @media (max-width:860px){.nav a:not(.btn){display:none}}
 
 /* ---------- hero ---------- */
-.hero{position:relative;overflow:hidden;background:var(--bg);padding-top:clamp(1rem,3vw,2.5rem)}
-.hero-stage{position:relative;max-width:1400px;margin-inline:auto;display:grid;place-items:end center;height:clamp(440px,calc(100svh - 150px),700px)}
-.hero-nome{position:absolute;z-index:3;left:0;right:0;top:30%;display:flex;justify-content:space-between;align-items:baseline;padding-inline:clamp(16px,3vw,56px);pointer-events:none}
-.hero-nome span{font-family:var(--display);font-weight:600;text-transform:uppercase;font-size:clamp(2.4rem,6.4vw,6.6rem);line-height:1;letter-spacing:-.01em}
-.hero-foto{position:relative;z-index:2;height:100%;max-width:34vw;margin:0;overflow:hidden;display:flex;justify-content:center}
-.hero-foto img{height:100%;width:auto;max-width:none;object-fit:cover;filter:grayscale(1) contrast(1.08) brightness(.9)}
-.hero-foto::after{content:"";position:absolute;inset:-1px;background:radial-gradient(ellipse 58% 62% at 50% 38%,transparent 40%,var(--bg) 78%),linear-gradient(180deg,transparent 55%,var(--bg) 96%)}
-.hero-selo{position:absolute;z-index:4;right:clamp(16px,4vw,72px);top:calc(30% + clamp(3.2rem,8vw,8rem));display:flex;align-items:center;gap:.7rem}
+/* Fundo: a mesma foto do topo da Imersão Planejamento Atacado 2027, em cor.
+   Celular: foto no alto e o nome entra por baixo, sobre o véu.
+   Computador: foto à direita e nome à esquerda, sobre o véu horizontal. */
+.hero{position:relative;overflow:hidden;isolation:isolate;background:var(--bg)}
+.hero-fundo{position:absolute;inset:0 0 auto 0;width:100%;height:68%;object-fit:cover;object-position:62% 28%;z-index:-2}
+.hero-veu{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(20,20,20,.55) 0%,rgba(20,20,20,0) 18%),linear-gradient(0deg,var(--bg) 32%,rgba(20,20,20,.85) 44%,rgba(20,20,20,0) 66%)}
+.hero-stage{position:static;max-width:1280px;margin-inline:auto;padding-inline:var(--gutter);display:flex;flex-direction:column;justify-content:flex-end;gap:1.4rem;min-height:clamp(540px,calc(100svh - 150px),760px);padding-bottom:2.5rem}
+.hero-nome{display:flex;flex-direction:column;pointer-events:none}
+.hero-nome span{font-family:var(--display);font-weight:600;text-transform:uppercase;font-size:clamp(2.8rem,8vw,7rem);line-height:.95;letter-spacing:-.01em}
+.hero-selo{display:flex;align-items:center;gap:.7rem}
 .hero-selo b{font-family:var(--display);font-weight:700;font-size:clamp(.95rem,1.6vw,1.35rem);background:var(--text);color:var(--bg);padding:.3em .7em;border-radius:3px;transform:rotate(-2deg);display:inline-block}
 .hero-selo svg{width:clamp(36px,4.5vw,64px);height:auto;color:var(--text)}
-.hero-base{position:relative;z-index:3;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding-block:1.1rem;color:var(--muted);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase}
-@media (max-width:640px){
-  .hero-nome{top:1rem;flex-direction:column;align-items:center}
-  .hero-nome span{font-size:clamp(2.4rem,13vw,3.6rem)}
-  .hero-stage{height:540px}
-  .hero-foto{height:78%;max-width:92vw}
-  .hero-selo{right:16px;top:auto;bottom:18%}
+.hero-base{position:relative;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding-block:1.1rem;color:var(--muted);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase}
+@media (min-width:880px){
+  .hero-fundo{inset:0 0 0 auto;width:62%;height:100%;object-position:50% 22%}
+  .hero-veu{background:linear-gradient(90deg,var(--bg) 38%,rgba(20,20,20,.85) 50%,rgba(20,20,20,0) 75%),linear-gradient(0deg,var(--bg) 0%,rgba(20,20,20,0) 30%)}
+  .hero-stage{justify-content:center;padding-bottom:0}
 }
 
 /* ---------- números ---------- */
@@ -71,7 +72,7 @@ p{margin:0}
 .sobre-texto{display:flex;flex-direction:column;gap:1.1rem;color:var(--text-2);max-width:58ch}
 .sobre-texto p:first-child{color:var(--text);font-size:1.15rem;font-weight:500}
 .sobre-foto{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:4/5;max-width:100%}
-.sobre-foto img{width:100%;height:100%;object-fit:cover;object-position:50% 20%;filter:grayscale(1)}
+.sobre-foto img{width:100%;height:100%;object-fit:cover;object-position:50% 20%}
 .sobre-foto figcaption{position:absolute;left:1rem;bottom:1rem;right:1rem;display:flex;justify-content:space-between;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#fff;gap:1rem}
 .linha-tempo{display:flex;flex-direction:column;border-top:1px solid var(--border);margin-top:.6rem}
 .linha-tempo div{display:grid;grid-template-columns:4.5rem 1fr;gap:1rem;padding-block:.7rem;border-bottom:1px solid var(--border);font-size:.92rem}
@@ -88,7 +89,7 @@ p{margin:0}
 .trilho{display:grid;grid-auto-flow:column;grid-auto-columns:clamp(270px,30vw,380px);gap:1.25rem;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:1rem;scrollbar-width:thin;scrollbar-color:var(--surface) transparent}
 .card{scroll-snap-align:start;position:relative;border-radius:8px;overflow:hidden;aspect-ratio:3/4;display:flex;flex-direction:column;justify-content:flex-end;padding:1.6rem;gap:1rem;border:1px solid var(--border);background:linear-gradient(180deg,#232122 0%,#0c0c0c 100%)}
 .card .fundo{position:absolute;inset:0;z-index:0}
-.card .fundo img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) brightness(.55)}
+.card .fundo img{width:100%;height:100%;object-fit:cover;filter:brightness(.55)}
 .card .fundo.cubo{display:grid;place-items:center;opacity:.14}
 .card .fundo.cubo img{width:75%;height:auto;filter:none}
 .card::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(0,0,0,.92) 100%);z-index:1}
@@ -127,7 +128,7 @@ p{margin:0}
 /* ---------- prova ---------- */
 .prova{background:var(--deep2)}
 .logos{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:1rem;margin-bottom:3.5rem}
-.logos img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:50%;filter:grayscale(1) contrast(1.1);opacity:.75;transition:opacity .2s ease}
+.logos img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:50%;opacity:.75;transition:opacity .2s ease}
 .logos img:hover{opacity:1}
 .videos{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem}
 .videos figure{margin:0;display:flex;flex-direction:column;gap:.7rem}
@@ -155,7 +156,7 @@ p{margin:0}
 .mat{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--deep2);transition:border-color .2s ease}
 .mat:hover{border-color:var(--border-strong)}
 .mat .capa{aspect-ratio:4/3;overflow:hidden;background:#0c0c0c}
-.mat .capa img{width:100%;height:auto;filter:grayscale(1)}
+.mat .capa img{width:100%;height:auto}
 .mat .corpo{padding:1.3rem;display:flex;flex-direction:column;gap:.5rem;flex:1}
 .mat h3{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
 .mat p{color:var(--text-2);font-size:.88rem}
