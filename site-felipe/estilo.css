@@ -78,7 +78,7 @@ p{margin:0}
 .linha-tempo{display:flex;flex-direction:column;border-top:1px solid var(--border);margin-top:.6rem}
 .linha-tempo div{display:grid;grid-template-columns:4.5rem 1fr;gap:1rem;padding-block:.7rem;border-bottom:1px solid var(--border);font-size:.92rem}
 .linha-tempo b{font-family:var(--display);font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
-@media (max-width:860px){.sobre .wrap{grid-template-columns:1fr}.sobre-foto{max-width:420px}}
+@media (max-width:860px){.sobre .wrap{grid-template-columns:1fr}.sobre-foto{max-width:420px}.sobre .sobre-foto{order:-1}}
 
 /* ---------- soluções (carrossel) ---------- */
 .solucoes{background:var(--deep2)}
