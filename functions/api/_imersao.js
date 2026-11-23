@@ -11,6 +11,7 @@ import { loteVigente } from '../../src/data/lotes-workshop.js';
 import { canalDeLead } from './_canal.js';
 import { ymdBrt } from './_data-brt.js';
 import { variantesTelefone } from '../_telefone.js';
+import { normalizePath } from './conversion.js';
 
 export const META_INGRESSOS = 100;
 export const PRECO_BUMP = 297;
@@ -48,6 +49,43 @@ const r1 = (n) => Math.round(n * 10) / 10;
 const r2 = (n) => Math.round(n * 100) / 100;
 const pct = (parte, todo) => (todo > 0 ? r2((parte / todo) * 100) : null);
 const vazio = (v) => v === null || v === undefined || v === '';
+
+// ── Tráfego real (issue S11-01) ────────────────────────────────────────────
+
+// Campanha de venda da Imersão no Meta: o nome CONTÉM este trecho, sem
+// diferenciar maiúsculas (hoje `ae_vendas-imersao-12-12_publico-frio` e
+// `_publico-quente`). Texto literal, nunca regex.
+export const TRECHO_CAMPANHA_IMERSAO = 'vendas-imersao';
+// Página de venda, já no formato de normalizePath (sem barra final).
+export const PAGINA_IMERSAO = '/imersao-planejamento-atacado';
+
+/**
+ * Soma das linhas de ad_spend das campanhas da Imersão (já filtradas no SQL).
+ * Sem nenhuma linha, devolve null: a tela mostra "—", nunca R$ 0 inventado.
+ */
+export function trafegoDasLinhas(linhas) {
+  const lista = linhas || [];
+  if (!lista.length) return null;
+  const soma = (campo) => lista.reduce((s, l) => s + (Number(l[campo]) || 0), 0);
+  return { investimento: soma('spend_cents') / 100, impressoes: soma('impressions'), cliques: soma('clicks') };
+}
+
+/**
+ * Visitas da página da Imersão por dia de Brasília, de PRIMEIRO_DIA até `hoje`
+ * (no máximo o dia do evento), com zero nos dias sem visita. `linhas` =
+ * [{ dia, landing_url, n }] agrupadas no SQL; o path é normalizado aqui, como
+ * na aba de conversão (querystring e barra final somam na mesma página).
+ */
+export function visitasDasLinhas(linhas, hoje) {
+  const ate = hoje > DIA_EVENTO ? DIA_EVENTO : hoje;
+  const porDia = Object.fromEntries((ate >= PRIMEIRO_DIA ? diasEntre(PRIMEIRO_DIA, ate) : []).map((d) => [d, 0]));
+  for (const l of linhas || []) {
+    if (!(l.dia in porDia) || normalizePath(l.landing_url) !== PAGINA_IMERSAO) continue;
+    porDia[l.dia] += Number(l.n) || 0;
+  }
+  const total = Object.values(porDia).reduce((a, b) => a + b, 0);
+  return { visualizacoes: total, visitas_por_dia: porDia };
+}
 
 // ── Calendário ─────────────────────────────────────────────────────────────
 

@@ -9,3 +9,4 @@ spec.
 
 | Série | Spec | Pasta de concluídas |
 |---|---|---|
+| S11 | — (issue avulsa) | concluidas_S11 |

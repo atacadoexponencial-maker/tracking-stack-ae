@@ -400,7 +400,7 @@ function isKnownPage(lp) {
 // Normaliza landing_url para apenas o path: remove protocolo, domínio, query
 // e fragmento; barra final agregada (/pagina/ e /pagina juntas; raiz = '/').
 // NULL/vazia/malformada cai no bucket '(sem página)' — nunca lança.
-function normalizePath(raw) {
+export function normalizePath(raw) {
   const value = (raw || '').trim();
   if (!value) return '(sem página)';
   let path;
