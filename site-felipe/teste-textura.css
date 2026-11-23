@@ -1,0 +1,23 @@
+/* TESTE 23/11/2026: fundo em gradiente 135° (#191917 para #000000) e ruído sobre as imagens.
+   Para voltar ao visual anterior, apague a linha que carrega este arquivo nas 3 páginas
+   (index.html, sobre/index.html e materiais/index.html). Nada no estilo.css foi alterado. */
+
+:root{--grad:linear-gradient(135deg,#191917 0%,#000000 100%)}
+body{background:var(--grad) fixed}
+.hero,.numeros,.solucoes,.evento,.prova,footer{background:var(--grad)}
+.calendario,.mat,.caminho{background:var(--grad)}
+
+/* ruído: granulado fino monocromático (img/ruido.png), misturado em overlay */
+.hero::after,
+.card .fundo:not(.cubo)::after,
+.sobre-foto::after,
+.mat .capa::after,
+.foto-ruido::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:url(/img/ruido.png) repeat;background-size:256px 256px;
+  mix-blend-mode:overlay;opacity:.22
+}
+.hero::after{z-index:-1}
+.sobre-foto figcaption{z-index:1}
+.mat .capa,.foto-ruido{position:relative}
+.foto-ruido{border-radius:6px;overflow:hidden;line-height:0}
