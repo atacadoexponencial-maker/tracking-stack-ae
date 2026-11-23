@@ -130,7 +130,7 @@ p{margin:0}
 /* ---------- prova ---------- */
 .prova{background:var(--deep2)}
 /* logos: carrossel contínuo (o segundo grupo repete o primeiro para o loop não ter emenda) */
-.logos{overflow:hidden;margin-bottom:3.5rem;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.logos{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
 .logos-trilho{display:flex;width:max-content;animation:logos-passa 45s linear infinite}
 .logos:hover .logos-trilho{animation-play-state:paused}
 .logos-grupo{display:flex;gap:1.25rem;padding-right:1.25rem}
