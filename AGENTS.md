@@ -38,7 +38,7 @@ Toda tarefa começa pela triagem (`/anti-vibe:triagem`), que escolhe a marcha:
 A esteira (`/anti-vibe:esteira`) leva cada issue por planejador, escritor de testes (testes
 falhando antes do código), executor, auditor e revisor independente, e faz um commit por
 issue no branch da série. Ela só para quando precisa de uma decisão da pessoa. Push, pull
-request e merge são da pessoa.
+request e merge são feitos pelo agente, sozinho, quando os checks passam (ver "Git").
 
 Na dúvida entre duas marchas, escolha a mais pesada; complexidade que aparece no meio do
 caminho sobe a marcha, nunca desce.
@@ -57,10 +57,21 @@ antigo foi alterado e se as regras por script foram respeitadas.
 
 ## Git
 
-- O branch principal é protegido: ninguém commita direto nele.
+A dona do projeto não é dev e não revisa pull request. Subir é automático: o agente faz
+tudo sozinho, sem pedir aprovação, quando os checks passam.
+
 - Todo trabalho anda num branch próprio. A esteira usa `esteira/<série>`, um commit por issue.
-- O que vai para o principal entra por pull request, depois de a pessoa revisar.
-- Push, pull request e merge são sempre da pessoa, nunca de um agente.
-- Antes do commit, o auditor da issue tem que dar "alinhada" (ou "alinhada com teste manual
-  pendente").
+- Ao terminar, o agente faz push do branch, abre o pull request e faz o merge na `main`
+  **sem pedir aprovação**, desde que tudo isto passe:
+  1. o auditor da issue deu "alinhada" (ou "alinhada com teste manual pendente");
+  2. `npm test` passou;
+  3. `npm run build` passou.
+- Se algum check falhar, não sobe: corrige e roda de novo. Se não conseguir corrigir, para e
+  explica em linguagem simples o que aconteceu.
+- Merge na `main` = deploy em produção. Depois do merge, confira o check do Cloudflare Pages
+  no commit e só diga que está no ar quando ele passar.
+- **Exceções, que param e pedem um "pode" da dona antes do merge:** a mudança precisa de
+  migration no D1 remoto ou de secret novo (aplicar antes do merge), ou apaga ou altera
+  dados de produção.
+- Depois do merge, conte o que mudou em linguagem simples, com o link do pull request.
 - Nunca se commita `.env` nem arquivo com segredo.
