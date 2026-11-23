@@ -4,10 +4,16 @@
 // desenha (public/dash/imersao.js). Sem nenhum ingresso pago em
 // imersao_vendas, responde com os dados de exemplo (`exemplo: true`).
 //
-// Nesta série os dados reais trazem só as vendas: tráfego, inícios de
-// checkout, visualizações e Meet entram com a ligação da Zouti/Meta/Meet
-// (fora da S8) e, até lá, aparecem como "—".
-import { calcularVisao, metasDasLinhas, metasEfetivas } from '../_imersao.js';
+// Com venda real, o tráfego vem do Meta (ad_spend, campanhas da Imersão) e as
+// visitas da página vêm do tracking do site (sessions), issue S11-01. Inícios
+// de checkout (a Zouti não envia), ranking por anúncio (a coleta do Meta é por
+// campanha) e Meet seguem como "—".
+import {
+  calcularVisao, metasDasLinhas, metasEfetivas, trafegoDasLinhas, visitasDasLinhas,
+  TRECHO_CAMPANHA_IMERSAO, PAGINA_IMERSAO, PRIMEIRO_DIA, DIA_EVENTO,
+} from '../_imersao.js';
+import { ymdBrt } from '../_data-brt.js';
+import { clausulasBotSql, clausulasBotIpSql } from '../../_bots.js';
 import { dadosDeExemplo, AGORA_EXEMPLO, METAS_EXEMPLO } from '../_imersao-exemplo.js';
 
 const json = (dados, status = 200) => Response.json(dados, { status });
@@ -32,21 +38,67 @@ export async function carregarDados(env, agoraReal = Math.floor(Date.now() / 100
   if (!temIngresso) {
     return { exemplo: true, agora: AGORA_EXEMPLO, metas: metasEfetivas(salvas, METAS_EXEMPLO), dados: dadosDeExemplo() };
   }
+  const [trafego, visitas] = await Promise.all([lerTrafego(env), lerVisitas(env, agoraReal)]);
   return {
     exemplo: false,
     agora: agoraReal,
     metas: metasEfetivas(salvas),
     dados: {
       vendas: lista.map((v) => ({ ...v, valor: (Number(v.valor_centavos) || 0) / 100 })),
-      trafego: null,
-      visualizacoes: null,
-      visitas_por_dia: null,
+      trafego,
+      visualizacoes: visitas ? visitas.visualizacoes : null,
+      visitas_por_dia: visitas ? visitas.visitas_por_dia : null,
       inicios_checkout: null,
       anuncios: [],
       meet: null,
       cadastros,
     },
   };
+}
+
+/**
+ * Investimento, impressões e cliques das campanhas da Imersão (S11-01).
+ * `ad_spend.date` já é dia de Brasília. Falha na leitura vira null ("—"): o
+ * resto da aba continua de pé.
+ */
+async function lerTrafego(env) {
+  try {
+    const r = await env.DB.prepare(`
+      SELECT spend_cents, impressions, clicks
+        FROM ad_spend
+       WHERE platform = 'meta' AND date >= ? AND date <= ?
+         AND instr(lower(COALESCE(campaign_name, '')), ?) > 0
+    `).bind(PRIMEIRO_DIA, DIA_EVENTO, TRECHO_CAMPANHA_IMERSAO).all();
+    return trafegoDasLinhas(r.results);
+  } catch (e) {
+    console.error('[imersao] falha ao ler o gasto do Meta:', e?.message || e);
+    return null;
+  }
+}
+
+/**
+ * Visitas da página da Imersão por dia (S11-01): uma sessão = uma visita, com
+ * os mesmos cortes de bot da aba de conversão. O LIKE só reduz as linhas; o
+ * path exato é conferido em visitasDasLinhas.
+ */
+async function lerVisitas(env, agora) {
+  const desde = Date.parse(`${PRIMEIRO_DIA}T00:00:00-03:00`) / 1000;
+  try {
+    const r = await env.DB.prepare(`
+      SELECT date(s.created_at, 'unixepoch', '-3 hours') AS dia, s.landing_url, COUNT(*) AS n
+        FROM sessions s
+       WHERE s.created_at >= ?
+         AND s.landing_url LIKE ?
+         AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
+         ${clausulasBotSql('s')}
+         ${clausulasBotIpSql('s')}
+       GROUP BY dia, s.landing_url
+    `).bind(desde, `%${PAGINA_IMERSAO}%`).all();
+    return visitasDasLinhas(r.results, ymdBrt(agora));
+  } catch (e) {
+    console.error('[imersao] falha ao ler as visitas da página:', e?.message || e);
+    return null;
+  }
 }
 
 export async function montarResposta(env) {
