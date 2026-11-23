@@ -100,6 +100,8 @@ p{margin:0}
 .card p{color:var(--text-2);font-size:.9rem}
 .card .btn{align-self:flex-start;padding:.7rem 1.1rem;font-size:.72rem}
 .card .selo-card{position:absolute;top:1.2rem;left:1.2rem;z-index:2}
+/* celular: card mais alto, foto na parte de cima e texto embaixo, sem brigar com a imagem */
+@media (max-width:640px){.card{aspect-ratio:auto;min-height:580px}.card .fundo:not(.cubo){bottom:auto;height:50%}.card .fundo:not(.cubo) img{object-position:50% 20%}.card::after{background:linear-gradient(180deg,transparent 28%,rgba(0,0,0,.9) 50%,rgba(0,0,0,.95) 100%)}}
 
 /* ---------- evento ---------- */
 .evento{position:relative;overflow:hidden;background:var(--deep)}
