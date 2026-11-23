@@ -229,3 +229,4 @@ footer{background:var(--deep);border-top:1px solid var(--border);padding-block:4
 .legal ul{padding-left:1.2rem;display:flex;flex-direction:column;gap:.4rem}
 .legal a{color:var(--text);text-decoration:underline}
 .foot-base a:hover{color:var(--text)}
+.prova + .solucoes{border-top:1px solid var(--border)}
