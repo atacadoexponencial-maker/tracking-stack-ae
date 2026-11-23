@@ -1,0 +1,21 @@
+[
+  {
+    "id": "arquivo-gerado",
+    "nome": "arquivo gerado mexido sem mexer na fonte dele",
+    "origem": "exemplo do anti-vibe: arquivo gerado por ferramenta só muda quando a fonte muda (ajuste os caminhos ao projeto)",
+    "tipo": "intocavel",
+    "arquivos": ["**/generated/**"],
+    "salvoSeMudar": ["**/schema/**"],
+    "oQueFazer": "mude a fonte do arquivo gerado e gere de novo; não edite o arquivo gerado à mão"
+  },
+  {
+    "id": "componente-pronto",
+    "nome": "elemento cru no lugar do componente pronto do projeto",
+    "origem": "exemplo do anti-vibe: reuso de código, regra 3 das regras sempre ativas (ajuste os caminhos e o elemento ao projeto)",
+    "tipo": "conteudo",
+    "arquivos": ["**/*.{tsx,jsx}"],
+    "excluir": ["**/components/**", "**/*.test.{tsx,jsx}"],
+    "padrao": "<button\\b",
+    "oQueFazer": "use o componente pronto do projeto para esse elemento, em vez do elemento cru"
+  }
+]
