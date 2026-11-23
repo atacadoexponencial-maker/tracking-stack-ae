@@ -40,9 +40,9 @@ p{margin:0}
    Celular: foto no alto e o nome entra por baixo, sobre o véu.
    Computador: foto à direita e nome à esquerda, sobre o véu horizontal. */
 .hero{position:relative;overflow:hidden;isolation:isolate;background:var(--bg)}
-.hero-fundo{position:absolute;inset:0 0 auto 0;width:100%;height:68%;object-fit:cover;object-position:62% 28%;z-index:-2}
+.hero-fundo{position:absolute;inset:0 0 auto 0;width:100%;height:68%;object-fit:cover;object-position:62% 45%;z-index:-2}
 .hero-veu{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(20,20,20,.55) 0%,rgba(20,20,20,0) 18%),linear-gradient(0deg,var(--bg) 32%,rgba(20,20,20,.85) 44%,rgba(20,20,20,0) 66%)}
-.hero-stage{position:static;max-width:1280px;margin-inline:auto;padding-inline:var(--gutter);display:flex;flex-direction:column;justify-content:flex-end;gap:1.4rem;min-height:clamp(540px,calc(100svh - 150px),760px);padding-bottom:2.5rem}
+.hero-stage{position:static;max-width:1280px;margin-inline:auto;padding-inline:var(--gutter);display:flex;flex-direction:column;justify-content:flex-end;gap:1.4rem;min-height:clamp(440px,calc(100svh - 200px),740px);padding-bottom:2rem}
 .hero-nome{display:flex;flex-direction:column;pointer-events:none}
 .hero-nome span{font-family:var(--display);font-weight:600;text-transform:uppercase;font-size:clamp(2.8rem,8vw,7rem);line-height:.95;letter-spacing:-.01em}
 .hero-selo{display:flex;align-items:center;gap:.7rem}
@@ -50,7 +50,7 @@ p{margin:0}
 .hero-selo svg{width:clamp(36px,4.5vw,64px);height:auto;color:var(--text)}
 .hero-base{position:relative;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding-block:1.1rem;color:var(--muted);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase}
 @media (min-width:880px){
-  .hero-fundo{inset:0 0 0 auto;width:62%;height:100%;object-position:50% 22%}
+  .hero-fundo{inset:0 0 0 auto;width:62%;height:100%;object-position:50% 48%}
   .hero-veu{background:linear-gradient(90deg,var(--bg) 38%,rgba(20,20,20,.85) 50%,rgba(20,20,20,0) 75%),linear-gradient(0deg,var(--bg) 0%,rgba(20,20,20,0) 30%)}
   .hero-stage{justify-content:center;padding-bottom:0}
 }
