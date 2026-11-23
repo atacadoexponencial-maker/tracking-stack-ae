@@ -59,7 +59,9 @@ export async function onRequestGet({ request, env }) {
     return json({ reuniao: { ...publico, tipo_nome: tipo?.nome, crm_link: linkCrm(r.crm_situacao), origem: sessao || null }, historico: hist, emails: await emailsDaReuniao(env, r.id), comentarios: await lerComentarios(env, r.id) });
   }
 
-  const de = Number(p.get('from')) || agora() - 30 * 86400;
+  // from=0 quer dizer "desde o começo"; os 30 dias só valem quando o from não vem.
+  const deQs = Number(p.get('from') ?? NaN);
+  const de = p.get('from') !== '' && Number.isFinite(deQs) ? deQs : agora() - 30 * 86400;
   const ate = Number(p.get('to')) || agora() + 30 * 86400;
 
   if (p.get('por') === 'funil') {
