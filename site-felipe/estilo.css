@@ -222,3 +222,10 @@ footer{background:var(--deep);border-top:1px solid var(--border);padding-block:4
 @media (max-width:860px){.materiais-grid.dois{grid-template-columns:1fr}}
 
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+/* páginas legais (termos e privacidade) */
+.legal{max-width:72ch;display:flex;flex-direction:column;gap:1rem;color:var(--text-2);line-height:1.7}
+.legal h2{color:var(--text);font-size:1.25rem;font-weight:800;margin-top:1.6rem}
+.legal ul{padding-left:1.2rem;display:flex;flex-direction:column;gap:.4rem}
+.legal a{color:var(--text);text-decoration:underline}
+.foot-base a:hover{color:var(--text)}
