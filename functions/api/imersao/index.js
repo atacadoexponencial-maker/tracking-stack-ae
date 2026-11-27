@@ -5,9 +5,10 @@
 // imersao_vendas, responde com os dados de exemplo (`exemplo: true`).
 //
 // Com venda real, o tráfego vem do Meta (ad_spend, campanhas da Imersão) e as
-// visitas da página vêm do tracking do site (sessions), issue S11-01. Inícios
-// de checkout (a Zouti não envia), ranking por anúncio (a coleta do Meta é por
-// campanha) e Meet seguem como "—".
+// visitas da página vêm do tracking do site (sessions), issue S11-01. Os
+// inícios de checkout também vêm do Meta (S14-01: a Zouti os manda direto ao
+// pixel). Ranking por anúncio (a coleta do Meta é por campanha) e Meet seguem
+// como "—".
 import {
   calcularVisao, metasDasLinhas, metasEfetivas, trafegoDasLinhas, visitasDasLinhas,
   TRECHO_CAMPANHA_IMERSAO, PAGINA_IMERSAO, PRIMEIRO_DIA, DIA_EVENTO,
@@ -39,8 +40,8 @@ export async function carregarDados(env, agoraReal = Math.floor(Date.now() / 100
   if (!temIngresso) {
     return { exemplo: true, agora: AGORA_EXEMPLO, metas: metasEfetivas(salvas, METAS_EXEMPLO), dados: dadosDeExemplo() };
   }
-  const [trafego, visitas, visitasAnuncio] = await Promise.all([
-    lerTrafego(env, agoraReal), lerVisitas(env, agoraReal), lerVisitasAnuncio(env),
+  const [trafego, visitas, visitasAnuncio, iniciosCheckout] = await Promise.all([
+    lerTrafego(env, agoraReal), lerVisitas(env, agoraReal), lerVisitasAnuncio(env), lerIniciosCheckout(env),
   ]);
   return {
     exemplo: false,
@@ -52,7 +53,8 @@ export async function carregarDados(env, agoraReal = Math.floor(Date.now() / 100
       visualizacoes: visitas ? visitas.visualizacoes : null,
       visitas_por_dia: visitas ? visitas.visitas_por_dia : null,
       visitas_anuncio: visitasAnuncio,
-      inicios_checkout: null,
+      inicios_checkout: iniciosCheckout,
+      checkout_so_anuncio: iniciosCheckout !== null,
       anuncios: [],
       meet: null,
       cadastros,
@@ -130,6 +132,26 @@ async function lerVisitasAnuncio(env) {
       .reduce((s, l) => s + (Number(l.n) || 0), 0);
   } catch (e) {
     console.error('[imersao] falha ao ler as visitas de anúncio:', e?.message || e);
+    return null;
+  }
+}
+
+/**
+ * Inícios de checkout das campanhas da Imersão, do Meta (S14-01). Leitura
+ * separada do gasto: sem a coluna (migration 0073 ainda não aplicada), só as
+ * duas taxas de checkout ficam em "—".
+ */
+async function lerIniciosCheckout(env) {
+  try {
+    const r = await env.DB.prepare(`
+      SELECT COUNT(*) AS linhas, COALESCE(SUM(initiate_checkouts), 0) AS inicios
+        FROM ad_spend
+       WHERE platform = 'meta' AND date >= ? AND date <= ?
+         AND instr(lower(COALESCE(campaign_name, '')), ?) > 0
+    `).bind(PRIMEIRO_DIA, DIA_EVENTO, TRECHO_CAMPANHA_IMERSAO).first();
+    return r && Number(r.linhas) > 0 ? Number(r.inicios) || 0 : null;
+  } catch (e) {
+    console.error('[imersao] falha ao ler os inícios de checkout:', e?.message || e);
     return null;
   }
 }

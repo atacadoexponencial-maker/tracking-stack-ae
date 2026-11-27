@@ -12,3 +12,4 @@ spec.
 | S11 | — (issue avulsa) | concluidas_S11 |
 | S12 | — (issue avulsa) | concluidas_S12 |
 | S13 | — (issue avulsa) | concluidas_S13 |
+| S14 | — (issue avulsa) | concluidas_S14 |
