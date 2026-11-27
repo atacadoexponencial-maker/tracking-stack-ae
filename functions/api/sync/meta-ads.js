@@ -1,6 +1,6 @@
 // POST /api/sync/meta-ads
 //
-// Pulls spend, impressions, and clicks from Meta Marketing API v22 for the
+// Pulls spend, impressions, clicks and pixel checkouts initiated (S14-01) from Meta Marketing API v22 for the
 // configured ad account and UPSERTs them into the `ad_spend` table. Called
 // on a schedule by an external cron (see docs/ad-spend-sync.md). The
 // dashboard reads ad_spend directly — it never hits this endpoint in the
@@ -70,13 +70,13 @@ export async function onRequestPost(context) {
     } else {
       const accountId = String(env.META_ADS_ACCOUNT_ID).replace(/^act_/, '');
       const url = `https://graph.facebook.com/v22.0/act_${accountId}/insights` +
-        `?fields=campaign_id,campaign_name,spend,impressions,clicks,account_currency,date_start` +
+        `?fields=campaign_id,campaign_name,spend,impressions,clicks,actions,account_currency,date_start` +
         `&time_range=${encodeURIComponent(JSON.stringify({ since: dateFrom, until: dateTo }))}` +
         `&level=campaign` +
         `&time_increment=1` +
         `&limit=500` +
         `&access_token=${adsToken}`;
-      rows = await fetchAllPages(url);
+      rows = (await fetchAllPages(url)).map((r) => ({ ...r, initiate_checkouts: acaoDoPixel(r.actions, ACAO_INICIO_CHECKOUT) }));
     }
     // 0 linhas numa janela de uma semana ou mais NÃO é sucesso (incidente de
     // 2026-07-24→08-10: a conexão OAuth do Meta no Windsor caiu sozinha, a API
@@ -121,13 +121,24 @@ export async function onRequestPost(context) {
 // Helpers
 // -----------------------------------------------------------------------------
 
+// Inícios de checkout atribuídos aos anúncios (S14-01): o checkout da Zouti
+// envia o InitiateCheckout direto ao Meta pelo pixel, então o número só existe
+// lá. No Windsor é um campo próprio; na API direta vem dentro de `actions`.
+const CAMPO_WINDSOR_INICIO_CHECKOUT = 'actions_offsite_conversion_fb_pixel_initiate_checkout';
+const ACAO_INICIO_CHECKOUT = 'offsite_conversion.fb_pixel_initiate_checkout';
+
+function acaoDoPixel(actions, tipo) {
+  const a = (Array.isArray(actions) ? actions : []).find((x) => x && x.action_type === tipo);
+  return a ? a.value : 0;
+}
+
 // Busca o resumo diário por campanha no Windsor e devolve no MESMO formato
 // das linhas do insights da Meta, para reusar o upsertAdSpend sem mudanças.
 async function fetchWindsorRows(env, dateFrom, dateTo) {
   const url = `https://connectors.windsor.ai/facebook` +
     `?api_key=${encodeURIComponent(env.WINDSOR_API_KEY)}` +
     `&date_from=${dateFrom}&date_to=${dateTo}` +
-    `&fields=date,campaign_id,campaign,spend,impressions,clicks` +
+    `&fields=date,campaign_id,campaign,spend,impressions,clicks,${CAMPO_WINDSOR_INICIO_CHECKOUT}` +
     `&select_accounts=${encodeURIComponent(env.WINDSOR_META_ACCOUNT)}`;
   const resp = await fetch(url);
   if (!resp.ok) {
@@ -144,6 +155,7 @@ async function fetchWindsorRows(env, dateFrom, dateTo) {
       spend: r.spend,
       impressions: r.impressions,
       clicks: r.clicks,
+      initiate_checkouts: r[CAMPO_WINDSOR_INICIO_CHECKOUT],
       account_currency: 'BRL',
     }));
 }
@@ -171,8 +183,8 @@ async function upsertAdSpend(db, rows) {
 
   const stmt = db.prepare(`
     INSERT INTO ad_spend
-      (platform, date, campaign_id, campaign_name, ad_id, ad_name, spend_cents, currency, impressions, clicks, synced_at)
-    VALUES ('meta', ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?)
+      (platform, date, campaign_id, campaign_name, ad_id, ad_name, spend_cents, currency, impressions, clicks, initiate_checkouts, synced_at)
+    VALUES ('meta', ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(platform, date, campaign_id, COALESCE(ad_id, ''))
     DO UPDATE SET
       campaign_name = excluded.campaign_name,
@@ -180,6 +192,7 @@ async function upsertAdSpend(db, rows) {
       currency      = excluded.currency,
       impressions   = excluded.impressions,
       clicks        = excluded.clicks,
+      initiate_checkouts = excluded.initiate_checkouts,
       synced_at     = excluded.synced_at
   `);
 
@@ -191,6 +204,7 @@ async function upsertAdSpend(db, rows) {
     r.account_currency || 'BRL',
     parseInt(r.impressions || '0', 10) || 0,
     parseInt(r.clicks || '0', 10) || 0,
+    parseInt(r.initiate_checkouts || '0', 10) || 0,
     now,
   ));
 

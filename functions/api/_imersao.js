@@ -401,6 +401,11 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
   // (exemplo ou leitura que falhou), cai nas visitas da página.
   const visAnuncio = vazio(dados.visitas_anuncio) ? vis : Number(dados.visitas_anuncio);
   const ini = vazio(dados.inicios_checkout) ? null : Number(dados.inicios_checkout);
+  // Inícios de checkout do Meta (S14-01) contam só o que veio de anúncio:
+  // as taxas comparam com as visitas de anúncio e os ingressos do tráfego pago.
+  const soAnuncio = !!dados.checkout_so_anuncio;
+  const visCheckout = soAnuncio ? visAnuncio : vis;
+  const comprasCheckout = soAnuncio ? contaOrigem.pago : vendidos;
 
   const anuncios = (dados.anuncios || []).map((a) => {
     const nome = String(a.anuncio || '').trim().toLowerCase();
@@ -420,8 +425,8 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
     cpm: taxa(inv !== null && impr > 0 ? r2((inv / impr) * 1000) : null, null),
     ctr: taxa(t ? pct(cliques, impr) : null, REFERENCIAS.ctr),
     connect: taxa(visAnuncio !== null ? pct(visAnuncio, cliques) : null, REFERENCIAS.connect),
-    page_checkout: taxa(vis !== null && ini !== null ? pct(ini, vis) : null, REFERENCIAS.page_checkout),
-    checkout_compra: taxa(ini !== null ? pct(vendidos, ini) : null, REFERENCIAS.checkout_compra),
+    page_checkout: taxa(visCheckout !== null && ini !== null ? pct(ini, visCheckout) : null, REFERENCIAS.page_checkout),
+    checkout_compra: taxa(ini !== null ? pct(comprasCheckout, ini) : null, REFERENCIAS.checkout_compra),
     ranking: { por_vendas: porVendas, por_custo: porCusto },
     cadastros: contarCadastros(dados.cadastros, ingressos),
   };
