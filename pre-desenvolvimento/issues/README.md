@@ -12,4 +12,7 @@ spec.
 | S11 | — (issue avulsa) | concluidas_S11 |
 | S12 | — (issue avulsa) | concluidas_S12 |
 | S13 | — (issue avulsa) | concluidas_S13 |
+<<<<<<< HEAD
 | S14 | — (issue avulsa) | concluidas_S14 |
+=======
+>>>>>>> 42fb533af3d6683824a2e46c1ce755d7e738d9c9
