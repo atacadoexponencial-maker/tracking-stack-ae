@@ -462,6 +462,8 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
     ticket_medio: ticket,
     roas: inv ? r2(faturamento / inv) : null,
   };
+  // ROAS também na aba de tráfego (S13-01): o mesmo número do resultado.
+  trafego.roas = resultado.roas;
 
   const resumo = montarResumo({
     dados, agora, hoje, exemplo, faturamentoDia, pacing, trafego, bump,
