@@ -62,12 +62,19 @@ export const PAGINA_IMERSAO = '/imersao-planejamento-atacado';
 /**
  * Soma das linhas de ad_spend das campanhas da Imersão (já filtradas no SQL).
  * Sem nenhuma linha, devolve null: a tela mostra "—", nunca R$ 0 inventado.
+ * `investimento_hoje` (S12-01) soma só as linhas com `date` igual a `hoje`
+ * (dia de Brasília, como o ad_spend.date); zero quando hoje não teve gasto.
  */
-export function trafegoDasLinhas(linhas) {
+export function trafegoDasLinhas(linhas, hoje) {
   const lista = linhas || [];
   if (!lista.length) return null;
-  const soma = (campo) => lista.reduce((s, l) => s + (Number(l[campo]) || 0), 0);
-  return { investimento: soma('spend_cents') / 100, impressoes: soma('impressions'), cliques: soma('clicks') };
+  const soma = (campo, l = lista) => l.reduce((s, x) => s + (Number(x[campo]) || 0), 0);
+  return {
+    investimento: soma('spend_cents') / 100,
+    investimento_hoje: soma('spend_cents', lista.filter((l) => l.date === hoje)) / 100,
+    impressoes: soma('impressions'),
+    cliques: soma('clicks'),
+  };
 }
 
 /**
@@ -389,6 +396,10 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
   const impr = t ? Number(t.impressoes) || 0 : 0;
   const cliques = t ? Number(t.cliques) || 0 : 0;
   const vis = vazio(dados.visualizacoes) ? null : Number(dados.visualizacoes);
+  // Connect rate (S12-01): só as visitas que chegaram com UTM de campanha da
+  // Imersão, para não somar orgânico aos cliques do anúncio. Sem essa contagem
+  // (exemplo ou leitura que falhou), cai nas visitas da página.
+  const visAnuncio = vazio(dados.visitas_anuncio) ? vis : Number(dados.visitas_anuncio);
   const ini = vazio(dados.inicios_checkout) ? null : Number(dados.inicios_checkout);
 
   const anuncios = (dados.anuncios || []).map((a) => {
@@ -402,12 +413,13 @@ export function calcularVisao(dados, metas, agora, { exemplo = false } = {}) {
 
   const trafego = {
     investimento: inv,
+    investimento_hoje: t && !vazio(t.investimento_hoje) ? Number(t.investimento_hoje) : null,
     ingressos_trafego: doTrafego,
     cac: { valor: cac, alerta: alertaCac },
     cpa_teto: { valor: teto, falta_meta: verbaVazia, esperados_trafego: r1(esperadosTrafego), referencia: REFERENCIAS.cpa_teto },
     cpm: taxa(inv !== null && impr > 0 ? r2((inv / impr) * 1000) : null, null),
     ctr: taxa(t ? pct(cliques, impr) : null, REFERENCIAS.ctr),
-    connect: taxa(vis !== null ? pct(vis, cliques) : null, REFERENCIAS.connect),
+    connect: taxa(visAnuncio !== null ? pct(visAnuncio, cliques) : null, REFERENCIAS.connect),
     page_checkout: taxa(vis !== null && ini !== null ? pct(ini, vis) : null, REFERENCIAS.page_checkout),
     checkout_compra: taxa(ini !== null ? pct(vendidos, ini) : null, REFERENCIAS.checkout_compra),
     ranking: { por_vendas: porVendas, por_custo: porCusto },

@@ -110,6 +110,7 @@
   function blocoTrafego(ctx, t) {
     const f = fmt(ctx);
     const cards = [
+      card(ctx, { rotulo: 'Investido até agora', valor: f.brl(t.investimento), grande: true, nota: `hoje: ${f.brl(t.investimento_hoje) ?? '—'} · desde 16/11, campanhas de venda da Imersão` }),
       card(ctx, { rotulo: 'CAC do ingresso', valor: f.brl(t.cac.valor), alerta: t.cac.alerta, nota: t.cac.alerta ? 'acima do teto antes da reta final' : `${f.int(t.ingressos_trafego)} ingressos do tráfego` }),
       card(ctx, { rotulo: 'CPA teto', valor: f.brl(t.cpa_teto.valor), faltaMeta: t.cpa_teto.falta_meta, nota: `verba ÷ ${f.num(t.cpa_teto.esperados_trafego)} ingressos do tráfego`, ref: t.cpa_teto.referencia }),
       card(ctx, { rotulo: 'CPM', valor: f.brl(t.cpm.valor) }),
