@@ -13,6 +13,7 @@ import {
   TRECHO_CAMPANHA_IMERSAO, PAGINA_IMERSAO, PRIMEIRO_DIA, DIA_EVENTO,
 } from '../_imersao.js';
 import { ymdBrt } from '../_data-brt.js';
+import { normalizePath } from '../conversion.js';
 import { clausulasBotSql, clausulasBotIpSql } from '../../_bots.js';
 import { dadosDeExemplo, AGORA_EXEMPLO, METAS_EXEMPLO } from '../_imersao-exemplo.js';
 
@@ -38,7 +39,9 @@ export async function carregarDados(env, agoraReal = Math.floor(Date.now() / 100
   if (!temIngresso) {
     return { exemplo: true, agora: AGORA_EXEMPLO, metas: metasEfetivas(salvas, METAS_EXEMPLO), dados: dadosDeExemplo() };
   }
-  const [trafego, visitas] = await Promise.all([lerTrafego(env), lerVisitas(env, agoraReal)]);
+  const [trafego, visitas, visitasAnuncio] = await Promise.all([
+    lerTrafego(env, agoraReal), lerVisitas(env, agoraReal), lerVisitasAnuncio(env),
+  ]);
   return {
     exemplo: false,
     agora: agoraReal,
@@ -48,6 +51,7 @@ export async function carregarDados(env, agoraReal = Math.floor(Date.now() / 100
       trafego,
       visualizacoes: visitas ? visitas.visualizacoes : null,
       visitas_por_dia: visitas ? visitas.visitas_por_dia : null,
+      visitas_anuncio: visitasAnuncio,
       inicios_checkout: null,
       anuncios: [],
       meet: null,
@@ -61,15 +65,15 @@ export async function carregarDados(env, agoraReal = Math.floor(Date.now() / 100
  * `ad_spend.date` já é dia de Brasília. Falha na leitura vira null ("—"): o
  * resto da aba continua de pé.
  */
-async function lerTrafego(env) {
+async function lerTrafego(env, agora) {
   try {
     const r = await env.DB.prepare(`
-      SELECT spend_cents, impressions, clicks
+      SELECT date, spend_cents, impressions, clicks
         FROM ad_spend
        WHERE platform = 'meta' AND date >= ? AND date <= ?
          AND instr(lower(COALESCE(campaign_name, '')), ?) > 0
     `).bind(PRIMEIRO_DIA, DIA_EVENTO, TRECHO_CAMPANHA_IMERSAO).all();
-    return trafegoDasLinhas(r.results);
+    return trafegoDasLinhas(r.results, ymdBrt(agora));
   } catch (e) {
     console.error('[imersao] falha ao ler o gasto do Meta:', e?.message || e);
     return null;
@@ -97,6 +101,35 @@ async function lerVisitas(env, agora) {
     return visitasDasLinhas(r.results, ymdBrt(agora));
   } catch (e) {
     console.error('[imersao] falha ao ler as visitas da página:', e?.message || e);
+    return null;
+  }
+}
+
+/**
+ * Visitas da página que chegaram de anúncio da Imersão (S12-01): sessão com
+ * `utm_campaign` contendo o mesmo trecho do gasto. É o numerador do connect
+ * rate. Leitura separada das visitas por dia para que uma falha aqui só faça o
+ * connect rate voltar às visitas da página.
+ */
+async function lerVisitasAnuncio(env) {
+  const desde = Date.parse(`${PRIMEIRO_DIA}T00:00:00-03:00`) / 1000;
+  try {
+    const r = await env.DB.prepare(`
+      SELECT s.landing_url, COUNT(*) AS n
+        FROM sessions s
+       WHERE s.created_at >= ?
+         AND s.landing_url LIKE ?
+         AND instr(lower(COALESCE(s.utm_campaign, '')), ?) > 0
+         AND s.user_agent IS NOT NULL AND LENGTH(s.user_agent) >= 10
+         ${clausulasBotSql('s')}
+         ${clausulasBotIpSql('s')}
+       GROUP BY s.landing_url
+    `).bind(desde, `%${PAGINA_IMERSAO}%`, TRECHO_CAMPANHA_IMERSAO).all();
+    return (r.results || [])
+      .filter((l) => normalizePath(l.landing_url) === PAGINA_IMERSAO)
+      .reduce((s, l) => s + (Number(l.n) || 0), 0);
+  } catch (e) {
+    console.error('[imersao] falha ao ler as visitas de anúncio:', e?.message || e);
     return null;
   }
 }
